@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AI-Workflow Typed RPC Schemas",
+  "description": "Formal schemas for typed agent communication, checkpoints, events, and demo payloads",
+  "definitions": {
+    "AgentRequestEnvelope": {
+      "type": "object",
+      "required": ["agentName", "prompt"],
+      "properties": {
+        "agentName": { "type": "string" },
+        "prompt": { "type": "string" },
+        "options": {
+          "type": "object",
+          "properties": {
+            "role": { "type": "string" },
+            "systemPrompt": { "type": "string" },
+            "temperature": { "type": "number", "minimum": 0, "maximum": 1 },
+            "maxRetries": { "type": "integer", "minimum": 1 },
+            "mockResponse": { "type": "object" }
+          }
+        }
+      }
+    },
+    "AgentResponseEnvelope": {
+      "type": "object",
+      "required": ["agentName", "data", "success"],
+      "properties": {
+        "agentName": { "type": "string" },
+        "success": { "type": "boolean" },
+        "data": { "type": "object" },
+        "tokens": {
+          "type": "object",
+          "properties": {
+            "prompt": { "type": "integer" },
+            "completion": { "type": "integer" },
+            "total": { "type": "integer" }
+          }
+        },
+        "latencyMs": { "type": "number" }
+      }
+    },
+    "WorkflowProbeResult": {
+      "type": "object",
+      "required": ["timestamp", "system", "git", "toolchains", "env", "fingerprint"],
+      "properties": {
+        "timestamp": { "type": "string", "format": "date-time" },
+        "system": {
+          "type": "object",
+          "required": ["platform", "arch", "cpus", "totalMem"],
+          "properties": {
+            "platform": { "type": "string" },
+            "arch": { "type": "string" },
+            "cpus": { "type": "integer" },
+            "totalMem": { "type": "integer" }
+          }
+        },
+        "git": {
+          "type": "object",
+          "required": ["branch", "commit", "isDirty"],
+          "properties": {
+            "branch": { "type": "string" },
+            "commit": { "type": "string" },
+            "isDirty": { "type": "boolean" },
+            "trackingRemote": { "type": "string" }
+          }
+        },
+        "toolchains": {
+          "type": "object",
+          "required": ["node", "npm", "git"],
+          "properties": {
+            "node": { "type": "string" },
+            "npm": { "type": "string" },
+            "git": { "type": "string" },
+            "python": { "type": "string" }
+          }
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "fingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "WorkflowCheckpoint": {
+      "type": "object",
+      "required": ["stepId", "phaseId", "status", "durationMs"],
+      "properties": {
+        "stepId": { "type": "string" },
+        "phaseId": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "running", "completed", "failed", "skipped"] },
+        "input": {},
+        "output": {},
+        "error": { "type": "string" },
+        "tokens": {
+          "type": "object",
+          "properties": {
+            "prompt": { "type": "integer" },
+            "completion": { "type": "integer" }
+          }
+        },
+        "durationMs": { "type": "number" },
+        "completedAt": { "type": "string" }
+      }
+    },
+    "WorkflowEvent": {
+      "type": "object",
+      "required": ["id", "runId", "type", "timestamp", "data"],
+      "properties": {
+        "id": { "type": "string" },
+        "sequence": { "type": "integer" },
+        "workflowId": { "type": "string" },
+        "runId": { "type": "string" },
+        "stepId": { "type": "string" },
+        "phaseId": { "type": "string" },
+        "type": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "data": {}
+      }
+    }
+  }
+}

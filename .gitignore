@@ -1,0 +1,47 @@
+# Node dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Dynamic runtime state & sqlite databases
+.workflow/
+*.db
+*.db-wal
+*.db-shm
+events.jsonl
+
+# Temporary debug test logs
+*.txt
+debug_t2_full.txt
+tier2_debug.txt
+tier2_out.txt
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# IDE & OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Mandatory Kiro configuration MUST BE TRACKED IN GIT
+!/.kiro/
+!/.kiro/**
+
+# Ignore ephemeral caches, logs and locks
+/.kiro/sessions/
+/.kiro/**/*.lock
+/.kiro/**/*.tmp
+/.kiro/logs/
+dist-facade-test/
+coverage/

@@ -1,0 +1,40 @@
+name: "🐛 缺陷修复 (Bug Report)"
+description: "报告系统缺陷、异常行为或测试失败"
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请遵循证据驱动原则，提供明确的复现步骤、预期行为与日志指纹。
+  - type: textarea
+    id: summary
+    attributes:
+      label: "1. 缺陷现象与复现步骤 (Symptom & Reproduction)"
+      description: "发生了什么异常？如何稳定复现？"
+      placeholder: "执行命令：...\n期望输出：...\n实际输出：..."
+    validations:
+      required: true
+  - type: textarea
+    id: root_cause
+    attributes:
+      label: "2. 根因分析 (Root Cause Analysis)"
+      description: "定位到的代码缺陷原因或环境冲突"
+    validations:
+      required: true
+  - type: textarea
+    id: remediation
+    attributes:
+      label: "3. 修复方案与防范措施 (Fix Plan & Prevention)"
+      description: "就地修改方案，以及防止同类问题再次发生的具体措施"
+    validations:
+      required: true
+  - type: textarea
+    id: dod
+    attributes:
+      label: "4. 验收标准 (DoD)"
+      value: |
+        - [ ] 复现用例已转化为自动化单测
+        - [ ] 本机测试 100% 通过（pass N, fail 0）
+    validations:
+      required: true

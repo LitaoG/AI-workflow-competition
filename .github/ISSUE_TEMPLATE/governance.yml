@@ -1,0 +1,33 @@
+name: "🛡️ 架构与治理 (Architecture & Governance)"
+description: "规范治理、门禁建设、文档同步或防腐演进"
+title: "[Governance] "
+labels: ["governance"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        本模板用于多 Agent 规范建设、自动化门禁脚本增强、架构约束锁死等治理任务。
+  - type: textarea
+    id: goal
+    attributes:
+      label: "1. 治理诉求与防范风险"
+      description: "治理的目标是什么？旨在消除哪类流程漏洞？"
+    validations:
+      required: true
+  - type: textarea
+    id: plan
+    attributes:
+      label: "2. 治理实施规划"
+      description: "涉及的规范文件（docs/WORKFLOW.md、docs/README.md 等）与锁定测试"
+    validations:
+      required: true
+  - type: textarea
+    id: dod
+    attributes:
+      label: "3. 验收标准"
+      value: |
+        - [ ] 治理规范由自动化测试用例机械锁死（在 tests/ 下新增或更新对应测试）
+        - [ ] 权威文档 docs/README.md 索引同步更新
+        - [ ] 独立 Worktree 实施并完成收尾清理
+    validations:
+      required: true

@@ -1,0 +1,38 @@
+flowchart LR
+  subgraph phase-1-baseline-gate["Baseline Test Gate"]
+    step-1-baseline-gate{{Verify Clean Repository Baseline Gate}}:::pending
+  end
+  subgraph phase-2-ast-scan-arch["AST Scan & Migration Architecture"]
+    step-2a-ast-scan["Deterministic AST Codebase Scanner"]:::pending
+    step-2b-architect["Migration Architecture & Topological Ordering (MigrationArchitectAgent)"]:::pending
+  end
+  subgraph phase-3-parallel-transform["Parallel Fan-Out Workers & Paired Code Reviewers"]
+    step-3a-worker-s3["Transform S3 Client Service (CodeTransformerAgent - S3)"]:::pending
+    step-3a-reviewer-s3["Paired Code Review & AST Verification (CodeReviewerAgent - S3)"]:::pending
+    step-3b-worker-dynamo["Transform DynamoDB Client Service (CodeTransformerAgent - DynamoDB)"]:::pending
+    step-3b-reviewer-dynamo["Paired Code Review & AST Verification (CodeReviewerAgent - DynamoDB)"]:::pending
+    step-3c-worker-sqs["Transform SQS Client Service (CodeTransformerAgent - SQS)"]:::pending
+    step-3c-reviewer-sqs["Paired Code Review & AST Verification (CodeReviewerAgent - SQS)"]:::pending
+  end
+  subgraph phase-4-post-merge-gate["Compiler Diagnostics & Post-Merge Test Gate"]
+    step-4-post-merge-gate{{Compiler Diagnostics & Post-Merge Verification Gate}}:::pending
+  end
+  subgraph phase-5-release-synthesis["Release Synthesis & PR Generation"]
+    step-5-summary["Release Synthesis & PR Generation (MigrationSummaryAgent)"]:::pending
+  end
+  step-1-baseline-gate --> step-2a-ast-scan
+  step-2a-ast-scan --> step-2b-architect
+  step-2b-architect --> step-3a-worker-s3
+  step-3a-worker-s3 --> step-3a-reviewer-s3
+  step-2b-architect --> step-3b-worker-dynamo
+  step-3b-worker-dynamo --> step-3b-reviewer-dynamo
+  step-2b-architect --> step-3c-worker-sqs
+  step-3c-worker-sqs --> step-3c-reviewer-sqs
+  step-3a-reviewer-s3 --> step-4-post-merge-gate
+  step-3b-reviewer-dynamo --> step-4-post-merge-gate
+  step-3c-reviewer-sqs --> step-4-post-merge-gate
+  step-4-post-merge-gate --> step-5-summary
+  classDef completed fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#fff;
+  classDef running fill:#78350f,stroke:#f59e0b,stroke-width:2px,color:#fff;
+  classDef failed fill:#7f1d1d,stroke:#ef4444,stroke-width:2px,color:#fff;
+  classDef pending fill:#1e293b,stroke:#475569,stroke-width:1px,color:#94a3b8;

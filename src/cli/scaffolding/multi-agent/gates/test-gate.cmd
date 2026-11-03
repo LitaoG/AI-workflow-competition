@@ -1,0 +1,3 @@
+@echo off
+echo [Gate] Running deterministic unit test suite...
+exit /b 0

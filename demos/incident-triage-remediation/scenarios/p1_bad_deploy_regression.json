@@ -1,0 +1,98 @@
+{
+  "id": "p1_bad_deploy_regression",
+  "name": "Production Payment Gateway CrashLoop Post-Release",
+  "description": "Deployment v2.4.12 introduced null pointer dereference in billingAddress, causing 65.4% HTTP 500 error rate on checkout payments",
+  "severity": "P1",
+  "serviceName": "payment-gateway-service",
+  "alert": {
+    "alertId": "ALERT-PD-89240",
+    "source": "Datadog / PagerDuty",
+    "timestamp": "2026-10-31T15:10:05Z",
+    "summary": "CRITICAL: payment-gateway-service HTTP 500 error rate jumped to 65.4% following deployment v2.4.12",
+    "details": "Crash loop and unhandled exceptions in POST /api/v1/payments/charge. Revenue impacting."
+  },
+  "telemetry": {
+    "serviceName": "payment-gateway-service",
+    "healthCheckStatus": "UNHEALTHY",
+    "http5xxRatePercent": 65.4,
+    "p99LatencyMs": 340,
+    "activeDbConnections": 18,
+    "maxDbConnections": 100,
+    "cpuUtilizationPercent": 34.1,
+    "memoryUtilizationPercent": 41.0,
+    "recentCommits": [
+      {
+        "hash": "7f8a9b2",
+        "author": "alice-dev <alice@acme.corp>",
+        "message": "feat(checkout): optimize payment token validation pipeline",
+        "timestamp": "2026-10-31T14:58:20Z",
+        "filesChanged": ["src/handlers/checkout.ts", "src/services/token.ts"]
+      },
+      {
+        "hash": "2e1c4a0",
+        "author": "ci-bot <bot@acme.corp>",
+        "message": "chore(release): bump version to v2.4.12 [skip ci]",
+        "timestamp": "2026-10-31T15:02:10Z",
+        "filesChanged": ["package.json"]
+      }
+    ],
+    "recentLogErrors": [
+      "[FATAL] 2026-10-31T15:08:44.821Z TypeError: Cannot read properties of undefined (reading 'billingAddress') at processCheckoutToken (src/handlers/checkout.ts:84:22)",
+      "[ERROR] 2026-10-31T15:09:12.109Z UnhandledPromiseRejection: Checkout transaction failed for orderId=ord_91829381",
+      "[ERROR] 2026-10-31T15:09:30.540Z HTTP 500 Internal Server Error returned for POST /api/v1/payments/charge"
+    ]
+  },
+  "expectedDiagnosis": {
+    "incidentId": "INC-20261031-PAY500",
+    "severity": "P1",
+    "failureDomain": "CODE_REGRESSION",
+    "suspectedCommitHash": "7f8a9b2",
+    "rootCauseAnalysis": "Regression introduced in commit 7f8a9b2 (feat(checkout): optimize payment token validation pipeline). Missing optional chaining check when dereferencing 'billingAddress' in payload, throwing unhandled TypeError on all guest checkout transactions without saved profiles.",
+    "confidenceScore": 0.99,
+    "affectedEndpoints": ["/api/v1/payments/charge", "/api/v1/payments/tokenize"],
+    "recommendedStrategy": "GIT_ROLLBACK"
+  },
+  "remediationPlan": {
+    "strategy": "GIT_ROLLBACK",
+    "rationale": "Roll back Kubernetes deployment to previous stable image (v2.4.11) and revert commit 7f8a9b2 in git repository to restore payment processing availability immediately.",
+    "actions": [
+      {
+        "order": 1,
+        "command": "node -e \"console.log('ROLLOUT_UNDO: rolled back deployment to revision 2')\"",
+        "description": "Rollback Kubernetes deployment to prior stable release (v2.4.11)",
+        "isDestructive": false,
+        "rollbackCommand": "node -e \"console.log('ROLLOUT_REAPPLY: reapplied revision 3')\""
+      },
+      {
+        "order": 2,
+        "command": "node -e \"console.log('GIT_REVERT: reverted commit 7f8a9b2')\"",
+        "description": "Revert breaking commit in git repository to maintain master branch health",
+        "isDestructive": false,
+        "rollbackCommand": "node -e \"console.log('GIT_CHERRYPICK: cherrypicked 7f8a9b2')\""
+      },
+      {
+        "order": 3,
+        "command": "node -e \"console.log('HOTFIX_TAG: tagged v2.4.13-hotfix')\"",
+        "description": "Create hotfix release tag for version tracking",
+        "isDestructive": false,
+        "rollbackCommand": "node -e \"console.log('NOOP')\""
+      }
+    ],
+    "estimatedRecoveryTimeSeconds": 30,
+    "riskLevel": "LOW"
+  },
+  "safetyReview": {
+    "approved": true,
+    "safetyScore": 0.99,
+    "prohibitedCommandsDetected": [],
+    "policyCompliance": "PASS",
+    "riskMitigationNotes": "Rollout undo targets verified pre-release image tag v2.4.11 with 100% test pass record. Zero database schema migrations involved in commit 7f8a9b2, ensuring backwards-compatible rollback."
+  },
+  "postRemediationTelemetry": {
+    "healthCheckStatus": "HEALTHY",
+    "http5xxRatePercent": 0.00,
+    "p99LatencyMs": 85,
+    "activeDbConnections": 20,
+    "maxDbConnections": 100
+  }
+}

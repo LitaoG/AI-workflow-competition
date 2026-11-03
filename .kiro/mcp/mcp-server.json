@@ -1,0 +1,41 @@
+{
+  "$schema": "https://modelcontextprotocol.io/schema/mcp-server.json",
+  "mcpServers": {
+    "ai-workflow-engine": {
+      "command": "node",
+      "args": ["dist/src/cli/index.js", "mcp", "serve"],
+      "env": {
+        "AI_WORKFLOW_ENV": "production",
+        "NODE_ENV": "production"
+      },
+      "description": "Exposes AI-Workflow dynamic slash-command engine tools to Kiro and LLM agents",
+      "tools": [
+        {
+          "name": "workflow_run",
+          "description": "Execute an AI-Workflow by file path with options, state persistence, and event logging",
+          "aliases": ["run_workflow"]
+        },
+        {
+          "name": "workflow_probe",
+          "description": "Execute deterministic system, git, and toolchain environment probing with secret redaction",
+          "aliases": ["probe_environment"]
+        },
+        {
+          "name": "workflow_inspect",
+          "description": "Inspect step checkpoints, events, and artifacts of a workflow run from SQLite store",
+          "aliases": ["query_state"]
+        },
+        {
+          "name": "workflow_replay",
+          "description": "Replay or resume a workflow run from failure with zero re-token spend",
+          "aliases": ["resume_workflow"]
+        },
+        {
+          "name": "workflow_graph",
+          "description": "Generate static DAG graph visualization without execution (HTML, Mermaid, or ASCII)",
+          "aliases": ["export_dag"]
+        }
+      ]
+    }
+  }
+}

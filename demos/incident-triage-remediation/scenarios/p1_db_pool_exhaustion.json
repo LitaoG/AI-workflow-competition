@@ -1,0 +1,98 @@
+{
+  "id": "p1_db_pool_exhaustion",
+  "name": "Production Database Connection Pool Exhaustion",
+  "description": "High checkout concurrency saturates RDS connection pool at 100/100, triggering cascading HTTP 500 errors across checkout API",
+  "severity": "P1",
+  "serviceName": "order-checkout-api",
+  "alert": {
+    "alertId": "ALERT-PD-89102",
+    "source": "CloudWatch / PagerDuty",
+    "timestamp": "2026-10-31T14:22:10Z",
+    "summary": "CRITICAL: order-checkout-api HTTP 500 error rate spiked to 38.5% (Threshold: >1.0%)",
+    "details": "Spike in unhandled 500 responses across /api/v1/orders and /api/v1/checkout. Database connection queue depth exceeding 400."
+  },
+  "telemetry": {
+    "serviceName": "order-checkout-api",
+    "healthCheckStatus": "UNHEALTHY",
+    "http5xxRatePercent": 38.5,
+    "p99LatencyMs": 4850,
+    "activeDbConnections": 100,
+    "maxDbConnections": 100,
+    "cpuUtilizationPercent": 46.2,
+    "memoryUtilizationPercent": 61.8,
+    "recentCommits": [
+      {
+        "hash": "c4d9e1a",
+        "author": "dev-infra <infra@acme.corp>",
+        "message": "perf(db): decrease idle connection timeout from 30s to 5s",
+        "timestamp": "2026-10-31T13:45:00Z",
+        "filesChanged": ["config/database.json", "src/pool.ts"]
+      },
+      {
+        "hash": "b2e8f10",
+        "author": "frontend-team <web@acme.corp>",
+        "message": "fix(ui): update holiday banner styling",
+        "timestamp": "2026-10-31T12:30:00Z",
+        "filesChanged": ["public/banner.css"]
+      }
+    ],
+    "recentLogErrors": [
+      "[ERROR] 2026-10-31T14:21:45.102Z [pool-worker] TimeoutError: ResourceRequest timed out after 5000ms. Available: 0, Allocated: 100, Pending: 412",
+      "[ERROR] 2026-10-31T14:22:01.442Z [http-handler] 500 Internal Server Error: POST /api/v1/checkout - Failed to obtain db connection",
+      "[WARN] 2026-10-31T14:22:05.110Z [healthz] Service degraded: Database ping timed out after 3000ms"
+    ]
+  },
+  "expectedDiagnosis": {
+    "incidentId": "INC-20261031-DB100",
+    "severity": "P1",
+    "failureDomain": "DATABASE_EXHAUSTION",
+    "suspectedCommitHash": "c4d9e1a",
+    "rootCauseAnalysis": "Database connection pool saturated at 100/100 under surge traffic. Connections are not recycled fast enough due to prolonged queries and aggressive idle timeout in commit c4d9e1a, causing connection acquisition timeouts (5000ms) and cascading HTTP 500 errors across checkout API endpoints.",
+    "confidenceScore": 0.98,
+    "affectedEndpoints": ["/api/v1/orders", "/api/v1/checkout", "/healthz"],
+    "recommendedStrategy": "EXPAND_CONNECTION_POOL"
+  },
+  "remediationPlan": {
+    "strategy": "EXPAND_CONNECTION_POOL",
+    "rationale": "Immediately expand max connection pool size from 100 to 250 in RDS parameter group, scale deployment replicas to distribute traffic, and restart connection pool workers to drain waiting queues.",
+    "actions": [
+      {
+        "order": 1,
+        "command": "node -e \"console.log('POOL_EXPAND: max_connections scaled to 250')\"",
+        "description": "Expand RDS database parameter group max_connections limit to 250",
+        "isDestructive": false,
+        "rollbackCommand": "node -e \"console.log('POOL_RESET: max_connections reset to 100')\""
+      },
+      {
+        "order": 2,
+        "command": "node -e \"console.log('REPLICAS_SCALE: replicas scaled to 8')\"",
+        "description": "Scale out checkout API pods to distribute incoming query concurrency",
+        "isDestructive": false,
+        "rollbackCommand": "node -e \"console.log('REPLICAS_RESET: replicas scaled to 4')\""
+      },
+      {
+        "order": 3,
+        "command": "node -e \"console.log('ROLLOUT_RESTART: completed rolling restart')\"",
+        "description": "Restart pods in rolling fashion to establish fresh database pool connections",
+        "isDestructive": false,
+        "rollbackCommand": "node -e \"console.log('NOOP')\""
+      }
+    ],
+    "estimatedRecoveryTimeSeconds": 45,
+    "riskLevel": "LOW"
+  },
+  "safetyReview": {
+    "approved": true,
+    "safetyScore": 0.98,
+    "prohibitedCommandsDetected": [],
+    "policyCompliance": "PASS",
+    "riskMitigationNotes": "Non-destructive configuration scaling. Database parameter modification is within db.r6g.xlarge RAM capacity (capable of 1000+ connections). Rolling restart maintains 75% pod availability."
+  },
+  "postRemediationTelemetry": {
+    "healthCheckStatus": "HEALTHY",
+    "http5xxRatePercent": 0.02,
+    "p99LatencyMs": 115,
+    "activeDbConnections": 42,
+    "maxDbConnections": 250
+  }
+}

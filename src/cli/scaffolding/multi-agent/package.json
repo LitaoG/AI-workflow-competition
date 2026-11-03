@@ -1,0 +1,12 @@
+{
+  "name": "multi-agent-workflow",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "workflow run workflow.ts --mock",
+    "graph": "workflow graph workflow.ts --format html"
+  },
+  "dependencies": {
+    "ai-workflow": "workspace:*"
+  }
+}

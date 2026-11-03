@@ -1,0 +1,101 @@
+{
+  "name": "ai-workflow",
+  "version": "1.0.0",
+  "description": "Extensible dynamic workflow slash-command engine inspired by ZCode (\"Code, not conversation\", typed agent RPCs, deterministic environment probing, durable replay, DAG visualization, MCP integration)",
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "bin": {
+    "workflow": "./bin/workflow.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
+    },
+    "./core": {
+      "types": "./dist/src/core/workflow.d.ts",
+      "import": "./dist/src/core/workflow.js"
+    },
+    "./agent": {
+      "types": "./dist/src/agent/rpc.d.ts",
+      "import": "./dist/src/agent/rpc.js"
+    },
+    "./dag": {
+      "types": "./dist/src/dag/visualizer.d.ts",
+      "import": "./dist/src/dag/visualizer.js"
+    },
+    "./mcp": {
+      "types": "./dist/src/mcp/client.d.ts",
+      "import": "./dist/src/mcp/client.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "postinstall": "node scripts/link-self.mjs && node scripts/bootstrap-fixtures.mjs",
+    "start": "node bin/workflow.js",
+    "test": "node scripts/link-self.mjs && node scripts/bootstrap-fixtures.mjs && node --test dist/tests/unit/**/*.test.js dist/tests/integration/**/*.test.js",
+    "test:unit": "node --test dist/tests/unit/**/*.test.js",
+    "test:integration": "node --test dist/tests/integration/**/*.test.js",
+    "test:pbt": "node --test .kiro/pbt/**/*.test.ts",
+    "test:e2e": "node scripts/link-self.mjs && node scripts/bootstrap-fixtures.mjs && node --experimental-strip-types tests/e2e/runner.ts",
+    "test:adversarial": "node scripts/link-self.mjs && node scripts/bootstrap-fixtures.mjs && node --test tests/adversarial/*.test.js tests/adversarial/demo1-dag-stress.js tests/adversarial/demo1-safety-stress.js tests/adversarial/demo2-concurrency-resumption-stress.js",
+    "coverage": "c8 --reporter=text --reporter=html npm test",
+    "gate": "npm run build && npm test && npm run test:e2e && npm run test:adversarial && npm run test:pbt",
+    "gate:review": "node --experimental-strip-types scripts/pr_review_gate.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "commander": "^12.1.0",
+    "typescript": "^5.6.3",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.8.0",
+    "c8": "^12.0.0",
+    "fast-check": "^3.22.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "license": "Apache-2.0",
+  "files": [
+    "bin",
+    "dist",
+    "scripts",
+    "skills",
+    "docs/INTEGRATION.md",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "prepublishOnly": "npm run build && npm test",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LitaoG/AI-workflow.git"
+  },
+  "keywords": [
+    "ai-agents",
+    "deterministic-replay",
+    "dynamic-workflows",
+    "facade-script",
+    "mcp"
+  ],
+  "c8": {
+    "include": [
+      "dist/src/dwf/compile.js",
+      "dist/src/dwf/engine.js",
+      "dist/src/dwf/runner.js",
+      "dist/src/domain/**/*.js",
+      "dist/src/process-supervision.js"
+    ],
+    "reporter": [
+      "text",
+      "html"
+    ],
+    "report-dir": "coverage",
+    "check-coverage": true,
+    "per-file": true,
+    "lines": 84
+  }
+}

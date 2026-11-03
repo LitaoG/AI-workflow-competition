@@ -1,0 +1,91 @@
+{
+  "id": "p2_high_latency_leak",
+  "name": "Catalog Search Indexer Memory Leak & GC Stalls",
+  "description": "Unbounded cache in search indexer consumes 96.8% heap, triggering 3.2s GC pauses and P99 latency spike to 4,200ms",
+  "severity": "P2",
+  "serviceName": "catalog-search-indexer",
+  "alert": {
+    "alertId": "ALERT-PR-55104",
+    "source": "Prometheus / AlertManager",
+    "timestamp": "2026-10-31T16:05:00Z",
+    "summary": "WARNING: catalog-search-indexer P99 latency exceeded SLA (4,200ms vs SLA 200ms); Node memory >95%",
+    "details": "Progressive memory degradation over 3 hours. Full GC pauses lasting 3.2s causing request timeouts."
+  },
+  "telemetry": {
+    "serviceName": "catalog-search-indexer",
+    "healthCheckStatus": "DEGRADED",
+    "http5xxRatePercent": 4.2,
+    "p99LatencyMs": 4200,
+    "activeDbConnections": 25,
+    "maxDbConnections": 100,
+    "cpuUtilizationPercent": 94.0,
+    "memoryUtilizationPercent": 96.8,
+    "recentCommits": [
+      {
+        "hash": "4a3b2c1",
+        "author": "search-eng <search@acme.corp>",
+        "message": "perf: cache recent search queries in local LRU map",
+        "timestamp": "2026-10-31T12:30:00Z",
+        "filesChanged": ["src/cache/lru.ts"]
+      }
+    ],
+    "recentLogErrors": [
+      "[WARN] 2026-10-31T16:01:22.012Z GC pause duration exceeded threshold: scavenge took 1850ms, mark-sweep took 3200ms",
+      "[WARN] 2026-10-31T16:02:40.890Z JavaScript heap out of memory approaching limit (3920 MB / 4096 MB)",
+      "[ERROR] 2026-10-31T16:04:15.331Z RequestTimeout: GET /api/v1/search?q=wireless+headphones exceeded 5000ms"
+    ]
+  },
+  "expectedDiagnosis": {
+    "incidentId": "INC-20261031-MEMLEAK",
+    "severity": "P2",
+    "failureDomain": "MEMORY_LEAK_OOM",
+    "suspectedCommitHash": "4a3b2c1",
+    "rootCauseAnalysis": "Unbounded memory accumulation in local query cache (src/cache/lru.ts introduced in commit 4a3b2c1). Cache lacks TTL expiration and eviction bounds under high unique search queries, triggering full garbage collection pauses of 3+ seconds.",
+    "confidenceScore": 0.94,
+    "affectedEndpoints": ["/api/v1/search", "/api/v1/autocomplete"],
+    "recommendedStrategy": "RESTART_PODS"
+  },
+  "remediationPlan": {
+    "strategy": "RESTART_PODS",
+    "rationale": "Perform rolling restart of search pods to immediately release bloated heaps, scale replicas from 6 to 12 to halve per-pod query pressure, and increase heap limit to 6GB while a permanent TTL patch is developed.",
+    "actions": [
+      {
+        "order": 1,
+        "command": "node -e \"console.log('REPLICAS_SCALE: scaled to 12')\"",
+        "description": "Scale replicas to 12 to halve per-pod query load",
+        "isDestructive": false,
+        "rollbackCommand": "node -e \"console.log('REPLICAS_RESET: scaled to 6')\""
+      },
+      {
+        "order": 2,
+        "command": "node -e \"console.log('ROLLOUT_RESTART: rolling restart executed')\"",
+        "description": "Perform rolling restart to reclaim leaked memory across pods",
+        "isDestructive": false,
+        "rollbackCommand": "node -e \"console.log('NOOP')\""
+      },
+      {
+        "order": 3,
+        "command": "node -e \"console.log('HEADROOM_EXPAND: max-old-space-size set to 6144')\"",
+        "description": "Increase heap headroom to 6GB as safety buffer",
+        "isDestructive": false,
+        "rollbackCommand": "node -e \"console.log('HEADROOM_RESET: max-old-space-size set to 4096')\""
+      }
+    ],
+    "estimatedRecoveryTimeSeconds": 60,
+    "riskLevel": "LOW"
+  },
+  "safetyReview": {
+    "approved": true,
+    "safetyScore": 0.96,
+    "prohibitedCommandsDetected": [],
+    "policyCompliance": "PASS",
+    "riskMitigationNotes": "Rolling restart maintains minimum available 75% pod threshold, preventing search traffic disruption. Node cluster has 64GB available RAM to absorb replica scale and 6GB heap allocation."
+  },
+  "postRemediationTelemetry": {
+    "healthCheckStatus": "HEALTHY",
+    "http5xxRatePercent": 0.00,
+    "p99LatencyMs": 95,
+    "activeDbConnections": 22,
+    "maxDbConnections": 100
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "name": "ai-workflow-skeleton-crew",
+  "category": "Skeleton Crew",
+  "version": "1.0.0",
+  "description": "Multi-agent team topology and role specs for AI-Workflow dynamic execution",
+  "roster": [
+    {
+      "id": "inspector",
+      "name": "Inspector",
+      "role": "inspector",
+      "description": "System, git, toolchain, and telemetry environment prober",
+      "model": "auto",
+      "tools": ["workflow_probe", "workflow_inspect", "fs_read"]
+    },
+    {
+      "id": "architect",
+      "name": "Architect",
+      "role": "architect",
+      "description": "Dynamic workflow DAG decomposition, schema design, and graph visualizer",
+      "model": "auto",
+      "tools": ["workflow_graph", "fs_read"]
+    },
+    {
+      "id": "worker",
+      "name": "Worker",
+      "role": "worker",
+      "description": "Domain task executor for code migration, incident patching, and remediation",
+      "model": "auto",
+      "tools": ["workflow_run", "fs_read", "fs_write", "edit_file"]
+    },
+    {
+      "id": "reviewer",
+      "name": "Reviewer",
+      "role": "reviewer",
+      "description": "Code review auditor, schema compliance verifier, and safety inspector",
+      "model": "auto",
+      "tools": ["fs_read", "diff_inspect", "workflow_inspect"]
+    },
+    {
+      "id": "gatekeeper",
+      "name": "GateKeeper",
+      "role": "gatekeeper",
+      "description": "Deterministic shell gate executor, journal hash auditor, and test baseline verifier",
+      "model": "auto",
+      "tools": ["execute_gate_script", "workflow_inspect", "workflow_replay"]
+    }
+  ],
+  "topologies": {
+    "serial": {
+      "name": "Serial Sequential Pipeline",
+      "pattern": "inspector -> architect -> worker -> reviewer -> gatekeeper"
+    },
+    "parallel_fanout": {
+      "name": "Parallel Subagent Fan-out",
+      "pattern": "architect -> [worker_1, worker_2, ..., worker_N] -> gatekeeper",
+      "concurrency": "Promise.all"
+    },
+    "hierarchical_paired": {
+      "name": "Paired Fixer & Reviewer Loop",
+      "pattern": "inspector -> [worker <-> reviewer] -> gatekeeper"
+    }
+  }
+}

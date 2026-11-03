@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI-Workflow — Code, not conversation</title>
+<style>
+  :root { color-scheme: dark; --bg:#0d1117; --panel:#161b22; --line:#21262d; --fg:#c9d1d9; --dim:#8b949e; --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --bad:#f85149; }
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--fg); margin: 0; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+  h1 { font-size: 2rem; margin: 0 0 .3rem; } h1 .accent { color: var(--acc); }
+  h2 { font-size: 1.15rem; border-bottom: 1px solid var(--line); padding-bottom: .4rem; margin-top: 2.6rem; }
+  .tagline { font-size: 1.05rem; color: var(--dim); margin: 0 0 1rem; }
+  .badges span { display: inline-block; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: .18rem .7rem; margin: .15rem .3rem .15rem 0; font-size: .8rem; }
+  code, pre { font-family: ui-monospace, Consolas, monospace; }
+  code { background: var(--panel); border-radius: 4px; padding: .1rem .35rem; font-size: .85em; }
+  pre { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: .8rem 1rem; overflow-x: auto; font-size: .82rem; line-height: 1.5; }
+  pre .k { color: #ff7b72; } pre .s { color: #a5d6ff; } pre .c { color: #8b949e; } pre .ok { color: var(--ok); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: .8rem; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .9rem 1rem; }
+  .card b { color: var(--acc); display: block; margin-bottom: .3rem; }
+  .card p { margin: 0; font-size: .88rem; color: var(--dim); }
+  table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+  td { padding: .45rem .6rem; border-top: 1px solid var(--line); vertical-align: top; }
+  td:first-child { color: var(--acc); white-space: nowrap; }
+  .mode { border-left: 3px solid var(--bad); padding-left: .9rem; margin: .9rem 0; }
+  .mode b { color: var(--bad); } .mode .fix { color: var(--ok); }
+  svg { max-width: 100%; height: auto; }
+  a { color: var(--acc); text-decoration: none; } a:hover { text-decoration: underline; }
+  .footer { margin-top: 3rem; color: var(--dim); font-size: .8rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>AI<span class="accent">-</span>Workflow</h1>
+<p class="tagline">A deterministic dynamic-workflow engine — the plan lives in <b>compiled code</b>, not in one agent's context window.</p>
+<div class="badges">
+  <span>Apache-2.0</span><span>Node 22+</span><span>zero runtime deps</span><span>201 tests green</span><span>MCP native</span><span>offline demo &lt;4s</span>
+</div>
+
+<h2>The three agentic failure modes — structurally fixed</h2>
+<div class="mode"><b>Agentic laziness</b> — "35 of 50 done" <span class="fix">→ the script owns the worklist: fan-outs, loops and gates are code, so coverage is structural.</span></div>
+<div class="mode"><b>Self-preferential bias</b> — grading its own work <span class="fix">→ every transform is reviewed by a different agent; verdicts need independent reproduction.</span></div>
+<div class="mode"><b>Goal drift</b> — fidelity erodes across turns <span class="fix">→ each ask gets a fresh narrow context; the plan lives in the script, immune to compaction.</span></div>
+<div class="mode"><b>Cost drift</b> — iteration re-pays everything <span class="fix">→ the journal replays completed nodes at zero provider calls; you only pay for what changed.</span></div>
+
+<h2>One run, end to end</h2>
+<pre><span class="c">$ node bin/workflow.js run-script demos/incident-triage-remediation/facade.workflow.ts \</span>
+<span class="c">    --cwd demos/incident-triage-remediation --args '{"scenario":"p1_db_pool_exhaustion"}'</span>
+
+--- Phase 1: Detection &amp; Telemetry Probing ---
+  <span class="ok">✔</span> step-1-probe (Deterministic Telemetry &amp; Git Probing)
+--- Phase 2: Triage &amp; Root Cause Analysis ---
+  agent: inspector
+  ask → inspector (ask#2)
+  <span class="ok">✔</span> ask done (ask#2)
+--- Phase 3: Remediation Synthesis &amp; Safety Pair Review ---
+  ...
+<span class="ok">✔ run dwfrun-… completed in 0.60s</span>
+  asks: 4 (replayed from journal: 0)
+  result: {<span class="s">"tripped"</span>:true,<span class="s">"severity"</span>:<span class="s">"P1"</span>,<span class="s">"gates"</span>:<span class="s">"passed"</span>, ...}</pre>
+<pre><span class="c"># Re-run after editing one step — completed nodes replay for free:</span>
+<span class="c">$ node bin/workflow.js run-script … --resume dwfrun-…</span>
+  ⚡ replayed from journal: ask#2#1 (0 provider calls)
+  ⚡ replayed from journal: escalate#4#1 (0 provider calls)
+<span class="ok">✔</span> asks: 0 (replayed from journal: 2)</pre>
+
+<h2>How a script becomes an orchestrated run</h2>
+<svg viewBox="0 0 900 150" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="pipeline">
+  <defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#58a6ff"/></marker></defs>
+  <g font-family="ui-monospace,Consolas,monospace" font-size="11" fill="#c9d1d9">
+    <rect x="8"   y="45" width="128" height="56" rx="8" fill="#161b22" stroke="#21262d"/><text x="26" y="68">facade script</text><text x="26" y="84" fill="#8b949e">TypeScript</text>
+    <rect x="176" y="45" width="128" height="56" rx="8" fill="#161b22" stroke="#21262d"/><text x="186" y="68">compiler</text><text x="186" y="84" fill="#8b949e">virtual host · strict</text>
+    <rect x="344" y="45" width="128" height="56" rx="8" fill="#161b22" stroke="#21262d"/><text x="354" y="68">sandbox</text><text x="354" y="84" fill="#8b949e">child + vm realm</text>
+    <rect x="512" y="45" width="128" height="56" rx="8" fill="#161b22" stroke="#21262d"/><text x="524" y="68">engine</text><text x="524" y="84" fill="#8b949e">journal short-circuit</text>
+    <rect x="680" y="45" width="128" height="56" rx="8" fill="#161b22" stroke="#21262d"/><text x="692" y="68">workers</text><text x="692" y="84" fill="#8b949e">agents / CLIs / gates</text>
+    <rect x="512" y="118" width="128" height="26" rx="8" fill="#161b22" stroke="#21262d"/><text x="524" y="135" fill="#8b949e">SQLite journal</text>
+    <line x1="136" y1="73" x2="172" y2="73" stroke="#58a6ff" marker-end="url(#a)"/>
+    <line x1="304" y1="73" x2="340" y2="73" stroke="#58a6ff" marker-end="url(#a)"/>
+    <line x1="472" y1="73" x2="508" y2="73" stroke="#58a6ff" marker-end="url(#a)"/>
+    <line x1="640" y1="73" x2="676" y2="73" stroke="#58a6ff" marker-end="url(#a)"/>
+    <line x1="576" y1="101" x2="576" y2="114" stroke="#8b949e" marker-end="url(#a)"/>
+  </g>
+</svg>
+
+<h2>What's inside</h2>
+<div class="grid">
+  <div class="card"><b>Facade compiler</b><p>Strict TypeScript against one ambient <code>.d.ts</code> in a fully virtual CompilerHost. Authorization rules at AST level: purity bans (<code>Date.now</code>/<code>Math.random</code>), literal-only <code>world.run</code> commands, closed world (no imports), shadowing detection. <code>ask&lt;T&gt;</code> synthesizes a JSON schema — JSDoc becomes the field docs the worker reads.</p></div>
+  <div class="card"><b>Sandbox</b><p>Child process + <code>node:vm</code> realm over NDJSON. Intrinsics banned twice: compile-time diagnostics and realm-time throws. Process supervision: POSIX process groups, Windows whole-tree kill, sanitized child environments.</p></div>
+  <div class="card"><b>Deterministic journal</b><p>SQLite WAL. Every node keyed <code>(siteId, ordinal, inputHash)</code> — a hit short-circuits with zero provider calls; a mismatch fails loudly instead of misbinding. Resume, amend-with-warm-cache and escalation answers all reuse the same mechanism.</p></div>
+  <div class="card"><b>Runtime Q&amp;A &amp; growth</b><p><code>escalate()</code> parks a run with a <code>dwfq-</code> question; answer it and the run resumes for free. <code>hole&lt;T&gt;()</code> lets a workflow grow its own topology as findings land. Amend forks lineage with an imported warm cache.</p></div>
+  <div class="card"><b>Workers your way</b><p>Providers: deterministic mock (offline demo), Bedrock, or external agent CLIs — <code>AI_WORKFLOW_PROVIDER=codex|gemini|opencode</code> — spawned supervised, AIMD-governed per provider, with per-actor routing and provider health.</p></div>
+  <div class="card"><b>Human surfaces</b><p>MCP tools for any host (Claude Code / ZCode / opencode / Codex CLI), an agent skill that authors scripts for you, <code>view</code> (journal-rendered HTML report), <code>serve</code> (live, self-refreshing), ASCII/HTML DAGs.</p></div>
+</div>
+
+<h2>Reproducible evidence</h2>
+<pre><span class="c">$ npm test</span>                <span class="ok"># tests 201 · pass 201 · fail 0</span>
+<span class="c">$ npm run test:pbt</span>        <span class="ok"># tests 5 · pass 5 · fail 0</span>
+<span class="c">$ tests/e2e/runner.ts</span>     <span class="ok"># 121/121 passed · 100%</span>
+<span class="c">$ governance test</span>         <span class="ok"># tests 17 · pass 17 · fail 0</span>
+<span class="c">$ bash scripts/demo.sh</span>    <span class="ok"># exit 0 · offline · &lt;4s</span></pre>
+<p class="dim" style="margin-top:-.5rem">Fingerprints from 2026-11-01 on the merged main line. Every number reproducible with the commands shown.</p>
+
+<h2>Try it</h2>
+<pre><span class="c"># the 60-second tour</span>
+npm install &amp;&amp; npm run build &amp;&amp; bash scripts/demo.sh
+<span class="c"># attach live to any run</span>
+node bin/workflow.js serve &lt;runId&gt;      <span class="c"># → http://127.0.0.1:4649/</span></pre>
+
+<div class="footer">
+  AI-Workflow — Apache-2.0 · <a href="https://github.com/LitaoG/AI-workflow">github.com/LitaoG/AI-workflow</a> ·
+  judge navigator: <a href="../SUBMISSION.md">SUBMISSION.md</a> · integration: <a href="./INTEGRATION.md">docs/INTEGRATION.md</a>
+  · page generated 2026-11-01
+</div>
+</div>
+</body>
+</html>

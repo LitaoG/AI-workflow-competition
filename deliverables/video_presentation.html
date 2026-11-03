@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI-Workflow: 180-Second Video Presentation & Live Execution Engine</title>
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: #131b2e;
+      --card-border: #1e293b;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-glow: rgba(56, 189, 248, 0.25);
+      --completed: #10b981;
+      --running: #f59e0b;
+      --failed: #ef4444;
+      --gate: #8b5cf6;
+      --drawer-bg: #0f172a;
+      --font-mono: "JetBrains Mono", Consolas, "Fira Code", monospace;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body.theme-light {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --card-border: #cbd5e1;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --accent: #0284c7;
+      --accent-glow: rgba(2, 132, 199, 0.2);
+      --completed: #059669;
+      --running: #d97706;
+      --failed: #dc2626;
+      --gate: #7c3aed;
+      --drawer-bg: #f1f5f9;
+    }
+
+    body.theme-zcode {
+      --bg: #060910;
+      --card-bg: #0b1120;
+      --card-border: #1e3a5f;
+      --text: #e2e8f0;
+      --text-muted: #7dd3fc;
+      --accent: #00f0ff;
+      --accent-glow: rgba(0, 240, 255, 0.35);
+      --completed: #00ff88;
+      --running: #ffb800;
+      --failed: #ff3366;
+      --gate: #b026ff;
+      --drawer-bg: #090e1a;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--font-sans); }
+    body { background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+
+    /* Top Navigation Header */
+    header {
+      height: 60px;
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      z-index: 50;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent), var(--gate));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: #fff;
+      font-size: 14px;
+    }
+
+    .brand-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.3px;
+    }
+
+    .brand-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.05);
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--card-border);
+    }
+
+    .header-center {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .scene-indicator {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .playback-timer {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--card-border);
+      color: var(--accent);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    button {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+
+    button:hover {
+      background: var(--card-border);
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    button.btn-primary {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+      font-weight: 600;
+    }
+
+    button.btn-primary:hover {
+      background: #7dd3fc;
+    }
+
+    /* Main Presentation Container */
+    #main-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+    }
+
+    .slide {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      transform: scale(0.98);
+      display: flex;
+      flex-direction: column;
+      padding: 24px;
+      overflow-y: auto;
+    }
+
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      transform: scale(1);
+      z-index: 10;
+    }
+
+    .slide-header {
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 12px;
+    }
+
+    .slide-title-group h2 {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 4px;
+    }
+
+    .slide-title-group p {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .slide-badge {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--card-border);
+      color: var(--accent);
+      border: 1px solid var(--card-border);
+    }
+
+    /* Grid Layouts for Content */
+    .grid-2col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      flex: 1;
+    }
+
+    .grid-3col {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+      flex: 1;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card h3 {
+      font-size: 15px;
+      margin-bottom: 12px;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card p {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* Terminal Simulation Box */
+    .terminal-box {
+      background: #060910;
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 12px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: #a5b4fc;
+      overflow-x: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .terminal-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .terminal-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-red { background: #ef4444; }
+    .dot-amber { background: #f59e0b; }
+    .dot-green { background: #10b981; }
+    .terminal-content { flex: 1; overflow-y: auto; line-height: 1.6; }
+
+    /* SVG DAG Canvas */
+    .dag-container {
+      flex: 1;
+      position: relative;
+      background: #050811;
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    svg.dag-svg {
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+    }
+
+    .phase-bg {
+      fill: rgba(15, 23, 42, 0.5);
+      stroke: var(--card-border);
+      stroke-dasharray: 4;
+      rx: 8;
+    }
+
+    .phase-text {
+      font-size: 12px;
+      font-weight: 600;
+      fill: var(--text-muted);
+      text-anchor: middle;
+    }
+
+    .node-box {
+      fill: var(--card-bg);
+      stroke: var(--card-border);
+      rx: 8;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+
+    .node-box:hover {
+      stroke: var(--accent);
+      filter: drop-shadow(0 0 8px var(--accent-glow));
+    }
+
+    .node-box.completed { stroke: var(--completed); }
+    .node-box.running { stroke: var(--running); stroke-width: 2.5; animation: nodePulse 1.5s infinite; }
+    .node-box.failed { stroke: var(--failed); }
+    .node-box.gate { stroke: var(--gate); }
+
+    @keyframes nodePulse {
+      0% { filter: drop-shadow(0 0 2px rgba(245, 158, 11, 0.4)); }
+      50% { filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.8)); }
+      100% { filter: drop-shadow(0 0 2px rgba(245, 158, 11, 0.4)); }
+    }
+
+    .edge-line {
+      fill: none;
+      stroke: #334155;
+      stroke-width: 2;
+      transition: stroke 0.3s;
+    }
+
+    .edge-line.active {
+      stroke: var(--accent);
+      stroke-dasharray: 6;
+      animation: dashMove 1s linear infinite;
+    }
+
+    .edge-line.completed { stroke: var(--completed); stroke-width: 2.5; }
+    .edge-line.failed { stroke: var(--failed); }
+
+    @keyframes dashMove {
+      to { stroke-dashoffset: -12; }
+    }
+
+    /* Kanban Board */
+    .kanban-board {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      flex: 1;
+    }
+
+    .kanban-col {
+      background: rgba(19, 27, 46, 0.6);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .kanban-col-header {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 6px;
+    }
+
+    .kanban-count {
+      font-size: 11px;
+      background: var(--card-border);
+      color: var(--text-muted);
+      padding: 2px 6px;
+      border-radius: 999px;
+    }
+
+    .kanban-cards {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .kanban-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 10px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: transform 0.15s, border-color 0.15s;
+    }
+
+    .kanban-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+
+    .kanban-card-title {
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .kanban-card-snippet {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      line-height: 1.4;
+    }
+
+    /* Node Inspector Drawer */
+    #inspector-drawer {
+      position: fixed;
+      top: 60px;
+      right: -420px;
+      width: 420px;
+      height: calc(100vh - 60px);
+      background: var(--drawer-bg);
+      border-left: 1px solid var(--card-border);
+      transition: right 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      padding: 20px;
+      overflow-y: auto;
+      z-index: 100;
+      box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+    }
+
+    #inspector-drawer.open { right: 0; }
+    .drawer-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .drawer-header h3 { font-size: 16px; color: var(--accent); }
+    .drawer-section { margin-bottom: 16px; }
+    .drawer-section label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); display: block; margin-bottom: 4px; }
+    .drawer-section pre { background: #060910; border: 1px solid var(--card-border); border-radius: 6px; padding: 10px; font-family: var(--font-mono); font-size: 11px; color: #7dd3fc; overflow-x: auto; }
+
+    /* Bottom Voiceover Teleprompter Bar */
+    #teleprompter-bar {
+      height: 90px;
+      background: var(--card-bg);
+      border-top: 1px solid var(--card-border);
+      display: flex;
+      flex-direction: column;
+      padding: 10px 24px;
+      z-index: 40;
+    }
+
+    .teleprompter-progress-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 6px;
+    }
+
+    .scrubber {
+      flex: 1;
+      height: 4px;
+      background: var(--card-border);
+      border-radius: 2px;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .scrubber-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 0%;
+      border-radius: 2px;
+      transition: width 0.1s linear;
+    }
+
+    .teleprompter-text-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .teleprompter-text {
+      font-size: 14px;
+      line-height: 1.4;
+      color: #fff;
+      font-weight: 500;
+      flex: 1;
+    }
+
+    .teleprompter-cue {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      padding: 3px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    /* Slide Controls */
+    .slide-nav-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header Navigation -->
+  <header>
+    <div class="brand">
+      <div class="brand-logo">AI</div>
+      <div>
+        <div class="brand-title">AI-Workflow</div>
+      </div>
+      <div class="brand-subtitle" id="tagline-badge">Code, Not Conversation</div>
+    </div>
+
+    <div class="header-center">
+      <div class="scene-indicator" id="scene-label">Scene 1 / 6: The Prompt Fragility Crisis</div>
+      <div class="playback-timer" id="timer-display">00:00 / 03:00</div>
+    </div>
+
+    <div class="header-actions">
+      <button onclick="togglePlayback()" id="play-btn" class="btn-primary">▶ Play Video Demo</button>
+      <button onclick="prevSlide()" title="Previous (Left Arrow)">◀</button>
+      <button onclick="nextSlide()" title="Next (Right Arrow / Space)">▶</button>
+      <button onclick="cycleTheme()" title="Switch Theme (Dark/Light/ZCode)">🎨 Theme</button>
+      <button onclick="toggleLang()" id="lang-btn">🌐 中文</button>
+      <button onclick="toggleFullscreen()" title="Fullscreen mode (F)">⛶ Fullscreen</button>
+    </div>
+  </header>
+
+  <!-- Main Presentation Slides -->
+  <div id="main-container">
+
+    <!-- Slide 1: Crisis & Philosophy -->
+    <div class="slide active" id="slide-1">
+      <div class="slide-header">
+        <div class="slide-title-group">
+          <h2 id="s1-title">Scene 1: The Prompt Fragility Crisis & ZCode Dynamic Workflow Philosophy</h2>
+          <p id="s1-sub">Why conversational chat fails mission-critical engineering and why workflows must be code.</p>
+        </div>
+        <div class="slide-badge">0:00 - 0:25 (25s)</div>
+      </div>
+      <div class="grid-2col">
+        <div class="card" style="border-color: #ef4444;">
+          <h3 style="color: #ef4444;">❌ The Conversation Fallacy</h3>
+          <p>Treating complex engineering tasks as conversational chat loops creates catastrophic fragility:</p>
+          <ul style="margin: 12px 0 0 20px; font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+            <li><strong>Context Window Blowout:</strong> Chat histories grow uncontrollably toward 128k token limits.</li>
+            <li><strong>Non-Deterministic Hallucination:</strong> Agents apologize and wander instead of verifying state.</li>
+            <li><strong>Unverified Shell Execution:</strong> Raw commands run without deterministic preconditions.</li>
+            <li><strong>Impossible to Replay:</strong> A crash mid-way requires restarting from prompt zero.</li>
+          </ul>
+          <div class="terminal-box" style="margin-top: 14px; border-color: #ef4444;">
+            <div class="terminal-bar"><span class="terminal-dot dot-red"></span><span style="font-size: 10px; color: #ef4444;">CHATBOT MONOLOGUE CRASH</span></div>
+            <div class="terminal-content">
+              [Agent]: I apologize for the previous command failing. Let me try again...<br>
+              [Agent]: Running rm -rf ./temp && curl http://unverified-api...<br>
+              <span style="color: #ef4444;">[FATAL]: 429 RateLimitExceeded · 128,490 tokens exhausted.</span><br>
+              <span style="color: #ef4444;">[State]: Lost. Workflow halted with broken dependencies.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="border-color: var(--accent);">
+          <h3 style="color: var(--accent);">✔ The ZCode Dynamic Workflow Solution</h3>
+          <p>Workflows are executable TypeScript code with native control flow, typed boundaries, and durable replay:</p>
+          <ul style="margin: 12px 0 0 20px; font-size: 13px; color: var(--text-muted); line-height: 1.6;">
+            <li><strong>"Code, Not Conversation":</strong> Loops, branches, and <code>Promise.all</code> concurrency in TypeScript.</li>
+            <li><strong>Deterministic Probing:</strong> Probe OS, Git, and environment before any LLM call.</li>
+            <li><strong>Typed Agent RPCs:</strong> Strict <code>agent(name).ask&lt;T&gt;(prompt, schema)</code> validation.</li>
+            <li><strong>Durable State Machine:</strong> Dual-layer SQLite WAL checkpoints + events.jsonl.</li>
+          </ul>
+          <div class="terminal-box" style="margin-top: 14px; border-color: var(--accent);">
+            <div class="terminal-bar"><span class="terminal-dot dot-green"></span><span style="font-size: 10px; color: var(--accent);">AI-WORKFLOW DETERMINISTIC ENGINE</span></div>
+            <div class="terminal-content">
+              $ /workflow run ./incident-triage.ts --mock<br>
+              <span style="color: #10b981;">[PROBE]: Win32 x64 · Node v22.23.2 · Git: clean (commit: e4b81c)</span><br>
+              <span style="color: #38bdf8;">[DAG]: Compiled 5 phases · 8 nodes · Bézier graph ready</span><br>
+              <span style="color: #10b981;">[STATUS]: Deterministic execution started · 0 conversational bloat</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 2: Architecture -->
+    <div class="slide" id="slide-2">
+      <div class="slide-header">
+        <div class="slide-title-group">
+          <h2 id="s2-title">Scene 2: Core Architecture — Three Pillars of Deterministic Rigor</h2>
+          <p id="s2-sub">Deterministic Probing, Typed Agent RPCs, and Dual-Layer SQLite WAL Durability.</p>
+        </div>
+        <div class="slide-badge">0:25 - 0:55 (30s)</div>
+      </div>
+      <div class="grid-3col">
+        <div class="card">
+          <h3>🔍 1. Deterministic Probing</h3>
+          <p>Never allow an LLM to guess environment state. The prober interrogates:</p>
+          <div class="terminal-box" style="margin-top: 10px; font-size: 11px;">
+            platform: "win32 x64"<br>
+            nodeVersion: "v22.23.2"<br>
+            gitCommit: "9f3b21"<br>
+            isDirty: false<br>
+            env: {<br>
+            &nbsp;&nbsp;AWS_KEY: "[REDACTED]"<br>
+            }
+          </div>
+          <p style="margin-top: 8px; font-size: 11px;">Auto-redacts credentials before persistence or agent dispatch.</p>
+        </div>
+
+        <div class="card">
+          <h3>🛡️ 2. Typed Agent RPCs</h3>
+          <p>Agent calls use strict runtime Zod schemas with automated repair loops:</p>
+          <div class="terminal-box" style="margin-top: 10px; font-size: 11px; color: #7dd3fc;">
+            const res = await agent('triage')<br>
+            &nbsp;&nbsp;.ask&lt;TriageReport&gt;(<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;prompt,<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;TriageSchema<br>
+            &nbsp;&nbsp;);<br>
+            // Zero raw strings!<br>
+            // Auto JSON repair retry
+          </div>
+          <p style="margin-top: 8px; font-size: 11px;">Enforces 100% type soundness across multi-agent exchanges.</p>
+        </div>
+
+        <div class="card">
+          <h3>💾 3. Dual-Layer Durability</h3>
+          <p>SQLite WAL atomic checkpoints + append-only event stream:</p>
+          <div class="terminal-box" style="margin-top: 10px; font-size: 11px; color: #a7f3d0;">
+            events.jsonl (Audit Log)<br>
+            ├── workflow_start<br>
+            ├── step_complete (240ms)<br>
+            └── gate_pass (0ms)<br>
+            <br>
+            node:sqlite (WAL snapshots)<br>
+            └── checkpoints (runId, stepId)
+          </div>
+          <p style="margin-top: 8px; font-size: 11px;">Enables zero-token replay and instant resumption after crash.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 3: Demo 1 -->
+    <div class="slide" id="slide-3">
+      <div class="slide-header">
+        <div class="slide-title-group">
+          <h2 id="s3-title">Scene 3: Demo 1 in Action — Autonomous DevOps Incident Triage</h2>
+          <p id="s3-sub">5 Phases, Single Inspector, Paired Fixer/Reviewer, and Deterministic Shell Recovery Gate (curl /healthz).</p>
+        </div>
+        <div class="slide-badge">0:55 - 1:35 (40s)</div>
+      </div>
+      <div class="grid-2col" style="flex: 1;">
+        <div class="dag-container">
+          <svg class="dag-svg" id="demo1-svg" viewBox="0 0 760 380">
+            <!-- Phase columns -->
+            <rect x="20" y="20" width="130" height="340" class="phase-bg" />
+            <text x="85" y="45" class="phase-text">1. Detection</text>
+
+            <rect x="170" y="20" width="130" height="340" class="phase-bg" />
+            <text x="235" y="45" class="phase-text">2. Triage</text>
+
+            <rect x="320" y="20" width="130" height="340" class="phase-bg" />
+            <text x="385" y="45" class="phase-text">3. Plan & Review</text>
+
+            <rect x="470" y="20" width="130" height="340" class="phase-bg" />
+            <text x="535" y="45" class="phase-text">4. Recovery Gate</text>
+
+            <rect x="620" y="20" width="120" height="340" class="phase-bg" />
+            <text x="680" y="45" class="phase-text">5. Synthesis</text>
+
+            <!-- Bézier Edges -->
+            <path id="d1-e1" d="M 140 110 C 155 110, 165 110, 180 110" class="edge-line completed" />
+            <path id="d1-e2a" d="M 290 110 C 305 110, 315 90, 330 90" class="edge-line completed" />
+            <path id="d1-e2b" d="M 290 110 C 305 110, 315 160, 330 160" class="edge-line completed" />
+            <path id="d1-e3" d="M 440 90 C 455 90, 465 110, 480 110" class="edge-line completed" />
+            <path id="d1-e4" d="M 440 160 C 455 160, 465 110, 480 110" class="edge-line completed" />
+            <path id="d1-e5" d="M 590 110 C 605 110, 615 110, 630 110" class="edge-line completed" />
+
+            <!-- Nodes -->
+            <!-- Step 1: Probe -->
+            <g onclick="inspectNodeModal('d1-probe')">
+              <rect x="30" y="80" width="110" height="60" class="node-box completed" />
+              <text x="40" y="105" fill="#fff" font-size="11" font-weight="600">Telemetry Probe</text>
+              <text x="40" y="122" fill="#94a3b8" font-size="9">[PROBER] · 120ms</text>
+              <text x="125" y="105" fill="#10b981" font-size="10">✔</text>
+            </g>
+
+            <!-- Step 2: Triage -->
+            <g onclick="inspectNodeModal('d1-triage')">
+              <rect x="180" y="80" width="110" height="60" class="node-box completed" />
+              <text x="190" y="105" fill="#fff" font-size="11" font-weight="600">Incident Triage</text>
+              <text x="190" y="122" fill="#94a3b8" font-size="9">[INSPECTOR] · 840ms</text>
+              <text x="275" y="105" fill="#10b981" font-size="10">✔</text>
+            </g>
+
+            <!-- Step 3a: Plan -->
+            <g onclick="inspectNodeModal('d1-plan')">
+              <rect x="330" y="60" width="110" height="60" class="node-box completed" />
+              <text x="340" y="85" fill="#fff" font-size="11" font-weight="600">Fixer Planner</text>
+              <text x="340" y="102" fill="#94a3b8" font-size="9">[WORKER] · 920ms</text>
+              <text x="425" y="85" fill="#10b981" font-size="10">✔</text>
+            </g>
+
+            <!-- Step 3b: Reviewer -->
+            <g onclick="inspectNodeModal('d1-review')">
+              <rect x="330" y="130" width="110" height="60" class="node-box completed" />
+              <text x="340" y="155" fill="#fff" font-size="11" font-weight="600">Safety Reviewer</text>
+              <text x="340" y="172" fill="#94a3b8" font-size="9">[REVIEWER] · 710ms</text>
+              <text x="425" y="155" fill="#10b981" font-size="10">✔</text>
+            </g>
+
+            <!-- Step 4: Gate -->
+            <g onclick="inspectNodeModal('d1-gate')">
+              <rect x="480" y="80" width="110" height="60" class="node-box gate completed" />
+              <text x="490" y="105" fill="#fff" font-size="11" font-weight="600">Healthz Gate ⚡</text>
+              <text x="490" y="122" fill="#8b5cf6" font-size="9">[SHELL GATE] · exit 0</text>
+              <text x="575" y="105" fill="#10b981" font-size="10">✔</text>
+            </g>
+
+            <!-- Step 5: Post-Mortem -->
+            <g onclick="inspectNodeModal('d1-post')">
+              <rect x="630" y="80" width="100" height="60" class="node-box completed" />
+              <text x="640" y="105" fill="#fff" font-size="11" font-weight="600">Post-Mortem</text>
+              <text x="640" y="122" fill="#94a3b8" font-size="9">[COORD] · 410ms</text>
+              <text x="715" y="105" fill="#10b981" font-size="10">✔</text>
+            </g>
+          </svg>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="terminal-box" style="flex: 1;">
+            <div class="terminal-bar"><span class="terminal-dot dot-green"></span><span>INCIDENT TRIAGE EXECUTION LOG</span></div>
+            <div class="terminal-content" id="d1-term-log">
+              [00:00.1] Telemetry: 5xx spike at 42.0%, DB Pool 100/100 active connections.<br>
+              [00:01.0] Triage Inspector: Root cause identified in commit a8f9b2 (unclosed connection pool).<br>
+              [00:01.9] Fixer + Reviewer: Paired agents synthesize patch with pool max=250 & 5s timeout.<br>
+              <span style="color: #8b5cf6;">[00:02.8] Shell Recovery Gate: Executing `curl -sSf http://localhost:8080/healthz`...</span><br>
+              <span style="color: #10b981;">[00:02.9] Gate Passed! HTTP 200 OK (exit code: 0).</span><br>
+              <span style="color: #38bdf8;">[00:03.6] Synthesis: Generated PostMortem.md & updated live Kanban dashboard. Total time: 3.6s.</span>
+            </div>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn-primary" onclick="simulateDemo1Execution()">▶ Replay Live Execution</button>
+            <button onclick="showKanbanDrawer()">📋 Inspect Kanban Artifacts</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 4: Demo 2 -->
+    <div class="slide" id="slide-4">
+      <div class="slide-header">
+        <div class="slide-title-group">
+          <h2 id="s4-title">Scene 4: Demo 2 in Action — AWS SDK v2 to v3 Migration & Zero-Token Crash Replay</h2>
+          <p id="s4-sub">Parallel Fan-Out Workers (Promise.all), Paired Reviewers, Simulated Crash, and SQLite Replay.</p>
+        </div>
+        <div class="slide-badge">1:35 - 2:15 (40s)</div>
+      </div>
+      <div class="grid-2col">
+        <div class="dag-container">
+          <svg class="dag-svg" id="demo2-svg" viewBox="0 0 760 380">
+            <!-- Phase columns -->
+            <rect x="20" y="20" width="130" height="340" class="phase-bg" />
+            <text x="85" y="45" class="phase-text">1. Baseline Gate</text>
+
+            <rect x="170" y="20" width="130" height="340" class="phase-bg" />
+            <text x="235" y="45" class="phase-text">2. AST Scan</text>
+
+            <rect x="320" y="20" width="160" height="340" class="phase-bg" />
+            <text x="400" y="45" class="phase-text">3. Fan-Out (Promise.all)</text>
+
+            <rect x="500" y="20" width="120" height="340" class="phase-bg" />
+            <text x="560" y="45" class="phase-text">4. Post-Merge Gate</text>
+
+            <rect x="640" y="20" width="105" height="340" class="phase-bg" />
+            <text x="692" y="45" class="phase-text">5. PR Release</text>
+
+            <!-- Parallel Fan-Out Swimlanes -->
+            <rect x="330" y="60" width="140" height="75" class="node-box completed" />
+            <text x="340" y="80" fill="#fff" font-size="10" font-weight="600">S3 Worker + Reviewer</text>
+            <text x="340" y="96" fill="#7dd3fc" font-size="9">@aws-sdk/client-s3</text>
+            <text x="450" y="80" fill="#10b981" font-size="10">✔</text>
+
+            <rect x="330" y="150" width="140" height="75" class="node-box" style="stroke: #38bdf8;" />
+            <text x="340" y="170" fill="#fff" font-size="10" font-weight="600">DynamoDB Pair</text>
+            <text x="340" y="186" fill="#7dd3fc" font-size="9">@aws-sdk/client-dynamodb</text>
+            <text x="450" y="170" fill="#38bdf8" font-size="10">[CACHED]</text>
+
+            <rect x="330" y="240" width="140" height="75" class="node-box completed" />
+            <text x="340" y="260" fill="#fff" font-size="10" font-weight="600">SQS Worker + Reviewer</text>
+            <text x="340" y="276" fill="#7dd3fc" font-size="9">@aws-sdk/client-sqs</text>
+            <text x="450" y="260" fill="#10b981" font-size="10">✔</text>
+
+            <!-- Gate -->
+            <rect x="510" y="150" width="100" height="75" class="node-box gate completed" />
+            <text x="520" y="175" fill="#fff" font-size="10" font-weight="600">tsc --noEmit</text>
+            <text x="520" y="195" fill="#8b5cf6" font-size="9">[GATE] exit 0</text>
+            <text x="590" y="175" fill="#10b981" font-size="10">✔</text>
+
+            <!-- PR -->
+            <rect x="650" y="150" width="85" height="75" class="node-box completed" />
+            <text x="658" y="175" fill="#fff" font-size="10" font-weight="600">PR Opened</text>
+            <text x="658" y="195" fill="#10b981" font-size="9">PULL_REQUEST</text>
+            <text x="720" y="175" fill="#10b981" font-size="10">✔</text>
+          </svg>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="terminal-box" style="flex: 1;">
+            <div class="terminal-bar"><span class="terminal-dot dot-amber"></span><span>DURABLE REPLAY RESUMPTION TRACE</span></div>
+            <div class="terminal-content">
+              [Phase 1] Baseline Test Gate: 14 unit tests pass on legacy repository.<br>
+              [Phase 2] AST Prober: Found legacy v2 imports across 3 service modules.<br>
+              [Phase 3] Fan-Out: Spawning S3, DynamoDB, SQS transform pairs in parallel...<br>
+              <span style="color: #ef4444;">[CRASH SIMULATION]: Process killed mid-migration (--interrupt-at step-3b2)</span><br>
+              <span style="color: #38bdf8;">$ /workflow replay run-migration-88219</span><br>
+              <span style="color: #10b981;">[REPLAY]: Querying SQLite WAL checkpoints...</span><br>
+              <span style="color: #10b981;">[REPLAY]: step-1-baseline -> CACHED (0ms, 0 tokens)</span><br>
+              <span style="color: #10b981;">[REPLAY]: step-2-ast-scan -> CACHED (0ms, 0 tokens)</span><br>
+              <span style="color: #10b981;">[REPLAY]: step-3a-s3 -> CACHED (0ms, 0 tokens)</span><br>
+              <span style="color: #38bdf8;">[RESUME]: Executing interrupted DynamoDB code review...</span><br>
+              <span style="color: #10b981;">[SUCCESS]: All 3 modules upgraded to AWS SDK v3! PR #42 opened.</span>
+            </div>
+          </div>
+          <div class="card" style="padding: 10px; background: rgba(56, 189, 248, 0.05); border-color: var(--accent);">
+            <div style="font-size: 12px; font-weight: 600; color: var(--accent);">Token Efficiency Comparison</div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+              Conversational Bot: 18,400 tokens (Restart) vs. AI-Workflow: 2,100 tokens (88.6% saved via durable SQLite checkpointing).
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 5: Kiro Compliance -->
+    <div class="slide" id="slide-5">
+      <div class="slide-header">
+        <div class="slide-title-group">
+          <h2 id="s5-title">Scene 5: Mandatory Kiro Integration & The Skeleton Crew</h2>
+          <p id="s5-sub">Root /.kiro 100% Tracked in Git, Specs, Hooks, Steering, 5 MCP Tools, Fast-Check PBT, and Role Ceilings.</p>
+        </div>
+        <div class="slide-badge">2:15 - 2:45 (30s)</div>
+      </div>
+      <div class="grid-3col">
+        <div class="card">
+          <h3>📜 Specs & Steering</h3>
+          <p>Formal markdown specs & always-on security policies:</p>
+          <ul style="margin: 8px 0 0 16px; font-size: 11px; color: var(--text-muted); line-height: 1.6;">
+            <li><code>workflow-engine-spec.md</code>: State machine semantics</li>
+            <li><code>typed-rpc-schemas.json</code>: Formal Zod / JSON schemas</li>
+            <li><code>steering/guidelines.md</code>: Frontmatter <code>inclusion: always</code></li>
+            <li><code>policy-guardrails.md</code>: Bans credential leaks & unsanitized shell commands</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h3>🪝 Lifecycle Hooks & MCP</h3>
+          <p>Kiro lifecycle triggers & 5 exposed MCP tools:</p>
+          <ul style="margin: 8px 0 0 16px; font-size: 11px; color: var(--text-muted); line-height: 1.6;">
+            <li><code>lifecycle.json</code>: Triggers <code>AgentSpawn</code>, <code>PreToolUse</code>, <code>PostToolUse</code>, <code>Stop</code></li>
+            <li><code>pre-tool.js</code>: Exit code 0 allows, exit code 2 blocks</li>
+            <li>5 MCP Tools: <code>workflow_run</code>, <code>workflow_probe</code>, <code>workflow_replay</code>, <code>workflow_render_dag</code>, <code>workflow_list_artifacts</code></li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h3>🧪 Fast-Check PBT & Crew</h3>
+          <p>1,000 runs per invariant & least-privilege team:</p>
+          <ul style="margin: 8px 0 0 16px; font-size: 11px; color: var(--text-muted); line-height: 1.6;">
+            <li>Property 1: Replay Idempotency</li>
+            <li>Property 2: Typed RPC Soundness</li>
+            <li>Property 3: DAG Acyclicity ($V, E$)</li>
+            <li>Property 4: Probe Fingerprint Invariance</li>
+            <li>Property 5: Credential Redaction</li>
+            <li>Skeleton Crew: <code>team.json</code> + <code>permissions.json</code></li>
+          </ul>
+        </div>
+      </div>
+      <div class="terminal-box" style="margin-top: 14px; max-height: 90px;">
+        <div class="terminal-bar"><span class="terminal-dot dot-green"></span><span>KIRO TEST VERIFICATION TRACE</span></div>
+        <div class="terminal-content">
+          $ npm run test:pbt<br>
+          <span style="color: #10b981;">✔ 5/5 Formal Invariants Proven (1,000 fast-check runs each, 0 counterexamples).</span><br>
+          <span style="color: #38bdf8;">✔ Root `/.kiro` verified: 100% tracked in git (Preserved in .gitignore via !/.kiro/ and !/.kiro/**).</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide 6: Conclusion -->
+    <div class="slide" id="slide-6">
+      <div class="slide-header">
+        <div class="slide-title-group">
+          <h2 id="s6-title">Scene 6: Conclusion & Open Source Hackathon Package</h2>
+          <p id="s6-sub">AWS Kiroween 2026 Hackathon Submission · Skeleton Crew Category · Apache License 2.0.</p>
+        </div>
+        <div class="slide-badge">2:45 - 3:00 (15s)</div>
+      </div>
+      <div class="grid-2col">
+        <div class="card" style="justify-content: center; text-align: center; border-color: var(--accent);">
+          <div style="font-size: 32px; font-weight: 800; color: var(--accent); margin-bottom: 8px;">AI-WORKFLOW</div>
+          <div style="font-size: 16px; color: #fff; font-weight: 600; margin-bottom: 14px;">"Code, Not Conversation"</div>
+          <p style="max-width: 420px; margin: 0 auto; font-size: 13px;">
+            Bringing software engineering rigor to autonomous multi-agent systems with typed RPCs, deterministic environment probing, and zero-token durable replay.
+          </p>
+          <div style="display: flex; justify-content: center; gap: 8px; margin-top: 20px;">
+            <span class="slide-badge" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border-color: #10b981;">Apache 2.0</span>
+            <span class="slide-badge" style="background: rgba(56, 189, 248, 0.1); color: #38bdf8; border-color: #38bdf8;">Node 22 LTS</span>
+            <span class="slide-badge" style="background: rgba(139, 92, 246, 0.1); color: #8b5cf6; border-color: #8b5cf6;">Kiro Native</span>
+          </div>
+        </div>
+
+        <div class="card" style="justify-content: center;">
+          <h3 style="color: var(--accent); margin-bottom: 14px;">Submission & Repository Metadata</h3>
+          <table style="font-size: 13px; color: var(--text-muted); line-height: 2;">
+            <tr><td style="width: 140px; font-weight: 600; color: var(--text);">Submitter:</td><td>Litao Gong (龚立涛)</td></tr>
+            <tr><td style="font-weight: 600; color: var(--text);">Devpost ID:</td><td>1842043669</td></tr>
+            <tr><td style="font-weight: 600; color: var(--text);">Email:</td><td>1842043669@qq.com</td></tr>
+            <tr><td style="font-weight: 600; color: var(--text);">Hackathon:</td><td>AWS Kiroween 2026 (Skeleton Crew)</td></tr>
+            <tr><td style="font-weight: 600; color: var(--text);">GitHub Repo:</td><td><a href="https://github.com/1842043669/AI-workflow" style="color: var(--accent); text-decoration: none;">1842043669/AI-workflow</a></td></tr>
+            <tr><td style="font-weight: 600; color: var(--text);">Bilingual:</td><td>English (Primary) + 中文 (Localized)</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Synchronized Audio / Teleprompter Drawer -->
+  <div id="teleprompter-bar">
+    <div class="teleprompter-progress-row">
+      <div class="scrubber" onclick="seekPlayback(event)">
+        <div class="scrubber-fill" id="scrubber-fill"></div>
+      </div>
+    </div>
+    <div class="teleprompter-text-row">
+      <div class="teleprompter-cue" id="cue-badge">[SFX: Ambient Tech Beat]</div>
+      <div class="teleprompter-text" id="teleprompter-text">
+        "Today's AI agents treat mission-critical engineering like casual conversation. The ZCode philosophy proves that dynamic workflows must be code, not conversation."
+      </div>
+      <div class="slide-nav-controls">
+        <button onclick="prevSlide()" style="padding: 4px 8px;">◀</button>
+        <span style="font-size: 11px; font-family: var(--font-mono); color: var(--text-muted);" id="slide-num">1/6</span>
+        <button onclick="nextSlide()" style="padding: 4px 8px;">▶</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Node Inspector Slide-out Drawer -->
+  <div id="inspector-drawer">
+    <div class="drawer-header">
+      <h3 id="drawer-node-title">Node Inspector</h3>
+      <button onclick="closeInspector()">✕</button>
+    </div>
+    <div class="drawer-section">
+      <label>Execution Role</label>
+      <div id="drawer-node-role" style="font-size: 13px; font-weight: 600; color: var(--accent);">[INSPECTOR]</div>
+    </div>
+    <div class="drawer-section">
+      <label>Execution Status & Timing</label>
+      <div id="drawer-node-status" style="font-size: 13px; color: #10b981;">Completed · 840ms</div>
+    </div>
+    <div class="drawer-section">
+      <label>Step Input Payload (Typed)</label>
+      <pre id="drawer-node-inputs">{}</pre>
+    </div>
+    <div class="drawer-section">
+      <label>Step Output Payload (Zod Validated)</label>
+      <pre id="drawer-node-outputs">{}</pre>
+    </div>
+  </div>
+
+  <!-- Interactive JavaScript Engine -->
+  <script>
+    // Master State
+    let currentSlide = 1;
+    const totalSlides = 6;
+    let isPlaying = false;
+    let playTimer = null;
+    let currentSeconds = 0;
+    const totalDurationSeconds = 180;
+    let isZh = false;
+    let currentThemeIndex = 0;
+    const themes = ['dark', 'light', 'zcode'];
+
+    // Scene timing definitions (seconds)
+    const sceneRanges = [
+      { start: 0, end: 25, slide: 1, cue: '[SFX: Alarm → Synth]', 
+        en: "Today's AI agents treat mission-critical engineering like casual conversation. The ZCode philosophy proves dynamic workflows must be code, not conversation. Welcome to AI-Workflow.",
+        zh: "当今的AI智能体将关键工程任务当作随意聊天。ZCode理念证明：动态工作流必须是代码，而非对话。欢迎了解 AI-Workflow。" },
+      { start: 25, end: 55, slide: 2, cue: '[SFX: Data Lock]', 
+        en: "AI-Workflow rests on three pillars: automated environment probing, typed agent RPCs with Zod validation, and dual-layer SQLite WAL persistence for zero-token durable replay.",
+        zh: "AI-Workflow 依托三大基石：自动化环境探测、Zod校验的有类型智能体RPC，以及基于 SQLite WAL 的零Token持久化重放。" },
+      { start: 55, end: 95, slide: 3, cue: '[SFX: Gate Verify]', 
+        en: "Demo 1: Autonomous DevOps Incident Triage. Telemetry catches a DB connection leak. Paired fixer and reviewer agents synthesize a patch, verified by a real `curl /healthz` shell recovery gate.",
+        zh: "Demo 1：自主DevOps故障分诊。遥测探测发现数据库连接泄漏，结对智能体生成补丁，并由真实 shell 门禁验证 curl /healthz 恢复。" },
+      { start: 95, end: 135, slide: 4, cue: '[SFX: Crash & Resume]', 
+        en: "Demo 2: AWS SDK v2 to v3 migration with parallel Promise.all fan-out. Mid-way crash? Durable replay skips completed steps via SQLite in 0ms without re-spending a single model token.",
+        zh: "Demo 2：基于 Promise.all 并行分发的 AWS SDK v2到v3代码迁移。发生崩溃？SQLite持久化重放零毫秒跳过已完成步骤，零Token浪费！" },
+      { start: 135, end: 165, slide: 5, cue: '[SFX: 1000 PBT Runs]', 
+        en: "Root /.kiro is 100% git-tracked: formal specs, lifecycle hooks blocking unverified tools, fast-check PBT proving 5 mathematical invariants, and least-privilege Skeleton Crew permissions.",
+        zh: "根目录 /.kiro 完整跟踪于Git：形式化规约、生命周期拦截门禁、证明5项数学不变量的fast-check PBT，以及骨干团队最小权限控制。" },
+      { start: 165, end: 180, slide: 6, cue: '[SFX: Final Chord]', 
+        en: "AI-Workflow: Bringing software engineering rigor to multi-agent autonomy. Open-source under Apache 2.0. Visit us on GitHub. Thank you!",
+        zh: "AI-Workflow：为多智能体自主性注入软件工程严谨性。基于 Apache 2.0 完全开源。欢迎访问 GitHub。谢谢！" }
+    ];
+
+    // Node Mock Details for Inspector
+    const nodeDetails = {
+      'd1-probe': {
+        name: 'Telemetry & Environment Probe',
+        role: '[PROBER]',
+        status: 'Completed · 120ms',
+        inputs: { service: 'payment-gateway', cluster: 'prod-us-east-1' },
+        outputs: { http5xxPercent: 42.0, activeDbConnections: 100, maxDbConnections: 100, status: 'TRIPPED' }
+      },
+      'd1-triage': {
+        name: 'Root Cause Classification (Inspector)',
+        role: '[INSPECTOR]',
+        status: 'Completed · 840ms',
+        inputs: { telemetry: 'http5xx=42%, dbPool=100/100', recentCommits: ['a8f9b2: add async connection'] },
+        outputs: { severity: 'P1', failureDomain: 'database_pool', rootCauseCommit: 'a8f9b2', confidence: 0.96 }
+      },
+      'd1-plan': {
+        name: 'Remediation Plan (Fixer Planner)',
+        role: '[WORKER]',
+        status: 'Completed · 920ms',
+        inputs: { failureDomain: 'database_pool', severity: 'P1' },
+        outputs: { patchType: 'pool_config', maxConnections: 250, connectionTimeoutMs: 5000, rollbackPlan: 'git revert' }
+      },
+      'd1-review': {
+        name: 'Safety Audit (Paired Reviewer)',
+        role: '[REVIEWER]',
+        status: 'Completed · 710ms',
+        inputs: { proposedPatch: 'maxConnections=250', memoryBudgetMb: 2048 },
+        outputs: { safetyApproved: true, riskScore: 'LOW', auditSignature: 'sha256:7f3a9b1c' }
+      },
+      'd1-gate': {
+        name: 'Deterministic Healthz Recovery Gate',
+        role: '[SHELL GATE]',
+        status: 'Completed · 110ms (exit code 0)',
+        inputs: { testCommand: 'curl -sSf http://localhost:8080/healthz' },
+        outputs: { httpStatus: 200, response: '{"status":"UP"}', passed: true }
+      },
+      'd1-post': {
+        name: 'Post-Mortem Synthesis (Coordinator)',
+        role: '[COORDINATOR]',
+        status: 'Completed · 410ms',
+        inputs: { incidentId: 'INC-88912', durationSeconds: 3.6 },
+        outputs: { reportPath: 'artifacts/PostMortem.md', kanbanUpdated: true, status: 'RESOLVED' }
+      }
+    };
+
+    function showSlide(index) {
+      if (index < 1) index = 1;
+      if (index > totalSlides) index = totalSlides;
+      currentSlide = index;
+
+      document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
+      const active = document.getElementById(`slide-${index}`);
+      if (active) active.classList.add('active');
+
+      document.getElementById('slide-num').innerText = `${index}/${totalSlides}`;
+      const r = sceneRanges[index - 1];
+      document.getElementById('scene-label').innerText = `Scene ${index} / 6: ${isZh ? r.zh.slice(0, 24) : r.en.slice(0, 36)}...`;
+      updateTeleprompter();
+    }
+
+    function nextSlide() {
+      if (currentSlide < totalSlides) {
+        showSlide(currentSlide + 1);
+      } else {
+        showSlide(1);
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 1) {
+        showSlide(currentSlide - 1);
+      }
+    }
+
+    function togglePlayback() {
+      isPlaying = !isPlaying;
+      const btn = document.getElementById('play-btn');
+      if (isPlaying) {
+        btn.innerText = '⏸ Pause Video Demo';
+        btn.classList.add('playing');
+        playTimer = setInterval(() => {
+          currentSeconds += 1;
+          if (currentSeconds > totalDurationSeconds) {
+            currentSeconds = 0;
+          }
+          syncPlayback();
+        }, 1000);
+      } else {
+        btn.innerText = '▶ Play Video Demo';
+        btn.classList.remove('playing');
+        clearInterval(playTimer);
+      }
+    }
+
+    function syncPlayback() {
+      const mins = Math.floor(currentSeconds / 60).toString().padStart(2, '0');
+      const secs = (currentSeconds % 60).toString().padStart(2, '0');
+      document.getElementById('timer-display').innerText = `${mins}:${secs} / 03:00`;
+
+      const pct = (currentSeconds / totalDurationSeconds) * 100;
+      document.getElementById('scrubber-fill').style.width = `${pct}%`;
+
+      // Find active scene
+      const activeRange = sceneRanges.find(r => currentSeconds >= r.start && currentSeconds < r.end) || sceneRanges[0];
+      if (activeRange.slide !== currentSlide) {
+        showSlide(activeRange.slide);
+      } else {
+        updateTeleprompter();
+      }
+    }
+
+    function seekPlayback(e) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const pct = Math.max(0, Math.min(1, clickX / rect.width));
+      currentSeconds = Math.floor(pct * totalDurationSeconds);
+      syncPlayback();
+    }
+
+    function updateTeleprompter() {
+      const r = sceneRanges[currentSlide - 1];
+      document.getElementById('cue-badge').innerText = r.cue;
+      document.getElementById('teleprompter-text').innerText = isZh ? `"${r.zh}"` : `"${r.en}"`;
+    }
+
+    function cycleTheme() {
+      currentThemeIndex = (currentThemeIndex + 1) % themes.length;
+      document.body.className = `theme-${themes[currentThemeIndex]}`;
+    }
+
+    function toggleLang() {
+      isZh = !isZh;
+      document.getElementById('lang-btn').innerText = isZh ? '🌐 English' : '🌐 中文';
+      document.getElementById('tagline-badge').innerText = isZh ? '代码，而非对话' : 'Code, Not Conversation';
+      updateTeleprompter();
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+
+    // Keyboard Shortcuts
+    window.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+        e.preventDefault();
+        nextSlide();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault();
+        prevSlide();
+      } else if (e.key === 'f' || e.key === 'F') {
+        toggleFullscreen();
+      } else if (e.key === 'Escape') {
+        closeInspector();
+      }
+    });
+
+    // Node Inspector Drawer
+    function inspectNodeModal(nodeId) {
+      const data = nodeDetails[nodeId] || { name: nodeId, role: '[STEP]', status: 'Completed', inputs: {}, outputs: {} };
+      document.getElementById('drawer-node-title').innerText = data.name;
+      document.getElementById('drawer-node-role').innerText = data.role;
+      document.getElementById('drawer-node-status').innerText = data.status;
+      document.getElementById('drawer-node-inputs').innerText = JSON.stringify(data.inputs, null, 2);
+      document.getElementById('drawer-node-outputs').innerText = JSON.stringify(data.outputs, null, 2);
+      document.getElementById('inspector-drawer').classList.add('open');
+    }
+
+    function closeInspector() {
+      document.getElementById('inspector-drawer').classList.remove('open');
+    }
+
+    function simulateDemo1Execution() {
+      const log = document.getElementById('d1-term-log');
+      log.innerHTML = '<span style="color: #f59e0b;">▶ Launching /workflow run incident-triage.ts...</span>';
+      setTimeout(() => { log.innerHTML += '<br>[Probe]: Telemetry probe detected 42% HTTP 5xx error rate.'; }, 600);
+      setTimeout(() => { log.innerHTML += '<br>[Triage]: Inspector agent classified incident as P1 DB pool exhaustion.'; }, 1200);
+      setTimeout(() => { log.innerHTML += '<br>[Plan/Review]: Paired Fixer/Reviewer synthesized validated patch.'; }, 1800);
+      setTimeout(() => { log.innerHTML += '<br><span style="color: #8b5cf6;">[Gate]: curl /healthz returned 200 OK!</span>'; }, 2400);
+      setTimeout(() => { log.innerHTML += '<br><span style="color: #10b981;">[Success]: PostMortem.md exported in 3.6s.</span>'; }, 3000);
+    }
+
+    function showKanbanDrawer() {
+      inspectNodeModal('d1-post');
+    }
+
+    // Initialize presentation
+    showSlide(1);
+  </script>
+</body>
+</html>

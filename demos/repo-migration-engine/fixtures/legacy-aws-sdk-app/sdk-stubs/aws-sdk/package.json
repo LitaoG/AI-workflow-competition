@@ -1,0 +1,6 @@
+{
+  "name": "aws-sdk",
+  "version": "2.1500.0",
+  "type": "module",
+  "main": "./index.js"
+}
