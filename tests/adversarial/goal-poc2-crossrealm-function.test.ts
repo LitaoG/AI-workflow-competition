@@ -22,7 +22,7 @@
  * Issue #31 closure (2026-11-02):
  *  - Static layer (GAP-02, already on main before #31): any .constructor/.prototype/
  *    ["constructor"] access is refused 9002 — poc2b/2c check ok:false; run-script dies
- *    at the compile gate ("逃逸链在编译期即死，不再进入沙箱", PENETRATION-AND-SECURITY-AUDIT §2.4).
+ *    at the compile gate ("逃逸链在编译期即死，不再进入沙箱", Security Sandbox Specification).
  *  - Runtime layer (Issue #31 预Seed): args is rebuilt INSIDE the realm from the
  *    __argsJson string (official child-source.ts:202-206 discipline), so its prototype
  *    chain is context-native and .constructor.constructor lands on the realm Function,
