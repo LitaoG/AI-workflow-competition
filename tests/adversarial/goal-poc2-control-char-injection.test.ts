@@ -6,7 +6,7 @@
  * 子进程 realm，再经 NDJSON 帧（JSON.stringify 转义）回父端 —— 若帧被撕裂，
  * ask 调用将被丢弃，run 必然失败/挂死；若 journal 完整，inputHash 逐字节可验证。
  *
- * import 风格参照 .kiro/pbt/engine-invariants.test.ts（node --test 直跑）：
+ * import 风格参照 tests/pbt/engine-invariants.test.ts（node --test 直跑）：
  *   node --experimental-strip-types --test tests/adversarial/goal-poc2-control-char-injection.test.ts
  *
  * 实测结论（2026-11-01, worktree feat/issue-28-goal-e2e-pentest @ 30eb54f）：

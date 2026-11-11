@@ -8,14 +8,14 @@
  * limits, and read the wait from decide().
  *
  * Responsibilities, split cleanly:
- *   attempt-classifier.ts → meaning of ONE error (category/backoff/Retry-After)
+ *   src/agent/attempt-classifier.ts → meaning of ONE error (category/backoff/Retry-After)
  *   retry-orchestrator.ts → state + policy ACROSS attempts (this file)
  *   engine failover loop  → chain order and sequencing
  *
  * Deterministic: no clock, no randomness — inject `now` for tests.
  */
 
-import { classifyFailure, Classification, FailureCategory } from './attempt-classifier.js';
+import { classifyFailure, Classification, FailureCategory } from '../agent/attempt-classifier.js';
 
 export interface RetryOrchestratorPolicy {
   /** Consecutive failures on one provider before its circuit opens (default 3). */

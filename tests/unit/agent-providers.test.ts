@@ -37,7 +37,7 @@ interface RecordedCall {
   init: { method?: string; headers?: Record<string, string>; body?: string; signal?: AbortSignal };
 }
 
-type MockReply = { status?: number; body?: unknown; rejectWith?: Error };
+type MockReply = { status?: number; body?: unknown; rejectWith?: Error; headers?: Record<string, string> };
 
 function mockFetch(reply: MockReply): { fetch: typeof fetch; calls: RecordedCall[] } {
   const calls: RecordedCall[] = [];
@@ -45,13 +45,16 @@ function mockFetch(reply: MockReply): { fetch: typeof fetch; calls: RecordedCall
     calls.push({ url: String(input), init });
     if (reply.rejectWith) throw reply.rejectWith;
     const text = typeof reply.body === 'string' ? reply.body : JSON.stringify(reply.body ?? {});
-    return new Response(text, { status: reply.status ?? 200, headers: { 'content-type': 'application/json' } });
+    return new Response(text, {
+      status: reply.status ?? 200,
+      headers: { 'content-type': 'application/json', ...(reply.headers ?? {}) },
+    });
   }) as unknown as typeof fetch;
   return { fetch: fetchFn, calls };
 }
 
-const ANTHROPIC_KEY = '<REDACTED>';
-const OPENAI_KEY = '<REDACTED>';
+const ANTHROPIC_KEY = 'sk-ant-test-DO-NOT-LEAK-0123456789';
+const OPENAI_KEY = 'sk-openai-test-DO-NOT-LEAK-9876543210';
 const SYSTEM_AND_USER: LLMMessage[] = [
   { role: 'system', content: 'You are specialized agent "tester". Respond with JSON only.' },
   { role: 'user', content: 'give me the answer' },
@@ -112,11 +115,20 @@ test('AnthropicProvider.chat sends the Messages API request shape', async () => 
   assert.equal(body.temperature, 0.2);
   assert.equal(body.system, SYSTEM_AND_USER[0]!.content, 'system prompt must be lifted to the top-level system field');
   assert.deepEqual(body.messages, [{ role: 'user', content: 'give me the answer' }], 'system must not repeat inside messages');
+  assert.deepEqual(body.cache_control, { type: 'ephemeral' }, 'automatic prompt-cache marker rides the request by default');
 
   assert.equal(result.content, '{"answer": 42}');
   assert.equal(result.model, 'claude-test');
   assert.deepEqual(result.usage, { promptTokens: 11, completionTokens: 7, totalTokens: 18 });
   assert.ok(Number.isFinite(result.latencyMs));
+});
+
+test('AnthropicProvider can turn the prompt-cache marker off for proxies that reject it', async () => {
+  const { fetch, calls } = mockFetch({ body: { content: [{ type: 'text', text: 'ok' }], model: 'claude-test' } });
+  const provider = new AnthropicProvider({ apiKey: ANTHROPIC_KEY, fetchImpl: fetch, cacheControl: false });
+  await provider.complete('ping');
+  const body = JSON.parse(calls[0]!.init.body!) as any;
+  assert.equal(body.cache_control, undefined, 'cacheControl:false must omit the field entirely');
 });
 
 test('AnthropicProvider.complete returns the bare text and uses configured defaults', async () => {
@@ -153,6 +165,22 @@ test('AnthropicProvider maps non-2xx to AgentError with correct retryable flags'
     assert.equal(details.retryable, retryable, `status ${status} retryable`);
     assert.ok(err.message.includes(`HTTP ${status}`));
   }
+});
+
+test('AnthropicProvider surfaces Retry-After on 429 as a structured resetAtMs', async () => {
+  const before = Date.now();
+  const { fetch } = mockFetch({
+    status: 429,
+    body: { error: { message: 'rate limited' } },
+    headers: { 'retry-after': '2' },
+  });
+  const provider = new AnthropicProvider({ apiKey: ANTHROPIC_KEY, fetchImpl: fetch });
+  const err = await rejectsAgentError(provider.chat(SYSTEM_AND_USER));
+  const details = assertAgentErrorShape(err, 'anthropic');
+  assert.equal(details.status, 429);
+  assert.equal(typeof details.resetAtMs, 'number');
+  assert.ok(details.resetAtMs! >= before + 1900, `resetAtMs too early: ${details.resetAtMs}`);
+  assert.ok(details.resetAtMs! <= Date.now() + 2100, `resetAtMs too late: ${details.resetAtMs}`);
 });
 
 test('AnthropicProvider maps transport failures to a retryable AgentError without status', async () => {
@@ -368,14 +396,14 @@ test('configureAnthropicFromEnv is a no-op without ANTHROPIC_API_KEY and never m
 });
 
 test('configureAnthropicFromEnv registers the anthropic provider from env, default stays mock', async () => {
-  assert.equal(configureAnthropicFromEnv({ ANTHROPIC_API_KEY: '<REDACTED>' }), 'anthropic');
+  assert.equal(configureAnthropicFromEnv({ ANTHROPIC_API_KEY: 'sk-test-env' }), 'anthropic');
   assert.ok(providerRegistry.list().includes('anthropic'));
   assert.equal(providerRegistry.get('anthropic').id, 'anthropic');
   assert.equal(providerRegistry.get().id, 'mock', 'registry default must remain the offline mock');
 
   const health = await providerRegistry.get('anthropic').checkHealth?.();
   assert.ok(health?.ok);
-  assert.ok(!health.detail.includes('<REDACTED>'), 'health detail must not leak the key');
+  assert.ok(!health.detail.includes('sk-test-env'), 'health detail must not leak the key');
 });
 
 test('configureOpenAiFromEnv is a no-op without OPENAI_API_KEY and registers model/baseUrl overrides when present', () => {
@@ -383,12 +411,12 @@ test('configureOpenAiFromEnv is a no-op without OPENAI_API_KEY and registers mod
   assert.equal(configureOpenAiFromEnv({}), undefined);
   assert.equal(providerRegistry.get().id, before, 'default provider must stay mock');
 
-  assert.equal(configureOpenAiFromEnv({ OPENAI_API_KEY: '<REDACTED>' }), 'openai');
+  assert.equal(configureOpenAiFromEnv({ OPENAI_API_KEY: 'sk-test-env' }), 'openai');
   assert.ok(providerRegistry.list().includes('openai'));
   assert.equal(providerRegistry.get().id, 'mock', 'registry default must remain the offline mock');
 
   const withOverrides = new OpenAiProvider({
-    apiKey: '<REDACTED>',
+    apiKey: 'sk-x',
     model: 'gpt-override',
     baseUrl: 'https://proxy.example/v1',
   });
@@ -404,7 +432,7 @@ test('configureHttpProvidersFromEnv dispatches lazily and only on credential pre
   assert.deepEqual(await configureHttpProvidersFromEnv({}), [], 'no credentials → no registrations');
 
   assert.deepEqual(
-    await configureHttpProvidersFromEnv({ ANTHROPIC_API_KEY: '<REDACTED>', OPENAI_API_KEY: '<REDACTED>' }),
+    await configureHttpProvidersFromEnv({ ANTHROPIC_API_KEY: 'sk-a', OPENAI_API_KEY: 'sk-b' }),
     ['anthropic', 'openai'],
     'both providers register in order when both keys are present',
   );

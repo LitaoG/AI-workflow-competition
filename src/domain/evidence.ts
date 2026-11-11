@@ -181,3 +181,23 @@ export function summarizeEvidence(ledger: EvidenceLedger): EvidenceSummary {
   }
   return { total: ledger.entries.length, byKind, totalDurationMs, totalTokens };
 }
+
+/**
+ * Materialize an {@link EvidenceLedger} from a stored entry sequence — the read
+ * side of the journal/SQLite persistence: the stored {@link EvidenceEntry} rows
+ * are folded through {@link createEvidenceLedger} + {@link appendEvidence} so a
+ * rebuilt ledger speaks the same domain vocabulary as one built live, and
+ * {@link queryEvidence} filtering / {@link summarizeEvidence} aggregation apply
+ * unchanged. Pure: no I/O, no mutation; entries are taken in the given
+ * (append/ordinal) order and caller-supplied ids are kept verbatim.
+ *
+ * @param runId - Id of the run the ledger belongs to.
+ * @param entries - Stored entries in append order.
+ */
+export function ledgerFromEntries(runId: string, entries: readonly EvidenceEntry[]): EvidenceLedger {
+  let ledger = createEvidenceLedger(runId);
+  for (const entry of entries) {
+    ledger = appendEvidence(ledger, entry);
+  }
+  return ledger;
+}

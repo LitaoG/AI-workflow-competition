@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { RetryOrchestrator } from '../../../src/dwf/retry-orchestrator.js';
-import { classifyFailure } from '../../../src/dwf/attempt-classifier.js';
+import { classifyFailure } from '../../../src/agent/attempt-classifier.js';
 
 /** Deterministic error factory: messages the classifier maps to a category. */
 function errOf(kind: 'rate_limit' | 'transient' | 'auth' | 'fatal'): Error {

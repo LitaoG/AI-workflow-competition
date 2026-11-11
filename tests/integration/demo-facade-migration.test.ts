@@ -31,7 +31,9 @@ function makeJournalPath(): { dbPath: string; cleanup: () => void } {
 test('migration demo facade script: scan, fan-out transform+review, gates, PR export', async () => {
   const journal = makeJournalPath();
   try {
-    const first = await runFacadeScript({ scriptPath: SCRIPT_SOURCE, cwd: DEMO_WORKSPACE, dbPath: journal.dbPath });
+    const first = await runFacadeScript({
+ scriptPath: SCRIPT_SOURCE, cwd: DEMO_WORKSPACE, dbPath: journal.dbPath, approvedCommands: ['node'],
+});
     assert.equal(first.status, 'completed', `demo run failed: ${first.error ?? JSON.stringify(first.diagnostics)}`);
 
     const value = first.value as {
@@ -59,11 +61,12 @@ test('migration demo facade script: scan, fan-out transform+review, gates, PR ex
 
     // Resume: identical run replays everything at zero asks.
     const second = await runFacadeScript({
+
       scriptPath: SCRIPT_SOURCE,
       cwd: DEMO_WORKSPACE,
       dbPath: journal.dbPath,
-      resumeRunId: first.runId,
-    });
+      resumeRunId: first.runId, approvedCommands: ['node'],
+});
     assert.equal(second.status, 'completed', `resume failed: ${second.error}`);
     assert.deepEqual(second.value, first.value);
     assert.equal(second.stats.asks, 0, 'resume must not execute any ask');
@@ -78,7 +81,9 @@ test('a failing baseline gate aborts before any agent call', async () => {
   // at a workspace whose fixture test cannot run (no fixture at all).
   const missing = fs.mkdtempSync(path.join(os.tmpdir(), 'dwf-demo-migration-missing-'));
   try {
-    const r = await runFacadeScript({ scriptPath: SCRIPT_SOURCE, cwd: missing, dbPath: path.join(missing, 'j.db') });
+    const r = await runFacadeScript({
+ scriptPath: SCRIPT_SOURCE, cwd: missing, dbPath: path.join(missing, 'j.db'), approvedCommands: ['node'],
+});
     assert.equal(r.status, 'failed');
     assert.ok(r.error!.includes('Baseline gate failed'), `unexpected error: ${r.error}`);
     assert.equal(r.stats.asks, 0, 'the deterministic gate must decide before any model spend');

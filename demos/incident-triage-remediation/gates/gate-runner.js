@@ -42,7 +42,13 @@ console.log(`[GateRunner] Mode: ${gateMode} | Scenario: ${scenario} | Mock: ${is
 async function main() {
   if (gateMode === 'post-remediation') {
     const recoveryMarker = path.join(__dirname, '..', '.remediation_applied');
-    const failureSim = process.env.SIMULATE_GATE_FAILURE === 'true';
+    // Env OR fixture-local marker (Issue #174): workflow-level gates run under
+    // the allowlist-only supervised env (Issue #151), so CLI-process env
+    // injections never reach this child. Tests toggle the marker file.
+    // Prefix match: per-suite marker files stay isolated under parallel
+    // node --test file execution (Issue #176).
+    const failureSim = process.env.SIMULATE_GATE_FAILURE === 'true'
+      || fs.readdirSync(__dirname).some((f) => f.startsWith('.simulate-gate-failure'));
 
     // Tier 1: Injected Failure Simulation (for verifying rollback in workflow tests)
     if (failureSim) {

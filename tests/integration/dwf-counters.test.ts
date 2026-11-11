@@ -8,7 +8,7 @@ import { createSQLiteStore } from '../../src/state/store.js';
 import { SQLiteStateStore } from '../../src/state/sqlite-store.js';
 import { DwfJournalStore } from '../../src/types.js';
 
-// 修复 #4（黑盒行为规约推导审计缺口）：resume 恢复 budget 计数与 artifact 版本。
+// 修复 #4（边界条件安全审计与状态恢复加固）：resume 恢复 budget 计数与 artifact 版本。
 // 之前：resume 后 outputTokensSpent 从 0 重账（硬闸归零）、artifactVersions
 // 从 1 重数（ON CONFLICT 覆盖旧产物）。现在：计数从 journal/结算行恢复。
 

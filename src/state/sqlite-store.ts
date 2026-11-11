@@ -2,6 +2,34 @@ import { DatabaseSync } from 'node:sqlite';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { StateStore, WorkflowEvent, StepCheckpoint, WorkflowArtifact, WorkflowStatus, DwfNode, DwfRunRow, DwfEvidenceRow, EvidenceEntry, EvidenceKind } from '../types.js';
+// The irreversible mask at THE serialization boundary (Issue #112): every
+// checkpoint/event payload passes through here on its way to disk, so the
+// builder engine inherits the same credential-shape rule the dwf journal
+// already enforces at its own boundary. Redaction is idempotent — the dwf
+// engine's earlier masking is preserved as-is. Leaf-utility import (redact.ts
+// pulls only ../prober), same precedent as the Phase 6 gate migration.
+import { redactValue } from '../dwf/redact.js';
+
+/**
+ * Event payloads are masked wholesale (Issue #112) — with ONE documented
+ * exception: a top-level `inputHash`. It is engine plumbing, not user
+ * payload: the sha256 replay key the `workflow answer` / hole-fill CLI reads
+ * back from the open event to journal a reply the resume pool matches
+ * against. Masking it silently broke that flow (Issue #169): a 64-hex sha256
+ * trips the anchored whole-value hex rule, so every resumed run re-opened
+ * its question and parked forever — with no gate going red, because the
+ * resume "succeeds" as a fresh park. The hash is not an additional exposure:
+ * its sibling `question` field is stored verbatim by design, so the hash
+ * reveals nothing the event does not already carry.
+ */
+function redactEventPayload(data: unknown): Record<string, unknown> {
+  const masked = redactValue(data ?? {}) as Record<string, unknown>;
+  const original = data as Record<string, unknown> | undefined;
+  if (typeof original?.inputHash === 'string' && masked.inputHash !== original.inputHash) {
+    masked.inputHash = original.inputHash; // structural replay key — restore verbatim
+  }
+  return masked;
+}
 
 export class SQLiteStateStore implements StateStore {
   private db: DatabaseSync;
@@ -127,7 +155,7 @@ export class SQLiteStateStore implements StateStore {
       CREATE INDEX IF NOT EXISTS idx_dwf_evidence_run ON dwf_evidence(run_id, ordinal);
     `);
     // Migration: runner_pid for orphan-run convergence and stale-`running`
-    // takeover (audit gap #2 from an internal audit). Existing journals get the column
+    // takeover (audit gap #2 / GOAL.md §1.5). Existing journals get the column
     // via ALTER; fresh ones get it here too (the `CREATE TABLE` above carries
     // neither column — this is the single source of both). The resume path
     // probes it to tell a live run from a crashed one; rows written before the
@@ -139,6 +167,21 @@ export class SQLiteStateStore implements StateStore {
     }
     if (!dwfRunCols.includes('output_tokens_spent')) {
       this.db.exec('ALTER TABLE dwf_runs ADD COLUMN output_tokens_spent INTEGER');
+    }
+    // Issue #118: the budget cap belongs to the RUN, not to one CLI invocation
+    // — persisted at launch and restored by every continuation door
+    // (answer/resume/amend/rerun/MCP script_run).
+    if (!dwfRunCols.includes('budget_total')) {
+      this.db.exec('ALTER TABLE dwf_runs ADD COLUMN budget_total INTEGER');
+    }
+    // Issue #39: per-actor named-cache identity columns on ask rows. The pragma
+    // guard keeps old journals readable in place (missing columns read back
+    // as undefined and the actor-keyed cache path stays inert for them).
+    const dwfNodeCols = (this.db.prepare('PRAGMA table_info(dwf_nodes)').all() as Array<{ name: string }>).map((c) => c.name);
+    for (const [name, ddl] of [['actor_name', 'TEXT'], ['actor_seq', 'INTEGER'], ['content_hash', 'TEXT'], ['persona_json', 'TEXT']] as const) {
+      if (!dwfNodeCols.includes(name)) {
+        this.db.exec(`ALTER TABLE dwf_nodes ADD COLUMN ${name} ${ddl}`);
+      }
     }
     this.migrateCheckpointsAddInputHash();
   }
@@ -230,7 +273,7 @@ export class SQLiteStateStore implements StateStore {
       event.type,
       event.sequence || 0,
       event.timestamp,
-      JSON.stringify(event.data ?? {})
+      JSON.stringify(redactEventPayload(event.data))
     );
 
     // Also update run record if event represents status transition
@@ -301,9 +344,9 @@ export class SQLiteStateStore implements StateStore {
       checkpoint.phaseId || null,
       checkpoint.role || null,
       checkpoint.status,
-      JSON.stringify(checkpoint.input ?? null),
-      checkpoint.output !== undefined ? JSON.stringify(checkpoint.output) : null,
-      checkpoint.error || null,
+      JSON.stringify(checkpoint.input !== undefined ? redactValue(checkpoint.input) : null),
+      checkpoint.output !== undefined ? JSON.stringify(redactValue(checkpoint.output)) : null,
+      checkpoint.error ? redactValue(checkpoint.error) : null,
       checkpoint.durationMs || 0,
       checkpoint.tokens?.prompt || 0,
       checkpoint.tokens?.completion || 0,
@@ -478,8 +521,8 @@ export class SQLiteStateStore implements StateStore {
 
   public async saveDwfNode(node: DwfNode): Promise<void> {
     const stmt = this.db.prepare(`
-      INSERT INTO dwf_nodes (run_id, site_id, ordinal, kind, input_hash, status, result_json, error_text, duration_ms, completed_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO dwf_nodes (run_id, site_id, ordinal, kind, input_hash, status, result_json, error_text, duration_ms, completed_at, actor_name, actor_seq, content_hash, persona_json)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(run_id, site_id, ordinal) DO UPDATE SET
         kind = excluded.kind,
         input_hash = excluded.input_hash,
@@ -487,7 +530,11 @@ export class SQLiteStateStore implements StateStore {
         result_json = excluded.result_json,
         error_text = excluded.error_text,
         duration_ms = excluded.duration_ms,
-        completed_at = excluded.completed_at
+        completed_at = excluded.completed_at,
+        actor_name = excluded.actor_name,
+        actor_seq = excluded.actor_seq,
+        content_hash = excluded.content_hash,
+        persona_json = excluded.persona_json
     `);
     stmt.run(
       node.runId,
@@ -499,7 +546,11 @@ export class SQLiteStateStore implements StateStore {
       node.resultJson ?? null,
       node.errorText ?? null,
       node.durationMs ?? 0,
-      node.completedAt ?? new Date().toISOString()
+      node.completedAt ?? new Date().toISOString(),
+      node.actorName ?? null,
+      node.actorSeq ?? null,
+      node.contentHash ?? null,
+      node.personaJson ?? null
     );
   }
 
@@ -535,28 +586,38 @@ export class SQLiteStateStore implements StateStore {
       errorText: row.error_text ?? undefined,
       durationMs: row.duration_ms,
       completedAt: row.completed_at ?? undefined,
+      actorName: row.actor_name ?? undefined,
+      actorSeq: row.actor_seq ?? undefined,
+      contentHash: row.content_hash ?? undefined,
+      personaJson: row.persona_json ?? undefined,
     }));
   }
 
   public async saveDwfRun(row: DwfRunRow): Promise<void> {
     const now = new Date().toISOString();
     const stmt = this.db.prepare(`
-      INSERT INTO dwf_runs (run_id, script_hash, script_path, args_json, status, parent_run_id, runner_pid, output_tokens_spent, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO dwf_runs (run_id, script_hash, script_path, args_json, status, parent_run_id, runner_pid, output_tokens_spent, budget_total, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(run_id) DO UPDATE SET
         status = excluded.status,
         updated_at = excluded.updated_at,
         parent_run_id = excluded.parent_run_id,
         runner_pid = excluded.runner_pid,
-        output_tokens_spent = excluded.output_tokens_spent
+        output_tokens_spent = excluded.output_tokens_spent,
+        budget_total = excluded.budget_total
     `);
-    stmt.run(row.runId, row.scriptHash, row.scriptPath ?? null, row.argsJson ?? null, row.status, row.parentRunId ?? null, row.runnerPid ?? null, row.outputTokensSpent ?? null, row.createdAt ?? now, row.updatedAt ?? now);
+    stmt.run(row.runId, row.scriptHash, row.scriptPath ?? null, row.argsJson ?? null, row.status, row.parentRunId ?? null, row.runnerPid ?? null, row.outputTokensSpent ?? null, row.budgetTotal ?? null, row.createdAt ?? now, row.updatedAt ?? now);
   }
 
   public async getDwfRun(runId: string): Promise<DwfRunRow | null> {
     const stmt = this.db.prepare(`SELECT * FROM dwf_runs WHERE run_id = ?`);
     const row = stmt.get(runId) as any;
     if (!row) return null;
+    return this.mapDwfRunRow(row);
+  }
+
+  /** Snake-case dwf_runs row → DwfRunRow (single mapping for get/list). */
+  private mapDwfRunRow(row: any): DwfRunRow {
     return {
       runId: row.run_id,
       scriptHash: row.script_hash,
@@ -566,6 +627,7 @@ export class SQLiteStateStore implements StateStore {
       parentRunId: row.parent_run_id ?? undefined,
       runnerPid: row.runner_pid === null || row.runner_pid === undefined ? undefined : Number(row.runner_pid),
       outputTokensSpent: row.output_tokens_spent === null || row.output_tokens_spent === undefined ? undefined : Number(row.output_tokens_spent),
+      budgetTotal: row.budget_total === null || row.budget_total === undefined ? undefined : Number(row.budget_total),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -591,22 +653,11 @@ export class SQLiteStateStore implements StateStore {
     }
 
     const rows = this.db.prepare(query).all(...params) as any[];
-    return rows.map((row) => ({
-      runId: row.run_id,
-      scriptHash: row.script_hash,
-      scriptPath: row.script_path ?? undefined,
-      argsJson: row.args_json ?? undefined,
-      status: row.status,
-      parentRunId: row.parent_run_id ?? undefined,
-      runnerPid: row.runner_pid === null || row.runner_pid === undefined ? undefined : Number(row.runner_pid),
-      outputTokensSpent: row.output_tokens_spent === null || row.output_tokens_spent === undefined ? undefined : Number(row.output_tokens_spent),
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-    }));
+    return rows.map((row) => this.mapDwfRunRow(row));
   }
 
   // ------------------------------------------------------------------
-  // Facade-script (dwf) evidence ledger — 证据凭证法则（每条证据必须自带 provenance / coverage / limitations）
+  // Facade-script (dwf) evidence ledger — GOAL.md 证据凭证法则
   // ------------------------------------------------------------------
 
   /**

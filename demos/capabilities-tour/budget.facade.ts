@@ -1,9 +1,10 @@
 /* workflow
 name: budget-tour
-description: budget.total hard-stops the third agent() call (WorkflowBudgetExceededError)
+description: run with --budget-total 80; the second agent() call trips WorkflowBudgetExceededError
 */
 phase("Spend");
-budget.total = 80; // mock ask spends 88 completion tokens — the second pre-check trips
+// The budget is injected by the run config and is read-only in the script:
+//   workflow run-script demos/capabilities-tour/budget.facade.ts --budget-total 80
 const first = await agent("spend-a").ask<Reading>("inspect health report of the service");
 log(`spent so far: ${budget.spent()} / ${budget.total}`);
 let stopped = '';

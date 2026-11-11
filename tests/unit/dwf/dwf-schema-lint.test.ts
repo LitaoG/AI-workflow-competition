@@ -115,3 +115,37 @@ test('regression: zod conversion silently accepts the unusable schema the lint r
   // The lint refuses it before dispatch.
   assert.deepEqual(kinds(lintJsonSchema(unusable)), ['unsatisfiable']);
 });
+test('the Draft-07 tuple form (array items) lints clean — issue #126 F6', () => {
+  // Exactly what schema-synth emits for `[string, number]`: before the fix, the
+  // lint's plain-object check rejected the array `items` and every tuple-typed
+  // ask died at dispatch ("schema must be a JSON object").
+  assert.deepEqual(lintJsonSchema({ type: 'array', items: [{ type: 'string' }, { type: 'number' }], minItems: 2, maxItems: 2, additionalItems: false }), []);
+  assert.deepEqual(lintJsonSchema({ type: 'array', items: [{ type: 'string' }, { type: 'number' }], minItems: 1, maxItems: 2, additionalItems: false }), []);
+  assert.deepEqual(lintJsonSchema({ type: 'array', items: [{ type: 'string' }], minItems: 1, additionalItems: { type: 'number' } }), []);
+});
+
+test('lint recurses into per-position tuple schemas and the additionalItems schema', () => {
+  const issues = lintJsonSchema({ type: 'array', items: [{ type: 'wat' }], minItems: 1 });
+  assert.deepEqual(kinds(issues), ['invalid']);
+  assert.equal(issues[0]!.path, 'items[0].type');
+  const rest = lintJsonSchema({ type: 'array', items: [{ type: 'string' }], minItems: 1, additionalItems: { type: 'wat' } });
+  assert.deepEqual(kinds(rest), ['invalid']);
+  assert.equal(rest[0]!.path, 'additionalItems.type');
+});
+
+test('minItems above maxItems is unsatisfiable', () => {
+  const issues = lintJsonSchema({ type: 'array', items: { type: 'string' }, minItems: 3, maxItems: 2 });
+  assert.deepEqual(kinds(issues), ['unsatisfiable']);
+  assert.match(issues[0]!.message, /minItems \(3\) is greater than maxItems \(2\)/);
+});
+
+test('minItems above the tuple length is unsatisfiable unless additionalItems admits more', () => {
+  const closed = lintJsonSchema({ type: 'array', items: [{ type: 'string' }], minItems: 2, additionalItems: false });
+  assert.deepEqual(kinds(closed), ['unsatisfiable']);
+  // Absent additionalItems already admits extra elements (permissive Draft-07).
+  assert.deepEqual(lintJsonSchema({ type: 'array', items: [{ type: 'string' }], minItems: 2 }), []);
+  assert.deepEqual(
+    lintJsonSchema({ type: 'array', items: [{ type: 'string' }], minItems: 2, additionalItems: { type: 'number' } }),
+    [],
+  );
+});

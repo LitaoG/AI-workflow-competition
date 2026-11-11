@@ -133,3 +133,15 @@ interface V { id: string | number; }
   assert.equal(zod.safeParse({ id: 42 }).success, true);
   assert.equal(zod.safeParse({ id: true }).success, false);
 });
+
+test('a tuple schema without minItems defaults its required prefix to zero (Draft-07, #126 F7)', () => {
+  // The synthesizer always writes minItems, so this only matters for a future
+  // raw-schema surface — but an absent minItems must NOT mean "every position
+  // required", which would fail valid short arrays and burn repair calls.
+  const zod = zodFromJsonSchema({ type: 'array', items: [{ type: 'string' }, { type: 'number' }] });
+  assert.equal(zod.safeParse(['a', 1]).success, true);
+  assert.equal(zod.safeParse(['a']).success, true);
+  assert.equal(zod.safeParse([]).success, true);
+  assert.equal(zod.safeParse(['a', 1, 2]).success, true, 'extra elements are unconstrained while additionalItems is absent');
+  assert.equal(zod.safeParse(['a', 'b']).success, false, 'position 1 still must be a number');
+});

@@ -66,16 +66,43 @@ export class HTMLRenderer {
       const dst = nodeMap.get(edge.toNodeId);
       if (!src || !dst) continue;
 
-      const x1 = src.x + src.width;
-      const y1 = src.y + src.height / 2;
-      const x2 = dst.x;
-      const y2 = dst.y + dst.height / 2;
-
-      const deltaX = Math.max(Math.abs(x2 - x1) * 0.5, 40);
-      const cx1 = x1 + deltaX;
-      const cy1 = y1;
-      const cx2 = x2 - deltaX;
-      const cy2 = y2;
+      // 连线物理算法（Mission D P0-4）：四分支全锚定卡片边缘，杜绝同列节点
+      // 「向右伸出→倒扣向左穿透」的飞线回绕。
+      let x1: number, y1: number, cx1: number, cy1: number, cx2: number, cy2: number, x2: number, y2: number;
+      const sameColumn = Math.abs(src.x - dst.x) < 1;
+      if (sameColumn && dst.y > src.y && dst.y - (src.y + src.height) <= defaultDims.nodeGap + 2) {
+        // 同列直接相邻：垂直直线脊柱（底缘中点 → 顶缘中点）
+        x1 = src.x + src.width / 2;
+        y1 = src.y + src.height;
+        x2 = dst.x + dst.width / 2;
+        y2 = dst.y;
+        const midY = (y1 + y2) / 2;
+        cx1 = x1; cy1 = midY; cx2 = x2; cy2 = midY;
+      } else if (sameColumn) {
+        // 同列非相邻/向上：卡片右侧弧形旁路（Side-Bypass），右缘出、右缘入
+        x1 = src.x + src.width;
+        y1 = src.y + src.height / 2;
+        x2 = dst.x + dst.width;
+        y2 = dst.y + dst.height / 2;
+        const mx = Math.max(x1, x2) + 34;
+        cx1 = mx; cy1 = y1; cx2 = mx; cy2 = y2;
+      } else if (dst.x > src.x) {
+        // 跨 Phase 前向：标准水平三次贝塞尔（右缘出、左缘入）
+        x1 = src.x + src.width;
+        y1 = src.y + src.height / 2;
+        x2 = dst.x;
+        y2 = dst.y + dst.height / 2;
+        const dx = Math.min(Math.max((x2 - x1) * 0.45, 30), 92);
+        cx1 = x1 + dx; cy1 = y1; cx2 = x2 - dx; cy2 = y2;
+      } else {
+        // 回边（跨列向左）：左向平滑 S 曲线（左缘出、右缘入），无倒扣
+        x1 = src.x;
+        y1 = src.y + src.height / 2;
+        x2 = dst.x + dst.width;
+        y2 = dst.y + dst.height / 2;
+        const dx = Math.min(Math.max((x1 - x2) * 0.45, 30), 92);
+        cx1 = x1 - dx; cy1 = y1; cx2 = x2 + dx; cy2 = y2;
+      }
 
       const edgeStatus =
         dst.status === 'completed'
@@ -162,12 +189,12 @@ export class HTMLRenderer {
     <div class="header-left">
       <div class="title">AI-Workflow Visualizer</div>
       <div class="metrics status-bar" id="metrics-label">
-        ${graph.totalPhases} phases · ${graph.totalPhases} ${isZh ? '个阶段' : 'phases'} · ${graph.activeSubagents} ${isZh ? '个智能体并行执行中' : 'subagents active'}
+        ${graph.totalPhases} ${isZh ? '个阶段' : 'phases'} · ${graph.activeSubagents} ${isZh ? '个智能体并行执行中' : 'subagents active'}
       </div>
     </div>
     <div class="header-right">
-      <button onclick="resetZoom()">${isZh ? '重置缩放' : 'Reset Zoom'}</button>
-      <button onclick="toggleLang()">${isZh ? 'English' : '中文'}</button>
+      <button id="btn-reset" onclick="resetZoom()">${isZh ? '重置缩放' : 'Reset Zoom'}</button>
+      <button id="btn-lang" onclick="toggleLang()">${isZh ? 'English' : '中文'}</button>
     </div>
   </header>
 
@@ -266,18 +293,51 @@ export class HTMLRenderer {
       updateTransform();
     }
 
-    function inspectNode(id) {
+    // 客户端 i18n：本地 file:// 页面刷新无法改变服务端烘焙的语言，改用双词典
+    // 就地切换（修复 ?lang=zh 死按钮 Bug）。
+    const I18N = {
+      en: {
+        metrics: '${graph.totalPhases} phases · ${graph.activeSubagents} subagents active',
+        reset: 'Reset Zoom', toggle: '中文', inspector: 'Node Inspector',
+        role: 'Role', status: 'Status', phase: 'Phase', duration: 'Duration',
+        inputs: 'Inputs', outputs: 'Outputs',
+      },
+      zh: {
+        metrics: '${graph.totalPhases} 个阶段 · ${graph.activeSubagents} 个智能体并行执行中',
+        reset: '重置缩放', toggle: 'English', inspector: '节点检查器',
+        role: '角色', status: '状态', phase: '阶段', duration: '耗时',
+        inputs: '输入', outputs: '输出',
+      },
+    };
+    let uiLang = '${lang}';
+    let openNodeId = null;
+    function t() { return I18N[uiLang]; }
+    function applyLang() {
+      document.getElementById('metrics-label').innerText = t().metrics;
+      document.getElementById('btn-reset').innerText = t().reset;
+      document.getElementById('btn-lang').innerText = t().toggle;
+      if (!openNodeId) document.getElementById('drawer-title').innerText = t().inspector;
+      if (openNodeId) inspectNode(openNodeId, true);
+    }
+    function toggleLang() {
+      uiLang = uiLang === 'zh' ? 'en' : 'zh';
+      applyLang();
+    }
+    applyLang();
+
+    function inspectNode(id, keepOpen) {
       const node = nodes.find(n => n.id === id);
       if (!node) return;
-      document.getElementById('drawer-title').innerText = node.name;
+      openNodeId = keepOpen ? openNodeId : id;
+      document.getElementById('drawer-title').innerText = keepOpen ? t().inspector : node.name;
       document.getElementById('drawer-content').innerHTML = \`
-        <p><strong>Role:</strong> \${node.role}</p>
-        <p><strong>Status:</strong> \${node.status}</p>
-        <p><strong>Phase:</strong> \${node.phaseName}</p>
-        <p><strong>Duration:</strong> \${node.durationMs || 0}ms</p>
-        <h4 style="margin-top:16px;">Inputs</h4>
+        <p><strong>\${t().role}:</strong> \${node.role}</p>
+        <p><strong>\${t().status}:</strong> \${node.status}</p>
+        <p><strong>\${t().phase}:</strong> \${node.phaseName}</p>
+        <p><strong>\${t().duration}:</strong> \${node.durationMs || 0}ms</p>
+        <h4 style="margin-top:16px;">\${t().inputs}</h4>
         <pre>\${JSON.stringify(node.inputs || {}, null, 2)}</pre>
-        <h4 style="margin-top:16px;">Outputs</h4>
+        <h4 style="margin-top:16px;">\${t().outputs}</h4>
         <pre>\${JSON.stringify(node.outputs || {}, null, 2)}</pre>
       \`;
       document.getElementById('drawer').classList.add('open');
@@ -285,12 +345,8 @@ export class HTMLRenderer {
 
     function closeDrawer() {
       document.getElementById('drawer').classList.remove('open');
-    }
-
-    function toggleLang() {
-      const url = new URL(window.location);
-      url.searchParams.set('lang', '${lang === 'zh' ? 'en' : 'zh'}');
-      window.location = url.toString();
+      openNodeId = null;
+      document.getElementById('drawer-title').innerText = t().inspector;
     }
   </script>
 </body>

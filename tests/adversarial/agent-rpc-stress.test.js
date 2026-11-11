@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { z } from 'zod';
 import { agent } from '../../dist/src/agent/rpc.js';
 import { providerRegistry } from '../../dist/src/agent/provider.js';
-import { SchemaValidationError } from '../../dist/src/core/error.js';
+import { isSchemaValidationError } from '../../dist/src/domain/errors.js';
+import { SchemaValidationError } from '../../dist/src/agent/schema-validation-error.js';
 import { repairJsonString, extractJson } from '../../dist/src/agent/schema.js';
 
 class ScriptedProvider {
@@ -184,12 +185,11 @@ test('Agent RPC Stress: Cleanly raises SchemaValidationError when severe corrupt
       await agent('BrokenAgent').ask('failing prompt', schema);
     },
     (err) => {
-      assert.ok(err instanceof SchemaValidationError);
-      assert.equal(err.code, 'SCHEMA_VALIDATION_FAILED');
-      assert.equal(err.name, 'SchemaValidationError');
-      assert.equal(err.attemptCount, 3);
-      assert.equal(err.isRecoverable, false);
-      assert.ok(err.rawText.includes('unclosed string quote 3'));
+      assert.ok(isSchemaValidationError(err));
+      assert.ok(err instanceof SchemaValidationError, 'Issue #110: a real Error instance');
+      assert.ok(typeof err.stack === 'string' && err.stack.length > 0);
+      assert.ok(err.rawText.includes('unclosed string quote'), 'rawText holds the last raw output');
+      assert.equal(err.details.attemptCount, 3);
       return true;
     }
   );
@@ -212,11 +212,12 @@ test('Agent RPC Stress: Cleanly raises SchemaValidationError with Zod issues whe
       await agent('MismatchAgent').ask('test type mismatch', schema);
     },
     (err) => {
-      assert.ok(err instanceof SchemaValidationError);
-      assert.equal(err.attemptCount, 3);
-      assert.ok(err.zodErrors.length > 0);
-      assert.equal(err.zodErrors[0].path[0], 'expectedNumber');
-      assert.equal(err.zodErrors[0].code, 'invalid_type');
+      assert.ok(isSchemaValidationError(err));
+      assert.ok(err instanceof SchemaValidationError, 'Issue #110: a real Error instance');
+      assert.equal(err.details.attemptCount, 3);
+      assert.ok((err.details.issueCount ?? 0) > 0);
+      assert.ok(err.zodErrors.length > 0, 'Issue #110: zodErrors survive on the error');
+      assert.deepEqual(err.zodErrors[0].path, ['expectedNumber'], 'the failing field path is recoverable');
       return true;
     }
   );
@@ -236,8 +237,9 @@ test('Agent RPC Stress: Enforces custom maxRetries=1 immediately upon first fail
       await agent('FastFailAgent').ask('fail fast', schema, { maxRetries: 1 });
     },
     (err) => {
-      assert.ok(err instanceof SchemaValidationError);
-      assert.equal(err.attemptCount, 1);
+      assert.ok(isSchemaValidationError(err));
+      assert.ok(err instanceof SchemaValidationError, 'Issue #110: a real Error instance');
+      assert.equal(err.details.attemptCount, 1);
       return true;
     }
   );

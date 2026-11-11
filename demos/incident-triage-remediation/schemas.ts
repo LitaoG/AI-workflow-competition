@@ -104,7 +104,7 @@ export const SafetyReviewSchema = z.object({
   approved: z.boolean().describe('Whether the plan is approved for automated execution'),
   safetyScore: z.number().min(0).max(1).describe('Safety confidence rating between 0.0 and 1.0'),
   prohibitedCommandsDetected: z.array(z.string()).describe('List of disallowed command tokens detected'),
-  policyCompliance: z.enum(['PASS', 'FAIL', 'CONDITIONAL']).optional().default('PASS').describe('Compliance against Kiro steering policies'),
+  policyCompliance: z.enum(['PASS', 'FAIL', 'CONDITIONAL']).optional().default('PASS').describe('Compliance against deterministic steering policies'),
   riskMitigationNotes: z.string().describe('Safety auditor analysis and blast radius containment commentary'),
   signedOffBy: z.string().optional().describe('Auditor agent identity stamp'),
 });

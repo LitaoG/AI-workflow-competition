@@ -13,7 +13,10 @@ type Schema = {
   type?: string | string[];
   properties?: Record<string, Schema>;
   required?: string[];
-  items?: Schema;
+  items?: Schema | Schema[];
+  minItems?: number;
+  maxItems?: number;
+  additionalItems?: boolean | Schema;
   enum?: Array<string | number>;
   additionalProperties?: boolean;
   description?: string;
@@ -53,6 +56,33 @@ export function zodFromJsonSchema(root: Schema): z.ZodTypeAny {
       built.set(ref, inner);
       return inner;
     });
+  }
+
+  /**
+   * Draft-07 positional array: `items` lists the positions, `minItems` counts the
+   * required prefix, and `additionalItems` says what may follow (false: nothing; a
+   * schema: rest elements; absent or true: anything). zod's tuple has no optional
+   * positions, so a tuple with optional positions becomes a union of its allowed
+   * prefixes. `maxItems` adds nothing here: the synthesizer only emits it next to
+   * `additionalItems: false`, where the full tuple already caps the length.
+   */
+  function fromTuple(items: Schema[], minItems: number | undefined, additionalItems: boolean | Schema | undefined): z.ZodTypeAny {
+    const positions = items.map((item) => fromSchema(item));
+    const rest = additionalItems === false
+      ? undefined
+      : additionalItems === undefined || additionalItems === true
+        ? z.unknown()
+        : fromSchema(additionalItems);
+    const tupleOf = (list: z.ZodTypeAny[]) => z.tuple(list as unknown as [z.ZodTypeAny, ...z.ZodTypeAny[]]);
+    // Draft-07 default for an absent minItems is 0 (issue #126 F7). The synthesizer
+    // always writes minItems next to a tuple, so this only matters for a future
+    // raw-schema surface: an absent minItems must NOT mean "every position required".
+    const min = Math.max(0, Math.min(minItems ?? 0, positions.length));
+    const variants: z.ZodTypeAny[] = [];
+    for (let length = min; length < positions.length; length++) variants.push(tupleOf(positions.slice(0, length)));
+    const full = tupleOf(positions);
+    variants.push(rest ? full.rest(rest) : full);
+    return variants.length === 1 ? variants[0] : z.union(variants as [z.ZodTypeAny, z.ZodTypeAny, ...z.ZodTypeAny[]]);
   }
 
   function fromSchema(schema: Schema): z.ZodTypeAny {
@@ -100,6 +130,7 @@ export function zodFromJsonSchema(root: Schema): z.ZodTypeAny {
         case 'null':
           return z.null();
         case 'array': {
+          if (Array.isArray(schema.items)) return fromTuple(schema.items, schema.minItems, schema.additionalItems);
           if (!schema.items) return z.array(z.unknown());
           return z.array(fromSchema(schema.items));
         }

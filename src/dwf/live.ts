@@ -1,22 +1,36 @@
 /**
- * Live execution view — a zero-dependency HTTP server that serves a
- * self-refreshing HTML view of a journalled run (引擎交互式画布,
- * live half).
+ * Live execution server — serves the AI-Workflow Studio (single-file SPA,
+ * `src/visualizer/studio-renderer.ts`) for a journalled run and streams journal
+ * events to it over Server-Sent Events (GOAL.md 阶段 7 + Mission D 支柱二).
  *
- * `GET /`     — the shell: dark-theme page whose script polls /state and
- *               re-renders phases/nodes/escalations as the journal grows.
- * `GET /state`— the projection: run row + nodes + derived badges as JSON.
+ * `GET  /`             — the Studio shell (live mode: SSE client + A2UI forms).
+ * `GET  /state`        — the full StudioSnapshot JSON (bootstrap; polling fallback).
+ * `GET  /events`       — SSE: a `state` frame (full snapshot) then `event` frames
+ *                        (raw journal events) as the journal grows.
+ * `GET  /api/artifact` — `?id=` full artifact content JSON for the Inspector.
+ * `POST /api/answer`   — `{questionId, text}` → journal an escalation answer + resume
+ *                        (Human-in-the-Loop A2UI; wired by the serve command).
+ * `POST /api/fill`     — `{holeName, body}` → fill a hole + amend-fork resume.
  *
- * The journal is the single source of truth: the same projection renders a
- * run that is parked, running, or settled — attach it to a running script and
+ * Every route accepts `?run=<runId>` to override the bound run: a hole fill
+ * forks the continuation under a NEW run id, and the Studio redirects so the
+ * watcher follows the live lineage without losing the page.
+ *
+ * The journal is the single source of truth: the same projection renders a run
+ * that is parked, running, or settled — attach it to a running script and
  * watch nodes land in real time (`workflow serve <runId>`).
  */
 
+import { escapeHtml } from '../utils/escape-html.js';
 import * as http from 'node:http';
-import type { Server } from 'node:http';
+import type { Server, IncomingMessage, ServerResponse } from 'node:http';
 import { SQLiteStateStore } from '../state/sqlite-store.js';
 import { DwfJournalStore, DwfNode, WorkflowEvent } from '../types.js';
-import { groupNodesByPhase } from './view.js';
+import { projectEventsToGraph } from '../dag/journal-projection.js';
+import { renderStudioHtml } from '../visualizer/studio-renderer.js';
+import type { StudioSnapshot, StudioArtifact } from '../visualizer/studio-renderer.js';
+import { renderStudioPage, attachStudioWebSocket } from '../visualizer/studio-server.js';
+import type { StudioWebSocketHub } from '../visualizer/studio-server.js';
 
 const KIND_ICON: Record<DwfNode['kind'], string> = {
   ask: '◆ ask',
@@ -28,8 +42,40 @@ const KIND_ICON: Record<DwfNode['kind'], string> = {
   escalation: '❓ escalate',
 };
 
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+interface PhaseGroup {
+  title: string;
+  nodes: DwfNode[];
+}
+
+/** Group nodes into phases by completion time vs the dwf_phase event timeline. */
+export function groupNodesByPhase(nodes: DwfNode[], events: WorkflowEvent[]): PhaseGroup[] {
+  const phaseTimes = events
+    .filter((e) => e.type === 'dwf_phase')
+    .map((e) => ({ title: String((e.data as { phase?: string }).phase ?? 'Phase'), time: Date.parse(e.timestamp) }));
+
+  const grouped = new Map<string, DwfNode[]>();
+  const unphased: DwfNode[] = [];
+  for (const node of nodes) {
+    const t = node.completedAt ? Date.parse(node.completedAt) : 0;
+    let best: { title: string; time: number } | undefined;
+    for (const p of phaseTimes) {
+      if (p.time <= t && (!best || p.time > best.time)) best = p;
+    }
+    if (best) {
+      const arr = grouped.get(best.title) ?? [];
+      arr.push(node);
+      grouped.set(best.title, arr);
+    } else {
+      unphased.push(node);
+    }
+  }
+
+  const out: PhaseGroup[] = phaseTimes
+    .filter((p) => grouped.has(p.title))
+    .map((p) => ({ title: p.title, nodes: grouped.get(p.title)! }));
+  if (unphased.length > 0) out.unshift({ title: 'Ungrouped', nodes: unphased });
+  return out;
 }
 
 export interface LiveProjection {
@@ -97,55 +143,137 @@ export async function projectRun(store: SQLiteStateStore & DwfJournalStore, runI
   };
 }
 
-const SHELL = `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>AI-Workflow live</title>
-<style>
-  :root { color-scheme: dark; }
-  body { font-family: ui-monospace, Consolas, monospace; background: #0d1117; color: #c9d1d9; margin: 2rem auto; max-width: 900px; padding: 0 1rem; }
-  h1 { font-size: 1.2rem; } h2 { font-size: 1rem; border-bottom: 1px solid #21262d; padding-bottom: .3rem; margin-top: 1.4rem; }
-  .meta, .dim { color: #8b949e; font-size: .85rem; }
-  .ok { color: #3fb950; } .bad { color: #f85149; } .warn { color: #d29922; }
-  .node { padding: .45rem .6rem; border: 1px solid #21262d; border-radius: 6px; margin: .35rem 0; }
-  .q { color: #d29922; margin-top: .25rem; } .a { color: #3fb950; }
-  pre { background: #161b22; padding: .5rem; border-radius: 6px; overflow-x: auto; font-size: .8rem; white-space: pre-wrap; }
-  .err { color: #f85149; }
-  .badges span { background: #161b22; border: 1px solid #21262d; border-radius: 10px; padding: .1rem .55rem; margin-right: .4rem; font-size: .8rem; }
-  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%%; background: #3fb950; margin-right: 6px; animation: pulse 1.2s infinite; }
-  @keyframes pulse { 50%% { opacity: .3; } }
-</style></head><body>
-<h1><span class="dot"></span>AI-Workflow live — <span id="runid"></span></h1>
-<p class="badges" id="badges"></p>
-<p class="meta" id="meta"></p>
-<div id="content"></div>
-<p class="dim">polling the journal every 1.2s — same projection for parked, running and settled runs</p>
-<script>
-const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-const ICONS = { ask:'◆ ask', worldRead:'◇ read', worldRun:'▣ gate', artifact:'■ artifact', hole:'⌘ hole', escalation:'❓ escalate' };
-async function tick() {
-  try {
-    const s = await (await fetch('/state')).json();
-    document.getElementById('runid').textContent = s.runId;
-    document.getElementById('badges').innerHTML =
-      '<span>status: ' + esc(s.status) + '</span><span>' + s.nodeCount + ' nodes</span>' +
-      '<span>' + s.replayHits + ' replay hits ⚡</span>' + (s.amendHits ? '<span>' + s.amendHits + ' amend hits</span>' : '');
-    document.getElementById('meta').textContent =
-      (s.scriptPath || '') + (s.parentRunId ? '  (amend of ' + s.parentRunId + ')' : '') + '  updated ' + (s.updatedAt || '');
-    const html = s.phases.map((p) =>
-      '<h2>' + esc(p.title) + '</h2>' + p.nodes.map((n) => {
-        const mark = n.status === 'completed' ? '<span class="ok">✔</span>' : '<span class="bad">✖</span>';
-        const q = n.kind === 'escalation' && s.escalations.find((e) => e.siteId === n.siteId && e.question)
-          ? '<div class="q">❓ ' + esc(s.escalations.find((e) => e.siteId === n.siteId).question) + '</div>' : '';
-        const detail = n.errorText ? '<pre class="err">' + esc(n.errorText) + '</pre>'
-          : n.resultJson ? '<details><summary>result</summary><pre>' + esc(n.resultJson) + '</pre></details>' : '';
-        return '<div class="node">' + mark + ' <b>' + esc(ICONS[n.kind] || n.kind) + '</b> <span class="meta">' +
-          esc(n.siteId + '#' + n.ordinal + (n.durationMs !== undefined ? ' · ' + n.durationMs + 'ms' : '')) + '</span>' + q + detail + '</div>';
-      }).join('')).join('');
-    document.getElementById('content').innerHTML = html || '<p class="dim">no journalled nodes yet…</p>';
-  } catch (e) { /* keep polling */ }
+// ---------------------------------------------------------------------------
+// Studio snapshot — the ONE projection the SPA renders (static embed + /state
+// + SSE `state` frames all share it).
+// ---------------------------------------------------------------------------
+
+/** Per-artifact content cap for embedding (bigger artifacts stay metadata-only). */
+const MAX_EMBEDDED_ARTIFACT_BYTES = 48_000;
+/** Terminal keeps the latest slice of the raw event stream. */
+const MAX_EMBEDDED_EVENTS = 400;
+
+/**
+ * The Studio SPA is the only view now, so a parked run's open escalation /
+ * hole is derived here (`openQuestion` / `openHole`) and drives the A2UI form.
+ * A parked run never records a completed node for the site it parked at, and
+ * a fill forks the continuation under a new run id — so "no completed row for
+ * this site in THIS run's journal" is exactly the open condition.
+ */
+function deriveOpenParks(nodes: DwfNode[], events: WorkflowEvent[]): {
+  openQuestion: StudioSnapshot['openQuestion'];
+  openHole: StudioSnapshot['openHole'];
+} {
+  const completedKinds = new Map<string, Set<DwfNode['kind']>>();
+  for (const n of nodes) {
+    if (n.status !== 'completed') continue;
+    const set = completedKinds.get(n.siteId) ?? new Set<DwfNode['kind']>();
+    set.add(n.kind);
+    completedKinds.set(n.siteId, set);
+  }
+  let openQuestion: StudioSnapshot['openQuestion'] = null;
+  let openHole: StudioSnapshot['openHole'] = null;
+  for (const ev of events) {
+    const d = ev.data as { siteId?: string; questionId?: string; question?: string; name?: string; prompt?: string };
+    if (!d.siteId) continue;
+    const done = completedKinds.get(d.siteId);
+    if (ev.type === 'dwf_escalation_open' && !done?.has('escalation')) {
+      openQuestion = { questionId: String(d.questionId ?? ''), siteId: d.siteId, question: String(d.question ?? '') };
+    }
+    if (ev.type === 'dwf_hole_open' && !done?.has('hole')) {
+      openHole = { siteId: d.siteId, name: String(d.name ?? d.siteId), prompt: String(d.prompt ?? '') };
+    }
+  }
+  return { openQuestion, openHole };
 }
-tick();
-setInterval(tick, 1200);
-</script></body></html>`;
+
+export async function buildStudioSnapshot(
+  store: SQLiteStateStore & DwfJournalStore,
+  runId: string,
+  opts?: { live?: boolean },
+): Promise<StudioSnapshot> {
+  const run = await store.getDwfRun(runId);
+  if (!run) throw new Error(`run "${runId}" not found in the journal`);
+  const nodes = await store.getDwfNodes(runId);
+  const events = await store.getEvents(runId);
+
+  const graph = projectEventsToGraph(events);
+  // Enrich graph nodes with the journal's typed results (the Inspector's
+  // OUTPUT face): ask/escalation/hole nodes are keyed by their siteId, so the
+  // latest journal row for that site carries resultJson / errorText.
+  const resultBySite = new Map<string, DwfNode>();
+  for (const n of nodes) {
+    const prev = resultBySite.get(n.siteId);
+    if (!prev || n.ordinal >= prev.ordinal) resultBySite.set(n.siteId, n);
+  }
+  for (const gn of graph.nodes) {
+    const row = resultBySite.get(gn.id);
+    if (!row) continue;
+    if (row.resultJson) {
+      try {
+        gn.outputs = JSON.parse(row.resultJson);
+      } catch {
+        gn.outputs = row.resultJson;
+      }
+      if (typeof gn.outputs === 'string' && gn.outputs.length > 4000) {
+        gn.outputs = gn.outputs.slice(0, 4000) + '…';
+      }
+    }
+    if (row.errorText) gn.errorMessage = row.errorText.slice(0, 800);
+  }
+  const replayHits = events.filter((e) => e.type === 'dwf_replay_hit').length;
+  const amendHits = events.filter((e) => e.type === 'dwf_amend_hit').length;
+  const { openQuestion, openHole } = deriveOpenParks(nodes, events);
+
+  const artifacts: StudioArtifact[] = [];
+  const storeArtifacts = store.getArtifacts ? await store.getArtifacts(runId) : [];
+  for (const a of storeArtifacts.slice(-20)) {
+    artifacts.push({
+      id: a.artifactId,
+      name: a.name,
+      type: a.artifactType,
+      bytes: typeof a.content === 'string' ? a.content.length : 0,
+      ...(typeof a.content === 'string' && a.content.length <= MAX_EMBEDDED_ARTIFACT_BYTES
+        ? { content: a.content }
+        : {}),
+    });
+  }
+
+  return {
+    mode: opts?.live ? 'live' : 'static',
+    generatedAt: new Date().toISOString(),
+    graph,
+    run: {
+      runId,
+      status: run.status,
+      scriptPath: run.scriptPath,
+      parentRunId: run.parentRunId,
+      argsJson: run.argsJson,
+      scriptHash: run.scriptHash,
+      createdAt: run.createdAt,
+      updatedAt: run.updatedAt,
+    },
+    stats: { nodeCount: nodes.length, replayHits, amendHits, eventCount: events.length },
+    openQuestion,
+    openHole,
+    events: events.slice(-MAX_EMBEDDED_EVENTS).map((e) => ({
+      type: e.type as string,
+      data: e.data,
+      timestamp: e.timestamp,
+    })),
+    artifacts,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// HTTP server
+// ---------------------------------------------------------------------------
+
+/** A2UI resume actions, wired by the CLI layer (keeps dwf free of cli imports). */
+export interface LiveServerActions {
+  answer?: (runId: string, questionId: string, text: string) => Promise<{ ok: boolean; message: string; childRunId?: string }>;
+  fill?: (runId: string, holeName: string, body: string) => Promise<{ ok: boolean; message: string; childRunId?: string }>;
+}
 
 export interface LiveServer {
   server: Server;
@@ -154,43 +282,246 @@ export interface LiveServer {
   close: () => Promise<void>;
 }
 
-export function startLiveServer(store: SQLiteStateStore & DwfJournalStore, runId: string, port = 4649, host = '127.0.0.1'): Promise<LiveServer> {
-  const server = http.createServer((req, res) => {
-    const url = (req.url ?? '/').split('?')[0]!;
-    if (url === '/state') {
-      void projectRun(store, runId)
-        .then((projection) => {
-          res.writeHead(200, { 'content-type': 'application/json' });
-          res.end(JSON.stringify(projection));
-        })
-        .catch((err: Error) => {
-          res.writeHead(404, { 'content-type': 'application/json' });
-          res.end(JSON.stringify({ error: err.message }));
-        });
-      return;
-    }
-    if (url === '/') {
-      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-      res.end(SHELL);
-      return;
-    }
-    res.writeHead(404, { 'content-type': 'text/plain' });
-    res.end('not found');
+function readJsonBody(req: IncomingMessage): Promise<Record<string, unknown>> {
+  return new Promise((resolve, reject) => {
+    let raw = '';
+    req.on('data', (c) => {
+      raw += c.toString();
+      if (raw.length > 1_000_000) reject(new Error('request body too large'));
+    });
+    req.on('end', () => {
+      if (!raw.trim()) return resolve({});
+      try {
+        resolve(JSON.parse(raw) as Record<string, unknown>);
+      } catch (err) {
+        reject(new Error(`invalid JSON body: ${(err as Error).message}`));
+      }
+    });
+    req.on('error', reject);
   });
+}
+
+function sendJson(res: ServerResponse, status: number, payload: unknown): void {
+  res.writeHead(status, { 'content-type': 'application/json' });
+  res.end(JSON.stringify(payload));
+}
+
+/** Issue #156 studio mode: SVG canvas page + zero-dep WebSocket push/time travel. */
+export interface StartLiveServerOptions {
+  /** Serve the SVG-canvas Studio page and attach the `/ws` WebSocket hub. */
+  studio?: boolean;
+  /** Issue #128: UI language for the legacy SSE studio page (default 'en'). */
+  lang?: 'en' | 'zh';
+  /**
+   * The run's append-only `events.jsonl` — the time-travel seek data source
+   * (falls back to the SQLite journal via the store when the mirror is absent).
+   */
+  eventsJsonlPath?: string;
+}
+
+export function startLiveServer(
+  store: SQLiteStateStore & DwfJournalStore,
+  runId: string,
+  port = 4649,
+  host = '127.0.0.1',
+  actions?: LiveServerActions,
+  opts?: StartLiveServerOptions,
+): Promise<LiveServer> {
+  const studio = opts?.studio === true;
+  const liveLang: 'en' | 'zh' = opts?.lang === 'zh' ? 'zh' : 'en';
+  const server = http.createServer((req, res) => {
+    void handleRequest(store, runId, actions, req, res, studio, liveLang).catch((err: Error) => {
+      if (!res.headersSent) sendJson(res, 500, { error: err.message });
+      else res.end();
+    });
+  });
+
+  let studioHub: StudioWebSocketHub | undefined;
+  let studioPoll: NodeJS.Timeout | undefined;
+  if (studio) {
+    studioHub = attachStudioWebSocket(server, {
+      path: '/ws',
+      eventsJsonlPath: opts?.eventsJsonlPath,
+      loadEvents: () => store.getEvents(runId),
+    });
+  }
 
   return new Promise((resolve, reject) => {
     server.once('error', reject);
     server.listen(port, host, () => {
       const address = server.address();
       const boundPort = typeof address === 'object' && address ? address.port : port;
+      if (studioHub) {
+        // Real-time push: poll the authoritative journal on the SSE cadence and
+        // broadcast only the events that landed since the last tick. The
+        // cursor starts at the current head so a freshly attached page is not
+        // re-fed history (its boot snapshot already folds the whole stream).
+        let cursor = 0;
+        void store
+          .getEvents(runId)
+          .then((events) => {
+            cursor = Math.max(0, ...events.map((e) => e.sequence ?? 0));
+          })
+          .catch(() => {});
+        studioPoll = setInterval(() => {
+          void (async () => {
+            try {
+              const events = await store.getEvents(runId);
+              const fresh = events.filter((e) => (e.sequence ?? 0) > cursor);
+              if (fresh.length === 0) return;
+              cursor = Math.max(...fresh.map((e) => e.sequence ?? 0));
+              for (const ev of fresh.slice(-300)) studioHub!.broadcastEvent(ev);
+            } catch {
+              /* journal hiccup — keep the poll alive */
+            }
+          })();
+        }, 700);
+      }
       resolve({
         server,
         port: boundPort,
         close: () =>
           new Promise<void>((resolveClose) => {
-            server.close(() => resolveClose());
+            void (async () => {
+              if (studioPoll) clearInterval(studioPoll);
+              if (studioHub) await studioHub.close();
+              server.close(() => resolveClose());
+            })();
           }),
       });
     });
   });
+}
+
+async function handleRequest(
+  store: SQLiteStateStore & DwfJournalStore,
+  boundRunId: string,
+  actions: LiveServerActions | undefined,
+  req: IncomingMessage,
+  res: ServerResponse,
+  studio = false,
+  lang: 'en' | 'zh' = 'en',
+): Promise<void> {
+  const parsed = new URL(req.url ?? '/', 'http://127.0.0.1');
+  const path = parsed.pathname;
+  // `?run=` override: hole fills fork an amend under a new run id and the
+  // Studio follows the lineage by reloading with the child id.
+  const runId = parsed.searchParams.get('run') || boundRunId;
+  const method = req.method ?? 'GET';
+
+  if (method === 'GET' && path === '/state') {
+    try {
+      const snap = await buildStudioSnapshot(store, runId, { live: true });
+      sendJson(res, 200, snap);
+    } catch (err) {
+      sendJson(res, 404, { error: (err as Error).message });
+    }
+    return;
+  }
+
+  if (method === 'GET' && path === '/events') {
+    res.writeHead(200, {
+      'content-type': 'text/event-stream',
+      'cache-control': 'no-cache',
+      connection: 'keep-alive',
+    });
+    res.write('retry: 2000\n\n');
+    let cursor = 0;
+    let closed = false;
+    const send = (event: string, data: unknown): void => {
+      if (!closed) res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+    const tick = async (): Promise<void> => {
+      if (closed) return;
+      try {
+        const events = await store.getEvents(runId);
+        const fresh = events.filter((e) => (e.sequence ?? 0) > cursor);
+        if (fresh.length === 0) return;
+        cursor = Math.max(...fresh.map((e) => e.sequence ?? 0));
+        for (const ev of fresh.slice(-300)) {
+          send('event', { type: ev.type, data: ev.data, timestamp: ev.timestamp });
+        }
+        send('state', await buildStudioSnapshot(store, runId, { live: true }));
+      } catch {
+        /* journal hiccup (e.g. run just pruned) — keep the stream alive */
+      }
+    };
+    void tick();
+    const timer = setInterval(() => void tick(), 700);
+    req.on('close', () => {
+      closed = true;
+      clearInterval(timer);
+    });
+    return;
+  }
+
+  if (method === 'GET' && path === '/api/artifact') {
+    const id = parsed.searchParams.get('id') ?? '';
+    const artifacts = store.getArtifacts ? await store.getArtifacts(runId) : [];
+    const hit = artifacts.find((a) => a.artifactId === id);
+    if (!hit) {
+      sendJson(res, 404, { error: `artifact "${id}" not found on run "${runId}"` });
+      return;
+    }
+    sendJson(res, 200, hit);
+    return;
+  }
+
+  if (method === 'POST' && (path === '/api/answer' || path === '/api/fill')) {
+    const action = path === '/api/answer' ? actions?.answer : actions?.fill;
+    if (!action) {
+      sendJson(res, 501, { ok: false, message: 'A2UI resume actions are not wired for this server (start it via `workflow serve` or `run --ui`)' });
+      return;
+    }
+    let body: Record<string, unknown>;
+    try {
+      body = await readJsonBody(req);
+    } catch (err) {
+      sendJson(res, 400, { ok: false, message: (err as Error).message });
+      return;
+    }
+    try {
+      if (path === '/api/answer') {
+        const questionId = String(body.questionId ?? '').trim();
+        const text = String(body.text ?? '');
+        if (!questionId || !text.trim()) {
+          sendJson(res, 400, { ok: false, message: 'questionId and text are required' });
+          return;
+        }
+        sendJson(res, 200, await action(runId, questionId, text));
+      } else {
+        const holeName = String(body.holeName ?? '').trim();
+        const fillBody = String(body.body ?? '');
+        if (!holeName || !fillBody.trim()) {
+          sendJson(res, 400, { ok: false, message: 'holeName and body are required' });
+          return;
+        }
+        sendJson(res, 200, await action(runId, holeName, fillBody));
+      }
+    } catch (err) {
+      sendJson(res, 200, { ok: false, message: (err as Error).message });
+    }
+    return;
+  }
+
+  if (method === 'GET' && path === '/') {
+    try {
+      const snap = await buildStudioSnapshot(store, runId, { live: true });
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+      if (studio) {
+        // Issue #156 studio mode: server-rendered SVG canvas + WebSocket push /
+        // time travel (the `/ws` hub attached by startLiveServer).
+        res.end(renderStudioPage(snap.graph, snap.events.length, { wsPath: '/ws' }));
+      } else {
+        res.end(renderStudioHtml(snap, { live: true, lang }));
+      }
+    } catch (err) {
+      res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
+      res.end(`not found: ${escapeHtml((err as Error).message)}`);
+    }
+    return;
+  }
+
+  res.writeHead(404, { 'content-type': 'text/plain' });
+  res.end('not found');
 }

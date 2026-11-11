@@ -52,6 +52,10 @@ export interface FacadeSite {
   typed?: boolean;
   /** For `actor`: provider routing when written as a literal ({ provider: "mock" }). */
   provider?: string;
+  /** For `actor`: tier routing when written as a literal ({ tier: "fast" | "deep" }) (#151). */
+  tier?: 'fast' | 'deep';
+  /** For `actor`: model routing when written as a literal or model("id") call (Issue #38). */
+  model?: string;
   /** For `ask<T>`: the JSON schema synthesized from T at compile time. */
   schema?: Record<string, unknown>;
 }
@@ -65,6 +69,8 @@ export interface FacadeDiagnostic extends CompileError {
   code: number;
   /** e.g. "purity-ban" | "literal-rule" | "facade-misuse" | "type-error" | "schema-synth". */
   category: string;
+  /** Smart Diagnostics (Mission D): a copy-pasteable Quick Fix when one exists. */
+  hint?: string;
 }
 
 /** Result of analyzing a facade script (used by both `check` and `run-script`). */

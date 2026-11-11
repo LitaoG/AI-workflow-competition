@@ -10,6 +10,7 @@ import { createSQLiteStore } from '../../state/store.js';
 import { SQLiteStateStore } from '../../state/sqlite-store.js';
 import { DwfJournalStore } from '../../types.js';
 import { renderRunViewHtml } from '../../dwf/view.js';
+import { resolveLang } from '../i18n/index.js';
 
 export interface ViewCommandOptions {
   db?: string;
@@ -25,7 +26,7 @@ export async function executeView(runId: string, opts: ViewCommandOptions): Prom
   }
   const store = createSQLiteStore(dbPath) as SQLiteStateStore & DwfJournalStore;
   try {
-    const html = await renderRunViewHtml(store, runId);
+    const html = await renderRunViewHtml(store, runId, resolveLang(opts.lang));
     const outPath = opts.out ?? path.join(process.cwd(), '.workflow', 'views', `${runId}.html`);
     fs.mkdirSync(path.dirname(outPath), { recursive: true });
     fs.writeFileSync(outPath, html, 'utf8');

@@ -49,11 +49,11 @@ test('run view renders phases, nodes, escalation Q&A, artifact and replay badges
     const scriptPath = path.join(ws.dir, 'script.facade.ts');
     fs.writeFileSync(scriptPath, SCRIPT);
 
-    const parked = await runFacadeScript({ scriptPath, cwd: ws.dir, dbPath: ws.dbPath });
+    const parked = await runFacadeScript({ scriptPath, cwd: ws.dir, dbPath: ws.dbPath, approvedCommands: ['node'] });
     assert.equal(parked.status, 'parked', parked.error);
     assert.equal(parked.parkedAt?.kind, 'escalation');
 
-    const answerExit = await executeAnswer(parked.runId, parked.parkedAt!.name, ['yes'], { dbPath: ws.dbPath });
+    const answerExit = await executeAnswer(parked.runId, parked.parkedAt!.name, ['yes'], { dbPath: ws.dbPath, approvedCommands: ['node'] });
     assert.equal(answerExit, 0, 'answer must complete the run');
 
     // Resume once so the view also shows replay hits.
@@ -61,8 +61,7 @@ test('run view renders phases, nodes, escalation Q&A, artifact and replay badges
       scriptPath,
       cwd: ws.dir,
       dbPath: ws.dbPath,
-      resumeRunId: parked.runId,
-    });
+      resumeRunId: parked.runId, approvedCommands: ['node'] });
     assert.equal(resumed.status, 'completed');
     assert.equal(resumed.stats.asks, 0);
 
@@ -74,25 +73,21 @@ test('run view renders phases, nodes, escalation Q&A, artifact and replay badges
       store.close();
     }
 
-    // Header + run meta
+    // The Studio SPA shell with the embedded snapshot
     assert.ok(html.includes(parked.runId), 'run id missing');
-    assert.ok(html.includes('>completed<'), 'status missing');
-    // Phase sections from the event timeline
-    assert.ok(html.includes('Inspect'), 'phase section missing');
-    // Node kinds with statuses
-    assert.ok(html.includes('◆ ask'), 'ask node missing');
-    assert.ok(html.includes('▣ gate'), 'gate node missing');
-    assert.ok(html.includes('■ artifact'), 'artifact node missing');
-    assert.ok(html.includes('❓ escalate'), 'escalation node missing');
-    // Escalation Q&A section: question text and the answer value
-    assert.ok(html.includes('Approve auto-remediation? (yes/no)'), 'question text missing');
-    assert.ok(html.includes('yes'), 'answer value missing');
-    // Replay badge
-    assert.ok(/replay hits/.test(html), 'replay badge missing');
-    // Result values
+    assert.ok(html.includes('AI-Workflow Studio'), 'studio shell missing');
+    assert.ok(html.includes('window.__STUDIO__'), 'embedded snapshot missing');
+    assert.ok(html.includes('"status":"completed"'), 'status missing from snapshot');
+    // Phase from the event timeline
+    assert.ok(html.includes('Inspect'), 'phase missing from snapshot');
+    // Node results enriched from the journal (ask verdict + escalation answer)
     assert.ok(html.includes('HEALTHY'), 'ask result missing');
-    // Raw events section
-    assert.ok(/Raw event journal/.test(html), 'events section missing');
+    assert.ok(html.includes('Approve auto-remediation? (yes/no)'), 'question text missing');
+    assert.ok(html.includes('"yes"'), 'answer value missing');
+    // Replay hits land in the snapshot stats (resume replays 4 nodes here)
+    assert.match(html, /"replayHits":[1-9]/, 'replay stats missing');
+    // Artifact content embedded for the Inspector gallery
+    assert.ok(html.includes('Decision: yes'), 'artifact content missing');
   } finally {
     ws.cleanup();
   }

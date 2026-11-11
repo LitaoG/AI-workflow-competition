@@ -9,7 +9,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 
 // 真实 stdio 端到端：像 ZCode 宿主那样 spawn `workflow mcp serve` 子进程，
 // 用 StdioClientTransport 走真实 stdio 管道（非 InMemory）驱动全部工具面。
-// 每个用例显式设 timeout（Issue #32 实测教训）：负载下 connect 可挂起，
+// 每个用例显式设 timeout（Issue #32 / AI-PITFALLS P-TEST-3）：负载下 connect 可挂起，
 // 无超时则整轮测试卡死且无 not ok 行名；超时把挂起转化为可诊断失败。
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
@@ -17,7 +17,7 @@ const CLI = path.join(REPO_ROOT, 'bin', 'workflow.js');
 
 // StdioClientTransport 的 connect 无内置超时：宿主机负载下 stdio 管道握手可无限挂起，
 // node:test 的 timeout 只能标记失败、无法打断已挂死的 await（Issue #32 采样 5 轮 3 轮挂死实测，
-// 教训：此类挂起必须配超时防护）。connect 与竞速超时绑定，失败时关闭 transport（杀子进程防泄漏），
+// AI-PITFALLS P-TEST-3）。connect 与竞速超时绑定，失败时关闭 transport（杀子进程防泄漏），
 // 把"整轮挂死"转化为带行名的快速失败。
 const CONNECT_TIMEOUT_MS = 20_000;
 
@@ -35,6 +35,21 @@ async function connect(extraEnv?: Record<string, string>): Promise<{ client: Cli
   const client = new Client({ name: 'zcode-host-sim', version: '1.0.0' }, { capabilities: {} });
   const cleanup = async (): Promise<void> => {
     await client.close();
+    // Issue #147: client.close() asks the server to exit, but on Windows the
+    // process object can briefly outlive the pipes — under concurrent test
+    // load that window is long enough for (a) a following test's rmSync to
+    // hit EPERM on a temp dir the server still holds, and (b) the surviving
+    // stdio pipes to hang this process's event loop after the run summary
+    // printed. Make death unconditional instead of racing it.
+    const pid = transport.pid;
+    if (pid) {
+      try {
+        process.kill(pid, 0); // throws if already dead
+        process.kill(pid);
+      } catch {
+        /* already exited — the good case */
+      }
+    }
   };
   let timer: NodeJS.Timeout | undefined;
   const connectTimeout = new Promise<never>((_, reject) => {
@@ -62,7 +77,10 @@ async function connect(extraEnv?: Record<string, string>): Promise<{ client: Cli
 
 function workspace(): { dir: string; cleanup: () => void } {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-stdio-e2e-'));
-  return { dir, cleanup: () => fs.rmSync(dir, { recursive: true, force: true }) };
+  // Issue #147: maxRetries/retryDelay absorb the Windows window between a
+  // dying server process releasing its journal-file handle and the OS making
+  // the directory deletable — the observed EPERM race, not a permission bug.
+  return { dir, cleanup: () => fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }) };
 }
 
 const SCRIPT = `
@@ -106,7 +124,8 @@ test('stdio e2e: script_check + script_run + zero-cost resume over real stdio', 
     fs.writeFileSync(scriptPath, SCRIPT);
 
     // 1. check
-    const check = await client.callTool({ name: 'workflow_script_check', arguments: { scriptPath } });
+    // Issue #194 P2: the check face is bounded by the declared cwd.
+    const check = await client.callTool({ name: 'workflow_script_check', arguments: { scriptPath: 'script.facade.ts', cwd: ws.dir } });
     const checkText = JSON.parse((check.content as Array<{ text: string }>)[0]!.text);
     assert.equal(checkText.ok, true, JSON.stringify(checkText.diagnostics));
     assert.deepEqual(checkText.phases, ['Inspect']);
@@ -133,8 +152,12 @@ test('stdio e2e: script_check + script_run + zero-cost resume over real stdio', 
     assert.equal(resumeText.stats.replayHits, 1);
     assert.deepEqual(resumeText.value, runText.value);
   } finally {
-    ws.cleanup();
+    // Issue #147: release server-side handles (client close + unconditional
+    // child kill) BEFORE deleting the workspace the run wrote its journal into
+    // — the previous order (rm first, close after) raced the server's open
+    // j.db handle and produced the EPERM.
     await cleanup();
+    ws.cleanup();
   }
 });
 

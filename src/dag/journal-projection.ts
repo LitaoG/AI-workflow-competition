@@ -1,14 +1,20 @@
 /**
- * Journal projection — fold a `dwf_*` event stream into a {@link DAGGraph}
- * (the engine's "one projection for live runs and cold replays" contract).
+ * Journal projection — the single-source-of-truth event projector: it folds a
+ * `dwf_*` event stream (the append-only `events.jsonl` journal) into a
+ * {@link DAGGraph} timeline of node states
+ * (Core DAG Projection and Topo Alignment Specification §7.3, P2-3).
  *
- * ONE pure function serves both halves of the "活跑与冷回放同一投影" contract:
+ * ONE pure function serves every viewer of the "活跑与冷回放同一投影" contract,
+ * so no two code paths can ever disagree about what a run looked like:
  *
  * - the LIVE watch (`run-script --watch-graph`) re-folds the accumulated event
  *   prefix after every emit and rewrites `graph.html` inside the run dir;
  * - the COLD replay (`workflow graph <run-dir|events.jsonl>`) folds the whole
  *   journal — `events.jsonl` preferred, the SQLite event table as fallback —
- *   through this exact same function.
+ *   through this exact same function;
+ * - the Studio Inspector (`buildStudioSnapshot` in dwf/live.ts) folds the same
+ *   journal server-side instead of keeping a second, hand-rolled state
+ *   machine that would inevitably drift from the runner's own view.
  *
  * The fold is deterministic by construction: every field (statuses, durations,
  * phase columns, node order, graph timestamps) is derived from the events
@@ -18,6 +24,25 @@
  * simplest possible "incremental" strategy: re-fold the prefix on every emit
  * (runs are bounded by the engine's agent-call cap, so the quadratic total cost
  * is negligible) and the watched run can never diverge from its replay.
+ *
+ * The fold is a pure re-enactment (幂等折叠): each event is one fact about one
+ * node, applied in stream order with "last fact wins" for the site it names, so
+ * re-folding an already-folded prefix reproduces the identical intermediate
+ * state — the projection is idempotent over its input and therefore safe to
+ * re-run on every emit. The node status machine is
+ * `pending → running → completed | failed | replayed`. A parked run is a
+ * RUN-level fact, not a node status: it flips the graph to `paused` while its
+ * in-flight nodes deliberately stay `running` (the run resumes; see the
+ * `dwf_parked` row below). `skipped` exists in {@link StepStatus} but this
+ * projection never produces it.
+ *
+ * Layout boundary: this module stops at the {@link DAGGraph} data contract and
+ * deliberately knows nothing about pixels. Geometry — phase column x-ranges,
+ * node boxes and the cubic Bézier control points (`cx1..y2`) of the edges — is
+ * computed downstream by `DAGVisualizerCoordinator.computeLayout`
+ * (dag/visualizer.ts) from the deterministic tree emitted here; feeding the
+ * same tree through that layout is what makes the rendered SVG byte-identical
+ * between live watch and cold replay.
  *
  * Event → node/edge/status mapping (the full `dwf_*` vocabulary):
  *
@@ -34,7 +59,7 @@
  * | `dwf_hole_open` / `dwf_escalation_open`            | gate node (siteId) → running (the run parks waiting on it)    |
  * | `dwf_completed`                                    | graph → completed; still-running nodes settle to completed    |
  * | `dwf_failed` (status `failed`)                     | graph → failed; still-running nodes settle to failed          |
- * | `dwf_failed` (status `parked`)                     | graph → paused; running nodes left untouched (the run resumes)|
+ * | `dwf_parked` / `dwf_failed` (status `parked`, legacy journals) | graph → paused; running nodes left untouched (the run resumes) |
  * | `dwf_actor_created`                                | no node — an actor is a session, not a workflow step          |
  * | `dwf_log` / `dwf_report` / `dwf_budget_spent` / `dwf_size_warning` | telemetry — no node                            |
  * | `dwf_resume_takeover`                              | no node — a takeover is journal meta, never a pseudo step     |
@@ -71,7 +96,12 @@ const FACADE_WORKFLOW_NAME = 'facade-script';
 /** Fallback phase for nodes created before the first `dwf_phase` (mirrors the live view's "(start)"). */
 const START_PHASE_NAME = '(start)';
 
-/** Visual shape of a journal node by journalled-node kind. */
+/**
+ * Visual shape of a journal node by journalled-node kind. Unknown kinds — a
+ * newer writer emitting vocabulary this projector predates — degrade to the
+ * ask shape instead of crashing the render: journal vocabulary drift must
+ * never take a view down.
+ */
 const KIND_SHAPE: Record<string, { role: string; type: StepType }> = {
   ask: { role: 'worker', type: 'agent' },
   worldRead: { role: 'inspector', type: 'probe' },
@@ -317,10 +347,13 @@ function applyEvent(state: ProjectionState, event: WorkflowEvent): void {
       settleRunning(state, 'completed');
       break;
     }
+    case 'dwf_parked':
     case 'dwf_failed': {
-      // The runner emits dwf_failed for BOTH failure and park; a parked run
-      // resumes, so its in-flight sites stay running instead of being failed.
-      const parked = field(data, 'status') === 'parked';
+      // dwf_parked is the runner's park terminal since Issue #35; dwf_failed with
+      // data.status "parked" is the pre-#35 wire shape still present in journals
+      // persisted by older runners. A parked run resumes, so its in-flight sites
+      // stay running instead of being failed.
+      const parked = event.type === 'dwf_parked' || field(data, 'status') === 'parked';
       state.status = parked ? 'paused' : 'failed';
       state.completedAt = event.timestamp;
       if (!parked) settleRunning(state, 'failed');
@@ -340,8 +373,9 @@ function applyEvent(state: ProjectionState, event: WorkflowEvent): void {
  *
  * Pure and total: an empty stream yields an empty graph (never throws), unknown
  * event types are ignored, and the same event sequence always yields a
- * deeply-equal graph — which is what makes the live watch and the cold replay
- * two views of one truth. See the module TSDoc for the full mapping table.
+ * deeply-equal graph — which is what makes the live watch, the Studio snapshot
+ * and the cold replay all views of one truth. See the module TSDoc for the
+ * full mapping table.
  *
  * @param events - The journalled events in stream order (any prefix of a run's
  *   stream projects to the state at that point of the run).

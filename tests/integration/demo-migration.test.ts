@@ -4,7 +4,14 @@ import * as path from 'node:path';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { SQLiteStateStore, EventLogReader } from 'ai-workflow';
+
+// Anchor the suite at the repo root via this file's compiled location
+// (dist/tests/integration/) — same convention as demo-facade-incident.test.ts —
+// so the spawned CLI, demo and fixture paths never depend on the caller's cwd
+// (the gate may invoke node --test with absolute test paths from any directory).
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
 interface CLIResult {
   exitCode: number;
@@ -14,7 +21,7 @@ interface CLIResult {
 }
 
 function runCLI(args: string[], options: { cwd?: string; env?: Record<string, string>; timeoutMs?: number } = {}): CLIResult {
-  const rootDir = path.resolve(process.cwd());
+  const rootDir = REPO_ROOT;
   const binCli = path.join(rootDir, 'bin', 'workflow.js');
   const startTime = Date.now();
 
@@ -65,6 +72,16 @@ function cleanupTempDir(dirPath: string): void {
   } catch {}
 }
 
+// Issue #233 diagnostic: when artifacts go missing under load, the listing
+// makes the next red self-identifying (what actually got written).
+function dirListing(dirPath: string): string {
+  try {
+    return fs.readdirSync(dirPath).join(', ') || '(empty dir)';
+  } catch (err: any) {
+    return `(readdir failed: ${err?.code ?? err?.message})`;
+  }
+}
+
 test('Integration Suite: Demo 2 — Multi-Agent Repo Migration Engine', async (t) => {
   const tempDir = createTempDir('demo2-integ-');
 
@@ -72,13 +89,18 @@ test('Integration Suite: Demo 2 — Multi-Agent Repo Migration Engine', async (t
     cleanupTempDir(tempDir);
   });
 
-  const demoWorkflowPath = path.resolve(process.cwd(), 'demos', 'repo-migration-engine', 'workflow.ts');
+  const demoWorkflowPath = path.resolve(REPO_ROOT, 'demos', 'repo-migration-engine', 'workflow.ts');
 
   await t.test('TEST 1: Full migration runs end-to-end in offline mock mode in <15,000ms with exit code 0', () => {
     const outputDir = path.join(tempDir, 'run-01-full');
     const startTime = Date.now();
 
-    const res = runCLI(['run', demoWorkflowPath, '--mock', '--output-dir', outputDir]);
+    const res = runCLI(['run', demoWorkflowPath, '--mock', '--output-dir', outputDir], {
+      // cwd is sandboxed to the suite temp dir: the demo exports artifacts to
+      // process.cwd()/artifacts, and run.ts mirrors to <cwd>/.workflow/runs.db —
+      // both must stay off the shared repository state (gate round 1 races).
+      cwd: tempDir,
+    });
     const elapsed = Date.now() - startTime;
 
     assert.equal(res.exitCode, 0, `Workflow failed with stderr: ${res.stderr}\nStdout: ${res.stdout}`);
@@ -102,11 +124,11 @@ test('Integration Suite: Demo 2 — Multi-Agent Repo Migration Engine', async (t
   await t.test('TEST 2: Checkpoint persistence records all 5 phases and fan-out steps in SQLite store', async () => {
     const outputDir = path.join(tempDir, 'run-01-full');
     const dbPath = path.join(outputDir, 'checkpoints.db');
-    assert.ok(fs.existsSync(dbPath), `Checkpoints database must exist at ${dbPath}`);
+    assert.ok(fs.existsSync(dbPath), `Checkpoints database must exist at ${dbPath} (dir listing: ${dirListing(outputDir)})`);
 
     const store = new SQLiteStateStore(dbPath);
     const runs = store.listRuns();
-    assert.ok(runs.length > 0, 'Runs should be recorded in checkpoints.db');
+    assert.ok(runs.length > 0, `Runs should be recorded in checkpoints.db (dir listing: ${dirListing(outputDir)})`);
     const checkpoints = await store.getAllCheckpoints(runs[0].runId);
     store.close();
 
@@ -138,6 +160,7 @@ test('Integration Suite: Demo 2 — Multi-Agent Repo Migration Engine', async (t
       '--output-dir', resumeOutputDir,
       '--resume-from-failed', resumeRunId,
     ], {
+      cwd: tempDir,
       env: { INTERRUPT_AT: '2' },
     });
 
@@ -158,6 +181,7 @@ test('Integration Suite: Demo 2 — Multi-Agent Repo Migration Engine', async (t
       '--output-dir', resumeOutputDir,
       '--resume-from-failed', resumeRunId,
     ], {
+      cwd: tempDir,
       env: { INTERRUPT_AT: '' },
     });
     const resumeElapsed = Date.now() - resumeStartTime;
@@ -181,7 +205,7 @@ test('Integration Suite: Demo 2 — Multi-Agent Repo Migration Engine', async (t
   });
 
   await t.test('TEST 4: Transformed code passes TypeScript compiler checks and unit test gates', () => {
-    const fixtureDir = path.resolve(process.cwd(), 'demos', 'repo-migration-engine', 'fixtures', 'legacy-aws-sdk-app');
+    const fixtureDir = path.resolve(REPO_ROOT, 'demos', 'repo-migration-engine', 'fixtures', 'legacy-aws-sdk-app');
     assert.ok(fs.existsSync(fixtureDir), `Fixture directory must exist at ${fixtureDir}`);
 
     // Verify fixture unit test runs cleanly
@@ -200,22 +224,32 @@ test('Integration Suite: Demo 2 — Multi-Agent Repo Migration Engine', async (t
 
     // 1. Verify DAG HTML visualizer
     const dagPath = path.join(outputDir, 'dag.html');
-    assert.ok(fs.existsSync(dagPath), 'dag.html must be exported');
+    assert.ok(fs.existsSync(dagPath), `dag.html must be exported (dir listing: ${dirListing(outputDir)})`);
     const dagHtml = fs.readFileSync(dagPath, 'utf-8');
     assert.ok(dagHtml.includes('<svg'), 'dag.html must contain SVG canvas');
     assert.ok(dagHtml.includes('bezier-edge') || dagHtml.includes('path'), 'dag.html must contain SVG path edges');
     assert.ok(dagHtml.includes('phase') || dagHtml.includes('Phase'), 'dag.html must show phases');
 
-    // 2. Verify Kanban board JSON
-    const kanbanPath = path.join(outputDir, 'kanban.json');
-    assert.ok(fs.existsSync(kanbanPath), 'kanban.json should exist');
+    // 2. Verify Kanban board JSON — only this suite's own exports (the demo
+    // writes to --output-dir and to the sandboxed cwd's artifacts/, never to
+    // tracked repo dirs under mock mode)
+    const kanbanCandidates = [
+      path.join(outputDir, 'kanban.json'),
+      path.join(tempDir, 'artifacts', 'kanban.json'),
+    ];
+    const kanbanPath = kanbanCandidates.find(p => fs.existsSync(p));
+    assert.ok(kanbanPath, 'kanban.json should exist');
     const kanbanJson = JSON.parse(fs.readFileSync(kanbanPath, 'utf-8'));
     assert.ok(Array.isArray(kanbanJson.columns), 'kanban.json must have columns array');
     assert.ok(kanbanJson.columns.length >= 4, 'kanban.json must contain at least 4 artifact columns');
 
-    // 3. Verify PULL_REQUEST.md
-    const prPath = path.join(outputDir, 'PULL_REQUEST.md');
-    assert.ok(fs.existsSync(prPath), 'PULL_REQUEST.md must exist');
+    // 3. Verify PULL_REQUEST.md — same per-run candidate chain
+    const prCandidates = [
+      path.join(outputDir, 'PULL_REQUEST.md'),
+      path.join(tempDir, 'artifacts', 'PULL_REQUEST.md'),
+    ];
+    const prPath = prCandidates.find(p => fs.existsSync(p));
+    assert.ok(prPath, 'PULL_REQUEST.md must exist');
     const prContent = fs.readFileSync(prPath, 'utf-8');
     assert.ok(prContent.includes('AWS SDK v2') && prContent.includes('AWS SDK v3'), 'PR must document v2 to v3 upgrade');
     assert.ok(prContent.includes('Breaking Changes') || prContent.includes('API Transformation'), 'PR must detail breaking changes');
@@ -224,7 +258,9 @@ test('Integration Suite: Demo 2 — Multi-Agent Repo Migration Engine', async (t
 
   await t.test('TEST 6: Bilingual localized execution (--lang zh) runs successfully and outputs Chinese metrics', () => {
     const outputDir = path.join(tempDir, 'run-03-zh');
-    const res = runCLI(['run', demoWorkflowPath, '--mock', '--lang', 'zh', '--output-dir', outputDir]);
+    const res = runCLI(['run', demoWorkflowPath, '--mock', '--lang', 'zh', '--output-dir', outputDir], {
+      cwd: tempDir,
+    });
 
     assert.equal(res.exitCode, 0, `Workflow failed with stderr: ${res.stderr}\nStdout: ${res.stdout}`);
     assert.ok(

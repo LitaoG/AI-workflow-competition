@@ -87,12 +87,12 @@ test('MCP Integration: BuiltinWorkflowMCPServer executes real tools via InMemory
 });
 
 // ---------------------------------------------------------------------------
-// Facade-script tool face (engine stage 7.2): workflow_run_script /
+// Facade-script tool face (GOAL.md 阶段 7.2): workflow_run_script /
 // workflow_inspect_run / workflow_get_run. Shared helpers live at the bottom.
 // ---------------------------------------------------------------------------
 
 /** Fake, self-made token shape — nothing here is a real credential. */
-const FAKE_GITHUB_TOKEN = 'token_0123456789abcdefghij0123456789abcd';
+const FAKE_GITHUB_TOKEN = 'ghp_0123456789abcdefghij0123456789abcd';
 
 /** Minimal facade script: one ask (deterministic mock provider), one report. */
 const FACADE_RUN_SCRIPT = `
@@ -194,6 +194,7 @@ test('MCP Integration: workflow_run_script executes a facade script over stdio a
           cwd: ws.dir,
           dbPath: path.join(ws.dir, 'journal.db'),
           runTimeoutMs: 120000,
+          approvedCommands: ['node'],
         },
       },
       undefined,
@@ -354,7 +355,7 @@ test('MCP Integration: credential samples in script output, logs and args are ma
     // so the response-level redaction is exercised for real.
     const runRes: any = await client.callTool({
       name: 'workflow_run_script',
-      arguments: { scriptPath, cwd: ws.dir, dbPath, args: { apiKey: FAKE_GITHUB_TOKEN }, quiet: false },
+      arguments: { scriptPath, cwd: ws.dir, dbPath, args: { apiKey: FAKE_GITHUB_TOKEN }, quiet: false, approvedCommands: ['node'] },
     });
     assert.ok(!runRes.isError, firstText(runRes));
     const runText = firstText(runRes);

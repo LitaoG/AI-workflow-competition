@@ -35,7 +35,7 @@ const out = await agent("doomed", { provider: "dwf-quota" }).ask<Answer>("inspec
 return out;
 interface Answer { healthStatus: string; }
 `);
-    const r = await runFacadeScript({ scriptPath, cwd: ws.dir });
+    const r = await runFacadeScript({ scriptPath, cwd: ws.dir, approvedCommands: ['node'] });
     assert.equal(r.status, 'stopped', `expected stopped(provider), got ${r.status}: ${r.error}`);
     assert.match(r.error ?? '', /quota exceeded/);
     assert.equal(quota.calls, 1, 'policy stops must not retry-storm');
@@ -56,7 +56,7 @@ phase("Read");
 const content = await files.read("note.txt");
 return { content };
 `);
-    const base = await runFacadeScript({ scriptPath: baseScript, cwd: ws.dir });
+    const base = await runFacadeScript({ scriptPath: baseScript, cwd: ws.dir, approvedCommands: ['node'] });
     assert.equal(base.status, 'completed');
 
     // Amend: world.run REWRITES the file, then reads it — the imported cache must be
@@ -68,7 +68,7 @@ await world.run("node", ["-e", "require('node:fs').writeFileSync('note.txt', 'NE
 const content = await files.read("note.txt");
 return { content };
 `);
-    const amend = await runFacadeScript({ scriptPath: amendScript, cwd: ws.dir, amendRunId: base.runId });
+    const amend = await runFacadeScript({ scriptPath: amendScript, cwd: ws.dir, amendRunId: base.runId, approvedCommands: ['node'] });
     assert.equal(amend.status, 'completed', amend.error);
     assert.equal((amend.value as { content: string }).content, 'NEW VALUE', 'the read must see the post-write file, not the prior run cache');
   } finally {

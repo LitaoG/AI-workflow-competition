@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# AI-Workflow hackathon demo: the FULL nine-act story, offline (mock, <4s per act).
+# AI-Workflow full offline multi-agent execution showcase, offline (mock, <4s per act).
 # Every act prints the evidence line that proves the capability it demos.
 # G1: environment preflight (node present); G2: no false-green (set -euo pipefail,
 # per-act verdicts, COMPLETE only when all nine evidence lines landed).
@@ -10,25 +10,6 @@ DB="$ROOT/.workflow/demo-dwf.sqlite"
 TOUR="$ROOT/demos/capabilities-tour"
 mkdir -p "$ROOT/.workflow"
 trap 'rm -f "$TOUR/lineage-v2.facade.ts"' EXIT
-
-# G1 follow-up: on Windows, `bash scripts/demo.sh` may resolve to the WSL stub,
-# whose distro has no node. If so, re-exec this script in Git Bash on the Windows
-# side; the node preflight below still gates everything from there.
-if ! command -v node >/dev/null 2>&1 && grep -qi microsoft /proc/version 2>/dev/null \
-   && command -v wslpath >/dev/null 2>&1; then
-  SELF_ABS="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
-  case "$SELF_ABS" in
-    /mnt/*)
-      for GB in "/mnt/c/Program Files/Git/bin/bash.exe" \
-                "/mnt/c/Program Files (x86)/Git/bin/bash.exe" \
-                /mnt/c/Users/*/AppData/Local/Programs/Git/bin/bash.exe; do
-        if [ -x "$GB" ]; then
-          exec "$GB" "$(wslpath -m "$SELF_ABS")" "$@"
-        fi
-      done
-      ;;
-  esac
-fi
 
 if ! command -v node >/dev/null 2>&1; then
   echo 'FATAL: node not found — run this in Git Bash on Windows (or install node in your WSL distro).' >&2

@@ -10,6 +10,7 @@ import * as path from 'node:path';
 import { createSQLiteStore } from '../../state/store.js';
 import { SQLiteStateStore } from '../../state/sqlite-store.js';
 import { DwfJournalStore, DwfRunRow } from '../../types.js';
+import { isPidAlive } from '../../process-supervision.js';
 import { killTree } from '../../process-supervision.js';
 
 export interface StopCommandOptions {
@@ -17,16 +18,6 @@ export interface StopCommandOptions {
   /** Alias so the integration test (and future callers) can pass dbPath directly. */
   dbPath?: string;
   lang?: string;
-}
-
-function pidAlive(pid: number | undefined): boolean {
-  if (pid === undefined || pid <= 0) return false;
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (e) {
-    return (e as NodeJS.ErrnoException).code === 'EPERM';
-  }
 }
 
 export async function executeStop(runId: string, opts: StopCommandOptions): Promise<number> {
@@ -46,7 +37,7 @@ export async function executeStop(runId: string, opts: StopCommandOptions): Prom
       console.log(`Run "${runId}" is already ${prior.status} — nothing to stop.`);
       return 0;
     }
-    if (prior.runnerPid !== undefined && pidAlive(prior.runnerPid)) {
+    if (prior.runnerPid !== undefined && prior.runnerPid > 0 && isPidAlive(prior.runnerPid)) {
       console.log(`Killing owning process tree (pid ${prior.runnerPid})…`);
       await killTree(prior.runnerPid);
     }

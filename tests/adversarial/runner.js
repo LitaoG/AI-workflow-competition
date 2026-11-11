@@ -23,7 +23,6 @@ const testSuites = [
   'tests/adversarial/demo1-safety-stress.js',
   'tests/adversarial/demo2-concurrency-resumption-stress.js',
   'tests/adversarial/demo2-gate-boundary-integrity.test.js',
-  'tests/adversarial/kiro-pbt-adversarial-stress.test.js',
 ];
 
 console.log('================================================================');

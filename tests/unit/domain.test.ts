@@ -21,6 +21,7 @@ import {
 } from '../../src/domain/result.js';
 import {
   domainError,
+  toDomainError,
   DOMAIN_ERROR_TAGS,
   isDomainErrorTag,
   isDomainError,
@@ -37,12 +38,25 @@ import {
   isJournalMismatchError,
   type DomainError,
 } from '../../src/domain/errors.js';
+// Core compatibility shim (Issue #94 Phase 1): the nine legacy classes carry domain tags/details.
+import {
+  WorkflowError,
+  StepExecutionError,
+  GateFailureError,
+  SchemaValidationError as CoreSchemaValidationError,
+  ProviderError,
+  CircularDependencyError,
+  MissingDependencyError,
+  WorkflowAbortedError,
+  RunNotFoundError,
+} from '../../src/core/error.js';
 import { WORKFLOW_EVENT, WORKFLOW_EVENT_TYPES, isWorkflowEventType } from '../../src/domain/events.js';
 import {
   createEvidenceLedger,
   appendEvidence,
   queryEvidence,
   summarizeEvidence,
+  ledgerFromEntries,
   isEvidenceKind,
 } from '../../src/domain/evidence.js';
 // Runtime re-export surface of the legacy import path:
@@ -294,6 +308,150 @@ test('DomainError: fromSerializableError never throws and never echoes payloads'
 });
 
 // ============================================================================
+// F.md five failure domains → tag attribution (Issue #94 Phase 1)
+// ============================================================================
+
+test('DomainError: F.md five failure domains attribute every tag of the closed set exactly once', () => {
+  const FIVE_DOMAIN_TAGS = {
+    compile: ['CompileError'],
+    sandbox: ['SandboxTimeout', 'SandboxSpawnError'],
+    validation: ['SchemaValidationError'],
+    network: ['McpError', 'ProberError'],
+    model: ['AgentError'],
+    // 持久化/审计 — outside the five domains but members of the closed set
+    'persistence-audit': ['StorageError', 'JournalMismatchError'],
+  } as const;
+  const attributed = Object.values(FIVE_DOMAIN_TAGS).flat().sort();
+  assert.deepEqual(attributed, [...DOMAIN_ERROR_TAGS].sort(), 'attribution table must cover the nine-tag closed set with no overlap and no omission');
+});
+
+// ============================================================================
+// Core error migration: nine-class compatibility shim (Issue #94 Phase 1)
+// ============================================================================
+
+test('Core error migration: nine classes keep the legacy faces while carrying domain tags and details', () => {
+  const stepExec = new StepExecutionError('step-1', 'phase-1', new Error('boom'));
+  const gate = new GateFailureError('gate-1', 'npm test', 1, 'out', 'E: fail');
+  const mismatch = z.object({ a: z.string() }).safeParse({ a: 1 });
+  assert.ok(!mismatch.success);
+  const schema = new CoreSchemaValidationError('agent-1', '{"a":1}', mismatch.error.issues, 3);
+  const provider = new ProviderError('mock', 'upstream timeout', 503);
+  const cycle = new CircularDependencyError(['a', 'b', 'a']);
+  const missing = new MissingDependencyError('s1', 'ghost');
+  const aborted = new WorkflowAbortedError('user cancel');
+  const notFound = new RunNotFoundError('run-9');
+
+  const leaves = [stepExec, gate, schema, provider, cycle, missing, aborted, notFound];
+  for (const error of leaves) {
+    assert.ok(error instanceof Error, `${error.name} must stay an Error subclass`);
+    // Issue #110: SchemaValidationError lives in src/agent/ now (next to its
+    // throw site) and extends Error directly — every WorkflowError FACE is
+    // kept (code/stepId/isRecoverable/timestamp), only the base identity moved.
+    if (error !== schema) {
+      assert.ok(error instanceof WorkflowError, `${error.name} must stay a WorkflowError subclass`);
+    }
+    assert.equal(typeof error.timestamp, 'string');
+    assert.ok(!Number.isNaN(Date.parse(error.timestamp)), 'timestamp must stay ISO');
+    assert.ok(isDomainError(error), `${error.name} must structurally satisfy the domain algebra via its tag`);
+  }
+  // Issue #110 face parity for the relocated class: full WorkflowError surface minus the base.
+  assert.ok(schema instanceof Error);
+  assert.equal(schema.code, 'SCHEMA_VALIDATION_FAILED');
+  assert.equal(schema.stepId, 'agent-1');
+  assert.equal(schema.isRecoverable, false);
+  assert.ok(schema instanceof CoreSchemaValidationError, 'the re-export from core/error.ts stays the same class');
+  // The base class stays outside the algebra (no tag).
+  const base = new WorkflowError('base failure', 'BASE_CODE');
+  assert.ok(base instanceof WorkflowError);
+  assert.equal(isDomainError(base), false);
+
+  // Legacy `code` values unchanged (seven shimmed leaves + the pre-existing schema shim).
+  assert.equal(stepExec.code, 'STEP_EXECUTION_FAILED');
+  assert.equal(gate.code, 'GATE_FAILURE');
+  assert.equal(schema.code, 'SCHEMA_VALIDATION_FAILED');
+  assert.equal(provider.code, 'PROVIDER_ERROR');
+  assert.equal(cycle.code, 'CIRCULAR_DEPENDENCY');
+  assert.equal(missing.code, 'MISSING_DEPENDENCY');
+  assert.equal(aborted.code, 'WORKFLOW_ABORTED');
+  assert.equal(notFound.code, 'RUN_NOT_FOUND');
+
+  // Legacy isRecoverable defaults unchanged.
+  assert.equal(stepExec.isRecoverable, true);
+  assert.equal(gate.isRecoverable, false);
+  assert.equal(schema.isRecoverable, false);
+  assert.equal(provider.isRecoverable, true);
+  assert.equal(cycle.isRecoverable, false);
+  assert.equal(missing.isRecoverable, false);
+  assert.equal(aborted.isRecoverable, false);
+  assert.equal(notFound.isRecoverable, false);
+
+  // Tag mapping per the Phase 1 decision table.
+  assert.equal(stepExec.tag, 'AgentError');
+  assert.equal(gate.tag, 'AgentError');
+  assert.equal(provider.tag, 'AgentError');
+  assert.equal(aborted.tag, 'AgentError');
+  assert.equal(cycle.tag, 'CompileError');
+  assert.equal(missing.tag, 'CompileError');
+  assert.equal(notFound.tag, 'StorageError');
+  assert.equal(schema.tag, 'SchemaValidationError');
+
+  // Details payloads per the Phase 1 mapping table.
+  assert.deepEqual(stepExec.details, { stepId: 'step-1', phaseId: 'phase-1', rootMessage: 'boom', errorName: 'Error' });
+  assert.deepEqual(gate.details, { stepId: 'gate-1', command: 'npm test', exitCode: 1 });
+  assert.deepEqual(provider.details, { providerId: 'mock', statusCode: 503 });
+  assert.deepEqual(cycle.details, { cycle: ['a', 'b', 'a'] });
+  assert.deepEqual(missing.details, { stepId: 's1', missingDepId: 'ghost' });
+  assert.deepEqual(aborted.details, { reason: 'user cancel' });
+  assert.deepEqual(new WorkflowAbortedError().details, {}, 'details carry reason only when supplied');
+  assert.deepEqual(new ProviderError('mock2', 'down').details, { providerId: 'mock2' }, 'details carry statusCode only when supplied');
+  assert.deepEqual(notFound.details, { runId: 'run-9' });
+
+  // The pre-existing SchemaValidationError shim keeps its legacy members.
+  assert.deepEqual(schema.details, { stepId: 'agent-1', attemptCount: 3, issueCount: 1 });
+  assert.equal(schema.rawText, '{"a":1}');
+  assert.equal(schema.attemptCount, 3);
+  assert.equal(schema.zodErrors.length, 1);
+  assert.equal(schema.zodErrors[0]!.path[0], 'a');
+});
+
+test('Core error migration: StepExecutionError passthrough, fallback and boundary round trip', () => {
+  // (1) tagged original → tag passthrough.
+  const taggedSource = domainError('SchemaValidationError', 'Schema validation failed for step "x" after 2 repair attempts', {
+    details: { stepId: 'x', attemptCount: 2, issueCount: 3 },
+  });
+  const passthrough = new StepExecutionError('x', 'phase', taggedSource);
+  assert.equal(passthrough.tag, 'SchemaValidationError');
+  assert.deepEqual(passthrough.details, {
+    stepId: 'x',
+    phaseId: 'phase',
+    rootMessage: 'Schema validation failed for step "x" after 2 repair attempts',
+    attemptCount: 2,
+    issueCount: 3,
+  });
+
+  // (2) plain Error → the sanctioned 'AgentError' fallback.
+  const plain = new StepExecutionError('s', 'p', new TypeError('bad type'));
+  assert.equal(plain.tag, 'AgentError');
+  assert.deepEqual(plain.details, { stepId: 's', phaseId: 'p', rootMessage: 'bad type', errorName: 'TypeError' });
+
+  // (3) an rpc-shaped tagged plain object (the ask() throw after Step 11) as
+  // originalError: the message must carry the real root-cause text, never
+  // '[object Object]' (the non-Error branch now extracts via toDomainError).
+  const rpcShaped = domainError('SchemaValidationError', 'Schema validation failed for step "Get user" after 2 repair attempts', {
+    details: { stepId: 'Get user', attemptCount: 2, issueCount: 1 },
+  });
+  const wrapped = new StepExecutionError('Get user', 'agent-phase', rpcShaped);
+  assert.equal(wrapped.message, 'Step "Get user" failed: Schema validation failed for step "Get user" after 2 repair attempts');
+  assert.equal(wrapped.message.includes('[object Object]'), false);
+
+  // (4) boundary round trip keeps tag/message/details.
+  const serialized = fromSerializableError(JSON.parse(JSON.stringify(toSerializableError(toDomainError(wrapped)))));
+  assert.equal(serialized.tag, 'SchemaValidationError');
+  assert.equal(serialized.message, wrapped.message);
+  assert.deepEqual(serialized.details, wrapped.details);
+});
+
+// ============================================================================
 // Evidence ledger
 // ============================================================================
 
@@ -374,6 +532,29 @@ test('EvidenceLedger: summarize computes kind counts, durations and token totals
   assert.deepEqual(summary.byKind, { observation: 1, derivation: 1, inference: 0, unknown: 1 });
   assert.equal(summary.totalDurationMs, 160);
   assert.deepEqual(summary.totalTokens, { prompt: 11, completion: 22, total: 33 });
+});
+
+test('EvidenceLedger: ledgerFromEntries materializes stored entries into the domain ledger', () => {
+  const stored = [
+    { ...OBSERVATION_BASE, id: 'obs-1', recordedAt: '2024-01-01T00:00:00.000Z' },
+    { ...OBSERVATION_BASE, id: 'inf-1', kind: 'inference' as const, provenance: 'agent:reviewer' },
+    { ...OBSERVATION_BASE, id: 'u-1', kind: 'unknown' as const },
+  ];
+
+  // 保序 + caller id 保留.
+  const rebuilt = ledgerFromEntries('run-mat', stored);
+  assert.equal(rebuilt.runId, 'run-mat');
+  assert.deepEqual(rebuilt.entries.map((entry) => entry.id), ['obs-1', 'inf-1', 'u-1']);
+  assert.deepEqual(rebuilt.entries.map((entry) => entry.kind), ['observation', 'inference', 'unknown']);
+
+  // 空 entries 得空账本.
+  assert.deepEqual(ledgerFromEntries('run-empty', []), createEvidenceLedger('run-empty'));
+
+  // 与手拼账本（createEvidenceLedger + 逐条 appendEvidence）输出 deepEqual.
+  let hand = createEvidenceLedger('run-mat');
+  for (const entry of stored) hand = appendEvidence(hand, entry);
+  assert.deepEqual(rebuilt.entries, hand.entries);
+  assert.deepEqual(summarizeEvidence(rebuilt), summarizeEvidence(hand));
 });
 
 // ============================================================================

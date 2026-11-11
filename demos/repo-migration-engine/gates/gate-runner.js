@@ -53,7 +53,14 @@ console.log(`[GateRunner] Mode: ${gateMode} | Target: ${targetDir} | Mock: ${isM
 
 async function main() {
   // Fault Injection Simulation
-  if (process.env.SIMULATE_GATE_FAILURE === 'true') {
+  // Env OR fixture-local marker (Issue #174) — see incident gate-runner. The
+  // marker is prefix-matched so each test suite can own a distinct file
+  // (Issue #176: two suites toggling ONE file raced under node --test's
+  // file-level parallelism — one suite's cleanup switched the other's gate
+  // off mid-run).
+  const markerOn = process.env.SIMULATE_GATE_FAILURE === 'true'
+    || fs.readdirSync(__dirname).some((f) => f.startsWith('.simulate-gate-failure'));
+  if (markerOn) {
     console.error('[GateRunner] ✘ Simulated Gate Failure Triggered (SIMULATE_GATE_FAILURE=true):');
     if (gateMode === 'baseline') {
       console.error('  - Baseline unit tests failed (1 failed, 2 passed). Legacy repo is dirty or broken.');

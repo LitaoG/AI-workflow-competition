@@ -160,7 +160,9 @@ export default {
   });
 
   await t.test('T3_PAIR_13 (F5 x F9): Demo 2 repo migration interacting with MCP tool calls', () => {
-    const res = runCLI(['mcp', 'call', 'ast_grep']);
+    // Real builtin-server tool call (mock tools read_file/ast_grep were removed);
+    // workflow_probe runs offline with no required arguments.
+    const res = runCLI(['mcp', 'call', 'workflow_probe']);
     assertExitCode(res, 0);
   });
 
@@ -176,7 +178,7 @@ export default {
     assertExitCode(resReplay, 0);
   });
 
-  await t.test('T3_PAIR_15 (F10 x F6): Kiro lifecycle integration verified with CLI commands', () => {
+  await t.test('T3_PAIR_15 (Core CLI x Architecture): CLI version integration verified', () => {
     const res = runCLI(['--version']);
     assertExitCode(res, 0);
     assertStdoutContains(res, 'ai-workflow');

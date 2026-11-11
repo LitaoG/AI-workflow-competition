@@ -162,9 +162,39 @@ function check(node: unknown, path: string, ctx: LintContext): SchemaLintIssue[]
     }
   }
 
-  // items: recurse when present.
+  // items: recurse when present. Draft-07 tuple form is an ARRAY of per-position
+  // schemas (what schema-synth emits for tuples); the single-schema form covers
+  // every element. Both are valid — check() must accept the array form or every
+  // tuple-typed ask would be refused at dispatch time (issue #126 F6).
   if (node.items !== undefined) {
-    issues.push(...check(node.items, at(path, 'items'), ctx));
+    if (Array.isArray(node.items)) {
+      node.items.forEach((sub, i) => issues.push(...check(sub, `${at(path, 'items')}[${i}]`, ctx)));
+    } else {
+      issues.push(...check(node.items, at(path, 'items'), ctx));
+    }
+  }
+  if (node.additionalItems !== undefined && isPlainObject(node.additionalItems)) {
+    issues.push(...check(node.additionalItems, at(path, 'additionalItems'), ctx));
+  }
+
+  // Bounds: a minItems larger than maxItems (or larger than the tuple length)
+  // admits no instance.
+  const readCount = (v: unknown): number | undefined =>
+    typeof v === 'number' && Number.isInteger(v) && v >= 0 ? v : undefined;
+  const minItems = readCount(node.minItems);
+  const maxItems = readCount(node.maxItems);
+  if (minItems !== undefined && maxItems !== undefined && minItems > maxItems) {
+    unsatisfiable(path, `minItems (${minItems}) is greater than maxItems (${maxItems}) — no array can satisfy it`);
+  }
+  if (minItems !== undefined && Array.isArray(node.items) && minItems > node.items.length) {
+    const hasOpenTail =
+      isPlainObject(node.additionalItems) || node.additionalItems === true || node.additionalItems === undefined;
+    if (!hasOpenTail) {
+      unsatisfiable(
+        path,
+        `minItems (${minItems}) is greater than the tuple length (${node.items.length}) and additionalItems forbids extra elements — no array can satisfy it`,
+      );
+    }
   }
 
   // required: array of strings; a required key that additionalProperties:false

@@ -45,3 +45,6 @@ Thumbs.db
 /.kiro/logs/
 dist-facade-test/
 coverage/
+
+# win32-jobhelper.exe lazy-compile cache
+.cache/

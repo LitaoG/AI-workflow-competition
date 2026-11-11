@@ -4,7 +4,7 @@
  * 攻击：恶意/失控子进程经 NDJSON 通道投喂超大单帧（1 MiB / 33 MiB log 调用帧），
  * 或在脚本层用 report() 投喂超限条目 —— 验证"超限应产生可捕获错误而非挂死"。
  *
- * import 风格参照 .kiro/pbt/engine-invariants.test.ts（node --test 直跑）：
+ * import 风格参照 tests/pbt/engine-invariants.test.ts（node --test 直跑）：
  *   node --experimental-strip-types --test tests/adversarial/goal-poc3-oversize-frames.test.ts
  *
  * 实测结论（2026-11-01, worktree feat/issue-28-goal-e2e-pentest @ 30eb54f）：
@@ -156,7 +156,9 @@ describe('PoC-3 防线: NDJSON 通道帧预算 + 引擎入口载荷上限 [已�
    * runner.ts 行拆分循环对单帧长度、stdoutBuffer 总量均无字节预算：
    *   1MB 帧 → 被接受（488ms）；33MB（34,603,008 字符）帧 → 被接受（4.6s），
    *   33MB ask prompt → 被接受。全程无任何命名错误。
-   * 单帧 16MB / 积压 32MB 的预算档位经独立工程调准确定。
+   * 协议预算基线（通用 NDJSON 长帧档位）：
+   *   - 单物理帧上限 1MB（1024*1024 字节）；
+   *   - 逻辑帧装配上限 16MB（16*1024*1024 字节）。
    * 修复（Issue #34）：runner 帧泵加单行 16MB / 积压 32MB 预算（字符长度代理
    *   字节），超限 killTree + 命名拒绝 ChildFrameLimitExceeded；engine ask/log
    *   入口加同款上限（BOUNDARY_PAYLOAD_CAP_CHARS）作为 op 级第二道闸。
@@ -205,7 +207,7 @@ describe('PoC-3 防线: NDJSON 通道帧预算 + 引擎入口载荷上限 [已�
   });
 
   test('engine 入口边界载荷上限：ask prompt / log message 超限命名拒绝（直驱 handleCall）', async () => {
-    // op 级第二道闸（设计规约条目 D4 "ask/log 入口同款上限"）：wire 层
+    // op 级第二道闸（GOAL.md 差距矩阵 D4 "ask/log 入口同款上限"）：wire 层
     // （runner 帧泵）先行拒绝超限行；此测试直驱引擎断言入口闸本体 ——
     // 超限 ask 不进入 seat/FIFO/预算路径，直接以 ChildFrameLimitExceeded 拒绝。
     const { FacadeEngine } = await import('../../dist/src/dwf/engine.js');

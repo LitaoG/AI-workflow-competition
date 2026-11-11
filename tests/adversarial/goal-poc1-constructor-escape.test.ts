@@ -3,7 +3,7 @@
  *
  * Attack fixtures: tests/adversarial/fixtures/goal-poc1-constructor-escape.ts (direct form)
  *                  tests/adversarial/fixtures/goal-poc1b-constructor-escape-anycast.ts (any-cast form)
- * Run style: node --test straight execution (same import style as .kiro/pbt/engine-invariants.test.ts).
+ * Run style: node --test straight execution (same import style as tests/pbt/engine-invariants.test.ts).
  *
  * Measured matrix (node v22.23.2, worktree feat/issue-28-goal-e2e-pentest, re-measured
  * 2026-11-01 AFTER the static closure — compile.ts PROTOTYPE_CHAIN_PROPS):

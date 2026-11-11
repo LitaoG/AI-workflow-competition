@@ -20,6 +20,7 @@ export interface I18nDictionary {
   CMD_CHECK_DESC: string;
   CMD_RUN_SCRIPT_DESC: string;
   CMD_SCRIPT_DESC: string;
+  CMD_ULTRACODE_DESC: string;
   CMD_VIEW_DESC: string;
   CMD_SERVE_DESC: string;
   CMD_STOP_DESC: string;

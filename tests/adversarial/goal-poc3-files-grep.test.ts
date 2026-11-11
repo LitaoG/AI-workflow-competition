@@ -11,7 +11,7 @@
 //     and grepWorkspace returns matched lines RAW, and journalled() persists
 //     resultJson without redactValue (src/dwf/engine.ts). Live evidence:
 //     `run-script` CLI printed `result: {"hits":[{"path":".env",...,
-//     "text":"GOAL_POC_TOKEN=<raw decoy value>"}],...}` and the journal
+//     "text":"GOAL_POC_TOKEN=sk-decoy-123"}],...}` and the journal
 //     dwf_nodes.result_json stored the raw decoy (worldread#2/#3). Even the
 //     URI-credential mask (maskUriCredentials) is skipped on this path — a
 //     `DATABASE_URL=postgres://app:hunter2@...` line came back verbatim.
@@ -36,7 +36,7 @@ import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 
 const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
-const DECOY = 'sk' + '-decoy-123';
+const DECOY = 'sk-decoy-123';
 const ENV_CONTENT = `GOAL_POC_TOKEN=${DECOY}\nDATABASE_URL=postgres://app:hunter2@localhost:5432/db\nNOTE=benign decoy workspace\n`;
 
 /** Decoy workspace: a .env with the credential plus one benign file. */
@@ -62,7 +62,7 @@ function runScript(fixture: string, cwd: string, dbPath: string): { status: numb
 // 亦被打红）。node rmSync 内建线性退避重试（EBUSY/EPERM/ENOTEMPTY）加大到
 // 20×250ms 仍可能不够（Defender/索引服务扫描刚写入的含令牌 .env 可锁数秒），
 // 故清理降级为 best-effort：重试后仍失败仅告警，绝不因清理卫生问题判红测试——
-// 断言已完成时残留目录交由 OS %TEMP% 策略清理。
+// 断言已完成时残留目录交由 OS %TEMP% 策略清理（AI-PITFALLS P-ENV-2 同根因）。
 function rmTempSync(p: string, opts: { recursive?: boolean }): void {
   try {
     fs.rmSync(p, { ...opts, force: true, maxRetries: 20, retryDelay: 250 });
@@ -96,7 +96,7 @@ describe('PoC3: files.grep / files.read must not leak workspace .env credentials
   // Enabled (GAP-03): journalled() masks the value at the boundary, so the
   // script-visible value, the CLI result line and dwf_nodes.result_json all
   // carry the mask. run-script on goal-cred-snoop-3-files-grep.ts from a
-  // workspace holding a .env with the decoy value assigned to GOAL_POC_TOKEN must return
+  // workspace holding a .env with GOAL_POC_TOKEN=sk-decoy-123 must return
   // redacted values and store no raw decoy in the journal:
   test('grep hits and file content come back redacted and the decoy value reaches no output', () => {
     const fixture = path.join(repoRoot, 'tests', 'adversarial', 'fixtures', 'goal-cred-snoop-3-files-grep.ts');

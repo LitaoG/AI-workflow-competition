@@ -9,14 +9,14 @@ import type { SQLiteStateStore } from '../../../src/state/sqlite-store.js';
 import type { DwfJournalStore } from '../../../src/types.js';
 
 /**
- * Evidence ledger at the journal saveNode point (the engine's evidence rules):
+ * Evidence ledger at the journal saveNode point (GOAL.md 证据凭证法则):
  * kind mapping (ask→inference, world ops→observation, failure→unknown),
  * inputHash agreement with dwf_nodes, token usage, and irreversible redaction
  * of user-derived content before it reaches SQLite.
  */
 
 /** Fake, self-made token shapes — nothing here is a real credential. */
-const FAKE_GITHUB_TOKEN = 'gho_0123456789abcdefghij0123456789abcd';
+const FAKE_GITHUB_TOKEN = 'ghp_0123456789abcdefghij0123456789abcd';
 
 function makeEngine(runId: string, store: SQLiteStateStore & DwfJournalStore, workspace: string): FacadeEngine {
   return new FacadeEngine({

@@ -7,7 +7,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
- * Engine-owned zero-orphan guarantee (engine iron rule: a child process must never outlive its parent): stdin is the
+ * Engine-owned zero-orphan guarantee (GOAL.md 铁律 3 / 差距矩阵 D7): stdin is the
  * parent→child NDJSON channel — EOF (parent crashed / force-killed without a tree
  * kill) must terminate the child promptly. The script below parks on a host log
  * call that is never answered — exactly the orphan shape: the child waits on a
@@ -15,9 +15,10 @@ import { fileURLToPath } from 'node:url';
  * keeping the process alive.
  *
  * Driver style mirrors tests/integration/dwf-run.test.ts: child-main.js is
- * spawned directly (no compiler in the loop); the compiled test lives at
- * dist/tests/unit/dwf/ — one level deeper than dwf-run.test.ts — so the engine
- * child resolves at dist/src/dwf/ via THREE '..' segments.
+ * spawned directly (no compiler in the loop). This test spawns real OS child
+ * processes, so per Issue #198 (node --test per-file isolation × sandbox/
+ * jobhelper subprocess-tree drain) it lives in the serial integration suite —
+ * the unit suite keeps pure isolation semantics (no async child-process trees).
  */
 test('child-main exits on stdin EOF while the script is still parked', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'child-main-eof-'));
@@ -27,7 +28,7 @@ test('child-main exits on stdin EOF while the script is still parked', async () 
     // here never writes an ok/err frame back).
     fs.writeFileSync(scriptPath, 'async function __workflowScript__() {\n  await __host.log("eof-test", "parked forever");\n}\n');
 
-    const childEntry = fileURLToPath(new URL('../../../src/dwf/child-main.js', import.meta.url));
+    const childEntry = fileURLToPath(new URL('../../src/dwf/child-main.js', import.meta.url));
     const child = spawn(process.execPath, [childEntry, scriptPath, '{}'], { stdio: ['pipe', 'pipe', 'pipe'] });
 
     let exitedEarly: number | null | undefined;

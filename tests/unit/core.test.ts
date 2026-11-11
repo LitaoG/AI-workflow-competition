@@ -259,6 +259,69 @@ test('Core Workflow: checkpoint hash is canonical (key-order insensitive) and se
   );
 });
 
+test('Core Workflow: replay identity survives persistence-boundary redaction (Issue #176)', async () => {
+  // The store masks checkpoint input/output on the way to disk (Issue #112).
+  // A downstream step's replay hash must therefore bind the MASKED
+  // representation: at replay its input is re-derived from the masked
+  // upstream output, and the redaction is idempotent, so masked-once
+  // (run time) and masked-twice (replay time) are the same bytes. Hashing
+  // the live form (the pre-#176 behavior) made every downstream step of a
+  // credential-touching run re-execute — and re-bill — on every resume.
+  const store = new SQLiteStateStore(':memory:');
+  try {
+    let step1Runs = 0;
+    let step2Runs = 0;
+    const skipped: unknown[] = [];
+    const mkWf = (): Workflow => {
+      const wf = new Workflow({ name: 'RedactedReplayWorkflow' });
+      wf.addPhase({ id: 'p1', name: 'Phase One' });
+      wf.addStep(
+        actionStep({
+          id: 'step-src',
+          name: 'Emits credential-shaped data',
+          phaseId: 'p1',
+          action: async () => {
+            step1Runs++;
+            // A 40-hex git commit as a whole string value trips the anchored
+            // whole-value hex rule; a ghp_ token shape trips the token rule.
+            return { commit: 'a'.repeat(40), token: `ghp_${'b'.repeat(36)}`, note: 'benign' };
+          },
+        })
+      );
+      wf.addStep(
+        actionStep({
+          id: 'step-downstream',
+          name: 'Consumes the upstream output',
+          phaseId: 'p1',
+          dependsOn: ['step-src'],
+          action: async (input: unknown) => {
+            step2Runs++;
+            return { received: input };
+          },
+        })
+      );
+      wf.on('step_skipped', (e) => skipped.push(e));
+      return wf;
+    };
+
+    const run1 = await mkWf().run({ runId: 'redacted-replay', stateStore: store });
+    assert.equal(run1.status, 'completed');
+    assert.equal(step1Runs, 1);
+    assert.equal(step2Runs, 1);
+
+    // Resume: BOTH steps must replay. Before the fix step-downstream
+    // re-executed here (its stored hash covered the live input; the replay
+    // re-derived a masked one).
+    const run2 = await mkWf().run({ runId: 'redacted-replay', stateStore: store });
+    assert.equal(run2.status, 'completed');
+    assert.equal(step1Runs, 1, 'step-src must replay');
+    assert.equal(step2Runs, 1, 'step-downstream must replay — the hash binds the persisted (masked) representation');
+    assert.equal(skipped.length, 2, 'both replays announced as step_skipped');
+  } finally {
+    void store; // :memory: — nothing on disk to clean
+  }
+});
+
 test('Core Workflow: unchanged steps replay from the checkpoint; edited definitions and legacy rows re-execute fail-safe', async () => {
   const store = new SQLiteStateStore(':memory:');
   try {

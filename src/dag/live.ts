@@ -93,6 +93,9 @@ export class LiveGraph {
       case 'dwf_failed':
         this.result = { status: 'failed', error: String(data.error ?? '') };
         break;
+      case 'dwf_parked':
+        this.result = { status: 'parked' };
+        break;
       default:
         break;
     }

@@ -20,6 +20,7 @@ import {
   asLlmProvider,
   composeAbortSignal,
   redactServerText,
+  retryAfterHeaderToResetAtMs,
   safeErrorBodyText,
   transportProviderError,
 } from './provider-contract.js';
@@ -176,6 +177,7 @@ export class OpenAiProvider implements ProviderContract {
     return new AgentProviderError(this.id, `OpenAI-compatible API error (HTTP ${response.status})${suffix}`, {
       retryable: response.status === 429 || response.status >= 500,
       status: response.status,
+      resetAtMs: response.status === 429 ? retryAfterHeaderToResetAtMs(response.headers.get('retry-after')) : undefined,
     });
   }
 }

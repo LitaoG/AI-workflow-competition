@@ -7,7 +7,7 @@
 // tries `process.env.GOAL_POC_TOKEN` and would smuggle the value into the run
 // result if compilation let it through.
 //
-// Run style follows .kiro/pbt/engine-invariants.test.ts: plain `node --test`
+// Run style follows tests/pbt/engine-invariants.test.ts: plain `node --test`
 // over TypeScript (type-stripped), no framework.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';

@@ -7,18 +7,18 @@ test('Prober Sanitization 1: Secret environment variables masking (AWS, OpenAI, 
   const mockEnv = {
     // Sensitive Keys
     AWS_SECRET_ACCESS_KEY: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
-    OPENAI_API_KEY: 'OPENAI-REDACTED-PLACEHOLDER',
-    GITHUB_TOKEN: 'GITHUB-REDACTED-PLACEHOLDER',
+    OPENAI_API_KEY: 'sk-proj-94819481948194819481948194819481',
+    GITHUB_TOKEN: 'ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
     ACCESS_TOKEN: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.t-IDcSemACt8x4iTMCda8Yhe3iZaWbvV5XKSTbuAn0M',
     DB_PASSWORD: 'SuperSecretMasterPassword123!',
     CLIENT_SECRET: 'xoxb-secret-token-12345',
-    PRIVATE_KEY: 'REDACTED-PEM-PLACEHOLDER',
+    PRIVATE_KEY: '-----BEGIN RSA PRIVATE KEY-----\nMIIE...',
     AUTH_CREDENTIALS: 'user:pass',
     SSL_CERT: 'cert-content',
 
     // Generic Keys with Sensitive Values (Token-like patterns)
-    UNKNOWN_VAR_AWS: 'eyJREDACTEDPLACEHOLDERVALUE000000',
-    ANOTHER_VAR_GHP: 'deadbeefdeadbeefdeadbeefdeadbeef',
+    UNKNOWN_VAR_AWS: 'AKIAIOSFODNN7EXAMPLE',
+    ANOTHER_VAR_GHP: 'ghp_1234567890abcdefghijklmnopqrstuv',
 
     // Non-Sensitive Keys & Values
     NODE_ENV: 'production',
@@ -53,10 +53,10 @@ test('Prober Sanitization 1: Secret environment variables masking (AWS, OpenAI, 
   // Verify none of the raw secrets appear anywhere in sanitized output
   const rawValues = [
     'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
-    'OPENAI-REDACTED-PLACEHOLDER',
-    'GITHUB-REDACTED-PLACEHOLDER',
+    'sk-proj-94819481948194819481948194819481',
+    'ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
     'SuperSecretMasterPassword123!',
-    'eyJREDACTEDPLACEHOLDERVALUE000000',
+    'AKIAIOSFODNN7EXAMPLE',
   ];
 
   for (const raw of rawValues) {
@@ -127,8 +127,8 @@ test('Prober Sanitization 2: Database connection strings masking credentials to 
 test('Prober Sanitization 3: Full probe() snapshot sanitization and fingerprint determinism', async () => {
   // Temporarily inject sensitive vars into process.env
   const originalEnv = { ...process.env };
-  process.env.AWS_SECRET_ACCESS_KEY = 'AWS-REDACTED-PLACEHOLDER';
-  process.env.OPENAI_API_KEY = 'OPENAI-REDACTED-PLACEHOLDER';
+  process.env.AWS_SECRET_ACCESS_KEY = 'AKIAIOSFODNN7TEMPEX';
+  process.env.OPENAI_API_KEY = 'sk-temp-1234567890abcdef';
   process.env.DATABASE_URL = 'postgres://app:secret123@localhost:5432/testdb';
 
   try {

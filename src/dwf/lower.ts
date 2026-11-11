@@ -19,6 +19,12 @@ export interface LowerResult {
   /** Executable plain JS: the wrapped async function only. */
   js: string;
   analysis: FacadeAnalysis;
+  /**
+   * JSON source map from the emitted JS back to the wrapped author source
+   * (prelude line included; the author line is the mapped 0-based line). Carries
+   * no sourcesContent — script literals must not land on disk (#126 F5).
+   */
+  sourceMap: string | undefined;
 }
 
 export function lowerFacadeScript(source: string): LowerResult {
@@ -26,7 +32,6 @@ export function lowerFacadeScript(source: string): LowerResult {
   const sites = analysis.sites;
 
   const wrapped = wrapScriptSource(source);
-  const sourceFile = ts.createSourceFile('__lower__.ts', wrapped, ts.ScriptTarget.ES2022, /*setParentNodes*/ true, ts.ScriptKind.TS);
 
   let siteCursor = 0; // walks `sites` in the same order the transformer meets calls
   const nextSite = (expectedKind: FacadeSite['kind']): FacadeSite => {
@@ -61,18 +66,29 @@ export function lowerFacadeScript(source: string): LowerResult {
     return (sf) => ts.visitNode(sf, visitor, ts.isSourceFile) as ts.SourceFile;
   };
 
-  const { transformed } = ts.transform(sourceFile, [transform]);
-  const printed = ts.createPrinter({ omitTrailingSemicolon: false }).printFile(transformed[0]);
-  const transpiled = ts.transpileModule(printed, {
+  // One transpile pass lowers AND emits: the before-transformer rewrites the
+  // facade calls on the AST, the emitter prints the JS, and — because the
+  // untouched nodes keep their original positions — the emitted source map maps
+  // runtime stack frames back to the author's rows (#126 §2.2). Synthetic
+  // __host.* call sites carry no author position and simply map to their
+  // enclosing statement, which is the row an error at that call reports.
+  const transpiled = ts.transpileModule(wrapped, {
+    transformers: { before: [transform] },
     compilerOptions: {
       target: ts.ScriptTarget.ES2022,
       module: ts.ModuleKind.None,
+      sourceMap: true,
       inlineSourceMap: false,
+      inlineSources: false,
     },
-    fileName: '__lower__.js',
+    fileName: '__lower__.ts',
   });
+  // The emitter appends a sourceMappingURL for '__lower__.js.map' — a name the
+  // runner never writes (it writes 'script.js.map'). Strip it so the emitted
+  // script keeps the pre-map output shape.
+  const js = transpiled.outputText.replace(/\n?\/\/# sourceMappingURL=[^\n]*$/, '');
 
-  return { js: transpiled.outputText, analysis };
+  return { js, analysis, sourceMap: transpiled.sourceMapText };
 }
 
 type NextSite = (expectedKind: FacadeSite['kind']) => FacadeSite;
@@ -90,21 +106,44 @@ function rewriteCall(node: ts.CallExpression, ctx: ts.TransformationContext, vis
     return host('banned', f.createStringLiteral('dynamic import'));
   }
 
-  // agent(...) → __host.createActor("actor#N", name, provider|null)
+  // agent(...) → __host.createActor("actor#N", name, provider|null, tier|null, model|null)
   if (ts.isIdentifier(expr) && expr.text === 'agent') {
     const site = nextSite('actor');
     const visited = visitArgs();
     const nameArg = visited[0] ?? f.createStringLiteral('');
     let providerLiteral: ts.Expression | undefined;
+    let tierLiteral: ts.Expression | undefined;
+    let modelLiteral: ts.Expression | undefined;
     const rawOpts = node.arguments[1];
     if (rawOpts && ts.isObjectLiteralExpression(rawOpts)) {
       for (const prop of rawOpts.properties) {
         if (ts.isPropertyAssignment(prop) && ts.isIdentifier(prop.name) && prop.name.text === 'provider' && ts.isStringLiteral(prop.initializer)) {
           providerLiteral = f.createStringLiteral(prop.initializer.text);
         }
+        if (ts.isPropertyAssignment(prop) && ts.isIdentifier(prop.name) && prop.name.text === 'tier' && ts.isStringLiteral(prop.initializer)) {
+          tierLiteral = f.createStringLiteral(prop.initializer.text);
+        }
+        if (ts.isPropertyAssignment(prop) && ts.isIdentifier(prop.name) && prop.name.text === 'model') {
+          // Issue #38: the model binding is a string literal or an inline
+          // model("id") call — both collapse to the literal (model() itself
+          // lowers to its argument, official parity: model never crosses the host).
+          const init = prop.initializer;
+          if (ts.isStringLiteral(init)) {
+            modelLiteral = f.createStringLiteral(init.text);
+          } else if (ts.isCallExpression(init) && init.arguments.length > 0 && ts.isStringLiteral(init.arguments[0])) {
+            modelLiteral = f.createStringLiteral((init.arguments[0] as ts.StringLiteral).text);
+          }
+        }
       }
     }
-    return host('createActor', f.createStringLiteral(site.siteId), nameArg, providerLiteral ?? f.createNull());
+    return host('createActor', f.createStringLiteral(site.siteId), nameArg, providerLiteral ?? f.createNull(), tierLiteral ?? f.createNull(), modelLiteral ?? f.createNull());
+  }
+
+  // model("id") → the literal itself (official parity: model() does not cross
+  // the host; the compile rules pin its legal positions).
+  if (ts.isIdentifier(expr) && expr.text === 'model') {
+    const visited = visitArgs();
+    return visited[0] ?? f.createStringLiteral('');
   }
 
   // escalate(question) → __host.escalate(siteId, question)
@@ -140,10 +179,39 @@ function rewriteCall(node: ts.CallExpression, ctx: ts.TransformationContext, vis
     return host(expr.text, f.createStringLiteral(site.siteId), ...visitArgs());
   }
 
-  // artifact.file / artifact.markdown
+  // swarm<T>(agents, tasks) → __swarm(siteId, agents, tasks, schemaJson|null): the
+  // realm helper sends every task through this one ask site, in task order
+  if (ts.isIdentifier(expr) && expr.text === 'swarm') {
+    const site = nextSite('ask');
+    const args = visitArgs();
+    const schemaArg: ts.Expression = site.schema ? f.createStringLiteral(JSON.stringify(site.schema)) : f.createNull();
+    return f.createCallExpression(f.createIdentifier('__swarm'), undefined, [
+      f.createStringLiteral(site.siteId),
+      args[0] ?? f.createArrayLiteralExpression([]),
+      args[1] ?? f.createArrayLiteralExpression([]),
+      schemaArg,
+    ]);
+  }
+
+  // channel<T>() / future<T>() — pure cell primitives: no site, no journal; the
+  // realm-side __channel/__future implementations own the whole lifecycle.
+  if (ts.isIdentifier(expr) && (expr.text === 'channel' || expr.text === 'future')) {
+    return f.createCallExpression(f.createIdentifier('__' + expr.text), undefined, visitArgs());
+  }
+
+  // artifact.file / artifact.markdown (content family — effect, journalled)
   if (ts.isPropertyAccessExpression(expr) && ts.isIdentifier(expr.expression) && expr.expression.text === 'artifact' && (expr.name.text === 'file' || expr.name.text === 'markdown')) {
     const site = nextSite('artifact');
     return host('artifact', f.createStringLiteral(site.siteId), f.createStringLiteral(expr.name.text), f.createArrayLiteralExpression(visitArgs(), true));
+  }
+
+  // artifact.chart / table / metrics / board (Issue #38 D8-③ preset family —
+  // declaration, not effect): args packed positionally, zero validation in the
+  // lowering (official parity); the engine validates and journals the declaration.
+  if (ts.isPropertyAccessExpression(expr) && ts.isIdentifier(expr.expression) && expr.expression.text === 'artifact'
+    && (expr.name.text === 'chart' || expr.name.text === 'table' || expr.name.text === 'metrics' || expr.name.text === 'board')) {
+    const site = nextSite('artifact');
+    return host('declareArtifact', f.createStringLiteral(site.siteId), f.createStringLiteral(expr.name.text), f.createArrayLiteralExpression(visitArgs(), true));
   }
 
   // files.* / git.* → __host.worldRead(siteId, op, [args])
@@ -162,7 +230,7 @@ function rewriteCall(node: ts.CallExpression, ctx: ts.TransformationContext, vis
   // sessions.* / fanout.* → local realm helpers (no site: pure child-realm
   // coordination; cancellation crosses to the parent as a notify, not a journalled call)
   const realmHelpers: Array<[string, string[]]> = [
-    ['sessions', ['waitAny', 'cancel']],
+    ['sessions', ['waitAny', 'race', 'cancel']],
     ['fanout', ['parallel', 'pipeline']],
   ];
   for (const [host, fns] of realmHelpers) {

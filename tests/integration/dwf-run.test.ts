@@ -12,7 +12,7 @@ import { SQLiteStateStore } from '../../src/state/sqlite-store.js';
 import { DwfJournalStore } from '../../src/types.js';
 
 /** Fake, self-made token shapes — nothing here is a real credential. */
-const FAKE_GITHUB_TOKEN = 'gho_0123456789abcdefghij0123456789abcd';
+const FAKE_GITHUB_TOKEN = 'ghp_0123456789abcdefghij0123456789abcd';
 
 const SCRIPT = `
 phase("Inspect");
@@ -48,14 +48,14 @@ test('facade script runs end-to-end in the sandbox and replays at zero provider 
     const scriptPath = path.join(ws.dir, 'script.facade.ts');
     fs.writeFileSync(scriptPath, SCRIPT);
 
-    const first = await runFacadeScript({ scriptPath, cwd: ws.dir });
+    const first = await runFacadeScript({ scriptPath, cwd: ws.dir, approvedCommands: ['node'] });
     assert.equal(first.status, 'completed', `first run failed: ${first.error ?? JSON.stringify(first.diagnostics)}`);
     assert.equal((first.value as { healthStatus: string }).healthStatus, 'HEALTHY');
     assert.equal(first.stats.asks, 1);
     assert.equal(first.stats.replayHits, 0);
 
     // Resume: journal short-circuit — zero provider calls, identical result
-    const second = await runFacadeScript({ scriptPath, cwd: ws.dir, resumeRunId: first.runId });
+    const second = await runFacadeScript({ scriptPath, cwd: ws.dir, resumeRunId: first.runId, approvedCommands: ['node'] });
     assert.equal(second.status, 'completed', `resume failed: ${second.error}`);
     assert.deepEqual(second.value, first.value);
     assert.equal(second.stats.asks, 0, 'resume must not execute any ask');
@@ -70,7 +70,7 @@ test('compile failures never spawn the sandbox and carry mapped diagnostics', as
   try {
     const scriptPath = path.join(ws.dir, 'bad.facade.ts');
     fs.writeFileSync(scriptPath, 'const t = Date.now();\nreturn t;');
-    const r = await runFacadeScript({ scriptPath, cwd: ws.dir });
+    const r = await runFacadeScript({ scriptPath, cwd: ws.dir, approvedCommands: ['node'] });
     assert.equal(r.status, 'compile_failed');
     assert.ok(r.diagnostics!.some((d) => d.category === 'purity-ban' && d.line === 1));
   } finally {
@@ -83,12 +83,12 @@ test('script errors surface as failed runs and stay resumable', async () => {
   try {
     const scriptPath = path.join(ws.dir, 'throw.facade.ts');
     fs.writeFileSync(scriptPath, 'phase("Boom");\nthrow new Error("kaboom");');
-    const r = await runFacadeScript({ scriptPath, cwd: ws.dir });
+    const r = await runFacadeScript({ scriptPath, cwd: ws.dir, approvedCommands: ['node'] });
     assert.equal(r.status, 'failed');
     assert.match(r.error!, /kaboom/);
 
     // resume of a failed run works (nothing journalled → re-executes, fails again)
-    const r2 = await runFacadeScript({ scriptPath, cwd: ws.dir, resumeRunId: r.runId });
+    const r2 = await runFacadeScript({ scriptPath, cwd: ws.dir, resumeRunId: r.runId, approvedCommands: ['node'] });
     assert.equal(r2.status, 'failed');
     assert.match(r2.error!, /kaboom/);
   } finally {
@@ -97,7 +97,7 @@ test('script errors surface as failed runs and stay resumable', async () => {
 });
 
 // ---------------------------------------------------------------------------
-// Stale-running takeover (engine crash-recovery rules — zero-token resume
+// Stale-running takeover (GOAL.md §1.5 — crash recovery, zero-token resume
 // reachable in the most-needed scenario: the host itself died mid-run)
 // ---------------------------------------------------------------------------
 
@@ -131,8 +131,7 @@ test('resume takes over a stale running row whose recorded pid is dead and emits
       resumeRunId: 'dwfrun-crashed',
       // Injected dead probe: deterministic cross-platform, nothing real is signaled.
       pidLivenessProbe: () => false,
-      onEvent: (e) => events.push(e),
-    });
+      onEvent: (e) => events.push(e), approvedCommands: ['node'] });
     assert.equal(result.status, 'completed', `takeover resume failed: ${result.error ?? ''}`);
     assert.equal(result.stats.replayHits, 0, 'nothing was journalled by the dead host — the takeover re-executes');
 
@@ -172,8 +171,7 @@ test('resume refuses a running row whose host pid is alive and names the pid in 
       dbPath,
       resumeRunId: 'dwfrun-live-host',
       // Injected alive probe (EPERM semantics included): another host owns the run.
-      pidLivenessProbe: (pid) => pid === 424242,
-    });
+      pidLivenessProbe: (pid) => pid === 424242, approvedCommands: ['node'] });
     assert.equal(result.status, 'failed', 'a live host must keep its exclusive claim on the running row');
     assert.match(result.error!, /already running/);
     assert.match(result.error!, /424242/, 'the refusal must name the alive pid');
@@ -196,7 +194,7 @@ test('resume refuses a genuinely live host pid with the real OS probe (no inject
       await seedRunRow(dbPath, { runId: 'dwfrun-live-real', scriptHash: hashScriptSource(fs.readFileSync(scriptPath, 'utf8')), scriptPath, status: 'running', runnerPid: sleeper.pid });
 
       // NO pidLivenessProbe — the default probe must see the live child.
-      const result = await runFacadeScript({ scriptPath, cwd: ws.dir, dbPath, resumeRunId: 'dwfrun-live-real' });
+      const result = await runFacadeScript({ scriptPath, cwd: ws.dir, dbPath, resumeRunId: 'dwfrun-live-real', approvedCommands: ['node'] });
       assert.equal(result.status, 'failed');
       assert.match(result.error!, /already running/);
       assert.match(result.error!, new RegExp(`pid ${sleeper.pid}`));
@@ -229,8 +227,7 @@ test('resume takes over a pre-pid running row (no recorded host pid) without pro
       pidLivenessProbe: () => {
         throw new Error('a pid-less row must not be probed');
       },
-      onEvent: (e) => events.push(e),
-    });
+      onEvent: (e) => events.push(e), approvedCommands: ['node'] });
     assert.equal(result.status, 'completed', `pre-pid takeover resume failed: ${result.error ?? ''}`);
 
     const takeover = events.find((e) => e.type === 'dwf_resume_takeover');
@@ -280,7 +277,7 @@ const gate = await world.run("node", ["--version"]);
 log("node gate done");
 return { exitCode: gate.exitCode, hasVersion: gate.stdout.includes("v") };
 `);
-    const r = await runFacadeScript({ scriptPath, cwd: ws.dir });
+    const r = await runFacadeScript({ scriptPath, cwd: ws.dir, approvedCommands: ['node'] });
     assert.equal(r.status, 'completed', r.error);
     assert.equal((r.value as { exitCode: number }).exitCode, 0);
     assert.equal((r.value as { hasVersion: boolean }).hasVersion, true);
@@ -298,7 +295,7 @@ const list = await files.glob("*.txt");
 const content = await files.read("notes.txt");
 return { count: list.length, content };
 `);
-    const r = await runFacadeScript({ scriptPath, cwd: ws.dir });
+    const r = await runFacadeScript({ scriptPath, cwd: ws.dir, approvedCommands: ['node'] });
     assert.equal(r.status, 'completed', r.error);
     assert.deepEqual(r.value, { count: 1, content: 'hello dwf\n' });
   } finally {
@@ -312,19 +309,19 @@ test('world.run output with credentials is redacted before it reaches the journa
     const scriptPath = path.join(ws.dir, 'leak.facade.ts');
     const dbPath = path.join(ws.dir, 'dwf.sqlite');
     // A world.run whose output mimics `git remote -v` with an embedded password
-    // and an echoed token — the two shapes the engine's zero-credential rule forbids on disk.
+    // and an echoed token — the two shapes GOAL.md 铁律 2 forbids on disk.
     fs.writeFileSync(scriptPath, `
 phase("Leak");
 const out = await world.run("node", ["-e", "process.stdout.write('remote: https://alice:pat-123456@github.com/org/repo.git\\\\ntoken=${FAKE_GITHUB_TOKEN}\\\\n');"]);
 return { exitCode: out.exitCode, stdout: out.stdout };
 `);
-    const r = await runFacadeScript({ scriptPath, cwd: ws.dir, dbPath });
+    const r = await runFacadeScript({ scriptPath, cwd: ws.dir, dbPath, approvedCommands: ['node'] });
     assert.equal(r.status, 'completed', `run failed: ${r.error ?? ''}`);
 
     // The value the script sees is already masked — and it is the journalled value.
     const returned = (r.value as { stdout: string }).stdout;
     assert.ok(!returned.includes('pat-123456'), `password survived into the script result: ${returned}`);
-    assert.ok(!returned.includes('gho_0123'), `token survived into the script result: ${returned}`);
+    assert.ok(!returned.includes('ghp_0123'), `token survived into the script result: ${returned}`);
     assert.ok(returned.includes('://***:***@github.com/org/repo.git'));
     assert.ok(returned.includes('token=***REDACTED***'));
 
@@ -334,7 +331,7 @@ return { exitCode: out.exitCode, stdout: out.stdout };
       const worldRunNode = nodes.find((n) => n.kind === 'worldRun');
       assert.ok(worldRunNode?.resultJson, 'the worldRun node must be journalled');
       assert.ok(!worldRunNode.resultJson.includes('pat-123456'), 'raw password landed in dwf_nodes.result_json!');
-      assert.ok(!worldRunNode.resultJson.includes('gho_0123'), 'raw token landed in dwf_nodes.result_json!');
+      assert.ok(!worldRunNode.resultJson.includes('ghp_0123'), 'raw token landed in dwf_nodes.result_json!');
       assert.ok(worldRunNode.resultJson.includes('://***:***@'));
     } finally {
       store.close();
@@ -356,7 +353,7 @@ phase("Boom");
 const hits = await files.grep("(unclosed-${FAKE_GITHUB_TOKEN}");
 return hits;
 `);
-    const r = await runFacadeScript({ scriptPath, cwd: ws.dir, dbPath });
+    const r = await runFacadeScript({ scriptPath, cwd: ws.dir, dbPath, approvedCommands: ['node'] });
     assert.equal(r.status, 'failed');
     assert.ok(r.error, 'a failed run must carry an error');
     assert.ok(!r.error.includes(FAKE_GITHUB_TOKEN), 'the returned run error carries the raw token');
@@ -386,13 +383,13 @@ test('a full run with poisoned host credentials completes and the journal stays 
   const dbPath = path.join(ws.dir, 'dwf.sqlite');
   // Host-side provider credentials (Bedrock reads AWS_* in the parent only):
   // the redacted sandbox env must neither break the run nor leak into storage.
-  process.env.AWS_ACCESS_KEY_ID = 'EXAMPLEACCESSKEYID0123456789';
+  process.env.AWS_ACCESS_KEY_ID = 'AKIAIOSFODNN7EXAMPLE';
   process.env.AWS_SECRET_ACCESS_KEY = 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY';
   process.env.GITHUB_TOKEN = FAKE_GITHUB_TOKEN;
   try {
     const scriptPath = path.join(ws.dir, 'script.facade.ts');
     fs.writeFileSync(scriptPath, SCRIPT);
-    const r = await runFacadeScript({ scriptPath, cwd: ws.dir, dbPath });
+    const r = await runFacadeScript({ scriptPath, cwd: ws.dir, dbPath, approvedCommands: ['node'] });
     assert.equal(r.status, 'completed', `redaction must not break the run: ${r.error ?? ''}`);
     assert.equal((r.value as { healthStatus: string }).healthStatus, 'HEALTHY');
 
@@ -400,7 +397,7 @@ test('a full run with poisoned host credentials completes and the journal stays 
     try {
       const [events, nodes] = await Promise.all([store.getEvents(r.runId), store.getDwfNodes(r.runId)]);
       const blob = JSON.stringify({ events, nodes });
-      assert.ok(!blob.includes('EXAMPLEACCESSKEYID0123456789'), 'AWS key id leaked into the journal!');
+      assert.ok(!blob.includes('AKIAIOSFODNN7EXAMPLE'), 'AWS key id leaked into the journal!');
       assert.ok(!blob.includes('wJalrXUtnFEMI'), 'AWS secret leaked into the journal!');
       assert.ok(!blob.includes(FAKE_GITHUB_TOKEN), 'GITHUB_TOKEN leaked into the journal!');
     } finally {
@@ -415,7 +412,7 @@ test('a full run with poisoned host credentials completes and the journal stays 
 });
 
 // ---------------------------------------------------------------------------
-// Dual persistence (the engine's dual-persistence rule): every event goes to SQLite (authoritative)
+// Dual persistence (GOAL.md §1.5): every event goes to SQLite (authoritative)
 // AND to .workflow/runs/<runId>/events.jsonl (append-only mirror).
 // ---------------------------------------------------------------------------
 
@@ -426,7 +423,7 @@ test('a run dual-writes its event stream: events.jsonl mirrors the SQLite journa
     fs.writeFileSync(scriptPath, SCRIPT);
     const dbPath = path.join(ws.dir, '.workflow', 'dwf.sqlite');
 
-    const first = await runFacadeScript({ scriptPath, cwd: ws.dir, dbPath });
+    const first = await runFacadeScript({ scriptPath, cwd: ws.dir, dbPath, approvedCommands: ['node'] });
     assert.equal(first.status, 'completed', `first run failed: ${first.error ?? ''}`);
 
     const jsonlPath = path.join(ws.dir, '.workflow', 'runs', first.runId, 'events.jsonl');
@@ -446,7 +443,7 @@ test('a run dual-writes its event stream: events.jsonl mirrors the SQLite journa
 
       // Resume: the same stream continues in both stores (no re-numbering,
       // no duplicate ids) — the mirror is append-only across invocations.
-      const second = await runFacadeScript({ scriptPath, cwd: ws.dir, dbPath, resumeRunId: first.runId });
+      const second = await runFacadeScript({ scriptPath, cwd: ws.dir, dbPath, resumeRunId: first.runId, approvedCommands: ['node'] });
       assert.equal(second.status, 'completed', `resume failed: ${second.error ?? ''}`);
       assert.equal(second.stats.replayHits, 1);
       await assertMirrorsSqlite();
@@ -465,7 +462,7 @@ test('a torn trailing events.jsonl line is tolerated on resume and the stream co
     fs.writeFileSync(scriptPath, SCRIPT);
     const dbPath = path.join(ws.dir, '.workflow', 'dwf.sqlite');
 
-    const first = await runFacadeScript({ scriptPath, cwd: ws.dir, dbPath });
+    const first = await runFacadeScript({ scriptPath, cwd: ws.dir, dbPath, approvedCommands: ['node'] });
     assert.equal(first.status, 'completed', first.error);
     const jsonlPath = path.join(ws.dir, '.workflow', 'runs', first.runId, 'events.jsonl');
 
@@ -480,7 +477,7 @@ test('a torn trailing events.jsonl line is tolerated on resume and the stream co
       'utf8',
     );
 
-    const second = await runFacadeScript({ scriptPath, cwd: ws.dir, dbPath, resumeRunId: first.runId });
+    const second = await runFacadeScript({ scriptPath, cwd: ws.dir, dbPath, resumeRunId: first.runId, approvedCommands: ['node'] });
     assert.equal(second.status, 'completed', `resume over a torn line failed: ${second.error ?? ''}`);
 
     // Event-log recovery semantics: the unparseable fragment is skipped, the
@@ -514,7 +511,7 @@ test('a failed events.jsonl append degrades the mirror with ONE StorageError-tag
 
     // Run once to obtain a stable runId + journal, then sabotage the mirror
     // path: a DIRECTORY where events.jsonl must be — every append fails.
-    const first = await runFacadeScript({ scriptPath, cwd: ws.dir, dbPath });
+    const first = await runFacadeScript({ scriptPath, cwd: ws.dir, dbPath, approvedCommands: ['node'] });
     assert.equal(first.status, 'completed', first.error);
     const jsonlPath = path.join(ws.dir, '.workflow', 'runs', first.runId, 'events.jsonl');
     fs.rmSync(jsonlPath);
@@ -527,7 +524,7 @@ test('a failed events.jsonl append degrades the mirror with ONE StorageError-tag
     };
     let secondStatus: string;
     try {
-      const second = await runFacadeScript({ scriptPath, cwd: ws.dir, dbPath, resumeRunId: first.runId });
+      const second = await runFacadeScript({ scriptPath, cwd: ws.dir, dbPath, resumeRunId: first.runId, approvedCommands: ['node'] });
       secondStatus = second.status;
     } finally {
       console.warn = originalWarn;

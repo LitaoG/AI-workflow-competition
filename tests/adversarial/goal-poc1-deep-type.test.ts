@@ -12,7 +12,7 @@
  * The check must TERMINATE with diagnostics (tooling-level catchable, run never starts),
  * never hang. Live PoC run measured ~1.2s wall for both (watchdog 120s never hit).
  *
- * Run style mirrors .kiro/pbt/engine-invariants.test.ts: node --test, imports from dist.
+ * Run style mirrors tests/pbt/engine-invariants.test.ts: node --test, imports from dist.
  */
 import { test, describe } from 'node:test';
 import * as assert from 'node:assert/strict';

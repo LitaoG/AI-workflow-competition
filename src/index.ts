@@ -20,6 +20,11 @@ export {
   MissingDependencyError,
   WorkflowAbortedError,
   RunNotFoundError,
+  McpServerNotConfiguredError,
+  McpConfigError,
+  McpConnectError,
+  McpClientClosedError,
+  McpToolError,
   withRetry,
 } from './core/error.js';
 

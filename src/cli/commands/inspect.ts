@@ -21,9 +21,32 @@ export async function executeInspect(runId: string, options?: InspectCommandOpti
     // invisible to inspect even when the journal path is handed in directly.
     dbPath = options.db;
   } else {
-    dbPath = path.join(process.cwd(), '.workflow', 'runs', runId, 'checkpoints.db');
-    if (!fs.existsSync(dbPath)) {
-      dbPath = path.join(process.cwd(), '.workflow', 'runs.db');
+    // Default journal probe, resolved by CONTENT (review round 1: facade runs
+    // journal to .workflow/dwf.sqlite — resolveDwfJournalPath — and never
+    // create checkpoints.db, while a pre-existing builder runs.db must not
+    // shadow them). Priority: the run's own checkpoints.db, then the facade
+    // journal, then the global builder runs.db; the first store that actually
+    // knows the runId wins, and with no match the legacy default applies so
+    // the "not found" error path stays exactly as before.
+    const probes = [
+      path.join(process.cwd(), '.workflow', 'runs', runId, 'checkpoints.db'),
+      path.join(process.cwd(), '.workflow', 'dwf.sqlite'),
+      path.join(process.cwd(), '.workflow', 'runs.db'),
+    ].filter((p) => fs.existsSync(p));
+    dbPath = probes[0] ?? path.join(process.cwd(), '.workflow', 'runs.db');
+    for (const candidate of probes) {
+      const probeStore = new SQLiteStateStore(candidate) as SQLiteStateStore & DwfJournalStore;
+      try {
+        const knownFacade = (await probeStore.getDwfRun(runId)) !== null;
+        const knownBuilder =
+          !knownFacade && Object.keys(await probeStore.getAllCheckpoints(runId)).length > 0;
+        if (knownFacade || knownBuilder) {
+          dbPath = candidate;
+          break;
+        }
+      } finally {
+        probeStore.close();
+      }
     }
   }
   const store = new SQLiteStateStore(dbPath) as SQLiteStateStore & DwfJournalStore;

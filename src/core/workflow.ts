@@ -13,7 +13,13 @@ import {
   StateStore,
 } from '../types.js';
 import { WorkflowExecutionContext } from './context.js';
-import { CircularDependencyError, MissingDependencyError, StepExecutionError, withRetry } from './error.js';
+import { CircularDependencyError, MissingDependencyError, StepExecutionError, WorkflowAbortedError, withRetry } from './error.js';
+import { redactValue } from '../dwf/redact.js';
+import { computeStepCheckpointHash, stableStringify } from './checkpoint-hash.js';
+
+// Historical export surface: the checkpoint-hash vocabulary resolves from the
+// workflow module (tests, replay tooling).
+export { computeStepCheckpointHash, stableStringify } from './checkpoint-hash.js';
 
 export interface DefineWorkflowOptions {
   name: string;
@@ -146,6 +152,9 @@ export class Workflow extends EventEmitter {
       isMock: options?.mockMode ?? false,
       lang: options?.lang ?? 'en',
       stateStore: options?.stateStore,
+      mcpServers: options?.mcpServers,
+      mcpConfigPath: options?.mcpConfigPath,
+      mcpConnectTimeoutMs: options?.mcpConnectTimeoutMs,
     });
 
     const store = options?.stateStore;
@@ -211,6 +220,10 @@ export class Workflow extends EventEmitter {
         data: { error: err.message },
       });
       throw err;
+    } finally {
+      // Whatever the outcome, release this run's MCP connections so no stdio
+      // MCP server outlives the run (Issue #106).
+      await context.disposeMcp();
     }
   }
 
@@ -237,8 +250,27 @@ export class Workflow extends EventEmitter {
         throw new Error(`Deadlock or unfulfilled dependencies for steps: ${remaining}`);
       }
 
-      // Execute ready steps in parallel via Promise.all
-      await Promise.all(
+      // Execute ready steps in parallel as one group (errgroup-style, Issue #120):
+      // the first failure aborts the batch signal, so siblings start no new
+      // model, MCP or gate call, and the batch waits for every step to settle
+      // before it reports that first failure. Nothing outlives the batch, so the
+      // run's `finally` never closes MCP connections under a running step.
+      const batch = new AbortController();
+      let firstFailedStepId: string | undefined;
+      const cancelSiblings = (stepId: string): void => {
+        if (batch.signal.aborted) return;
+        firstFailedStepId = stepId;
+        // Abort with the domain error, not a bare string (Issue #131): an
+        // in-flight ask's fetch rejects with `signal.reason` verbatim (WHATWG
+        // fetch semantics, undici), so a string reason flowed through the
+        // providers — which rethrow it as-is when the signal is aborted — into
+        // isCancellation, which only recognizes WorkflowAbortedError /
+        // AbortError. The cancelled sibling was then recorded as a SECOND root
+        // failure with an empty error message instead of `cancelledBy`. With
+        // the error instance the cancellation survives the whole chain.
+        batch.abort(new WorkflowAbortedError(`sibling step "${stepId}" failed`));
+      };
+      const settled = await Promise.allSettled(
         readySteps.map(async (step) => {
           pendingSteps.delete(step.id);
           const startTime = Date.now();
@@ -299,8 +331,8 @@ export class Workflow extends EventEmitter {
           });
 
           try {
-            const stepCtx = context.createChildContext(step.id);
-            const output = await withRetry(() => step.runner(input, stepCtx), step.retryPolicy);
+            const stepCtx = context.createChildContext(step.id, batch.signal);
+            const output = await withRetry(() => step.runner(input, stepCtx), step.retryPolicy, batch.signal);
             context.setOutput(step.id, output);
             completedSteps.add(step.id);
 
@@ -330,6 +362,14 @@ export class Workflow extends EventEmitter {
               data: { output, durationMs },
             });
           } catch (err: any) {
+            // Cancel the siblings first, before the bookkeeping below awaits.
+            cancelSiblings(step.id);
+            // A sibling cancelled by that first failure is recorded as cancelled,
+            // so one failure does not read as N in events, Studio or `inspect`.
+            const cancelledBy = step.id !== firstFailedStepId && isCancellation(err) ? firstFailedStepId : undefined;
+            const errorText = cancelledBy
+              ? `cancelled because sibling step "${cancelledBy}" failed (${err.message})`
+              : err.message;
             failedSteps.add(step.id);
             const durationMs = Date.now() - startTime;
             if (context.stateStore) {
@@ -339,7 +379,7 @@ export class Workflow extends EventEmitter {
                 role: step.role,
                 status: 'failed',
                 input: undefined,
-                error: err.message,
+                error: errorText,
                 durationMs,
                 inputHash: stepInputHash,
               });
@@ -353,13 +393,25 @@ export class Workflow extends EventEmitter {
               phaseId: phase.id,
               type: 'step_failed',
               timestamp: new Date().toISOString(),
-              data: { error: err.message, durationMs },
+              data: cancelledBy ? { error: errorText, durationMs, cancelled: true, cancelledBy } : { error: errorText, durationMs },
             });
 
             throw new StepExecutionError(step.id, phase.id, err);
           }
-        })
+        }).map((pending, index) =>
+          // A failure outside the step's own try (checkpoint lookup, event
+          // emit) cancels the siblings too.
+          pending.catch((err: unknown) => {
+            cancelSiblings(readySteps[index].id);
+            throw err;
+          })
+        )
       );
+
+      if (firstFailedStepId !== undefined) {
+        const first = settled[readySteps.findIndex((s) => s.id === firstFailedStepId)];
+        if (first?.status === 'rejected') throw first.reason;
+      }
     }
   }
 
@@ -412,117 +464,6 @@ export class Workflow extends EventEmitter {
       startedAt: new Date().toISOString(),
     };
   }
-}
-
-// ---------------------------------------------------------------------------
-// Checkpoint replay binding — a checkpoint is only served when the producing
-// (step definition, input) pair hashes to the recorded inputHash (audit fix:
-// the short-circuit used to key on stepId alone and served stale results)
-// ---------------------------------------------------------------------------
-
-/** The serializable identity fields of a {@link StepDefinition} bound into the replay hash. */
-interface StepHashDescriptor {
-  id: string;
-  name: string;
-  phaseId: string;
-  type: string;
-  role?: string;
-  /** Sorted copy — dependency ORDER carries no semantics, only the set does. */
-  dependsOn: string[];
-  retryPolicy?: { maxRetries: number; initialDelayMs?: number; backoffFactor?: number };
-  timeoutMs?: number;
-}
-
-/**
- * Pick the step's serializable identity fields in canonical form. The
- * non-serializable closures (`runner`, `retryPolicy.retryableErrorFilter`) are
- * deliberately NOT part of the binding: function source text is not stable
- * across minifiers/bundlers, so binding it would produce spurious mismatches
- * (the fail-safe direction, but noisy). Editing only a step's function body is
- * therefore not detected at this layer — whole-script identity binding is the
- * dwf facade runner's job (`scriptHash`).
- */
-function stepHashDescriptor(step: StepDefinition): StepHashDescriptor {
-  return {
-    id: step.id,
-    name: step.name,
-    phaseId: step.phaseId,
-    type: step.type,
-    ...(step.role !== undefined ? { role: step.role } : {}),
-    dependsOn: [...(step.dependsOn ?? [])].sort(),
-    ...(step.retryPolicy !== undefined
-      ? {
-          retryPolicy: {
-            maxRetries: step.retryPolicy.maxRetries,
-            ...(step.retryPolicy.initialDelayMs !== undefined
-              ? { initialDelayMs: step.retryPolicy.initialDelayMs }
-              : {}),
-            ...(step.retryPolicy.backoffFactor !== undefined
-              ? { backoffFactor: step.retryPolicy.backoffFactor }
-              : {}),
-          },
-        }
-      : {}),
-    ...(step.timeoutMs !== undefined ? { timeoutMs: step.timeoutMs } : {}),
-  };
-}
-
-/**
- * Deterministic JSON serialization: object keys are sorted recursively so two
- * structurally equal values always produce the same text regardless of key
- * insertion order; arrays keep their order (it is semantically meaningful).
- * `undefined` serializes as `null` (JSON semantics); non-JSON values (BigInt,
- * functions, symbols) degrade to their `String()` form; cyclic references
- * degrade to the `"[Circular]"` marker instead of throwing. Total — never
- * throws, so hashing hostile step inputs is always safe.
- *
- * @param value - Any runtime value (expected to be JSON-safe in practice).
- */
-export function stableStringify(value: unknown): string {
-  return stringifyStable(value, new Set());
-}
-
-function stringifyStable(value: unknown, seen: Set<object>): string {
-  if (value === undefined) return 'null';
-  if (value === null || typeof value === 'number' || typeof value === 'boolean' || typeof value === 'string') {
-    return JSON.stringify(value);
-  }
-  if (typeof value === 'bigint' || typeof value === 'function' || typeof value === 'symbol') {
-    return JSON.stringify(String(value));
-  }
-  if (value instanceof Date) return JSON.stringify(value.toISOString());
-  if (seen.has(value)) return '"[Circular]"';
-  seen.add(value);
-  let out: string;
-  if (Array.isArray(value)) {
-    out = `[${value.map((item) => stringifyStable(item, seen)).join(',')}]`;
-  } else {
-    const record = value as Record<string, unknown>;
-    const pairs = Object.keys(record)
-      .sort()
-      .map((key) => `${JSON.stringify(key)}:${stringifyStable(record[key], seen)}`);
-    out = `{${pairs.join(',')}}`;
-  }
-  seen.delete(value);
-  return out;
-}
-
-/**
- * sha256 over the canonical (step definition, input) pair — the hash a core
- * checkpoint is bound by. The two parts are serialized independently
- * ({@link stableStringify}) and joined with a NUL separator so no pair of
- * (definition, input) values can collide across the boundary. Pure: the same
- * pair always yields the same hex digest.
- *
- * @param step - The step definition as currently wired into the workflow.
- * @param input - The runtime input the step is about to receive (or received).
- */
-export function computeStepCheckpointHash(step: StepDefinition, input: unknown): string {
-  return createHash('sha256')
-    .update(stableStringify(stepHashDescriptor(step)))
-    .update('\u0000')
-    .update(stableStringify(input))
-    .digest('hex');
 }
 
 /**
@@ -582,4 +523,12 @@ export function defineWorkflow(options: DefineWorkflowOptions): Workflow {
   }
 
   return wf;
+}
+
+/**
+ * True for the error a step throws because its batch was cancelled: a refused
+ * `ctx.mcp` / `ctx.gate` call (`WorkflowAbortedError`) or an aborted ask.
+ */
+function isCancellation(err: unknown): boolean {
+  return err instanceof WorkflowAbortedError || (err instanceof Error && err.name === 'AbortError');
 }

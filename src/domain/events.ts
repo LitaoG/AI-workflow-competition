@@ -75,10 +75,14 @@ export const WORKFLOW_EVENT = {
   DWF_IMPORT_CACHE_CLOSED: 'dwf_import_cache_closed',
   /** A workflow() composition child run settled. */
   DWF_CHILD_WORKFLOW: 'dwf_child_workflow',
+  /** The run settled: registered in-flight ask controllers were aborted (Issue #107). */
+  DWF_INFLIGHT_ABORT: 'dwf_inflight_abort',
   /** A failing ask moved to (or skipped) another provider in the failover chain. */
   DWF_FAILOVER: 'dwf_failover',
   /** A facade `world.run` command executed. */
   DWF_WORLD_RUN: 'dwf_world_run',
+  /** A facade `world.run` command's authorization provenance (Issue #127 direction 1: explicit | allowlist | tty). */
+  DWF_WORLD_RUN_AUTH: 'dwf_world_run_auth',
   /** A host call from the child failed. */
   DWF_CALL_ERROR: 'dwf_call_error',
   /** A journalled facade node failed. */
@@ -89,12 +93,16 @@ export const WORKFLOW_EVENT = {
   DWF_COMPLETED: 'dwf_completed',
   /** Facade script run completed with failures. */
   DWF_FAILED: 'dwf_failed',
+  /** Facade script run parked on an open hole/escalation (resumable — not a failure; Issue #35). */
+  DWF_PARKED: 'dwf_parked',
   /** A resume took over a stale `running` row whose host pid is dead (host crash) or never recorded (legacy row). */
   DWF_RESUME_TAKEOVER: 'dwf_resume_takeover',
   /** An `events.jsonl` append failed — the mirror is degraded; SQLite stays authoritative (StorageError-tagged payload). */
   DWF_EVENT_LOG_WRITE_FAILED: 'dwf_event_log_write_failed',
   /** Unparseable child stdout frames were counted (diagnostic; tearing/garbage never silently dropped). */
   DWF_FRAME_MALFORMED: 'dwf_frame_malformed',
+  /** Win32 Job Object supervision mode for the sandbox child (diagnostic; job-object | fallback-taskkill). */
+  DWF_JOB_GUARD: 'dwf_job_guard',
 } as const;
 
 /** Every canonical event type, as a union of the wire-string literals above. */

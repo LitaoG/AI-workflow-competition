@@ -25,7 +25,7 @@ function makeEngine(runId: string, store: SQLiteStateStore & DwfJournalStore, ov
     workspace: process.cwd(),
     store,
     args: {},
-    approvedCommands: ['node'],
+    approvedCommands: [{ name: 'node', source: 'explicit' as const }],
     onEvent: () => {},
     ...overrides,
   });
@@ -68,14 +68,22 @@ test('engine replay: second engine on the same journal short-circuits asks at ze
     // Same site, different prompt �?inputHash mismatch fails loudly
     const engine3 = makeEngine(runId, store);
     const actor3 = await engine3.handleCall(actorFrame('actor#1'));
-    // Settle pools (audit gap #5): a DIFFERENT prompt at the same site finds no
-    // unconsumed matching row and executes LIVE (content matching replaced the
-    // arrival-keyed loud mismatch; the runner's scriptHash gate still refuses
-    // byte-different scripts before an engine is ever constructed).
-    const callsBeforeLive = counting.calls;
-    const reply3 = await engine3.handleCall({ t: 'call', id: 4, op: 'ask', siteId: 'ask#1', payload: [actor3, 'a DIFFERENT prompt', null] });
-    assert.ok(counting.calls > callsBeforeLive, 'an unmatched input executes live');
-    assert.ok(typeof reply3 === 'string' && reply3.length > 0);
+    // Settle pools still match by content, but on a same-script resume the
+    // positional strictness gate (P0-2, locked in dwf-replay-strict.test.ts)
+    // fires first: a drifted ask input whose arrival position holds an
+    // unconsumed journal row fails loudly instead of running live (the amend
+    // path, importedCache present, keeps the legacy content-only matching).
+    const callsBeforeMismatch = counting.calls;
+    await assert.rejects(
+      () => engine3.handleCall({ t: 'call', id: 4, op: 'ask', siteId: 'ask#1', payload: [actor3, 'a DIFFERENT prompt', null] }),
+      (err: unknown) => {
+        const e = err as { tag?: string; message?: string };
+        assert.equal(e.tag, 'JournalMismatchError', 'the tagged error vocabulary carries the mismatch');
+        assert.match(e.message ?? '', /InputHashMismatch at ask#1#1/);
+        return true;
+      },
+    );
+    assert.equal(counting.calls, callsBeforeMismatch, 'the strict gate fires before any provider call');
 
     store.close();
   } finally {
@@ -141,11 +149,11 @@ test('ask seat gate bounds concurrency across actors; per-actor asks run FIFO', 
 
 test('world.run outside the approval set is rejected', async () => {
   const store = createSQLiteStore(':memory:') as SQLiteStateStore & DwfJournalStore;
-  const engine = makeEngine('dwfrun-approval', store, { approvedCommands: ['node'] });
+  const engine = makeEngine('dwfrun-approval', store, { approvedCommands: [{ name: 'node', source: 'explicit' as const }] });
   await assert.rejects(
     () => engine.handleCall({ t: 'call', id: 1, op: 'worldRun', siteId: 'worldrun#1', payload: ['curl', ['http://x'], undefined] }),
     // Tagged errors are plain objects — match the message, not String(err).
-    { message: /not in the approved command set/ },
+    { message: /is not authorized/ },
   );
   store.close();
 });

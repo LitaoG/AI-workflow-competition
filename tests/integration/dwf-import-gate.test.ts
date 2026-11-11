@@ -5,7 +5,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { runFacadeScript } from '../../src/dwf/runner.js';
 
-// 修复 #1（黑盒行为规约审计缺口）：amend 导入缓存关门防线。
+// 修复 #1（边界条件安全审计与状态恢复加固）：amend 导入缓存关门防线。
 // 复现器（复核员实测过的同款时序）：
 //   Run1（父）：world.run 写 probe.txt 为 PROBE-OLD；files.read 读回 → journal
 //   Amend：world.run 改写 probe.txt 为 PROBE-NEW（diverged → live 执行）；
@@ -64,7 +64,7 @@ test('import gate: after a live world.run, same-args world reads bypass the impo
     const amendPath = path.join(ws.dir, 'amend.facade.ts');
     fs.writeFileSync(amendPath, AMEND);
 
-    const first = await runFacadeScript({ scriptPath: run1Path, cwd: ws.dir, dbPath: ws.dbPath });
+    const first = await runFacadeScript({ scriptPath: run1Path, cwd: ws.dir, dbPath: ws.dbPath, approvedCommands: ['node'] });
     assert.equal(first.status, 'completed', first.error);
     assert.equal((first.value as { probe1: string }).probe1, 'PROBE-OLD');
 
@@ -72,8 +72,7 @@ test('import gate: after a live world.run, same-args world reads bypass the impo
       scriptPath: amendPath,
       cwd: ws.dir,
       dbPath: ws.dbPath,
-      amendRunId: first.runId,
-    });
+      amendRunId: first.runId, approvedCommands: ['node'] });
     assert.equal(amended.status, 'completed', amended.error);
     // THE FIX: this must be PROBE-NEW (fresh read of the mutated world), not the
     // imported PROBE-OLD. Before the gate, the same-args worldRead replayed the
@@ -99,7 +98,7 @@ test('import gate: pure asks keep hitting the warm cache after closure', async (
       "phase('Mutate');\nawait world.run('node', ['-e', 'process.exit(0)'], { timeoutMs: 30000 });\nreturn {};",
     );
 
-    const first = await runFacadeScript({ scriptPath: askPath, cwd: ws.dir, dbPath: ws.dbPath });
+    const first = await runFacadeScript({ scriptPath: askPath, cwd: ws.dir, dbPath: ws.dbPath, approvedCommands: ['node'] });
     assert.equal(first.status, 'completed', first.error);
     assert.equal(first.stats.asks, 1);
 
@@ -109,16 +108,14 @@ test('import gate: pure asks keep hitting the warm cache after closure', async (
       scriptPath: mutatePath,
       cwd: ws.dir,
       dbPath: ws.dbPath,
-      amendRunId: first.runId,
-    });
+      amendRunId: first.runId, approvedCommands: ['node'] });
     assert.equal(amended.status, 'completed', amended.error);
 
     const third = await runFacadeScript({
       scriptPath: askPath,
       cwd: ws.dir,
       dbPath: ws.dbPath,
-      amendRunId: amended.runId,
-    });
+      amendRunId: amended.runId, approvedCommands: ['node'] });
     assert.equal(third.status, 'completed', third.error);
     assert.equal(third.stats.asks, 0, 'pure ask replays from the warm cache');
     assert.equal(third.stats.amendHits, 1, 'the ask node is an amend hit, not a live re-run');

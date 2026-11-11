@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyFailure, backoffSleep } from '../../../src/dwf/attempt-classifier.js';
+import { classifyFailure, backoffSleep } from '../../../src/agent/attempt-classifier.js';
 import { agent } from '../../../src/agent/rpc.js';
 import { providerRegistry } from '../../../src/agent/provider.js';
 import { z } from 'zod';

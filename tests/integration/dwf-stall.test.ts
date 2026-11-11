@@ -30,7 +30,16 @@ function makeProject(): { dir: string; scriptPath: string; cleanup: () => void }
   return { dir, scriptPath, cleanup: () => { try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* lock */ } } };
 }
 
-test('facade run fails with a stall error when stallMs is set', { timeout: 30_000 }, async () => {
+// Wall-clock headroom (Issue #148): the stall cycle is deterministic in
+// TRIGGER (provider sleeps 80ms vs a 20ms window — every attempt stalls) but
+// not in DURATION: one attempt = a child-realm spawn + script compile + an
+// 80ms call, times the retry chain with its backoff. Under a saturated host
+// (default node --test concurrency = cores) the whole cycle measured 33.7s —
+// past this test's old 30s cap, so the harness cancelled a healthy failure.
+// 120s absorbs a 4x slowdown while still bounding a genuinely hung run.
+const STALL_TEST_TIMEOUT_MS = 120_000;
+
+test('facade run fails with a stall error when stallMs is set', { timeout: STALL_TEST_TIMEOUT_MS }, async () => {
   const project = makeProject();
   try {
     const r = await runFacadeScript({ scriptPath: project.scriptPath, cwd: project.dir, stallMs: 20 });
@@ -41,7 +50,7 @@ test('facade run fails with a stall error when stallMs is set', { timeout: 30_00
   }
 });
 
-test('facade run completes when stallMs=0 disables the clock', { timeout: 30_000 }, async () => {
+test('facade run completes when stallMs=0 disables the clock', { timeout: STALL_TEST_TIMEOUT_MS }, async () => {
   const project = makeProject();
   try {
     const r = await runFacadeScript({ scriptPath: project.scriptPath, cwd: project.dir, stallMs: 0 });

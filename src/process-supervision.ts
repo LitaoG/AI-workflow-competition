@@ -1,5 +1,5 @@
 /**
- * Process supervision for facade-script engine spawns (engine-spec deepening item:
+ * Process supervision for facade-script engine spawns (GOAL.md deepening item:
  * "全生命周期进程安全").
  *
  * Every process the engine or runner spawns becomes a supervised unit:
@@ -17,8 +17,12 @@
  * and leakage, not what the child chooses to do with the env it gets.
  */
 
-import { spawn } from 'node:child_process';
-import type { ChildProcess } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+import type { ChildProcess, ChildProcessWithoutNullStreams } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export interface SupervisedSpawnOptions {
   cwd: string;
@@ -28,9 +32,14 @@ export interface SupervisedSpawnOptions {
    * Additional environment variables (by name) to pass through from the
    * parent environment, on top of the platform-critical base.
    */
-  envAllowlist?: string[];
+  envAllowlist?: readonly string[];
   /** Extra env values set explicitly (win over allowlisted passthrough). */
   env?: Record<string, string | undefined>;
+  /**
+   * Per-process commit cap in MB, enforced by the Win32 Job Object when the
+   * job helper is active (win32 only; ignored on the fallback-taskkill path).
+   */
+  processMemoryLimitMb?: number;
 }
 
 export interface SupervisedResult {
@@ -41,6 +50,20 @@ export interface SupervisedResult {
   timedOut: boolean;
   durationMs: number;
 }
+
+/**
+ * The sanitized environment both engines' supervised spawns run with —
+ * world.run (engine.spawnCaptured) and the legacy gates (core/step.ts,
+ * core/context.ts, Issue #151). Allowlist-only: spawned children never
+ * inherit the parent environment.
+ */
+export const SPAWN_ENV_ALLOWLIST: readonly string[] = [
+  'GIT_CONFIG_GLOBAL',
+  'GIT_CONFIG_SYSTEM',
+  'GIT_DIR',
+  'GIT_WORK_TREE',
+  'NODE_ENV',
+];
 
 export interface SupervisedProcess {
   child: ChildProcess;
@@ -60,7 +83,7 @@ const PLATFORM_BASE_ENV_POSIX = ['PATH', 'HOME', 'LANG', 'LC_ALL', 'TMPDIR', 'TZ
  * On Windows variable names are matched case-insensitively.
  */
 export function buildSanitizedEnv(
-  allowlist: string[] = [],
+  allowlist: readonly string[] = [],
   extra: Record<string, string | undefined> = {},
 ): NodeJS.ProcessEnv {
   const isWindows = process.platform === 'win32';
@@ -92,7 +115,7 @@ export function buildSanitizedEnv(
  * Non-mutating liveness probe: `process.kill(pid, 0)` performs the OS
  * existence/permission check without delivering a signal.
  *
- * Verdict rule (stale-running recovery): a successful probe, or
+ * Verdict rule (GOAL.md §1.5 stale-running recovery): a successful probe, or
  * `EPERM` (the process exists but this user may not signal it), means ALIVE —
  * fail-safe, since refusing a resume is the safe direction. `ESRCH` (no such
  * process) and every other error mean NOT alive. Windows note: `kill(pid, 0)`
@@ -155,7 +178,7 @@ export interface SignalBus {
 }
 
 /**
- * Host-signal supervision for the duration of one run (engine iron rule —
+ * Host-signal supervision for the duration of one run (GOAL.md 铁律 3 —
  * 零孤儿进程): SIGINT/SIGTERM everywhere, SIGBREAK additionally on Windows
  * (Ctrl+Break is Windows-only and never deliverable on POSIX). A signal means
  * "stop the run" — the runner's handler kills the whole sandbox tree and lets
@@ -185,26 +208,260 @@ export function onHostSignals(
   };
 }
 
+// ---------------------------------------------------------------------------
+// Win32 Job Object supervision (Issue #98 Phase 2): a tiny C# helper
+// (scripts/win32-jobhelper.cs, compiled lazily by the Windows built-in
+// csc.exe into a gitignored cache) becomes the DIRECT parent of the supervised
+// command and owns a Job Object with KILL_ON_JOB_CLOSE (+ an optional
+// per-process commit cap). killTree() is unchanged — taskkill on the helper
+// pid closes the job handle and the kernel tears the tree down; a dead node
+// parent is matched by the helper's own wait and ends the tree too.
+// Degradation (non-win32 / missing csc / failed compile / failed launch) is
+// memoized once per process, observable via queryJobGuardStatus(), and falls
+// back to the legacy spawn + taskkill /T path with zero functional loss (only
+// the memory cap and the crash insurance are lost). POSIX paths are untouched.
+// ---------------------------------------------------------------------------
+
+export type JobGuardMode = 'job-object' | 'fallback-taskkill';
+
+export interface JobGuardStatus {
+  mode: JobGuardMode;
+  /** Why the fallback is active (absent in job-object mode). */
+  reason?: string;
+}
+
+/** Test injection surface: an explicit csc path overrides the default probe. */
+export interface JobGuardProbe {
+  cscPath?: string;
+  /**
+   * Test injection point (Issue #108): overrides the compile cache directory,
+   * so a cache that cannot be created can be reproduced deterministically
+   * (a regular file at the injected path makes mkdirSync throw ENOTDIR).
+   */
+  cacheDir?: string;
+}
+
+/**
+ * stderr sentinel the helper writes when it fails to spawn the supervised
+ * command (or the in-job check fails). This LINE is the authoritative
+ * spawn-failure criterion — the helper forwards real child exit codes 1:1, so
+ * its own exit codes 2/3 collide with them and cannot be used.
+ */
+export const JOB_HELPER_SENTINEL_PREFIX = 'aiwf-jobhelper: spawn ';
+
+interface JobGuardVerdict {
+  status: JobGuardStatus;
+  /** Compiled helper exe path (job-object mode only). */
+  helperPath?: string;
+}
+
+/**
+ * Module-level memo: the FIRST verdict computed in this process sticks. The
+ * degradation chain (csc probe → compile → launch) must never be retried per
+ * spawn (failure amplification), and an injected probe poisons the whole
+ * process — which is exactly why the fallback-injection tests live in their
+ * own file (node --test runs every file in a separate process).
+ */
+let jobGuardMemo: JobGuardVerdict | undefined;
+
+function findCscPath(): string | undefined {
+  const windir = process.env.WINDIR ?? process.env.SystemRoot;
+  if (!windir) return undefined;
+  for (const framework of ['Framework64', 'Framework']) {
+    const candidate = path.join(windir, 'Microsoft.NET', framework, 'v4.0.30319', 'csc.exe');
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return undefined;
+}
+
+function jobHelperSourcePath(): string {
+  // dist/src/process-supervision.js → <repoRoot>/scripts/win32-jobhelper.cs
+  return fileURLToPath(new URL('../../scripts/win32-jobhelper.cs', import.meta.url));
+}
+
+function jobHelperCacheDir(): string {
+  // gitignored compile cache, anchored at the repo root (cwd-independent).
+  return path.resolve(fileURLToPath(new URL('../../.cache/win32-jobhelper/', import.meta.url)));
+}
+
+/**
+ * Compile the C# helper with the Windows built-in csc.exe. Cache key is the
+ * source sha256 (deterministic product name → cross-process compile races are
+ * harmless), products are hash-versioned to dodge the "cannot overwrite a
+ * running exe" handle lock. `cacheDir` is injectable for tests (Issue #108).
+ */
+function compileJobHelper(cscPath: string, cacheDir: string = jobHelperCacheDir()): string | undefined {
+  const source = jobHelperSourcePath();
+  if (!fs.existsSync(source)) return undefined;
+  const hash = createHash('sha256').update(fs.readFileSync(source)).digest('hex').slice(0, 16);
+  const product = path.join(cacheDir, `jobhelper-${hash}.exe`);
+  if (fs.existsSync(product)) return product;
+  fs.mkdirSync(cacheDir, { recursive: true });
+  const temp = `${product}.${process.pid}.tmp`;
+  const compiled = spawnSync(cscPath, ['-nologo', '-warn:0', '-target:exe', `-out:${temp}`, source], {
+    timeout: 60_000,
+    windowsHide: true,
+  });
+  let compiledOk = compiled.status === 0 && fs.existsSync(temp);
+  if (compiledOk) {
+    try {
+      fs.renameSync(temp, product);
+    } catch (err) {
+      // Cross-process compile race: a sibling may have won the rename. The
+      // product name is deterministic (source sha256) — if the target exists
+      // now, the compile is a success for us too; otherwise it failed.
+      if (!fs.existsSync(product)) compiledOk = false;
+    }
+  }
+  if (!compiledOk) {
+    try { if (fs.existsSync(temp)) fs.rmSync(temp, { force: true }); } catch { /* best effort */ }
+    return undefined;
+  }
+  return product;
+}
+
+function computeJobGuard(probe?: JobGuardProbe): JobGuardVerdict {
+  if (process.platform !== 'win32') {
+    return { status: { mode: 'fallback-taskkill', reason: 'job-object supervision is win32-only' } };
+  }
+  const csc = probe?.cscPath ?? findCscPath();
+  if (!csc || !fs.existsSync(csc)) {
+    return {
+      status: {
+        mode: 'fallback-taskkill',
+        reason: csc !== undefined
+          ? `csc.exe not found at ${csc} — job helper cannot be compiled`
+          : 'csc.exe not found under %WINDIR%\\Microsoft.NET — job helper cannot be compiled',
+      },
+    };
+  }
+  const cacheDir = probe?.cacheDir ?? jobHelperCacheDir();
+  // The compile chain touches the filesystem (source read, cache mkdir,
+  // rename) before any process is spawned. A cache that cannot be created —
+  // a read-only package root, a managed container mount — must degrade to the
+  // legacy taskkill path like every other compile failure, NOT escape as an
+  // exception out of spawnJobGuarded (Issue #108: the memo was previously only
+  // written on success, so such a failure re-threw on every single spawn).
+  let helperPath: string | undefined;
+  try {
+    helperPath = compileJobHelper(csc, cacheDir);
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code ?? String(err);
+    return {
+      status: {
+        mode: 'fallback-taskkill',
+        reason: `job helper cache unusable at ${cacheDir} (${code}) — falling back to taskkill`,
+      },
+    };
+  }
+  if (!helperPath) {
+    return { status: { mode: 'fallback-taskkill', reason: `job helper compilation failed (csc: ${csc})` } };
+  }
+  return { status: { mode: 'job-object' }, helperPath };
+}
+
+function resolveJobGuard(probe?: JobGuardProbe): JobGuardVerdict {
+  if (jobGuardMemo) return jobGuardMemo;
+  jobGuardMemo = computeJobGuard(probe);
+  return jobGuardMemo;
+}
+
+/** Observability for the supervision mode (memoized; first verdict sticks). */
+export function queryJobGuardStatus(probe?: JobGuardProbe): JobGuardStatus {
+  return resolveJobGuard(probe).status;
+}
+
+export interface SpawnJobGuardedOptions {
+  cwd?: string;
+  env?: NodeJS.ProcessEnv;
+  /** stdio for the supervised process (default ['ignore','pipe','pipe']). */
+  stdio?: ('pipe' | 'ignore' | 'inherit')[];
+  /** Per-process commit cap in MB (0/undefined = no cap; win32 job mode only). */
+  processMemoryLimitMb?: number;
+}
+
+/**
+ * Spawn under the Win32 Job Object helper when available; otherwise spawn
+ * directly with the exact legacy options (windowsHide, no shell, no win32
+ * detachment). The caller receives the HELPER process — child.pid is the
+ * helper's pid and the real command is its job member; stdio handles pass
+ * through the helper to the real child byte-faithfully.
+ *
+ * Typing overload: an all-pipe stdio yields non-null streams (both spawn
+ * branches honor the caller's stdio verbatim), so the runner's pump code
+ * keeps its pre-helper narrowing.
+ */
+export function spawnJobGuarded(cmd: string, args: string[], opts: SpawnJobGuardedOptions & { stdio: ['pipe', 'pipe', 'pipe'] }): ChildProcessWithoutNullStreams;
+export function spawnJobGuarded(cmd: string, args: string[], opts?: SpawnJobGuardedOptions): ChildProcess;
+export function spawnJobGuarded(cmd: string, args: string[], opts: SpawnJobGuardedOptions = {}): ChildProcess {
+  const stdio = opts.stdio ?? ['ignore', 'pipe', 'pipe'];
+  const verdict = resolveJobGuard();
+  if (verdict.helperPath !== undefined && fs.existsSync(verdict.helperPath)) {
+    const helperArgs = [
+      '--ppid', String(process.pid),
+      '--mem-mb', String(Math.max(0, Math.round(opts.processMemoryLimitMb ?? 0))),
+      '--', cmd, ...args,
+    ];
+    const helper = spawn(verdict.helperPath, helperArgs, {
+      cwd: opts.cwd,
+      env: opts.env,
+      stdio,
+      windowsHide: true,
+      shell: false,
+      // The helper stays attached: taskkill /T on its pid must reach it (the
+      // fallback kill path in both modes).
+      detached: false,
+    });
+    // Third degradation tier: the compiled helper failed to LAUNCH (e.g. AV
+    // block). This spawn surfaces the error to the caller exactly like a
+    // direct-spawn failure today; the memo sends every future spawn down the
+    // fallback path instead of repeating the failure.
+    helper.once('error', (err) => {
+      jobGuardMemo = {
+        status: { mode: 'fallback-taskkill', reason: `job helper launch failed: ${err instanceof Error ? err.message : String(err)}` },
+      };
+    });
+    return helper as ChildProcessWithoutNullStreams;
+  }
+  return spawn(cmd, args, {
+    cwd: opts.cwd,
+    env: opts.env,
+    stdio,
+    windowsHide: true,
+    shell: false,
+    detached: process.platform !== 'win32',
+  }) as ChildProcessWithoutNullStreams;
+}
+
 /**
  * Spawn a supervised process: own process group on POSIX, whole-tree kill on
- * timeout or via killTree(), and a sanitized environment.
+ * timeout or via killTree(), and a sanitized environment. On Windows the spawn
+ * goes through the Job Object helper when it is available (spawnJobGuarded);
+ * the POSIX branch below is byte-identical to the pre-helper code.
  */
 export function spawnSupervised(cmd: string, args: string[], opts: SupervisedSpawnOptions): SupervisedProcess {
   const startedAt = Date.now();
   const isWindows = process.platform === 'win32';
   const env = buildSanitizedEnv(opts.envAllowlist, opts.env);
 
-  const child = spawn(cmd, args, {
-    cwd: opts.cwd,
-    stdio: ['ignore', 'pipe', 'pipe'],
-    windowsHide: true,
-    shell: false,
-    // POSIX: detached makes the child a process-group leader, enabling the
-    // -pid group kill. On Windows this flag only affects console attachment
-    // and is harmless; the tree kill goes through taskkill /T instead.
-    detached: !isWindows,
-    env,
-  });
+  const child = isWindows
+    ? spawnJobGuarded(cmd, args, {
+        cwd: opts.cwd,
+        env,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        processMemoryLimitMb: opts.processMemoryLimitMb,
+      })
+    : spawn(cmd, args, {
+        cwd: opts.cwd,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        windowsHide: true,
+        shell: false,
+        // POSIX: detached makes the child a process-group leader, enabling the
+        // -pid group kill. On Windows this flag only affects console attachment
+        // and is harmless; the tree kill goes through taskkill /T instead.
+        detached: !isWindows,
+        env,
+      });
 
   let timedOut = false;
   let stdout = '';
@@ -238,10 +495,17 @@ export function spawnSupervised(cmd: string, args: string[], opts: SupervisedSpa
       if (settled) return;
       settled = true;
       if (timer) clearTimeout(timer);
+      // Job-helper spawn-failure sentinel (Issue #98 Phase 2): the helper
+      // reports CreateProcessW / in-job-check failures with a stderr line —
+      // the AUTHORITATIVE criterion, because its exit codes 2/3 collide with
+      // 1:1-forwarded child exit codes. Mapped to exitCode -1 + the sentinel
+      // line as stderr, preserving the resolve-class semantics a win32 spawn
+      // failure already has (engine.ts maps the legacy shape the same way).
+      const sentinelLine = stderr.split(/\r?\n/).find((line) => line.startsWith(JOB_HELPER_SENTINEL_PREFIX));
       resolve({
-        exitCode: child.exitCode ?? -1,
+        exitCode: sentinelLine !== undefined ? -1 : (child.exitCode ?? -1),
         stdout,
-        stderr,
+        stderr: sentinelLine !== undefined ? sentinelLine : stderr,
         timedOut,
         durationMs: Date.now() - startedAt,
       });
@@ -251,4 +515,68 @@ export function spawnSupervised(cmd: string, args: string[], opts: SupervisedSpa
   });
 
   return { child, result, killTree: killTreeBound, pid: child.pid };
+}
+
+export interface PidGuard {
+  mode: 'watchdog' | 'fallback';
+  /**
+   * Stop the watchdog (best effort). The child's own close is the primary
+   * cleanup path — the guard only exists for the host-dies-first case.
+   */
+  stop(): void;
+}
+
+/**
+ * Issue #117: keep an ALREADY-RUNNING child pid from outliving the host —
+ * for stdio servers the MCP SDK spawns on our behalf (we never see the spawn,
+ * so spawnJobGuarded does not apply).
+ *
+ * Windows: the compiled job helper's `adopt` mode puts the pid into a fresh
+ * kill-on-close job and waits on the host pid — host death (any way,
+ * including SIGKILL of node) closes the job and the kernel tears the child
+ * down. Degradation (no csc / compile failure) returns 'fallback': the
+ * client's own disconnectAll remains the cleanup path, same as before.
+ *
+ * POSIX: the child sits in the host's process group (Ctrl+C reaches it); a
+ * detached sh watchdog closes the SIGKILL gap by polling the host and
+ * SIGKILLing the child if the host vanishes.
+ */
+export function adoptPidIntoJobGuard(childPid: number, hostPid: number = process.pid): PidGuard {
+  if (process.platform === 'win32') {
+    const verdict = resolveJobGuard();
+    if (verdict.status.mode === 'job-object' && verdict.helperPath) {
+      const helper = spawn(verdict.helperPath, ['adopt', '--pid', String(childPid), '--ppid', String(hostPid)], {
+        stdio: 'ignore',
+        windowsHide: true,
+      });
+      helper.unref();
+      return {
+        mode: 'watchdog',
+        stop: () => {
+          try {
+            helper.kill();
+          } catch {
+            /* the helper already exited (host or child died first) */
+          }
+        },
+      };
+    }
+    return { mode: 'fallback', stop: () => {} };
+  }
+  const watchdog = spawn(
+    'sh',
+    ['-c', `while kill -0 ${hostPid} 2>/dev/null; do sleep 0.5; done; kill -9 ${childPid} 2>/dev/null`],
+    { stdio: 'ignore', detached: true },
+  );
+  watchdog.unref();
+  return {
+    mode: 'fallback',
+    stop: () => {
+      try {
+        watchdog.kill();
+      } catch {
+        /* the watchdog already exited */
+      }
+    },
+  };
 }

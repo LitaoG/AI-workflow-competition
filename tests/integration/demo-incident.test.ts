@@ -4,7 +4,14 @@ import * as path from 'node:path';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { SQLiteStateStore, EventLogReader } from 'ai-workflow';
+
+// Anchor the suite at the repo root via this file's compiled location
+// (dist/tests/integration/) — same convention as demo-facade-incident.test.ts —
+// so the spawned CLI, demo and artifact paths never depend on the caller's cwd
+// (the gate may invoke node --test with absolute test paths from any directory).
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 
 interface CLIResult {
   exitCode: number;
@@ -14,7 +21,7 @@ interface CLIResult {
 }
 
 function runCLI(args: string[], options: { cwd?: string; env?: Record<string, string>; timeoutMs?: number } = {}): CLIResult {
-  const rootDir = path.resolve(process.cwd());
+  const rootDir = REPO_ROOT;
   const binCli = path.join(rootDir, 'bin', 'workflow.js');
   const startTime = Date.now();
 
@@ -65,6 +72,16 @@ function cleanupTempDir(dirPath: string): void {
   } catch {}
 }
 
+// Issue #233 diagnostic: when artifacts go missing under load, the listing
+// makes the next red self-identifying (what actually got written).
+function dirListing(dirPath: string): string {
+  try {
+    return fs.readdirSync(dirPath).join(', ') || '(empty dir)';
+  } catch (err: any) {
+    return `(readdir failed: ${err?.code ?? err?.message})`;
+  }
+}
+
 test('Integration Suite: Demo 1 — Incident Triage & Automated Remediation', async (t) => {
   const tempDir = createTempDir('demo1-integ-');
 
@@ -72,13 +89,17 @@ test('Integration Suite: Demo 1 — Incident Triage & Automated Remediation', as
     cleanupTempDir(tempDir);
   });
 
-  const demoWorkflowPath = path.resolve(process.cwd(), 'demos', 'incident-triage-remediation', 'workflow.ts');
+  const demoWorkflowPath = path.resolve(REPO_ROOT, 'demos', 'incident-triage-remediation', 'workflow.ts');
 
   await t.test('TEST 1: Default P1 DB Connection Pool Exhaustion executes end-to-end in <15s with exit code 0', () => {
     const outputDir = path.join(tempDir, 'run-01-db-pool');
     const startTime = Date.now();
 
     const res = runCLI(['run', demoWorkflowPath, '--mock', '--output-dir', outputDir], {
+      // cwd is sandboxed to the suite temp dir: the demo exports artifacts to
+      // process.cwd()/artifacts, and run.ts mirrors to <cwd>/.workflow/runs.db —
+      // both must stay off the shared repository state (gate round 1 races).
+      cwd: tempDir,
       env: { SCENARIO: 'p1_db_pool_exhaustion' },
     });
 
@@ -103,11 +124,11 @@ test('Integration Suite: Demo 1 — Incident Triage & Automated Remediation', as
   await t.test('TEST 2: Checkpoint persistence records all 5 phases as completed in SQLite', async () => {
     const outputDir = path.join(tempDir, 'run-01-db-pool');
     const dbPath = path.join(outputDir, 'checkpoints.db');
-    assert.ok(fs.existsSync(dbPath), `Checkpoints database does not exist at ${dbPath}`);
+    assert.ok(fs.existsSync(dbPath), `Checkpoints database does not exist at ${dbPath} (dir listing: ${dirListing(outputDir)})`);
 
     const store = new SQLiteStateStore(dbPath);
     const runs = store.listRuns();
-    assert.ok(runs.length > 0, 'Runs should be recorded in checkpoints.db');
+    assert.ok(runs.length > 0, `Runs should be recorded in checkpoints.db (dir listing: ${dirListing(outputDir)})`);
     const checkpoints = await store.getAllCheckpoints(runs[0].runId);
     store.close();
 
@@ -125,14 +146,17 @@ test('Integration Suite: Demo 1 — Incident Triage & Automated Remediation', as
   await t.test('TEST 3: Scenario 2 (p1_bad_deploy_regression) triggers GIT_ROLLBACK and identifies breaking commit', () => {
     const outputDir = path.join(tempDir, 'run-02-bad-deploy');
     const res = runCLI(['run', demoWorkflowPath, '--mock', '--output-dir', outputDir], {
+      cwd: tempDir,
       env: { SCENARIO: 'p1_bad_deploy_regression' },
     });
 
     assert.equal(res.exitCode, 0, `Workflow failed with stderr: ${res.stderr}\nStdout: ${res.stdout}`);
+    // Only this run's own exports (cwd sandboxed above) — the tracked
+    // demos/<app>/artifacts fallbacks raced with parallel suites and served
+    // stale other-scenario content (gate round 1).
     const postMortemCandidates = [
       path.join(outputDir, 'PostMortem.md'),
-      path.join(process.cwd(), 'demos', 'incident-triage-remediation', 'artifacts', 'PostMortem.md'),
-      path.join(process.cwd(), 'artifacts', 'PostMortem.md'),
+      path.join(tempDir, 'artifacts', 'PostMortem.md'),
     ];
 
     const postMortemPath = postMortemCandidates.find(p => fs.existsSync(p));
@@ -147,14 +171,15 @@ test('Integration Suite: Demo 1 — Incident Triage & Automated Remediation', as
   await t.test('TEST 4: Scenario 3 (p2_high_latency_leak) triggers RESTART_PODS strategy', () => {
     const outputDir = path.join(tempDir, 'run-03-mem-leak');
     const res = runCLI(['run', demoWorkflowPath, '--mock', '--output-dir', outputDir], {
+      cwd: tempDir,
       env: { SCENARIO: 'p2_high_latency_leak' },
     });
 
     assert.equal(res.exitCode, 0, `Workflow failed with stderr: ${res.stderr}\nStdout: ${res.stdout}`);
+    // Only this run's own exports (cwd sandboxed above) — see TEST 3.
     const postMortemCandidates = [
       path.join(outputDir, 'PostMortem.md'),
-      path.join(process.cwd(), 'demos', 'incident-triage-remediation', 'artifacts', 'PostMortem.md'),
-      path.join(process.cwd(), 'artifacts', 'PostMortem.md'),
+      path.join(tempDir, 'artifacts', 'PostMortem.md'),
     ];
 
     const postMortemPath = postMortemCandidates.find(p => fs.existsSync(p));
@@ -171,17 +196,16 @@ test('Integration Suite: Demo 1 — Incident Triage & Automated Remediation', as
 
     // 1. Verify DAG HTML visualizer
     const dagPath = path.join(outputDir, 'dag.html');
-    assert.ok(fs.existsSync(dagPath), 'dag.html must be exported');
+    assert.ok(fs.existsSync(dagPath), `dag.html must be exported (dir listing: ${dirListing(outputDir)})`);
     const dagHtml = fs.readFileSync(dagPath, 'utf-8');
     assert.ok(dagHtml.includes('<svg'), 'dag.html must contain SVG canvas');
     assert.ok(dagHtml.includes('bezier-edge') || dagHtml.includes('path'), 'dag.html must contain SVG path edges');
     assert.ok(dagHtml.includes('phase') || dagHtml.includes('Phase'), 'dag.html must show phases');
 
-    // 2. Verify Kanban board JSON
+    // 2. Verify Kanban board JSON — only this suite's own exports
     const kanbanCandidates = [
       path.join(outputDir, 'kanban.json'),
-      path.join(process.cwd(), 'demos', 'incident-triage-remediation', 'artifacts', 'kanban.json'),
-      path.join(process.cwd(), 'artifacts', 'kanban.json'),
+      path.join(tempDir, 'artifacts', 'kanban.json'),
     ];
     const kanbanPath = kanbanCandidates.find(p => fs.existsSync(p));
     assert.ok(kanbanPath, 'kanban.json should exist');
@@ -192,7 +216,9 @@ test('Integration Suite: Demo 1 — Incident Triage & Automated Remediation', as
 
   await t.test('TEST 6: Bilingual localized execution (--lang zh) runs successfully and outputs Chinese metrics', () => {
     const outputDir = path.join(tempDir, 'run-04-zh');
-    const res = runCLI(['run', demoWorkflowPath, '--mock', '--lang', 'zh', '--output-dir', outputDir]);
+    const res = runCLI(['run', demoWorkflowPath, '--mock', '--lang', 'zh', '--output-dir', outputDir], {
+      cwd: tempDir,
+    });
 
     assert.equal(res.exitCode, 0, `Workflow failed with stderr: ${res.stderr}\nStdout: ${res.stdout}`);
     // Check for Chinese output tokens

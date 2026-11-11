@@ -90,6 +90,16 @@ function cleanupTempDir(dirPath) {
 
 const DEMO2_WORKFLOW_PATH = path.resolve(process.cwd(), 'demos', 'repo-migration-engine', 'workflow.ts');
 
+// Gate-failure injection via fixture-local marker (Issue #174): workflow-level
+// gates run under the allowlist-only supervised env (Issue #151), so
+// CLI-process env like SIMULATE_GATE_FAILURE never reaches the gate child.
+// DIRECT gate spawns keep the env channel — it still works there.
+const GATE_FAILURE_MARKER = path.resolve(process.cwd(), 'demos', 'repo-migration-engine', 'gates', '.simulate-gate-failure-resumption');
+function setGateFailure(on) {
+  if (on) fs.writeFileSync(GATE_FAILURE_MARKER, 'on');
+  else try { fs.rmSync(GATE_FAILURE_MARKER, { force: true }); } catch { /* already gone */ }
+}
+
 test('Demo 2 Adversarial: Phase 3 Fan-Out Workers execute concurrently and dispatch to paired reviewers', async () => {
   const tempDir = createTempDir('demo2-concur-');
   const outDir = path.join(tempDir, 'run-concur-eval');
@@ -248,15 +258,15 @@ test('Demo 2 Adversarial: Simulated interruption at Step 1 (Baseline Gate) via S
 
   try {
     // Run 1: Fault injection at baseline gate
+    setGateFailure(true);
     const failRes = runWorkflowCLI([
       'run',
       DEMO2_WORKFLOW_PATH,
       '--mock',
       '--output-dir', outDir,
       '--resume-from-failed', runId,
-    ], {
-      env: { SIMULATE_GATE_FAILURE: 'true' },
-    });
+    ], {});
+    setGateFailure(false); // never leak the marker into later runs
 
     assert.equal(failRes.exitCode, 1, 'Workflow must exit with code 1 on simulated baseline failure');
     assert.ok(
@@ -281,9 +291,7 @@ test('Demo 2 Adversarial: Simulated interruption at Step 1 (Baseline Gate) via S
       '--mock',
       '--output-dir', outDir,
       '--resume-from-failed', runId,
-    ], {
-      env: { SIMULATE_GATE_FAILURE: 'false' },
-    });
+    ], {});
 
     assert.equal(resumeRes.exitCode, 0, `Resume failed: ${resumeRes.stderr}\n${resumeRes.stdout}`);
     assert.ok(resumeRes.stdout.includes('Workflow completed successfully'), 'Resumed workflow must complete');

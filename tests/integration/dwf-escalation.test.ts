@@ -37,12 +37,17 @@ test('escalation parks the run with a question id; answering resumes at zero cos
     const scriptPath = path.join(ws.dir, 'script.facade.ts');
     fs.writeFileSync(scriptPath, PARKED_SCRIPT);
 
-    const parked = await runFacadeScript({ scriptPath, cwd: ws.dir });
+    const events: { type: string; data: Record<string, unknown> }[] = [];
+    const parked = await runFacadeScript({ scriptPath, cwd: ws.dir, onEvent: (e) => events.push({ type: e.type, data: e.data }) });
     assert.equal(parked.status, 'parked', parked.error);
     assert.equal(parked.parkedAt?.kind, 'escalation');
     assert.match(parked.parkedAt?.name ?? '', /^dwfq-/, 'the open event carries a dwfq- question id');
     assert.match(parked.parkedAt?.prompt ?? '', /Approve auto-remediation/);
     assert.equal(parked.stats.asks, 1, 'the survey ask ran before the escalation');
+    // Issue #35: the park terminal is dwf_parked — a dwf_failed terminal made
+    // event-type statistics count every park as a failure.
+    assert.ok(events.some((e) => e.type === 'dwf_parked'), 'the park terminal emits dwf_parked');
+    assert.ok(!events.some((e) => e.type === 'dwf_failed'), 'a parked run emits no dwf_failed event');
     const questionId = parked.parkedAt!.name;
 
     // Answer: the reply is journalled and the run resumes — the survey ask replays
@@ -70,6 +75,47 @@ test('answering an unknown question id is refused', async () => {
 
     const exitCode = await executeAnswer(parked.runId, 'dwfq-does-not-exist', ['yes'], { dbPath: path.join(ws.dir, '.workflow', 'dwf.sqlite') });
     assert.equal(exitCode, 1, 'unknown question id must refuse');
+  } finally {
+    ws.cleanup();
+  }
+});
+
+test('answering a run that is no longer parked is refused with no journal side effects (Issue #35)', async () => {
+  const ws = makeWorkspace();
+  try {
+    const scriptPath = path.join(ws.dir, 'script.facade.ts');
+    fs.writeFileSync(scriptPath, PARKED_SCRIPT);
+    const dbPath = path.join(ws.dir, '.workflow', 'dwf.sqlite');
+    const parked = await runFacadeScript({ scriptPath, cwd: ws.dir });
+    assert.equal(parked.status, 'parked');
+    const questionId = parked.parkedAt!.name;
+
+    // First answer drives the run to completion…
+    const first = await executeAnswer(parked.runId, questionId, ['yes'], { dbPath });
+    assert.equal(first, 0, 'the first answer completes the run');
+
+    const store = createSQLiteStore(dbPath) as SQLiteStateStore & DwfJournalStore;
+    try {
+      const before = (await store.getDwfNodes(parked.runId)).filter((n) => n.kind === 'escalation');
+
+      // …answering the same question again hits the non-parked refusal (the run is
+      // completed): exit 1 and NO second escalation row journalled.
+      const captured: string[] = [];
+      const originalError = console.error;
+      console.error = (line: unknown) => captured.push(String(line));
+      let again: number;
+      try {
+        again = await executeAnswer(parked.runId, questionId, ['yes again'], { dbPath });
+      } finally {
+        console.error = originalError;
+      }
+      assert.equal(again, 1, 'a completed (non-parked) run must refuse an answer');
+      assert.ok(captured.join('\n').includes('only a parked run can be answered'), 'the refusal names the non-parked guard');
+      const after = (await store.getDwfNodes(parked.runId)).filter((n) => n.kind === 'escalation');
+      assert.equal(after.length, before.length, 'the refused answer journals no new escalation row');
+    } finally {
+      store.close();
+    }
   } finally {
     ws.cleanup();
   }

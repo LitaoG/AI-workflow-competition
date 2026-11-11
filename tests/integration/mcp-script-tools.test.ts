@@ -78,9 +78,11 @@ test('MCP: workflow_script_check reports clean and dirty scripts', async () => {
     const cleanPath = path.join(ws.dir, 'clean.facade.ts');
     fs.writeFileSync(cleanPath, RUN_SCRIPT);
 
+    // Issue #194 P2: the check face is bounded by the declared cwd — the
+    // workspace is declared and the script is named relative to it.
     const clean = await client.callTool({
       name: 'workflow_script_check',
-      arguments: { scriptPath: cleanPath },
+      arguments: { scriptPath: 'clean.facade.ts', cwd: ws.dir },
     });
     const cleanText = JSON.parse((clean.content as Array<{ text: string }>)[0]!.text);
     assert.equal(cleanText.ok, true, JSON.stringify(cleanText.diagnostics));
@@ -90,7 +92,7 @@ test('MCP: workflow_script_check reports clean and dirty scripts', async () => {
     fs.writeFileSync(dirtyPath, 'const t = Date.now();\nreturn t;');
     const dirty = await client.callTool({
       name: 'workflow_script_check',
-      arguments: { scriptPath: dirtyPath },
+      arguments: { scriptPath: 'dirty.facade.ts', cwd: ws.dir },
     });
     const dirtyText = JSON.parse((dirty.content as Array<{ text: string }>)[0]!.text) as {
       ok: boolean;

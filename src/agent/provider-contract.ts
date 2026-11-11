@@ -14,7 +14,7 @@
  * tag (`src/domain/errors.ts`), so it round-trips through
  * `toDomainError`/`toSerializableError` unchanged. The mandated details shape is
  * `{ provider, retryable, status? }`. `retryable` is the provider-level hint;
- * the agent RPC loop's attempt classifier (`src/dwf/attempt-classifier.ts`)
+ * the agent RPC loop's attempt classifier (`src/agent/attempt-classifier.ts`)
  * stays the retry authority and keeps its message-driven semantics.
  *
  * Credentials never flow into logs, error messages, `details`, or stacks: any
@@ -81,6 +81,12 @@ export type ProviderErrorDetails = {
   retryable: boolean;
   /** HTTP status when the failure came from a response. */
   status?: number;
+  /**
+   * Epoch milliseconds at which a 429/usage limit resets, when the provider
+   * supplied a machine-readable reset (Retry-After header). The engine waits
+   * for it only within the run deadline and a bounded per-ask count.
+   */
+  resetAtMs?: number;
 };
 
 /**
@@ -95,11 +101,20 @@ export class AgentProviderError extends Error implements AgentError {
   /** Narrowed from `Error.cause?: unknown` to the domain algebra's `string` form. */
   declare readonly cause?: string;
 
-  constructor(provider: string, message: string, options: { retryable: boolean; status?: number }) {
+  constructor(
+    provider: string,
+    message: string,
+    options: { retryable: boolean; status?: number; resetAtMs?: number },
+  ) {
     super(message);
     this.name = 'AgentProviderError';
     const tagged = domainError('AgentError', message, {
-      details: { provider, retryable: options.retryable, ...(options.status !== undefined ? { status: options.status } : {}) },
+      details: {
+        provider,
+        retryable: options.retryable,
+        ...(options.status !== undefined ? { status: options.status } : {}),
+        ...(options.resetAtMs !== undefined && Number.isFinite(options.resetAtMs) ? { resetAtMs: options.resetAtMs } : {}),
+      },
     });
     this.tag = tagged.tag as 'AgentError';
     this.details = tagged.details as ProviderErrorDetails;
@@ -210,6 +225,26 @@ export function asLlmProvider(contract: ProviderContract): LLMProvider {
  * network failure messages) before the text may enter an error message.
  * Never logs; returns the sanitized text with `[REDACTED]` placeholders.
  */
+/**
+ * Parse a Retry-After header into an absolute reset time (epoch ms). Accepts
+ * delta-seconds (the HTTP convention) and an HTTP-date. Absent/invalid values
+ * return undefined so the engine keeps its existing policy-stop path.
+ */
+export function retryAfterHeaderToResetAtMs(
+  value: string | null | undefined,
+  nowMs: number = Date.now(),
+): number | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (/^\d+$/.test(trimmed)) {
+    const seconds = Number(trimmed);
+    return Number.isFinite(seconds) && seconds >= 0 ? nowMs + seconds * 1000 : undefined;
+  }
+  const parsed = Date.parse(trimmed);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 export function redactServerText(text: string, secrets: ReadonlyArray<string | undefined>): string {
   let out = text;
   for (const secret of secrets) {

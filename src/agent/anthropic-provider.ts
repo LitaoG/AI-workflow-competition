@@ -19,6 +19,7 @@ import {
   asLlmProvider,
   composeAbortSignal,
   redactServerText,
+  retryAfterHeaderToResetAtMs,
   safeErrorBodyText,
   transportProviderError,
 } from './provider-contract.js';
@@ -43,6 +44,13 @@ export interface AnthropicProviderOptions {
   timeoutMs?: number;
   /** Injectable `fetch` for offline tests; defaults to the global fetch. */
   fetchImpl?: typeof fetch;
+  /**
+   * Send Anthropic's automatic prompt-cache marker (default true). The marker is
+   * a top-level `cache_control` on the request, so the API caches the last
+   * cacheable block and reuses the stable prefix (system + prior actor turns) on
+   * subsequent asks. Set false for a proxy that rejects the field.
+   */
+  cacheControl?: boolean;
 }
 
 /**
@@ -64,6 +72,7 @@ export class AnthropicProvider implements ProviderContract {
   private readonly maxTokens: number | undefined;
   private readonly timeoutMs: number | undefined;
   private readonly fetchImpl: typeof fetch;
+  private readonly cacheControl: boolean;
 
   constructor(options: AnthropicProviderOptions) {
     this.apiKey = options.apiKey;
@@ -73,6 +82,7 @@ export class AnthropicProvider implements ProviderContract {
     this.maxTokens = options.maxTokens;
     this.timeoutMs = options.timeoutMs;
     this.fetchImpl = options.fetchImpl ?? globalThis.fetch;
+    this.cacheControl = options.cacheControl ?? true;
   }
 
   /** Env/config-level readiness probe — no network call, no key material. */
@@ -104,6 +114,10 @@ export class AnthropicProvider implements ProviderContract {
     };
     if (system) body.system = system;
     if (options?.stopSequences?.length) body.stop_sequences = options.stopSequences;
+    // Warm-cache alignment: actor sessions re-send the whole conversation on every
+    // ask (engine.ts priorMessages). The automatic marker lets the API reuse the
+    // stable prefix instead of billing it at full price each turn.
+    if (this.cacheControl) body.cache_control = { type: 'ephemeral' };
 
     return await this.post('/v1/messages', body, options);
   }
@@ -176,6 +190,7 @@ export class AnthropicProvider implements ProviderContract {
     return new AgentProviderError(this.id, `Anthropic API error (HTTP ${response.status})${suffix}`, {
       retryable: response.status === 429 || response.status >= 500,
       status: response.status,
+      resetAtMs: response.status === 429 ? retryAfterHeaderToResetAtMs(response.headers.get('retry-after')) : undefined,
     });
   }
 }

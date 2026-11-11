@@ -715,11 +715,17 @@ export const workflow = defineWorkflow({
         const html = visualizer.renderHTML(graph, ctx.lang);
         const mermaid = visualizer.renderMermaid(graph);
 
-        // Target directories for artifact persistence
-        const artifactDirs = [
-          path.join(__dirname, 'artifacts'),
-          path.join(process.cwd(), 'artifacts'),
-        ];
+        // Target directories for artifact persistence. Mock runs (the test
+        // harness) must not mutate the tracked demos/<app>/artifacts source
+        // tree: parallel integration suites raced writes on that shared
+        // directory and its stale committed content poisoned assertions
+        // (gate round 1) — mock runs export to the run cwd only (P-TEST-2).
+        const artifactDirs = ctx.isMock
+          ? [path.join(process.cwd(), 'artifacts')]
+          : [
+              path.join(__dirname, 'artifacts'),
+              path.join(process.cwd(), 'artifacts'),
+            ];
 
         const cliOutDir = getCliOutputDir();
         if (cliOutDir) {

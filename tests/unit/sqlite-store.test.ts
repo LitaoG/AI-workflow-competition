@@ -122,7 +122,7 @@ test('SQLite Store: returns all historical runs with limit and status filtering'
 });
 
 // ---------------------------------------------------------------------------
-// dwf_runs pid column (engine stale-running recovery rule)
+// dwf_runs pid column (GOAL.md §1.5 stale-running recovery)
 // ---------------------------------------------------------------------------
 
 test('SQLite Store: dwf run row persists the host pid, a settled run clears it, and a takeover write replaces it', async () => {
@@ -215,7 +215,7 @@ test('SQLite Store: a pre-pid dwf_runs database is migrated in place, stays read
 });
 
 // ---------------------------------------------------------------------------
-// dwf_evidence ledger (engine evidence credential rule)
+// dwf_evidence ledger (GOAL.md 证据凭证法则 — 阶段 1.3)
 // ---------------------------------------------------------------------------
 
 test('SQLite Store: dwf evidence entries round-trip in per-run append order with store-assigned ids', async () => {
@@ -375,5 +375,30 @@ test('SQLite Store: a pre-input_hash checkpoints database is migrated in place, 
     }
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('SQLite Store: listDwfRuns lists facade rows newest-first with status filter and limit', async () => {
+  const store = new SQLiteStateStore(':memory:');
+  try {
+    await store.saveDwfRun({ runId: 'd1', scriptHash: 'h1', status: 'completed', createdAt: '2026-11-01T01:00:00.000Z', updatedAt: '2026-11-01T01:00:00.000Z' });
+    await store.saveDwfRun({ runId: 'd2', scriptHash: 'h2', status: 'parked', createdAt: '2026-11-01T02:00:00.000Z', updatedAt: '2026-11-01T02:00:00.000Z' });
+    await store.saveDwfRun({ runId: 'd3', scriptHash: 'h3', status: 'completed', createdAt: '2026-11-01T03:00:00.000Z', updatedAt: '2026-11-01T03:00:00.000Z' });
+
+    const all = await store.listDwfRuns();
+    assert.deepEqual(all.map((r) => r.runId), ['d3', 'd2', 'd1'], 'newest first');
+
+    const completed = await store.listDwfRuns({ status: 'completed' });
+    assert.deepEqual(completed.map((r) => r.runId), ['d3', 'd1']);
+
+    const limited = await store.listDwfRuns({ limit: 1 });
+    assert.deepEqual(limited.map((r) => r.runId), ['d3']);
+
+    // The listed rows carry the full DwfRunRow contract (same mapping as getDwfRun).
+    const parked = (await store.listDwfRuns({ status: 'parked' }))[0]!;
+    assert.equal(parked.scriptHash, 'h2');
+    assert.equal(parked.createdAt, '2026-11-01T02:00:00.000Z');
+  } finally {
+    store.close();
   }
 });

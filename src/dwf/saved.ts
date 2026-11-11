@@ -153,3 +153,51 @@ export function validateSavedArgs(meta: SavedWorkflow, args: Record<string, unkn
   }
   return { ok: true, args: merged };
 }
+
+/**
+ * Filename-safe slug for a saved workflow (sibling-directory discipline,
+ * AGENTS.md §1.8: no spaces, no path separators). Throws when nothing safe
+ * survives — a nameless workflow must never silently land on disk.
+ */
+export function slugifyWorkflowName(name: string): string {
+  const cleaned = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  if (!cleaned) throw new Error(`workflow name "${name}" has no filesystem-safe characters`);
+  return cleaned.slice(0, 64);
+}
+
+/**
+ * Persist a facade script into the PROJECT registry with saved-workflow
+ * frontmatter (Project Y Phase 7b, Issue #154). Same name+slug → overwrite
+ * (an idempotent re-save of the workflow under refinement), so the registry
+ * never accumulates duplicates of one workflow. The registry name stays
+ * verbatim (frontmatter); only the filename is slugged.
+ */
+export function saveSavedWorkflow(
+  cwd: string,
+  meta: { name: string; description: string; whenToUse?: string },
+  script: string,
+): { ok: true; path: string; slug: string } | { ok: false; error: string } {
+  try {
+    const slug = slugifyWorkflowName(meta.name);
+    const dir = projectDir(path.resolve(cwd));
+    fs.mkdirSync(dir, { recursive: true });
+    const frontmatter = [
+      '/* workflow',
+      ` * name: ${meta.name}`,
+      ` * description: ${meta.description}`,
+      ...(meta.whenToUse ? [` * whenToUse: ${meta.whenToUse}`] : []),
+      ' */',
+      '',
+    ].join('\n');
+    const body = script.replace(/^\n+/, '');
+    const file = path.join(dir, `${slug}.facade.ts`);
+    fs.writeFileSync(file, `${frontmatter}${body}${body.endsWith('\n') ? '' : '\n'}`);
+    return { ok: true, path: file, slug };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}

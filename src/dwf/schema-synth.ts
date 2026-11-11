@@ -6,8 +6,11 @@
  * the model actually reads — the cheapest quality lever in the surface.
  *
  * Supported subset: primitives, string/number-literal unions (enums), arrays, nested
- * objects with optionality, null unions. Everything else (functions, classes, Map/Set,
- * Date, any/unknown, index signatures) is a hard diagnostic — fail loudly, never guess.
+ * objects with optionality, null unions, intersections of plain object types (one
+ * merged object), and tuples in the Draft-07 positional form (`items` as an array,
+ * `minItems`, `maxItems` or a trailing rest as `additionalItems`). Everything else
+ * (functions, classes, Map/Set, Date, any/unknown, index signatures) is a hard
+ * diagnostic — fail loudly, never guess.
  *
  * Recursion: a seen-set over the types on the current expansion path detects cycles, so
  * a recursive reference reports the precise diagnostic 9015
@@ -22,7 +25,30 @@ import { FacadeDiagnostic } from './diagnostics.js';
 
 const MAX_DEPTH = 8;
 const MAX_PROPS = 64;
-const MAX_UNION = 24;
+// Official MAX_UNION_MEMBERS (schema/types.ts:90) — the cap exists to keep the schema
+// the subagent reads legible, not to bound synthesis cost.
+const MAX_UNION = 100;
+
+/**
+ * Builtins whose instances are not JSON-serializable (official REJECTED_BUILTINS,
+ * emit.ts:34-65): matched by constructor name at the type level — a generic
+ * instantiation (Map<string, number>) carries the same declared symbol name as the
+ * bare constructor (Map).
+ */
+const REJECTED_BUILTINS = new Set<string>([
+  'Date', 'RegExp',
+  'Map', 'Set', 'WeakMap', 'WeakSet', 'Promise',
+  'Error', 'EvalError', 'RangeError', 'ReferenceError', 'SyntaxError', 'TypeError', 'URIError', 'AggregateError',
+  'ArrayBuffer', 'SharedArrayBuffer', 'DataView',
+  'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array',
+  'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array',
+]);
+
+/** The rejected-builtin constructor name a type instantiates, or undefined. */
+function rejectedBuiltinName(type: ts.Type): string | undefined {
+  const name = type.getSymbol()?.getName();
+  return name !== undefined && REJECTED_BUILTINS.has(name) ? name : undefined;
+}
 
 /** Precise recursion diagnostic: a cycle, not a merely deep shape (which stays 9005). */
 const RECURSION_CODE = 9015;
@@ -36,7 +62,10 @@ interface JsonSchemaNode {
   type?: string | string[];
   properties?: Record<string, JsonSchemaNode>;
   required?: string[];
-  items?: JsonSchemaNode;
+  items?: JsonSchemaNode | JsonSchemaNode[];
+  minItems?: number;
+  maxItems?: number;
+  additionalItems?: boolean | JsonSchemaNode;
   enum?: Array<string | number>;
   additionalProperties?: boolean;
   description?: string;
@@ -91,11 +120,19 @@ export function synthesizeSchema(
       const present = members.filter((m) => !(m.flags & ts.TypeFlags.Undefined || m.flags & ts.TypeFlags.Void));
       if (present.length === 0) return fail(node, 'ask<T> type resolves to never/void');
       const parts: JsonSchemaNode[] = [];
+      // `boolean` inside a union is `true | false`: one boolean part stands for both.
+      let booleanPart = false;
       for (const m of present) {
+        if (m.flags & ts.TypeFlags.BooleanLiteral) {
+          if (booleanPart) continue;
+          booleanPart = true;
+        }
         const part = fromType(m, node, depth + 1);
         if (!part) return null;
         parts.push(part);
       }
+      // `T | undefined` (an optional field or tuple element) is just T.
+      if (parts.length === 1) return parts[0];
       if (parts.every((p) => p.enum && p.enum.length === 1)) {
         return { enum: parts.map((p) => (p.enum as Array<string | number>)[0]) };
       }
@@ -116,16 +153,42 @@ export function synthesizeSchema(
     if (type.flags & ts.TypeFlags.Number) return { type: 'number' };
     if (type.flags & ts.TypeFlags.Boolean) return { type: 'boolean' };
 
+    // Tuples, before plain arrays: the array path would merge the elements into one
+    // union and drop their positions and the length.
+    if (checker.isTupleType(type)) return fromTuple(type as ts.TupleTypeReference, node, depth);
+
     // Arrays
-    if (checker.isArrayType(type) || checker.isTupleType(type)) {
+    if (checker.isArrayType(type)) {
       const indexInfo = checker.getIndexTypeOfType(type, ts.IndexKind.Number);
       if (!indexInfo) return fail(node, 'array element type could not be resolved');
       const items = fromType(indexInfo, node, depth + 1);
       return items ? { type: 'array', items } : null;
     }
 
+    // An intersection of plain object types (Base & { extra: string }) is one object:
+    // the checker merges the members' properties, so it takes the object path below.
+    if (type.isIntersection()) {
+      const odd = type.types.find(
+        (member) =>
+          !(member.flags & ts.TypeFlags.Object) ||
+          checker.isArrayType(member) ||
+          checker.isTupleType(member) ||
+          rejectedBuiltinName(member) !== undefined,
+      );
+      if (odd) {
+        return fail(node, `unsupported ask<T> type: ${checker.typeToString(type)} — an intersection must join plain object types, not ${checker.typeToString(odd)}`);
+      }
+    }
+
     // Objects / interfaces
-    if (type.flags & ts.TypeFlags.Object) {
+    if (type.flags & ts.TypeFlags.Object || type.isIntersection()) {
+      // Rejected builtins first, by name: without this they fall through to the property
+      // walk and surface as the misleading "no resolvable properties" (a bare Date) or a
+      // garbage position mapped off the lib declaration (a Date-typed property).
+      const builtin = rejectedBuiltinName(type);
+      if (builtin) {
+        return fail(node, `ask<T> must not use the built-in ${builtin} type — its instances are not JSON-serializable; model the value as a plain interface (e.g. an ISO string for a date)`);
+      }
       // Cycle check before anything else: a type re-entering its own expansion is a
       // recursion — reported precisely (site + type name, 9015) even when the re-entry
       // depth would also have tripped the generic depth cap below.
@@ -142,7 +205,11 @@ export function synthesizeSchema(
         for (const sym of symbols) {
           const name = String(sym.getName());
           if (name.startsWith('_')) continue;
-          const propNode = sym.declarations?.[0] ?? node;
+          // Diagnostics must land in the author's file: a property declared in a lib .d.ts
+          // (or nowhere resolvable) reports at this object's node instead of a bogus
+          // position mapped off the lib declaration.
+          const decl = sym.declarations?.find((d) => d.getSourceFile() === sourceFile);
+          const propNode = decl ?? node;
           const propType = checker.getTypeOfSymbolAtLocation(sym, node);
           const optional = (sym.flags & ts.SymbolFlags.Optional) !== 0;
           const propSchema = fromType(propType, propNode, depth + 1);
@@ -168,6 +235,40 @@ export function synthesizeSchema(
       return fail(node, 'ask<T> type resolves to never/void');
     }
     return fail(node, `unsupported ask<T> type: ${checker.typeToString(type)}`);
+  }
+
+  /**
+   * Draft-07 tuple: `items` lists the positions, `minItems` counts the required ones,
+   * and what may follow is `additionalItems` — false for a fixed tuple (with
+   * `maxItems`), or the element schema of a trailing rest (`[string, ...number[]]`).
+   * A rest before the last position, or a variadic element, has no Draft-07 form.
+   */
+  function fromTuple(type: ts.TupleTypeReference, node: ts.Node, depth: number): JsonSchemaNode | null {
+    const tuple = type.target;
+    const elements = checker.getTypeArguments(type);
+    const items: JsonSchemaNode[] = [];
+    let rest: JsonSchemaNode | undefined;
+    for (let i = 0; i < elements.length; i++) {
+      const flags = tuple.elementFlags[i];
+      if (flags & ts.ElementFlags.Variadic) {
+        return fail(node, `ask<T> tuple ${checker.typeToString(type)} has a variadic element; spell its elements out`);
+      }
+      if (flags & ts.ElementFlags.Rest && i !== elements.length - 1) {
+        return fail(node, `ask<T> tuple ${checker.typeToString(type)} has a rest element before its last position; JSON Schema can only express a trailing rest`);
+      }
+      const element = fromType(elements[i], node, depth + 1);
+      if (!element) return null;
+      if (flags & ts.ElementFlags.Rest) rest = element;
+      else items.push(element);
+    }
+    const schema: JsonSchemaNode = { type: 'array', items, minItems: tuple.minLength };
+    if (rest) {
+      schema.additionalItems = rest;
+    } else {
+      schema.maxItems = items.length;
+      schema.additionalItems = false;
+    }
+    return schema;
   }
 }
 

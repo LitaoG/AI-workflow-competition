@@ -33,7 +33,7 @@ test('Prober: detects installed node, npm, and git toolchains', async () => {
 test('Prober: strictly sanitizes and redacts all secret environment keys', () => {
   const mockEnv = {
     AWS_SECRET_ACCESS_KEY: 'secret123',
-    GITHUB_TOKEN: '<REDACTED>',
+    GITHUB_TOKEN: 'ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
     DATABASE_PASSWORD: 'pass',
     NODE_ENV: 'production',
   };

@@ -24,6 +24,7 @@ export type HostOp =
   | 'log'
   | 'report'
   | 'artifact'
+  | 'declareArtifact'
   | 'worldRead'
   | 'worldRun'
   | 'hole'
@@ -77,18 +78,20 @@ export interface ScriptErrorFrame {
    */
   error?: SerializableError;
 }
-/** Fire-and-forget notification (no reply). actorCreated registers display name + provider; cancelCall routes an abort by child call id. */
+/** Fire-and-forget notification (no reply). actorCreated registers display name + provider + tier; cancelCall routes an abort by child call id. */
 export interface ChildNotifyFrame {
   t: 'notify';
   op: 'actorCreated' | 'cancelCall' | 'budgetSync' | 'runInfo' | 'childIdle';
   siteId: string;
   name?: string;
   provider?: string;
+  /** For actorCreated: the actor's tier routing literal ('fast' | 'deep') when declared (#151). */
+  tier?: string;
   /** For cancelCall: the child call id whose provider request must abort. */
   cancelId?: number;
-  /** For budgetSync: the parent-side output-token total spent by completed asks (-1 = set total). */
+  /** For budgetSync: the parent-side output-token total spent by completed asks. */
   spent?: number;
-  /** For budgetSync with spent=-1: the script-set budget total. */
+  /** Legacy (read-only budget): accepted but ignored; `spent` is the only live field. */
   total?: number | null;
   /** For runInfo: the run identity the script sees as `run`. */
   runId?: string;

@@ -5,7 +5,7 @@
  * 通过 RunFacadeOptions.childEntryPath（src/dwf/runner.ts:53 测试钩子）顶替沙箱子进程，
  * 向真实父端解析器（src/dwf/runner.ts:373-390）投喂毒化字节流。
  *
- * import 风格参照 .kiro/pbt/engine-invariants.test.ts（node --test 直跑）：
+ * import 风格参照 tests/pbt/engine-invariants.test.ts（node --test 直跑）：
  *   node --experimental-strip-types --test tests/adversarial/goal-poc1-ndjson-protocol.test.ts
  *
  * 实测结论（2026-11-01, worktree feat/issue-28-goal-e2e-pentest @ 30eb54f）：

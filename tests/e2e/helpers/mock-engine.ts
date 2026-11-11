@@ -6,7 +6,7 @@ import { DatabaseSync } from 'node:sqlite';
 
 /**
  * Reference Test Oracle / Mock Engine for AI-Workflow opaque-box testing.
- * Implements CLI interface contracts specified in PROJECT.md and the E2E test infrastructure spec.
+ * Implements CLI interface contracts specified in TEST_INFRA.md and docs/ARCHITECTURE.md.
  */
 
 export interface RunOptions {

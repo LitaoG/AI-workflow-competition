@@ -5,7 +5,7 @@ export const zh: I18nDictionary = {
   CLI_USAGE: '/workflow <子命令> [选项]',
 
   CMD_RUN_DESC: '执行动态工作流定义文件',
-  CMD_REPLAY_DESC: '从检查点重放或断点续跑工作流',
+  CMD_REPLAY_DESC: '重放/续跑历史运行（自动侦测类型：facade 运行走 journal 重放，builder 运行走 checkpoint 重建）',
   CMD_GRAPH_DESC: '生成独立单文件 HTML、Mermaid 或终端 ASCII 有向无环图（DAG）',
   CMD_PROBE_DESC: '执行确定性系统、Git 与工具链运行环境探测',
   CMD_LIST_DESC: '从本地 SQLite 数据库列出历史工作流执行记录',
@@ -18,6 +18,7 @@ export const zh: I18nDictionary = {
   CMD_SERVE_DESC: '从 journal 提供运行的自刷新实时 HTML 视图（实时观察节点落地）',
   CMD_STOP_DESC: '停止运行中的 facade 脚本 run 并解锁 resume/amend/fill',
   CMD_SCRIPT_DESC: 'Facade 脚本模式：编译检查与沙箱运行"脚本即代码"工作流',
+  CMD_ULTRACODE_DESC: '从任务描述合成 facade 工作流（经编译纯度闸门），可试跑并固化进注册表',
 
   OPT_RESUME_FAILED: '从历史失败运行的首个失败步骤继续恢复执行',
   OPT_MOCK: '启用确定性模拟驱动（<4秒，离线运行，零 Token 消耗）',

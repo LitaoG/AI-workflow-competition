@@ -4,8 +4,8 @@ import { EventEmitter } from 'node:events';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { buildSanitizedEnv, isPidAlive, killTree, onHostSignals, spawnSupervised } from '../../../src/process-supervision.js';
-import { buildSandboxChildArgs, runFacadeScript } from '../../../src/dwf/runner.js';
+import { buildSanitizedEnv, isPidAlive, killTree, onHostSignals, spawnSupervised } from '../../src/process-supervision.js';
+import { buildSandboxChildArgs, runFacadeScript } from '../../src/dwf/runner.js';
 
 test('buildSanitizedEnv passes only the platform base plus the allowlist', () => {
   process.env.DWF_SECRET_TOKEN = 'super-secret';
@@ -92,13 +92,13 @@ test('timeout kills the whole process tree, including grandchildren', async () =
 test('killTree is idempotent and safe on an already-dead pid', async () => {
   const sup = spawnSupervised(process.execPath, ['-e', 'process.exit(0)'], { cwd: process.cwd() });
   await sup.result;
-  // The child already exited — killTree must resolve without throwing.
+  // The child already exited �?killTree must resolve without throwing.
   if (sup.pid !== undefined) await killTree(sup.pid);
   await sup.killTree();
 });
 
 // ---------------------------------------------------------------------------
-// pid liveness probe (backs the engine's stale-running recovery rule)
+// pid liveness probe (GOAL.md §1.5 stale-running recovery)
 // ---------------------------------------------------------------------------
 
 test('isPidAlive: the live test process and a freshly spawned sleeper probe alive', async () => {
@@ -148,7 +148,7 @@ test('isPidAlive: EPERM means alive-without-permission; ESRCH and unknown errors
 });
 
 // ---------------------------------------------------------------------------
-// Host-signal supervision (engine iron rule: zero orphan processes)
+// Host-signal supervision (GOAL.md 铁律 3 — 零孤儿进程)
 // ---------------------------------------------------------------------------
 
 test('onHostSignals registers the platform signal set on the injected bus and the disposer removes exactly those', () => {
@@ -203,7 +203,7 @@ test('sandbox child argv caps the V8 heap: default 512, runner option overrides,
   // Default and argument order: the node flag MUST precede the entry path.
   assert.deepEqual(
     buildSandboxChildArgs('child.js', 'script.js', '{"a":1}'),
-    ['--max-old-space-size=512', 'child.js', 'script.js', '{"a":1}'],
+    ['--max-old-space-size=512', 'child.js', 'script.js', '{"a":1}', ''],
   );
 
   // Explicit runner option wins over everything.

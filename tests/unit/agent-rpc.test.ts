@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { agent } from '../../src/agent/rpc.js';
 import { providerRegistry } from '../../src/agent/provider.js';
 import { MockProvider } from '../../src/agent/mock-provider.js';
-import { SchemaValidationError } from '../../src/core/error.js';
+import { isSchemaValidationError, type DomainError } from '../../src/domain/errors.js';
 import { LLMProvider, LLMRequest, LLMResponse } from '../../src/types.js';
 
 test('Agent RPC: returns typed object matching Zod schema', async () => {
@@ -91,9 +91,9 @@ test('Agent RPC: throws SchemaValidationError when maxRetries exhausted on schem
         await client.ask('Get user name', schema, { maxRetries: 2 });
       },
       (err: any) => {
-        assert.ok(err instanceof SchemaValidationError);
-        assert.equal(err.attemptCount, 2);
-        assert.ok(err.zodErrors.length > 0);
+        assert.ok(isSchemaValidationError(err as DomainError));
+        assert.equal((err.details as any)?.attemptCount, 2);
+        assert.ok(((err.details as any)?.issueCount ?? 0) > 0);
         return true;
       }
     );

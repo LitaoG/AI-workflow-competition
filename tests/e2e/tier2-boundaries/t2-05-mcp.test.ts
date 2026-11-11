@@ -15,7 +15,8 @@ test('Tier 2 - Boundary: Feature 5 MCP Tool Integration', async (t) => {
   });
 
   await t.test('T2_F5_03: Calling MCP tool with empty parameters runs without error', () => {
-    const res = runCLI(['mcp', 'call', 'read_file']);
+    // workflow_probe declares no required arguments — empty params must succeed.
+    const res = runCLI(['mcp', 'call', 'workflow_probe']);
     assertExitCode(res, 0);
   });
 

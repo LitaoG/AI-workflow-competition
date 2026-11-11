@@ -49,7 +49,7 @@ const ARGS = JSON.stringify({ scenario: 'p1_db_pool_exhaustion' });
 test('incident demo facade script: 5 phases, typed asks, gates and artifact export', async () => {
   const ws = makeDemoWorkspace();
   try {
-    const first = await runFacadeScript({ scriptPath: ws.scriptPath, cwd: ws.dir, args: { scenario: 'p1_db_pool_exhaustion' } });
+    const first = await runFacadeScript({ scriptPath: ws.scriptPath, cwd: ws.dir, args: { scenario: 'p1_db_pool_exhaustion' }, approvedCommands: ['node'] });
     assert.equal(first.status, 'completed', `demo run failed: ${first.error ?? JSON.stringify(first.diagnostics)}`);
 
     const value = first.value as {
@@ -85,6 +85,7 @@ test('incident demo facade script: 5 phases, typed asks, gates and artifact expo
       cwd: ws.dir,
       args: { scenario: 'p1_db_pool_exhaustion' },
       resumeRunId: first.runId,
+      approvedCommands: ['node'],
     });
     assert.equal(second.status, 'completed', `resume failed: ${second.error}`);
     assert.deepEqual(second.value, first.value);

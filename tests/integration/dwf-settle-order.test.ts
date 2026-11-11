@@ -5,7 +5,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { runFacadeScript } from '../../src/dwf/runner.js';
 
-// 修复 #5（黑盒行为规约推导审计缺口）：fanout resume 结算次序闸。
+// 修复 #5（边界条件安全审计与状态恢复加固）：fanout resume 结算次序闸。
 // 三个 thunk 共享同一个 ask 调用点（同 siteId、不同 prompt），用递减的
 // world.run 延迟强制 live 完成序为 C、B、A（arrival ordinal 1=C、2=B、3=A）。
 // resume 时 journal 瞬时返回，到达序变为 A、B、C——旧实现按到达序分配
@@ -59,7 +59,7 @@ test('fanout resume: shared call-site asks replay by content, not arrival order'
     const scriptPath = path.join(ws.dir, 'script.facade.ts');
     fs.writeFileSync(scriptPath, SCRIPT);
 
-    const first = await runFacadeScript({ scriptPath, cwd: ws.dir, dbPath: ws.dbPath });
+    const first = await runFacadeScript({ scriptPath, cwd: ws.dir, dbPath: ws.dbPath, approvedCommands: ['node'] });
     assert.equal(first.status, 'completed', first.error);
     const firstValue = first.value as { results: Array<{ key: string; healthStatus: string }> };
     assert.equal(firstValue.results.length, 3);
@@ -72,8 +72,7 @@ test('fanout resume: shared call-site asks replay by content, not arrival order'
       scriptPath,
       cwd: ws.dir,
       dbPath: ws.dbPath,
-      resumeRunId: first.runId,
-    });
+      resumeRunId: first.runId, approvedCommands: ['node'] });
     assert.equal(resumed.status, 'completed', `fanout resume failed: ${resumed.error}`);
     assert.deepEqual(resumed.value, first.value);
     assert.equal(resumed.stats.asks, 0, 'all three asks replay at zero provider calls');

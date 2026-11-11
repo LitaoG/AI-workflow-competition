@@ -28,6 +28,7 @@ export async function executeCheck(scriptPath: string, options: { json?: boolean
     console.error(`✖ facade script failed compilation — ${analysis.diagnostics.length} diagnostic(s):`);
     for (const d of analysis.diagnostics) {
       console.error(`  ${scriptPath}:${d.line}:${d.column}  ${d.category}(${d.code}): ${d.message}`);
+      if (d.hint) console.error(`    💡 ${d.hint}`);
     }
     return 1;
   }

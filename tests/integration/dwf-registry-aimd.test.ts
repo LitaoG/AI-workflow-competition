@@ -16,10 +16,21 @@ test('AIMD: multiplicative decrease on failure, additive increase after successe
   let snap = g.snapshot().find((s) => s.providerId === 'p1')!;
   assert.equal(snap.limit, 4, '8 × 0.5 = 4 after one failure');
 
-  await g.acquire('p1'); g.release('p1', 'success');
-  await g.acquire('p1'); g.release('p1', 'success');
+  // official semantics: the additive increase needs demand — fill the bucket and
+  // park waiters first. drain() wakes every waiter at once (one admits, the rest
+  // re-park on the next microtask), so settle one tick before the streak-completing
+  // release to have a waiter back in the queue; otherwise the streak only records
+  // lastGood
+  for (let i = 0; i < 4; i++) await g.acquire('p1');
+  const parked1 = g.acquire('p1');
+  const parked2 = g.acquire('p1');
+  g.release('p1', 'success');
+  await Promise.resolve();
+  g.release('p1', 'success');
+  await parked1;
+  await parked2;
   snap = g.snapshot().find((s) => s.providerId === 'p1')!;
-  assert.equal(snap.limit, 5, 'two consecutive successes → +1 (increaseAfter=2)');
+  assert.equal(snap.limit, 5, 'two consecutive successes with demand → +1 (increaseAfter=2)');
 
   await g.acquire('p1');
   g.release('p1', 'failure', 100);

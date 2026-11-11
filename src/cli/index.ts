@@ -1,4 +1,5 @@
 import { Command } from 'commander';
+import * as path from 'node:path';
 import { normalizeSlashArgs } from './slash-parser.js';
 import { getDictionary, resolveLang } from './i18n/index.js';
 import { configureCliProvidersFromEnv } from '../agent/cli-providers.js';
@@ -18,8 +19,26 @@ import { executeCheck } from './commands/check.js';
 import { executeRunScript } from './commands/run-script.js';
 import { executeFill } from './commands/fill.js';
 import { executeAnswer } from './commands/answer.js';
+import { executeAuthor } from './commands/author.js';
 import { executeDoctor } from './commands/doctor.js';
 import { executeWorkflowsList, executeWorkflowsRun } from './commands/workflows.js';
+import { executeUltracode } from './commands/ultracode.js';
+import { executeSetup } from './commands/setup-interop.js';
+import { executeExportSchema } from './commands/export-schema.js';
+import { executeDemo } from './commands/demo.js';
+import { executeNew } from './commands/new.js';
+import { looksLikeFacadeScript } from './commands/script-detect.js';
+import { composeScriptArgs } from './args-input.js';
+
+/** Commander collector for repeatable `--set key=value` pairs. */
+function collect(value: string, previous: string[]): string[] {
+  previous.push(value);
+  return previous;
+}
+
+function collectSet(value: string, previous: string[]): string[] {
+  return [...previous, value];
+}
 
 export async function runCLI(rawArgv: string[] = process.argv): Promise<number> {
   // Route worker asks through an external agent CLI when configured
@@ -54,11 +73,17 @@ export async function runCLI(rawArgv: string[] = process.argv): Promise<number> 
       'after',
       `
 Commands:
-  run <file>               Execute dynamic workflow (builder mode)
+  run <file>               Execute a workflow — auto-detects facade scripts (DWF sandbox) or builder definitions
   check <file>             Compile-check a facade script and print its phase graph
   run-script <file>        Execute a facade script in the sandbox (journal replay on --resume)
+  demo                     One-second offline flagship demo + Studio dashboard in your browser
+  new <name>               Scaffold a facade workflow from a template (code-review, incident-triage, …)
   replay <run-id>          Replay or resume workflow execution
   graph <file>             Generate DAG visualization (html, mermaid, ascii)
+  serve <run-id>           Live Studio dashboard for a run (SSE + inline A2UI resume)
+  view <run-id>            Export the Studio dashboard as a standalone HTML page
+  setup                    Generate Claude Code / OpenCode / Codex interop configs
+  export-schema            Export the engine tool face as an OpenAI function-calling schema
   probe                    Inspect host environment and toolchains
 `
     )
@@ -76,9 +101,68 @@ Commands:
     .option('--output-dir <dir>', dict.OPT_OUTPUT)
     .option('--dry-run', 'Validate workflow without executing')
     .option('-v, --verbose', dict.OPT_VERBOSE)
+    // Facade-script face: `run` auto-detects facade traits (static scan — never
+    // an import() probe, facade scripts have a top-level `return`) and forwards
+    // transparently to the DWF sandbox runner. Builder definitions keep the
+    // legacy behavior below.
+    .option('-a, --args <json>', 'Script input as JSON (facade scripts; available inside as `args`)')
+    .option('--args-file <file>', 'Read script input from a JSON file (facade scripts; PowerShell-safe, zero escaping)')
+    .option('--set <pair>', 'Set a script arg key=value with type inference (facade scripts; repeatable)', collectSet, [])
+    .option('--resume <runId>', 'Resume a prior facade run: completed nodes replay from the journal at zero model calls')
+    .option('--amend <runId>', 'Amend a prior facade run: fork a new run with an edited script; unchanged nodes replay warm')
+    .option('--db <path>', 'Journal database path (facade scripts; default .workflow/dwf.sqlite)')
+    .option('-c, --max-concurrency <n>', 'Max concurrent subagent asks (facade scripts; default 4)')
+    .option('--budget-total <n>', 'Output-token budget for the run (facade scripts)')
+    .option('--failover <ids>', 'Comma-separated failover provider ids for actor asks (facade scripts)')
+    .option('--live <path>', 'Write a self-refreshing HTML execution view while the run goes (facade scripts)')
+    .option('--watch-graph', 'Rewrite the run dir graph.html after every event (facade scripts)')
+    .option('--watch', 'Alias of --watch-graph: rewrite the run dir graph.html after every event (facade scripts)')
+    .option('--ui', 'When the run settles, serve the AI-Workflow Studio (SSE + A2UI resume) and open the browser')
+    .option('--cwd <path>', 'Workspace the workflow executes in (journal resolution + sandbox child cwd)')
     .action(async (file, opts) => {
+      const effectiveLang = opts.lang ?? program.opts().lang ?? lang;
+      // Facade scripts may be spelled relative to --cwd; fall back to that
+      // workspace when the invocation-cwd path does not exist.
+      let scriptPath = file;
+      if (opts.cwd && !looksLikeFacadeScript(scriptPath)) {
+        const candidate = path.join(opts.cwd, file);
+        if (looksLikeFacadeScript(candidate)) scriptPath = candidate;
+      }
+      if (looksLikeFacadeScript(scriptPath)) {
+        const composed = composeScriptArgs({ argsJson: opts.args, argsFile: opts.argsFile, setPairs: opts.set });
+        if (composed.error) {
+          console.error(`Error: ${composed.error}`);
+          exitCode = 1;
+          return;
+        }
+        exitCode = await executeRunScript(scriptPath, {
+          argsJson: JSON.stringify(composed.args ?? {}),
+          resume: opts.resume,
+          amend: opts.amend,
+          mock: opts.mock,
+          dbPath: opts.db,
+          maxConcurrency: opts.maxConcurrency,
+          budgetTotal: opts.budgetTotal,
+          failoverProviders:
+            typeof opts.failover === 'string'
+              ? opts.failover.split(',').map((x: string) => x.trim()).filter(Boolean)
+              : undefined,
+          live: opts.live,
+          watchGraph: opts.watchGraph || opts.watch,
+          ui: opts.ui,
+          cwd: opts.cwd,
+          lang: effectiveLang,
+        });
+        return;
+      }
+      if (opts.args || opts.argsFile || (Array.isArray(opts.set) && opts.set.length > 0)) {
+        console.error('Note: --args/--args-file/--set apply to facade scripts; this file was treated as a builder workflow and they were ignored.');
+      }
+      if (opts.resume || opts.amend) {
+        console.error('Note: --resume/--amend apply to facade scripts; use --resume-from-failed for builder workflows.');
+      }
       const out = opts.out ?? opts.outputDir;
-      exitCode = await executeRun(file, { ...opts, out, lang: opts.lang ?? program.opts().lang ?? lang });
+      exitCode = await executeRun(file, { ...opts, out, lang: effectiveLang });
     });
 
   program
@@ -99,6 +183,7 @@ Commands:
     .description(dict.CMD_GRAPH_DESC)
     .option('-f, --format <format>', dict.OPT_FORMAT, 'ascii')
     .option('-o, --output <path>', dict.OPT_OUTPUT)
+    .option('--db <path>', 'Journal database path (positional arg is a facade runId)')
     .option('-l, --lang <lang>', dict.OPT_LANG)
     .action(async (file, opts) => {
       exitCode = await executeGraph(file, { ...opts, lang: opts.lang ?? program.opts().lang ?? lang });
@@ -123,6 +208,7 @@ Commands:
     .option('-n, --limit <number>', 'Maximum runs to list', '10')
     .option('-s, --status <status>', 'Filter by run status')
     .option('-j, --json', 'Output as JSON')
+    .option('--db <path>', 'Journal database path (facade runs)')
     .option('-l, --lang <lang>', dict.OPT_LANG)
     .action(async (opts) => {
       exitCode = await executeList({ ...opts, lang: opts.lang ?? program.opts().lang ?? lang });
@@ -162,21 +248,54 @@ Commands:
     });
 
   program
+    .command('author <intent...>')
+    .description('Author a facade script from one natural-language sentence: generate, compile-check, self-heal (max 3 attempts), write — never run')
+    .option('-o, --out <path>', 'Output script path (default ./authored.workflow.ts)')
+    .option('--force', 'Overwrite an existing output file')
+    .option('--provider <id>', 'Provider id to author with (default: registry default)')
+    .option('--model <model>', 'Model override forwarded to the provider')
+    .option('--max-tokens <n>', 'Output token ceiling per generation attempt (default 8192)')
+    .action(async (intent, opts) => {
+      exitCode = await executeAuthor(intent, {
+        out: opts.out,
+        force: opts.force,
+        provider: opts.provider,
+        model: opts.model,
+        maxTokens: opts.maxTokens === undefined ? undefined : Number(opts.maxTokens),
+      });
+    });
+
+  program
     .command('run-script <file>')
     .description(dict.CMD_RUN_SCRIPT_DESC)
     .option('-a, --args <json>', 'Script input as JSON (available as `args`)')
+    .option('--args-file <file>', 'Read script input from a JSON file (PowerShell-safe, zero escaping)')
+    .option('--set <pair>', 'Set a script arg key=value with type inference (repeatable)', collectSet, [])
+    .option('--cwd <path>', 'Workspace the run executes in (journal resolution + sandbox child cwd)')
     .option('-r, --resume <runId>', 'Resume a prior run: completed nodes replay from the journal at zero model calls (script must be byte-identical)')
     .option('-m, --amend <runId>', 'Amend a prior run: fork a new run with an edited script; unchanged nodes replay from the warm cache')
+    .option('--rerun <runId>', 'Rerun a prior run with the same script from --from <siteId>: earlier sites replay from the warm cache, that site and later ones run live')
+    .option('--from <siteId>', 'Site id where a --rerun starts executing live (`workflow check <file>` lists the site table)')
     .option('--db <path>', 'Journal database path (default .workflow/dwf.sqlite)')
     .option('-c, --max-concurrency <n>', 'Max concurrent subagent asks (default 4)')
+    .option('--budget-total <n>', 'Output-token budget for the run (read-only inside the script)')
+    .option('--approve-cmd <name>', 'Authorize a world.run command for this run (repeatable; the script own list no longer authorizes - Issue #127)', collect, [])
     .option('--failover <ids>', 'Comma-separated failover provider ids for actor asks (e.g. mock,gemini-cli)')
     .option('--live <path>', 'Write a self-refreshing HTML execution view while the run goes')
     .option('--watch-graph', 'Rewrite the run dir graph.html after every event (same journal projection as `workflow graph` cold replay)')
+    .option('--ui', 'When the run settles, serve the AI-Workflow Studio (SSE + A2UI resume) and open the browser')
     .option('-l, --lang <lang>', dict.OPT_LANG)
     .action(async (file, opts) => {
+      const composed = composeScriptArgs({ argsJson: opts.args, argsFile: opts.argsFile, setPairs: opts.set });
+      if (composed.error) {
+        console.error(`Error: ${composed.error}`);
+        exitCode = 1;
+        return;
+      }
       exitCode = await executeRunScript(file, {
         ...opts,
-        argsJson: opts.args,
+        argsJson: JSON.stringify(composed.args ?? {}),
+        cwd: opts.cwd,
         dbPath: opts.db,
         liveHtmlPath: opts.live,
         failoverProviders: typeof opts.failover === 'string' ? opts.failover.split(',').map((x: string) => x.trim()).filter(Boolean) : undefined,
@@ -189,6 +308,8 @@ Commands:
     .description(dict.CMD_SERVE_DESC)
     .option('--db <path>', 'Journal database path (default .workflow/dwf.sqlite)')
     .option('-p, --port <n>', 'HTTP port (default 4649)')
+    .option('--studio', 'SVG canvas + WebSocket push + time travel (default off — legacy SSE view)')
+    .option('--no-open', 'Do not raise the default browser')
     .option('-l, --lang <lang>', dict.OPT_LANG)
     .action(async (runId, opts) => {
       exitCode = await executeServe(runId, { ...opts, lang: opts.lang ?? program.opts().lang ?? lang });
@@ -229,8 +350,10 @@ Commands:
     .description('Answer an escalation a facade-script run is parked at; the run resumes and the ask resolves to the answer')
     .option('--db <path>', 'Journal database path (default .workflow/dwf.sqlite)')
     .option('-l, --lang <lang>', dict.OPT_LANG)
+    .option('--approve-cmd <name>', 'Authorize a world.run command for the resumed run (repeatable - Issue #127)', collect, [])
+
     .action(async (runId, questionId, text, opts) => {
-      exitCode = await executeAnswer(runId, questionId, text, { ...opts, dbPath: opts.db, lang: opts.lang ?? program.opts().lang ?? lang });
+      exitCode = await executeAnswer(runId, questionId, text, { ...opts, approvedCommands: opts.approveCmd, dbPath: opts.db, lang: opts.lang ?? program.opts().lang ?? lang });
     });
 
   program
@@ -240,6 +363,18 @@ Commands:
     .option('-l, --lang <lang>', dict.OPT_LANG)
     .action(async (opts) => {
       exitCode = await executeDoctor({ ...opts, lang: opts.lang ?? program.opts().lang ?? lang });
+    });
+
+  program
+    .command('ultracode <task>')
+    .description(dict.CMD_ULTRACODE_DESC)
+    .option('--save <name>', 'Fixpoint the synthesized workflow into the project registry (.workflow/workflows)')
+    .option('--mock', 'Trial-run the synthesized script in deterministic offline mock mode')
+    .option('--run', 'Trial-run the synthesized script for real (uses the configured provider)')
+    .option('--provider <id>', 'Provider id for the synthesis ask')
+    .option('-l, --lang <lang>', dict.OPT_LANG)
+    .action(async (task, opts) => {
+      exitCode = await executeUltracode(task, { ...opts, lang: opts.lang ?? program.opts().lang ?? lang });
     });
 
   const workflowsCommand = program.command('workflows').description('Saved facade-script workflows (registry in .workflow/workflows/)');
@@ -264,7 +399,6 @@ Commands:
     });
 
   const mcpCommand = program.command('mcp').description(dict.CMD_MCP_DESC);
-
   mcpCommand
     .command('list')
     .description('List configured MCP tools')
@@ -289,6 +423,43 @@ Commands:
     .description('Launch built-in AI-Workflow MCP Server over stdio')
     .action(async () => {
       exitCode = await executeMCPServe();
+    });
+
+  program
+    .command('demo')
+    .description('Run the flagship incident-triage demo offline (deterministic mock) and open the AI-Workflow Studio')
+    .option('--no-open', 'Do not raise the default browser')
+    .option('-l, --lang <lang>', dict.OPT_LANG)
+    .action(async (opts) => {
+      exitCode = await executeDemo({ ...opts, lang: opts.lang ?? program.opts().lang ?? lang });
+    });
+
+  program
+    .command('new <name>')
+    .description('Scaffold a compile-clean facade workflow from a built-in template (code-review | incident-triage | repo-migration | multi-agent)')
+    .option('-t, --template <template>', 'Template key (interactive picker when omitted on a TTY)')
+    .option('-d, --dir <path>', 'Destination directory (default: current directory)')
+    .option('-l, --lang <lang>', dict.OPT_LANG)
+    .action(async (name, opts) => {
+      exitCode = await executeNew(name, opts);
+    });
+
+  program
+    .command('setup')
+    .description('Generate coding-assistant interop configs (Claude Code / OpenCode / Codex) in the current project')
+    .option('-t, --target <target>', 'claude | opencode | codex | all (default all)')
+    .option('-d, --dir <path>', 'Destination project root (default: current directory)')
+    .action(async (opts) => {
+      exitCode = await executeSetup(opts);
+    });
+
+  program
+    .command('export-schema')
+    .description('Export the built-in engine tool face as an OpenAI function-calling JSON schema')
+    .option('-f, --format <format>', 'Schema format (default: openai)', 'openai')
+    .option('-o, --out <path>', 'Write to a file instead of stdout')
+    .action(async (opts) => {
+      exitCode = await executeExportSchema(opts);
     });
 
   try {

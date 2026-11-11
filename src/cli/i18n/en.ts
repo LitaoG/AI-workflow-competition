@@ -5,7 +5,7 @@ export const en: I18nDictionary = {
   CLI_USAGE: '/workflow <command> [options]',
 
   CMD_RUN_DESC: 'Execute a dynamic workflow definition file',
-  CMD_REPLAY_DESC: 'Replay or resume a workflow run from checkpoints',
+  CMD_REPLAY_DESC: 'Replay/resume a historical run (auto-detects the kind: facade runs replay from the journal, builder runs rebuild from checkpoints)',
   CMD_GRAPH_DESC: 'Generate standalone HTML, Mermaid, or ASCII DAG graph',
   CMD_PROBE_DESC: 'Run deterministic system, git, and toolchain environment probing',
   CMD_LIST_DESC: 'List historical workflow executions from SQLite store',
@@ -18,6 +18,7 @@ export const en: I18nDictionary = {
   CMD_SERVE_DESC: 'Serve a live, self-refreshing HTML view of a run from its journal (watch nodes land in real time)',
   CMD_STOP_DESC: 'Stop a running facade-script run and unlock resume/amend/fill',
   CMD_SCRIPT_DESC: 'Facade-script mode: compile-check and sandbox-run "script as code" workflows',
+  CMD_ULTRACODE_DESC: 'Synthesize a facade workflow from a task description (compile-gated), with trial run and registry save',
 
   OPT_RESUME_FAILED: 'Resume from the first failed step of a prior run',
   OPT_MOCK: 'Use deterministic mock provider (<4s, offline, 0 tokens)',

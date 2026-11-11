@@ -1,5 +1,5 @@
 /**
- * Journal projection (引擎的图投影规则): the pure `projectEventsToGraph` fold
+ * Journal projection (GOAL.md 阶段 7.3): the pure `projectEventsToGraph` fold
  * and the "活跑与冷回放同一投影" contract — a watched run (`--watch-graph`
  * re-folding the prefix after every emit) and a cold replay (`workflow graph`
  * folding the whole journal) must produce deeply-equal graphs and
@@ -20,7 +20,7 @@ import { runFacadeScript } from '../../src/dwf/runner.js';
 import type { WorkflowEvent } from '../../src/domain/events.js';
 
 /** Fake, self-made token shape — nothing here is a real credential. */
-const FAKE_TOKEN = 'gho_0123456789abcdefghij0123456789abcd';
+const FAKE_TOKEN = 'ghp_0123456789abcdefghij0123456789abcd';
 
 let seq = 0;
 function ev(type: WorkflowEvent['type'], data: unknown, timestamp: string, runId = 'dwfrun-proj'): WorkflowEvent {
@@ -84,6 +84,32 @@ test('projection: an empty stream yields an empty pending graph without throwing
   assert.equal(graph.nodes.length, 0);
   assert.equal(graph.edges.length, 0);
   assert.equal(graph.phases.length, 0);
+});
+
+test('projection: dwf_parked lands as paused and is never counted as a failure (Issue #35)', () => {
+  // A parked run's open escalation gate: the site stays running (the run resumes
+  // there), the graph pauses — and the stream carries NO failed event to count.
+  const stream = [
+    ev('dwf_phase', { phase: 'approve' }, '2026-11-01T10:00:00.000Z'),
+    ev('dwf_ask_start', { siteId: 'ask#1', actor: 'inspector', prompt: 'inspect the service' }, '2026-11-01T10:00:01.000Z'),
+    ev('dwf_ask_complete', { siteId: 'ask#1', actor: 'inspector' }, '2026-11-01T10:00:02.000Z'),
+    ev('dwf_escalation_open', { siteId: 'escalation#1', questionId: 'dwfq-probe', question: 'approve?', inputHash: 'h' }, '2026-11-01T10:00:03.000Z'),
+    ev('dwf_parked', { status: 'parked' }, '2026-11-01T10:00:04.000Z'),
+  ];
+  const graph = projectEventsToGraph(stream);
+  assert.equal(graph.status, 'paused', 'a parked run projects as paused');
+  assert.ok(!stream.some((e) => e.type === 'dwf_failed'), 'the parked stream must not contain a dwf_failed event for statistics to miscount');
+  const gate = graph.nodes.find((n) => n.id === 'escalation#1');
+  assert.ok(gate, 'the open escalation gate projects as a node');
+  assert.equal(gate!.status, 'running', 'the site the run resumes at stays running');
+
+  // The pre-#35 wire shape (dwf_failed carrying data.status "parked") still
+  // projects as paused — journals persisted by older runners replay correctly.
+  const legacy = projectEventsToGraph([
+    ...stream.slice(0, -1),
+    ev('dwf_failed', { status: 'parked' }, '2026-11-01T10:00:04.000Z'),
+  ]);
+  assert.equal(legacy.status, 'paused', 'legacy dwf_failed{status:"parked"} journals still project as paused');
 });
 
 test('graph command: a dwf run dir cold-replays through the same projection (events.jsonl preferred)', async () => {

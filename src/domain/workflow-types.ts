@@ -28,6 +28,24 @@ export interface WorkflowOptions {
   maxConcurrency?: number;
   lang?: 'en' | 'zh';
   stateStore?: StateStore;
+  /**
+   * MCP servers that `ctx.mcp.callTool` may reach in this run. When given,
+   * they are the only MCP config source.
+   */
+  mcpServers?: Record<string, MCPServerConfig>;
+  /**
+   * Path to a trusted `.mcp.json` (Claude Code format), used when `mcpServers`
+   * is omitted. Default: the `AI_WORKFLOW_MCP_CONFIG` environment variable. A
+   * `.mcp.json` in the working directory is never read implicitly, because it
+   * may belong to an untrusted checkout (Issue #106).
+   */
+  mcpConfigPath?: string;
+  /**
+   * Handshake timeout per MCP server in ms. Default: the
+   * `AI_WORKFLOW_MCP_CONNECT_TIMEOUT_MS` environment variable, else 20000.
+   * Raise it for servers with a slow first start (e.g. an `npx -y` download).
+   */
+  mcpConnectTimeoutMs?: number;
 }
 
 export interface PhaseDefinition {
@@ -93,12 +111,19 @@ export interface ExecutionContext {
   gate(command: string, options?: { cwd?: string; timeoutMs?: number }): Promise<GateResult>;
   probe: ((options?: ProberOptions) => Promise<ProberResult>) & Partial<ProberResult>;
   mcp?: {
-    callTool: (server: string, tool: string, args?: Record<string, unknown>) => Promise<unknown>;
+    callTool: (server: string, tool: string, args?: Record<string, unknown>, options?: McpCallOptions) => Promise<unknown>;
   };
+
+  /**
+   * Cancellation for the running step: aborted when a sibling step in the same
+   * parallel batch fails. Long-running step code can check it and stop early;
+   * `agent()`, `gate()` and `mcp.callTool` already refuse new work once it fires.
+   */
+  readonly signal?: AbortSignal;
 
   snapshot(): ContextSnapshot;
   restore(snapshot: ContextSnapshot): void;
-  createChildContext(stepId: string): ExecutionContext;
+  createChildContext(stepId: string, signal?: AbortSignal): ExecutionContext;
 }
 
 export interface GateResult {
@@ -118,6 +143,10 @@ export interface RetryPolicy {
   maxRetries: number;
   initialDelayMs?: number;
   backoffFactor?: number;
+  /**
+   * Decides alone which errors retry. Without it, an error whose `isRecoverable`
+   * is `false` is not retried; errors without that flag are.
+   */
   retryableErrorFilter?: (error: Error) => boolean;
 }
 
@@ -156,13 +185,27 @@ export interface AgentCallOptions {
   /** Abort signal — a cancelled session turn must stop its provider call. */
   signal?: AbortSignal;
   /**
-   * Stall clock (independently engineered): if the provider call
+   * Stall clock (reverse-aligned with Claude Code's stallMs): if the provider call
    * makes no progress within this window, reject with a transient stall error —
    * the classifier turns it into a retry. Default: no stall clock.
    */
   stallMs?: number;
-  /** Observe the provider usage of each generate call (budget accounting). */
-  onUsage?: (usage: { promptTokens: number; completionTokens: number; totalTokens: number }) => void;
+  /**
+   * Observe the provider usage of each generate call (budget accounting).
+   * Issue #125: attempts that lose the stall race are also accounted —
+   * `droppedAttempt` marks a request whose result was discarded (its result
+   * arrived after the stall abort), and `estimated` marks the conservative
+   * maxTokens entry recorded when the orphan died on our abort with no real
+   * usage to read. The budget may only over-count, never silently
+   * under-count.
+   */
+  onUsage?: (usage: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    droppedAttempt?: boolean;
+    estimated?: boolean;
+  }) => void;
   /**
    * Retry-orchestrator policy (ODW-inspired): which failure categories may retry and
    * how hard. Absent = the classifier's defaults (rate_limit/transient retry).
@@ -355,6 +398,18 @@ export interface DwfNode {
   errorText?: string;
   durationMs?: number;
   completedAt?: string;
+  /**
+   * Issue #39 per-actor named-cache identity (ask rows only): the actor's
+   * effective name, this ask's per-actor sequence, a SITE-INDEPENDENT content
+   * hash of the prompt, and the canonical persona the actor ran under. The
+   * amend cache matches on (name + persona) and consumes content hashes 1:1,
+   * so a renumbered amend script still hits. Old rows without these fields
+   * replay through the site-keyed pool exactly as before.
+   */
+  actorName?: string;
+  actorSeq?: number;
+  contentHash?: string;
+  personaJson?: string;
 }
 
 /** A facade-script run row: script identity, args and lineage. */
@@ -367,7 +422,7 @@ export interface DwfRunRow {
   parentRunId?: string;
   /**
    * OS pid of the runner process that owns/owned this run — orphan detection
-   * and stale-`running` takeover (the engine's crash-recovery rules). Written when the row enters
+   * and stale-`running` takeover (GOAL.md §1.5). Written when the row enters
    * `status: 'running'`; the resume path probes it to distinguish a live host
    * (another host is executing: refuse, the error names the pid) from a
    * crashed one (emit `dwf_resume_takeover` and take over). `undefined` on
@@ -378,7 +433,13 @@ export interface DwfRunRow {
   /** Output tokens spent at the last settlement — restored on resume (audit gap #4). */
   outputTokensSpent?: number;
   createdAt?: string;
-  updatedAt?: string;
+  updatedAt?: string;  /**
+   * The run's output-token ceiling (Issue #118): persisted at launch and
+   * restored by every continuation door, so an answer/resume/amend continues
+   * under the original cap instead of running unbounded. `undefined` = no
+   * ceiling was set.
+   */
+  budgetTotal?: number;
 }
 
 /** Optional facade-journal surface a StateStore may implement. */
@@ -490,6 +551,8 @@ export interface MCPServerConfig {
   args?: string[];
   env?: Record<string, string>;
   url?: string;
+  /** Working directory for a stdio server (default: inherit the engine's). */
+  cwd?: string;
 }
 
 export interface RegisteredTool {
@@ -499,6 +562,15 @@ export interface RegisteredTool {
   inputSchema: Record<string, unknown>;
 }
 
+/** Per-call options for `ctx.mcp.callTool` and `MCPManager.callTool`. */
+export interface McpCallOptions {
+  /**
+   * Return a tool result whose `isError` is true instead of throwing
+   * `McpToolError` (code `MCP_TOOL_FAILED`). Default: false.
+   */
+  allowToolError?: boolean;
+}
+
 export interface MCPManager {
   connectServer(serverName: string, config: MCPServerConfig): Promise<void>;
   listTools(serverName: string): Promise<Array<{
@@ -506,6 +578,6 @@ export interface MCPManager {
     description: string;
     inputSchema: Record<string, unknown>;
   }>>;
-  callTool(serverName: string, toolName: string, args: Record<string, unknown>): Promise<unknown>;
+  callTool(serverName: string, toolName: string, args: Record<string, unknown>, options?: McpCallOptions): Promise<unknown>;
   disconnectAll(): Promise<void>;
 }

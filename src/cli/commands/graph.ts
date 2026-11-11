@@ -22,7 +22,7 @@ export interface GraphCommandOptions {
 }
 
 /**
- * Resolve a dwf journal target for the graph command:
+ * Resolve a dwf journal target for the graph command (GOAL.md 阶段 7.3):
  * a run directory (`.workflow/runs/<runId>/`) or an `events.jsonl` file.
  *
  * `events.jsonl` is the preferred stream (the mirror written per event); when

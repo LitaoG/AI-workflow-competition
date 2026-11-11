@@ -12,7 +12,7 @@ export async function executeAnswer(
   runId: string,
   questionId: string,
   textParts: string[],
-  options: { dbPath?: string; lang?: string },
+  options: { dbPath?: string; lang?: string; approvedCommands?: string[] },
 ): Promise<number> {
   const answer = textParts.join(' ').trim();
   if (!answer) {
@@ -29,6 +29,13 @@ export async function executeAnswer(
     }
     if (!run.scriptPath) {
       console.error(`Error: run "${runId}" has no script to resume`);
+      return 1;
+    }
+    // Same refusal family as fill's non-parked guard: journaling an answer under a
+    // live or settled run would poison the pool the replay matches against — the
+    // reply row is only meaningful while the run is parked at the question.
+    if (run.status !== 'parked') {
+      console.error(`Error: run "${runId}" is ${run.status} — only a parked run can be answered; start a fresh run instead`);
       return 1;
     }
 
@@ -67,6 +74,7 @@ export async function executeAnswer(
       scriptPath: run.scriptPath,
       resumeRunId: runId,
       dbPath: options.dbPath,
+      approvedCommands: options.approvedCommands,
       onEvent: (e) => {
         if (e.type === 'dwf_replay_hit') console.log(`  ⚡ replayed: ${e.data.siteId}#${e.data.ordinal}`);
         if (e.type === 'dwf_phase') console.log(`\n--- ${e.data.phase} ---`);

@@ -1,10 +1,11 @@
 /**
  * Built-in AI-Workflow MCP server: exposes the legacy workflow tool face plus the
- * facade-script (dwf) tool face — server side aligned with the live engine.
+ * facade-script (dwf) tool face (GOAL.md 阶段 7.2 — server side aligned with the
+ * live engine).
  *
  * Two invariants hold for every tool in this file:
  * 1. Every response crosses the irreversible redaction boundary (`redactValue` /
- *    `redactText` from `src/dwf/redact.ts`) BEFORE serialization.
+ *    `redactText` from `src/dwf/redact.ts`) BEFORE serialization — GOAL.md 铁律 2.
  * 2. New-tool error responses speak the domain error algebra: a JSON body
  *    `{ tag, message, details? }` produced by `toSerializableError` (项 5 serialization).
  */
@@ -36,9 +37,16 @@ import {
   toDomainError,
   toSerializableError,
 } from '../domain/errors.js';
-import { summarizeEvidence } from '../domain/evidence.js';
-import { DwfNode, WorkflowEvent, DwfJournalStore } from '../types.js';
+import { summarizeEvidence, ledgerFromEntries } from '../domain/evidence.js';
+import { DwfJournalStore, DwfNode, WorkflowEvent } from '../types.js';
 import { toolRegistry } from './registry.js';
+import { TOOL_CATALOG, facadeSchemas, type McpToolDescriptor } from './tool-catalog.js';
+import { jsonResult, taggedErrorResult, textResult, resolveScriptInsideCwd, zodArgsError, parseMaybeJson, readRunSites, countEvents, type RunSiteSummary } from './tool-helpers.js';
+
+// Historical import surface: the catalog and its descriptor type resolve from
+// the server module (tests, export-schema CLI).
+export { TOOL_CATALOG } from './tool-catalog.js';
+export type { McpToolDescriptor } from './tool-catalog.js';
 
 /** Server name used as the registry namespace and the MCP server info. */
 const SERVER_NAME = 'ai-workflow-server';
@@ -49,246 +57,14 @@ const MAX_EVENT_SUMMARIES = 50;
 const LATEST_EVIDENCE_COUNT = 5;
 
 // ---------------------------------------------------------------------------
-// Zod input schemas for the facade-script tool face.
-// The catalog exposes the JSON Schema form (via the MCP SDK's zod compat
-// converter); the CallTool handler validates raw arguments with the same
-// schema, so documentation and validation can never drift apart.
-// ---------------------------------------------------------------------------
+// The facade-tool zod schemas live in tool-catalog.ts (single source: the
+// catalog derives the documented JSON Schemas from them). Aliased here for
+// the CallTool validation path.
+const RunScriptArgs = facadeSchemas.RunScriptArgs;
+const InspectRunArgs = facadeSchemas.InspectRunArgs;
+const GetRunArgs = facadeSchemas.GetRunArgs;
 
-const RunScriptArgs = z.object({
-  scriptPath: z.string().min(1).describe('Path to the facade script (.ts) to run'),
-  args: z.record(z.unknown()).optional().describe('Script input, available inside the script as `args`'),
-  cwd: z.string().optional().describe('Workspace root for world reads and world.run gates (default: process.cwd())'),
-  dbPath: z.string().optional().describe('Journal database path (default .workflow/dwf.sqlite under cwd)'),
-  runTimeoutMs: z.number().int().positive().optional().describe('Whole-run wall clock; the sandbox child tree is killed on expiry (default 600000)'),
-  quiet: z.boolean().optional().describe('When true (the default) the response omits the capped event log; the journal keeps every event'),
-});
 
-const InspectRunArgs = z.object({
-  runId: z.string().min(1).describe('Facade-script run ID to inspect (dwf_runs.run_id)'),
-  dbPath: z.string().optional().describe('Journal database path (default .workflow/dwf.sqlite under the server cwd)'),
-});
-
-const GetRunArgs = z.object({
-  runId: z.string().min(1).describe('Facade-script run ID (dwf_runs.run_id)'),
-  dbPath: z.string().optional().describe('Journal database path (default .workflow/dwf.sqlite under the server cwd)'),
-});
-
-/** One per-site execution summary (`workflow_run_script` response field). */
-interface RunSiteSummary {
-  siteId: string;
-  ordinal: number;
-  kind: DwfNode['kind'];
-  status: DwfNode['status'];
-  durationMs: number;
-}
-
-/** Tool descriptor shape shared by the catalog and the tool registry. */
-interface McpToolDescriptor {
-  name: string;
-  description: string;
-  inputSchema: Record<string, unknown>;
-}
-
-/**
- * The static tool catalog. The seven legacy tools keep their hand-written JSON
- * Schemas verbatim; the three facade-script tools derive theirs from the zod
- * schemas above so validation and documentation share one source.
- */
-const TOOL_CATALOG: McpToolDescriptor[] = [
-  {
-    name: 'workflow_run',
-    description: 'Execute an AI-Workflow by file path with options, state persistence, and event logging',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        workflowPath: { type: 'string', description: 'Path to workflow TypeScript file' },
-        mock: { type: 'boolean', description: 'Execute in deterministic offline mock mode' },
-        runId: { type: 'string', description: 'Optional custom run ID' },
-        dbPath: { type: 'string', description: 'Optional custom SQLite database path' },
-        outDir: { type: 'string', description: 'Optional custom output directory' },
-      },
-      required: ['workflowPath'],
-    },
-  },
-  {
-    name: 'workflow_probe',
-    description: 'Execute deterministic system, git, and toolchain environment probing with secret redaction',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        targetDir: { type: 'string', description: 'Target working directory to probe' },
-        sanitizeEnv: { type: 'boolean', description: 'Whether to sanitize and redact sensitive env variables' },
-      },
-    },
-  },
-  {
-    name: 'workflow_inspect',
-    description: 'Inspect step checkpoints, events, and artifacts of a workflow run from SQLite store',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        runId: { type: 'string', description: 'Workflow run ID to inspect' },
-        dbPath: { type: 'string', description: 'Optional custom SQLite database path' },
-        stepId: { type: 'string', description: 'Optional specific step ID to inspect' },
-        includeEvents: { type: 'boolean', description: 'Whether to include raw event stream' },
-      },
-      required: ['runId'],
-    },
-  },
-  {
-    name: 'workflow_replay',
-    description: 'Replay or resume a workflow run from failure with zero re-token spend',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        runId: { type: 'string', description: 'Workflow run ID to replay' },
-        resumeFromFailed: { type: 'boolean', description: 'Re-execute failed steps and resume execution' },
-        dbPath: { type: 'string', description: 'Optional custom SQLite database path' },
-        forceRecompute: { type: 'boolean', description: 'Force recompute of all steps' },
-      },
-      required: ['runId'],
-    },
-  },
-  {
-    name: 'workflow_graph',
-    description: 'Generate static DAG graph visualization without execution (HTML, Mermaid, or ASCII)',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        workflowPath: { type: 'string', description: 'Path to workflow TypeScript file' },
-        format: { type: 'string', enum: ['html', 'mermaid', 'ascii'], description: 'Visualization output format' },
-        lang: { type: 'string', enum: ['en', 'zh'], description: 'Language for HTML visualizer (en/zh)' },
-      },
-      required: ['workflowPath'],
-    },
-  },
-  {
-    name: 'workflow_script_check',
-    description: 'Compile-check a facade script (strict TS against the workflow facade, purity bans, literal rules) and return diagnostics, phases, and the site table — without executing anything',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        scriptPath: { type: 'string', description: 'Path to the facade script (.ts) to check' },
-        cwd: { type: 'string', description: 'Workspace root the script targets (default: process.cwd())' },
-      },
-      required: ['scriptPath'],
-    },
-  },
-  {
-    name: 'workflow_script_run',
-    description: 'Run a facade script in the sandbox (deterministic journal; --resume replays completed nodes at zero provider calls). Returns runId, status, result value, and stats (asks/replayHits).',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        scriptPath: { type: 'string', description: 'Path to the facade script (.ts) to run' },
-        cwd: { type: 'string', description: 'Workspace root for world reads and world.run gates (default: process.cwd())' },
-        args: { type: 'object', description: 'Script input, available inside the script as `args`' },
-        resumeRunId: { type: 'string', description: 'Resume a prior run — completed nodes replay from the journal at zero cost' },
-        dbPath: { type: 'string', description: 'Journal database path (default .workflow/dwf.sqlite under cwd)' },
-        runTimeoutMs: { type: 'number', description: 'Whole-run wall clock; the sandbox child tree is killed on expiry (default 600000)' },
-      },
-      required: ['scriptPath'],
-    },
-  },
-  {
-    name: 'workflow_run_script',
-    description: 'Run a facade script through the sandboxed engine (journal-backed deterministic replay) and return runId, final status, per-site summaries (siteId/ordinal/status/durationMs) and stats; bounded by runTimeoutMs',
-    inputSchema: toJsonSchemaCompat(RunScriptArgs),
-  },
-  {
-    name: 'workflow_inspect_run',
-    description: 'Inspect a facade-script run in the journal: the dwf_runs status row, the per-site dwf_nodes table (redacted) and an evidence-ledger summary (counts and the latest entries)',
-    inputSchema: toJsonSchemaCompat(InspectRunArgs),
-  },
-  {
-    name: 'workflow_get_run',
-    description: "Fetch a facade-script run's journal short-circuit statistics — total asks, replay hits, amend hits, divergences and world.run executions (same accounting as the runner stats)",
-    inputSchema: toJsonSchemaCompat(GetRunArgs),
-  },
-];
-
-// ---------------------------------------------------------------------------
-// Shared response helpers — every tool response crosses the redaction boundary
-// exactly once, here, before JSON serialization.
-// ---------------------------------------------------------------------------
-
-/** Serialize a tool payload as redacted JSON text (strings, keys and nested values masked). */
-function maskedJsonText(payload: unknown): string {
-  return JSON.stringify(redactValue(payload), null, 2);
-}
-
-/** A successful tool response carrying one text block. */
-function textResult(text: string): { content: Array<{ type: 'text'; text: string }> } {
-  return { content: [{ type: 'text', text }] };
-}
-
-/** A masked JSON tool response. */
-function jsonResult(payload: unknown): { content: Array<{ type: 'text'; text: string }> } {
-  return textResult(maskedJsonText(payload));
-}
-
-/**
- * A tagged error tool response: the domain error algebra (`{ tag, message, ... }`,
- * 项 5 serialization), redacted before serialization. Any thrown value is mapped
- * onto the algebra with `fallbackTag` so clients always get a parseable body.
- */
-function taggedErrorResult(err: unknown, fallbackTag: DomainErrorTag = 'McpError'): { isError: true; content: Array<{ type: 'text'; text: string }> } {
-  const safe = redactValue(toSerializableError(toDomainError(err, fallbackTag)));
-  return { isError: true, content: [{ type: 'text', text: JSON.stringify(safe, null, 2) }] };
-}
-
-/** Map a zod parse failure onto the domain error algebra (never echoes the raw arguments). */
-function zodArgsError(error: z.ZodError): { tag: DomainErrorTag; message: string } {
-  const first = error.issues[0];
-  const where = first && first.path.length > 0 ? first.path.join('.') : '(root)';
-  return domainError(
-    'SchemaValidationError',
-    `invalid tool arguments: ${where}: ${first?.message ?? 'validation failed'}`,
-    { details: { issues: error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })) } },
-  );
-}
-
-/** Parse a journalled JSON string defensively: parsed JSON, or the raw text. */
-function parseMaybeJson(text: string | undefined): unknown {
-  if (text === undefined) return undefined;
-  try {
-    return JSON.parse(text);
-  } catch {
-    return text;
-  }
-}
-
-/**
- * Read one run's per-site summaries from the journal (the single source of
- * truth for siteId/ordinal/status/durationMs). Degrades to an empty list with
- * a note instead of failing the whole tool response — the run result itself
- * never depends on this read.
- */
-async function readRunSites(journalPath: string, runId: string): Promise<{ sites: RunSiteSummary[]; sitesError?: string }> {
-  const store = new SQLiteStateStore(journalPath);
-  try {
-    const nodes = await store.getDwfNodes(runId);
-    return {
-      sites: nodes.map((n) => ({
-        siteId: n.siteId,
-        ordinal: n.ordinal,
-        kind: n.kind,
-        status: n.status,
-        durationMs: n.durationMs ?? 0,
-      })),
-    };
-  } catch (err) {
-    return { sites: [], sitesError: (err as Error).message };
-  } finally {
-    store.close();
-  }
-}
-
-/** Count the journal events of one canonical type (the runner/view accounting). */
-function countEvents(events: WorkflowEvent[], type: WorkflowEvent['type']): number {
-  return events.filter((e) => e.type === type).length;
-}
 
 export class BuiltinWorkflowMCPServer {
   private server: Server;
@@ -431,10 +207,10 @@ export class BuiltinWorkflowMCPServer {
           const store = new SQLiteStateStore(dbPath) as SQLiteStateStore & DwfJournalStore;
 
           try {
-            // Facade-journal branch: dwf runs live in dwf_runs/dwf_nodes, never
-            // in checkpoints — without this branch a facade runId passed with
-            // its journal dbPath is invisible here. Builder runs answer null
-            // and fall through with zero behavior change.
+            // Facade-journal branch (gap-matrix D2): dwf runs live in
+            // dwf_runs/dwf_nodes, never in checkpoints — without this branch a
+            // facade runId passed with its journal dbPath is invisible here.
+            // Builder runs answer null and fall through with zero behavior change.
             const facadeRun = await store.getDwfRun(runId);
             if (facadeRun) {
               const nodes = await store.getDwfNodes(runId);
@@ -602,7 +378,12 @@ export class BuiltinWorkflowMCPServer {
 
         case 'workflow_script_check': {
           try {
-            const scriptPath = path.resolve(process.cwd(), String(args?.scriptPath ?? ''));
+            // Issue #194 P2: the check face reads files, so it must run inside
+            // the same cwd boundary as the execute face — resolveScriptInsideCwd
+            // (same pattern as workflow_script_run) keeps TS diagnostics and
+            // path-existence oracles from reading arbitrary machine paths.
+            const cwd = args?.cwd ? path.resolve(process.cwd(), String(args.cwd)) : process.cwd();
+            const scriptPath = resolveScriptInsideCwd(String(args?.scriptPath ?? ''), cwd);
             const text = fs.readFileSync(scriptPath, 'utf8');
             const analysis = analyzeFacadeScript(text);
             return jsonResult({
@@ -624,8 +405,8 @@ export class BuiltinWorkflowMCPServer {
 
         case 'workflow_script_run': {
           try {
-            const scriptPath = path.resolve(process.cwd(), String(args?.scriptPath ?? ''));
             const cwd = args?.cwd ? path.resolve(process.cwd(), String(args.cwd)) : process.cwd();
+            const scriptPath = resolveScriptInsideCwd(String(args?.scriptPath ?? ''), cwd);
             const rawArgs = args?.args;
             const scriptArgs = (typeof rawArgs === 'string'
               ? (JSON.parse(rawArgs) as unknown)
@@ -637,6 +418,10 @@ export class BuiltinWorkflowMCPServer {
               resumeRunId: args?.resumeRunId ? String(args.resumeRunId) : undefined,
               dbPath: args?.dbPath ? String(args.dbPath) : undefined,
               runTimeoutMs: typeof args?.runTimeoutMs === 'number' ? args.runTimeoutMs : undefined,
+              budgetTotal: typeof args?.budgetTotal === 'number' ? args.budgetTotal : undefined,
+              approvedCommands: Array.isArray(args?.approvedCommands)
+                ? (args.approvedCommands as unknown[]).filter((c): c is string => typeof c === 'string')
+                : undefined,
             });
             return jsonResult({
               runId: result.runId,
@@ -660,7 +445,7 @@ export class BuiltinWorkflowMCPServer {
         }
 
         // -------------------------------------------------------------------
-        // Facade-script tool face — zod-validated inputs,
+        // Facade-script tool face (GOAL.md 阶段 7.2) — zod-validated inputs,
         // tagged error bodies, journal-sourced projections.
         // -------------------------------------------------------------------
 
@@ -670,6 +455,7 @@ export class BuiltinWorkflowMCPServer {
           const input = parsed.data;
           try {
             const cwd = input.cwd ? path.resolve(process.cwd(), input.cwd) : process.cwd();
+            const guardedScriptPath = resolveScriptInsideCwd(input.scriptPath, cwd);
             const dbPath = input.dbPath;
             const events: Array<{ type: string; data: Record<string, unknown> }> = [];
             // Same assembly the CLI run-script command performs: scriptPath is
@@ -677,11 +463,13 @@ export class BuiltinWorkflowMCPServer {
             // through as the script's `args`; the journal path resolution is
             // shared (`resolveDwfJournalPath`).
             const result = await runFacadeScript({
-              scriptPath: input.scriptPath,
+              scriptPath: guardedScriptPath,
               args: input.args,
               cwd,
               dbPath,
               runTimeoutMs: input.runTimeoutMs,
+              budgetTotal: input.budgetTotal,
+              approvedCommands: input.approvedCommands,
               onEvent: (e) => events.push(e),
             });
             const journalPath = resolveDwfJournalPath(cwd, dbPath);
@@ -728,7 +516,7 @@ export class BuiltinWorkflowMCPServer {
             }
             const nodes = await store.getDwfNodes(runId);
             const evidence = await store.getDwfEvidence(runId);
-            const summary = summarizeEvidence({ runId, entries: evidence });
+            const summary = summarizeEvidence(ledgerFromEntries(runId, evidence));
             return jsonResult({
               run: {
                 runId: run.runId,

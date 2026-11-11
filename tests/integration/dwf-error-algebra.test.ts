@@ -12,13 +12,13 @@ import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { FacadeEngine } from '../../../src/dwf/engine.js';
-import { encodeFrame } from '../../../src/dwf/protocol.js';
-import type { HostReplyErr } from '../../../src/dwf/protocol.js';
-import { runFacadeScript } from '../../../src/dwf/runner.js';
-import { createSQLiteStore } from '../../../src/state/store.js';
-import type { SQLiteStateStore } from '../../../src/state/sqlite-store.js';
-import type { DwfJournalStore } from '../../../src/types.js';
+import { FacadeEngine } from '../../src/dwf/engine.js';
+import { encodeFrame } from '../../src/dwf/protocol.js';
+import type { HostReplyErr } from '../../src/dwf/protocol.js';
+import { runFacadeScript } from '../../src/dwf/runner.js';
+import { createSQLiteStore } from '../../src/state/store.js';
+import type { SQLiteStateStore } from '../../src/state/sqlite-store.js';
+import type { DwfJournalStore } from '../../src/types.js';
 import {
   domainError,
   fromSerializableError,
@@ -27,8 +27,8 @@ import {
   toDomainError,
   toSerializableError,
   tryParseStoredError,
-} from '../../../src/domain/errors.js';
-import type { DomainError } from '../../../src/domain/errors.js';
+} from '../../src/domain/errors.js';
+import type { DomainError } from '../../src/domain/errors.js';
 
 function makeEngine(runId: string, store: SQLiteStateStore & DwfJournalStore, overrides: Partial<ConstructorParameters<typeof FacadeEngine>[0]> = {}): FacadeEngine {
   return new FacadeEngine({
@@ -36,7 +36,7 @@ function makeEngine(runId: string, store: SQLiteStateStore & DwfJournalStore, ov
     workspace: process.cwd(),
     store,
     args: {},
-    approvedCommands: ['node'],
+    approvedCommands: [{ name: 'node', source: 'explicit' as const }],
     onEvent: () => {},
     ...overrides,
   });
@@ -45,6 +45,27 @@ function makeEngine(runId: string, store: SQLiteStateStore & DwfJournalStore, ov
 function makeWorkspace(): { dir: string; cleanup: () => void } {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dwf-error-algebra-'));
   return { dir, cleanup: () => { try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* lock */ } } };
+}
+
+/** Spawn the real child-main entry with a script body and return its raw NDJSON stdout. */
+async function runChildScript(script: string): Promise<string> {
+  const ws = makeWorkspace();
+  try {
+    const scriptPath = path.join(ws.dir, 'script.js');
+    fs.writeFileSync(scriptPath, script);
+    const { spawn } = await import('node:child_process');
+    const { fileURLToPath } = await import('node:url');
+    // compiled test lives at dist/tests/unit/dwf/ → the child entry at dist/src/dwf/
+    const childEntry = fileURLToPath(new URL('../../src/dwf/child-main.js', import.meta.url));
+    const child = spawn(process.execPath, [childEntry, scriptPath, '{}'], { stdio: ['pipe', 'pipe', 'pipe'] });
+    return await new Promise<string>((resolve) => {
+      let buf = '';
+      child.stdout.on('data', (c: Buffer) => (buf += c.toString()));
+      child.on('close', () => resolve(buf));
+    });
+  } finally {
+    ws.cleanup();
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -173,7 +194,7 @@ return { exitCode: r.exitCode };
 `);
     const dbPath = path.join(ws.dir, 'dwf.sqlite');
     const events: Array<{ type: string; data: Record<string, unknown> }> = [];
-    const r = await runFacadeScript({ scriptPath, cwd: ws.dir, dbPath, onEvent: (e) => events.push(e) });
+    const r = await runFacadeScript({ scriptPath, cwd: ws.dir, dbPath, approvedCommands: ['node'], onEvent: (e) => events.push(e) });
 
     assert.equal(r.status, 'failed');
     assert.match(r.error ?? '', /timed out after 400ms/, 'the run error text is unchanged');
@@ -218,30 +239,70 @@ return { exitCode: r.exitCode };
 // ---------------------------------------------------------------------------
 
 test('child-main: realm purity violations surface as CompileError on the scriptError frame', async () => {
-  const ws = makeWorkspace();
-  try {
-    const runDir = path.join(ws.dir, 'script.js');
-    fs.writeFileSync(runDir, 'async function __workflowScript__() { return String(Math.random()); }');
+  const out = await runChildScript('async function __workflowScript__() { return String(Math.random()); }');
+  const line = out.trim().split('\n').find((l) => l.includes('scriptError'));
+  assert.ok(line, `expected a scriptError frame, got: ${out}`);
+  const frame = JSON.parse(line!) as { message: string; error?: { tag: string; details?: { construct?: string } } };
+  assert.match(frame.message, /Purity violation: Math\.random/, 'message text unchanged');
+  assert.equal(frame.error?.tag, 'CompileError', 'the compile-ban backstop maps to CompileError');
+  assert.equal(frame.error?.details?.construct, 'Math.random');
+});
 
-    const { spawn } = await import('node:child_process');
-    const { fileURLToPath } = await import('node:url');
-    // compiled test lives at dist/tests/unit/dwf/ → the child entry at dist/src/dwf/
-    const childEntry = fileURLToPath(new URL('../../../src/dwf/child-main.js', import.meta.url));
-    const child = spawn(process.execPath, [childEntry, runDir, '{}'], { stdio: ['pipe', 'pipe', 'pipe'] });
-    const out = await new Promise<string>((resolve) => {
-      let buf = '';
-      child.stdout.on('data', (c: Buffer) => (buf += c.toString()));
-      child.on('close', () => resolve(buf));
-    });
-    const line = out.trim().split('\n').find((l) => l.includes('scriptError'));
-    assert.ok(line, `expected a scriptError frame, got: ${out}`);
-    const frame = JSON.parse(line!) as { message: string; error?: { tag: string; details?: { construct?: string } } };
-    assert.match(frame.message, /Purity violation: Math\.random/, 'message text unchanged');
-    assert.equal(frame.error?.tag, 'CompileError', 'the compile-ban backstop maps to CompileError');
-    assert.equal(frame.error?.details?.construct, 'Math.random');
-  } finally {
-    ws.cleanup();
-  }
+test('child-main: Date purity seal removes both constructor-chain bypasses (Issue #55)', async () => {
+  // Structural seal: no path from the Date shim back to the native constructor.
+  const structural = await runChildScript(
+    'async function __workflowScript__() { return { protoNow: typeof Object.getPrototypeOf(Date).now, instanceCtorIsDate: new Date(0)["con" + "structor"] === Date }; }'
+  );
+  const doneLine = structural.trim().split('\n').find((l) => l.includes('"t":"done"'));
+  assert.ok(doneLine, `expected a done frame, got: ${structural}`);
+  const done = JSON.parse(doneLine!) as { value: { protoNow: string; instanceCtorIsDate: boolean } };
+  assert.equal(done.value.protoNow, 'undefined', 'Object.getPrototypeOf(Date) must not expose the native constructor');
+  assert.equal(done.value.instanceCtorIsDate, true, 'Date instances must resolve .constructor to the shim');
+
+  // Runtime backstop: the instance-constructor path still reaches the Date.now ban.
+  const backdoor = await runChildScript(
+    'async function __workflowScript__() { return String(new Date(0)["con" + "structor"].now()); }'
+  );
+  const errLine = backdoor.trim().split('\n').find((l) => l.includes('scriptError'));
+  assert.ok(errLine, `expected a scriptError frame, got: ${backdoor}`);
+  const frame = JSON.parse(errLine!) as { message: string; error?: { tag: string; details?: { construct?: string } } };
+  assert.match(frame.message, /Purity violation: Date\.now/, 'the instance constructor path must hit the Date.now ban');
+  assert.equal(frame.error?.tag, 'CompileError');
+  assert.equal(frame.error?.details?.construct, 'Date.now');
+});
+
+test('child-main: Intl no-arg date formatting is sealed (Issue #55)', async () => {
+  // format() with no date falls back to %Date.now% and survives the Date seal.
+  const noArg = await runChildScript(
+    'async function __workflowScript__() { const f = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", hour: "2-digit" }); return f.format(); }'
+  );
+  const errLine = noArg.trim().split('\n').find((l) => l.includes('scriptError'));
+  assert.ok(errLine, `expected a scriptError frame, got: ${noArg}`);
+  const frame = JSON.parse(errLine!) as { message: string; error?: { tag: string; details?: { construct?: string } } };
+  assert.match(frame.message, /Purity violation: Intl\.DateTimeFormat\.format/);
+  assert.equal(frame.error?.tag, 'CompileError');
+  assert.equal(frame.error?.details?.construct, 'Intl.DateTimeFormat.format');
+
+  // formatToParts() has the same default-date fallback.
+  const partsNoArg = await runChildScript(
+    'async function __workflowScript__() { const f = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", hour: "2-digit" }); return f.formatToParts(); }'
+  );
+  const partsErrLine = partsNoArg.trim().split('\n').find((l) => l.includes('scriptError'));
+  assert.ok(partsErrLine, `expected a scriptError frame, got: ${partsNoArg}`);
+  const partsFrame = JSON.parse(partsErrLine!) as { message: string; error?: { tag: string; details?: { construct?: string } } };
+  assert.match(partsFrame.message, /Purity violation: Intl\.DateTimeFormat\.formatToParts/);
+  assert.equal(partsFrame.error?.tag, 'CompileError');
+  assert.equal(partsFrame.error?.details?.construct, 'Intl.DateTimeFormat.formatToParts');
+
+  // Explicit dates remain deterministic and usable.
+  const explicit = await runChildScript(
+    'async function __workflowScript__() { const f = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", year: "numeric" }); const first = f.format(0); const second = f.format(0); const parts = f.formatToParts(0); return { first, second, year: parts.find((p) => p.type === "year").value }; }'
+  );
+  const doneLine = explicit.trim().split('\n').find((l) => l.includes('"t":"done"'));
+  assert.ok(doneLine, `expected a done frame, got: ${explicit}`);
+  const done = JSON.parse(doneLine!) as { value: { first: string; second: string; year: string } };
+  assert.equal(done.value.year, '1970', 'explicit epoch formatting still works');
+  assert.equal(done.value.first, done.value.second, 'explicit-date formatting is deterministic');
 });
 
 test('child-main: non-Error thrown values take the AgentError fallback with their text', async () => {
@@ -252,7 +313,7 @@ test('child-main: non-Error thrown values take the AgentError fallback with thei
 
     const { spawn } = await import('node:child_process');
     const { fileURLToPath } = await import('node:url');
-    const childEntry = fileURLToPath(new URL('../../../src/dwf/child-main.js', import.meta.url));
+    const childEntry = fileURLToPath(new URL('../../src/dwf/child-main.js', import.meta.url));
     const child = spawn(process.execPath, [childEntry, scriptPath, '{}'], { stdio: ['pipe', 'pipe', 'pipe'] });
     const out = await new Promise<string>((resolve) => {
       let buf = '';

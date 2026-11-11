@@ -22,7 +22,7 @@ export interface DomainErrorBase {
   readonly cause?: string;
 }
 
-/** Facade script failed to compile or type-check. */
+/** Facade script failed to compile or type-check, or the builder workflow definition is invalid (e.g. dependency cycle / missing dependency) — the program did not compile. */
 export type CompileError = DomainErrorBase & { readonly tag: 'CompileError' };
 /** Agent output failed runtime schema validation after the retry budget was spent. */
 export type SchemaValidationError = DomainErrorBase & { readonly tag: 'SchemaValidationError' };
@@ -34,7 +34,7 @@ export type SandboxSpawnError = DomainErrorBase & { readonly tag: 'SandboxSpawnE
 export type StorageError = DomainErrorBase & { readonly tag: 'StorageError' };
 /** Environment probing failed or returned an inconsistent snapshot. */
 export type ProberError = DomainErrorBase & { readonly tag: 'ProberError' };
-/** An agent RPC failed (provider outage, malformed transport frame, ...). */
+/** An agent RPC failed (provider outage, malformed transport frame, ...); also the sanctioned catch-all tag for runtime non-agent failures (deterministic gate failures, user aborts, step root-cause fallback — mirrors the `toDomainError` default). */
 export type AgentError = DomainErrorBase & { readonly tag: 'AgentError' };
 /** An MCP client/server exchange failed. */
 export type McpError = DomainErrorBase & { readonly tag: 'McpError' };
@@ -240,8 +240,7 @@ function malformedSerializedError(reason: string): DomainError {
 /**
  * Convert an arbitrary thrown value into a {@link DomainError}. Total — never throws.
  *
- * The boundary fallback rule (untyped exceptions must never cross a module or
- * process boundary): a value that
+ * The boundary fallback rule (GOAL.md 禁止未经类型化的异常穿透边界): a value that
  * already speaks the algebra passes through unchanged; an `Error` keeps its message
  * verbatim with its class name preserved as `details.errorName` (so legacy
  * `WorkflowBudgetExceededError`-style names survive protocol round trips); any other
