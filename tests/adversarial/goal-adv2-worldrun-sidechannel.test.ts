@@ -1,4 +1,4 @@
-// PoC2 regression: the world.run side channel must not leak host credentials.
+// ADV2 regression: the world.run side channel must not leak host credentials.
 // Two defense layers are asserted:
 //   1. NAME whitelist — the grandchild spawned by FacadeEngine.spawnCaptured
 //      (src/dwf/engine.ts) gets envAllowlist [GIT_CONFIG_GLOBAL, GIT_CONFIG_SYSTEM,
@@ -26,9 +26,9 @@ const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
 const fixture = path.join(repoRoot, 'tests', 'adversarial', 'fixtures', 'goal-cred-snoop-2-worldrun.ts');
 const DECOY = 'sk-decoy-123';
 
-describe('PoC2: world.run env side channel', () => {
+describe('ADV2: world.run env side channel', () => {
   test('decoy env var does not cross the sandbox boundary and any TOKEN= value in world.run output is redacted', () => {
-    const dbPath = path.join(os.tmpdir(), `goal-poc2-${process.pid}-${Date.now()}.sqlite`);
+    const dbPath = path.join(os.tmpdir(), `goal-adv2-${process.pid}-${Date.now()}.sqlite`);
     try {
       const res = spawnSync(
         process.execPath,

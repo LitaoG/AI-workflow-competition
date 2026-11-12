@@ -27,7 +27,7 @@ const testSuites = [
 
 console.log('================================================================');
 console.log('   AI-WORKFLOW ADVERSARIAL STRESS CHALLENGE RUNNER (TIER 5)');
-console.log('   Empirical Challenger: challenger_m1_it2_1 & challenger_m1_it2_2');
+console.log('   Adversarial hardening suites');
 console.log('================================================================\n');
 
 async function runSuite(suitePath) {

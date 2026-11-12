@@ -1,5 +1,5 @@
 /**
- * PoC-1 attack fixture — hostile sandbox child ("protocol poisoning").
+ * ADV-1 attack fixture — hostile sandbox child ("protocol poisoning").
  *
  * TEST-GOAL 阶段4.2 攻防: this entry impersonates the sandbox child (same spawn
  * contract as src/dwf/child-main.js: `node <entry> <scriptJsPath> <argsJsPath>`)
@@ -33,7 +33,7 @@ try {
 const write = (s) => process.stdout.write(s);
 
 function legitLogCallFrame(message) {
-  return JSON.stringify({ t: 'call', id: logCallId, op: 'log', siteId: 'poc1', payload: [message] }) + '\n';
+  return JSON.stringify({ t: 'call', id: logCallId, op: 'log', siteId: 'adv1', payload: [message] }) + '\n';
 }
 function legitDoneFrame(value) {
   return JSON.stringify({ t: 'done', value }) + '\n';
@@ -82,7 +82,7 @@ async function main() {
       write(poisoned.slice(pcut));
       // B3: a "complete" frame carrying RAW unescaped control bytes in its payload —
       // illegal JSON per RFC 8259 (control chars must be escaped) → clean rejection.
-      write('{"t":"call","id":9,"op":"log","siteId":"poc1","payload":["raw\x00\x01\x1fctrl-must-be-rejected"]}\n');
+      write('{"t":"call","id":9,"op":"log","siteId":"adv1","payload":["raw\x00\x01\x1fctrl-must-be-rejected"]}\n');
       write(legitDoneFrame({ ok: 'torn-done' }));
       await sleep(300);
       return;
@@ -151,7 +151,7 @@ async function main() {
     }
 
     /** Scenario FLOODBOMB: UNTHROTTLED endless write loop (no yield, no byte cap).
-     *  Memory-bomb DoS PoC — measured to starve the parent event loop for as long
+     *  Memory-bomb DoS ADV — measured to starve the parent event loop for as long
      *  as the bomb runs (timeout bound does NOT hold). Kept out of the fast suite. */
     case 'floodbomb': {
       const garbage = '\x00 junk line \r\n';

@@ -1,16 +1,16 @@
 /**
- * PoC1 regression: 500-level deep type chain / true recursive type
+ * ADV1 regression: 500-level deep type chain / true recursive type
  * handed to ask<T> — resource bomb against the facade compiler's check.
  *
  * Attack (fixtures, not compiled by tsconfig — tests/adversarial excluded):
- *   tests/adversarial/fixtures/goal-poc1-deep-type.ts        — 500 nested interfaces A499→A0, ask<A499>
- *   tests/adversarial/fixtures/goal-poc1-recursive-cycle.ts  — self-referential Chain type
+ *   tests/adversarial/fixtures/goal-adv1-deep-type.ts        — 500 nested interfaces A499→A0, ask<A499>
+ *   tests/adversarial/fixtures/goal-adv1-recursive-cycle.ts  — self-referential Chain type
  *
  * Defense under test (src/dwf/schema-synth.ts):
  *   - MAX_DEPTH = 8  → diagnostic 9005 "ask<T> type nests deeper than 8 levels"
  *   - path-scoped seen-set → precise diagnostic 9015 "recursive type at site ask#N: <type>"
  * The check must TERMINATE with diagnostics (tooling-level catchable, run never starts),
- * never hang. Live PoC run measured ~1.2s wall for both (watchdog 120s never hit).
+ * never hang. Live ADV run measured ~1.2s wall for both (watchdog 120s never hit).
  *
  * Run style mirrors tests/pbt/engine-invariants.test.ts: node --test, imports from dist.
  */
@@ -25,13 +25,13 @@ import { analyzeFacadeScript } from '../../dist/src/dwf/compile.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const worktreeRoot = path.resolve(here, '..', '..');
-const deepFixture = path.join(here, 'fixtures', 'goal-poc1-deep-type.ts');
-const cycleFixture = path.join(here, 'fixtures', 'goal-poc1-recursive-cycle.ts');
+const deepFixture = path.join(here, 'fixtures', 'goal-adv1-deep-type.ts');
+const cycleFixture = path.join(here, 'fixtures', 'goal-adv1-recursive-cycle.ts');
 
 /** 60s hard upper bound per check — the ask's requirement: give a timeout upper bound. */
 const CHECK_WALL_BUDGET_MS = 60_000;
 
-describe('PoC1: ask<T> deep/recursive type resource bomb', () => {
+describe('ADV1: ask<T> deep/recursive type resource bomb', () => {
   test('check terminates with diagnostic 9005 on a 500-level type chain (no hang)', () => {
     const source = fs.readFileSync(deepFixture, 'utf8');
     const t0 = Date.now();

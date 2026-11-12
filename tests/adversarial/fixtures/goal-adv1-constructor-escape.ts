@@ -1,4 +1,4 @@
-// goal-poc1: classic VM escape — walk `({}).constructor.constructor` to Function and
+// goal-adv1: classic VM escape — walk `({}).constructor.constructor` to Function and
 // compile "return process" from a string inside the sandbox realm.
 //
 // Defense ① under test: `node bin/workflow.js check` static diagnostics.

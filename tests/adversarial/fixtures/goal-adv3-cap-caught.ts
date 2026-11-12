@@ -1,5 +1,5 @@
 /**
- * goal-poc3 (breaker, caught): 64 agents x 20 rounds = 1280 attempted asks — past the
+ * goal-adv3 (breaker, caught): 64 agents x 20 rounds = 1280 attempted asks — past the
  * engine's 1000-call cap (src/dwf/engine.ts:124, 286-294). Expected defense: ask #1001
  * rejects with WorkflowAgentCapError (catchable); the run survives and returns the cap
  * observation as its value.
@@ -8,7 +8,7 @@
  * so inside the vm realm `err instanceof Error` is false (different Error constructor) —
  * read name/message off the caught value structurally, as below.
  *
- * (Return-value observability: see goal-poc2-glob-caught.ts note.)
+ * (Return-value observability: see goal-adv2-glob-caught.ts note.)
  */
 phase('storm');
 const agents = Array.from({ length: 64 }, (_, i) => agent('swarm-' + i, { provider: 'mock' }));

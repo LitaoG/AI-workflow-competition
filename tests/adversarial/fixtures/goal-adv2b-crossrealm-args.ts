@@ -1,4 +1,4 @@
-// goal-poc2b: cross-realm Function leak via `args` → mainModule.require('child_process').
+// goal-adv2b: cross-realm Function leak via `args` → mainModule.require('child_process').
 //
 // The lowering rewrites the facade constant `args` to `__host.args` (src/dwf/lower.ts
 // isArgsReference), and `__host.args` is `JSON.parse(argsJson)` — an object created in

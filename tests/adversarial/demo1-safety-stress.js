@@ -1,6 +1,6 @@
 /**
  * Tier 5 Adversarial Stress Test: Demo Application 1 (Incident Triage & Remediation)
- * Empirical Challenger: challenger_m2_2
+ * Adversarial hardening suite
  *
  * Verifies:
  * 1. Adversarial Safety Attacks: 100% of destructive commands blocked deterministically

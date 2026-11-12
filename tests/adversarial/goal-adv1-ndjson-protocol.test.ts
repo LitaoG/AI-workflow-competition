@@ -1,12 +1,12 @@
 /**
- * PoC-1 回归测试 — child NDJSON 协议投毒（帧撕裂 / 粘包 / 垃圾行 / 伪造帧 / 静默超时）。
+ * ADV-1 回归测试 — child NDJSON 协议投毒（帧撕裂 / 粘包 / 垃圾行 / 伪造帧 / 静默超时）。
  *
- * 攻防：攻击脚本 tests/adversarial/fixtures/goal-poc1-frame-poison-child.mjs
+ * 攻防：攻击脚本 tests/adversarial/fixtures/goal-adv1-frame-poison-child.mjs
  * 通过 RunFacadeOptions.childEntryPath（src/dwf/runner.ts:53 测试钩子）顶替沙箱子进程，
  * 向真实父端解析器（src/dwf/runner.ts:373-390）投喂毒化字节流。
  *
  * import 风格参照 tests/pbt/engine-invariants.test.ts（node --test 直跑）：
- *   node --experimental-strip-types --test tests/adversarial/goal-poc1-ndjson-protocol.test.ts
+ *   node --experimental-strip-types --test tests/adversarial/goal-adv1-ndjson-protocol.test.ts
  *
  * 实测结论（2026-11-01, worktree feat/issue-28-goal-e2e-pentest @ 30eb54f）：
  * - 垃圾行 / 控制字节 / 断裂 JSON 被静默丢弃，不崩溃、不撕裂后续帧（当时 catch→continue；
@@ -24,12 +24,12 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runFacadeScript } from '../../dist/src/dwf/runner.js';
 
-const HOSTILE_CHILD = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'goal-poc1-frame-poison-child.mjs');
+const HOSTILE_CHILD = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'goal-adv1-frame-poison-child.mjs');
 
 const VICTIM_SCRIPT = 'phase("P1");\nreport({ victim: true });\nreturn { victim: "real" };\n';
 
 function makeWorkspace(): { dir: string; scriptPath: string } {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'goal-poc1-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'goal-adv1-'));
   const scriptPath = path.join(dir, 'victim.facade.ts');
   fs.writeFileSync(scriptPath, VICTIM_SCRIPT);
   return { dir, scriptPath };
@@ -81,7 +81,7 @@ async function runHostile(scenario: string, runTimeoutMs: number, onLog?: (messa
   }
 }
 
-describe('PoC-1: child NDJSON 协议投毒 — 父端解析器防线', () => {
+describe('ADV-1: child NDJSON 协议投毒 — 父端解析器防线', () => {
 
   test('A: 控制字节垃圾/CRLF/断裂JSON/错误形态行被干净丢弃，合法帧不受撕裂', async () => {
     const r = await runHostile('garbage', 30_000);
@@ -150,7 +150,7 @@ describe('PoC-1: child NDJSON 协议投毒 — 父端解析器防线', () => {
 // ---------------------------------------------------------------------------
 // 防线转正（原 describe.skip 缺口，Issue #34 修复后转为真实断言）
 // ---------------------------------------------------------------------------
-describe('PoC-1 防线: 持续输出洪泛不再打破超时上界 [已修复]', () => {
+describe('ADV-1 防线: 持续输出洪泛不再打破超时上界 [已修复]', () => {
   /**
    * 缺口记录[已验证 2026-11-01]：
    * 场景 fixture 'flood'（200MB 有界逐让洪泛）/ 'floodbomb'（无界不洪泛炸弹）：

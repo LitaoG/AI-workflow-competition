@@ -1,5 +1,5 @@
 /**
- * goal-poc3 (breaker, uncaught): same 1000-cap trip, NOT caught — expect structural
+ * goal-adv3 (breaker, uncaught): same 1000-cap trip, NOT caught — expect structural
  * run failure with the WorkflowAgentCapError message.
  */
 phase('storm');

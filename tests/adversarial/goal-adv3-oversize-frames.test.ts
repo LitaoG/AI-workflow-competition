@@ -1,17 +1,17 @@
 /**
- * PoC-3 回归测试 — 超限报文（1MB 级 / >32MB 级）经真实父端解析器与引擎。
+ * ADV-3 回归测试 — 超限报文（1MB 级 / >32MB 级）经真实父端解析器与引擎。
  *
  * 攻击：恶意/失控子进程经 NDJSON 通道投喂超大单帧（1 MiB / 33 MiB log 调用帧），
  * 或在脚本层用 report() 投喂超限条目 —— 验证"超限应产生可捕获错误而非挂死"。
  *
  * import 风格参照 tests/pbt/engine-invariants.test.ts（node --test 直跑）：
- *   node --experimental-strip-types --test tests/adversarial/goal-poc3-oversize-frames.test.ts
+ *   node --experimental-strip-types --test tests/adversarial/goal-adv3-oversize-frames.test.ts
  *
  * 实测结论（2026-11-01, worktree feat/issue-28-goal-e2e-pentest @ 30eb54f）：
  * - 1MB 帧：488ms 完整到达；33MB（34,603,008 字符）帧：4.6s 完整到达 —— 无帧长上限，
  *   无"干净拒绝"命名错误（缺口已在 Issue #34 修复 → 文件末 skip 已转正）
  * - report() 有真实的 1MB/条 命名拒绝防线（engine.ts ReportCapExceeded）
- * - 静默子进程的整跑超时上界成立（PoC-1 D 已断言），flood 场景破界（PoC-1 已转正）
+ * - 静默子进程的整跑超时上界成立（ADV-1 D 已断言），flood 场景破界（ADV-1 已转正）
  */
 import { test, describe } from 'node:test';
 import * as assert from 'node:assert/strict';
@@ -21,7 +21,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runFacadeScript } from '../../dist/src/dwf/runner.js';
 
-const HOSTILE_CHILD = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'goal-poc1-frame-poison-child.mjs');
+const HOSTILE_CHILD = path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'goal-adv1-frame-poison-child.mjs');
 
 const VICTIM_SCRIPT = 'phase("P1");\nreturn { victim: "real" };\n';
 
@@ -29,10 +29,10 @@ function cleanup(dir: string): void {
   try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* Windows 句柄延迟释放 */ }
 }
 
-describe('PoC-3: 超限报文 — 大帧到达性与可捕获错误', () => {
+describe('ADV-3: 超限报文 — 大帧到达性与可捕获错误', () => {
 
   test('1MB log 帧: 完整到达、run 干净完成、墙钟受界', async () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'goal-poc3-mb1-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'goal-adv3-mb1-'));
     try {
       const scriptPath = path.join(dir, 'victim.facade.ts');
       fs.writeFileSync(scriptPath, VICTIM_SCRIPT);
@@ -59,7 +59,7 @@ describe('PoC-3: 超限报文 — 大帧到达性与可捕获错误', () => {
   });
 
   test('>32MB log 帧: 命名拒绝、不挂死、墙钟受界（Issue #34 帧预算，替代原"完整到达"现状固化）', async () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'goal-poc3-mb33-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'goal-adv3-mb33-'));
     try {
       const scriptPath = path.join(dir, 'victim.facade.ts');
       fs.writeFileSync(scriptPath, VICTIM_SCRIPT);
@@ -94,7 +94,7 @@ describe('PoC-3: 超限报文 — 大帧到达性与可捕获错误', () => {
     // 故这里直驱 FacadeEngine.handleCall 断言引擎侧防线本体；端到端路径 → 文件末 skip。
     const { FacadeEngine } = await import('../../dist/src/dwf/engine.js');
     const engine = new FacadeEngine({
-      runId: 'poc3-report-cap',
+      runId: 'adv3-report-cap',
       workspace: process.cwd(),
       store: {
         saveDwfNode: async () => {},
@@ -117,7 +117,7 @@ describe('PoC-3: 超限报文 — 大帧到达性与可捕获错误', () => {
   test('ask 超限 prompt 被 wire 层命名拒绝（33MB prompt → ChildFrameLimitExceeded）', async () => {
     // Issue #34 修复后行为：33MB prompt 经 args→child→wire，单行超 16MB 帧预算
     // → killTree + 命名拒绝（对照原"无上限全程可达"现状固化，已随修复改写）。
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'goal-poc3-ask33-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'goal-adv3-ask33-'));
     try {
       const scriptPath = path.join(dir, 'big.facade.ts');
       fs.writeFileSync(scriptPath, [
@@ -146,7 +146,7 @@ describe('PoC-3: 超限报文 — 大帧到达性与可捕获错误', () => {
 // ---------------------------------------------------------------------------
 // 防线转正（原 describe.skip 缺口，Issue #34 修复后转为真实断言）
 // ---------------------------------------------------------------------------
-describe('PoC-3 防线: NDJSON 通道帧预算 + 引擎入口载荷上限 [已修复]', () => {
+describe('ADV-3 防线: NDJSON 通道帧预算 + 引擎入口载荷上限 [已修复]', () => {
   /**
    * 缺口 2（GAP-01 载荷丢失）已由 child-main 边界签名修复闭合 —— report 的
    * 真实超限条目可达引擎侧 1MB/条 上限，端到端断言转正。
@@ -166,7 +166,7 @@ describe('PoC-3 防线: NDJSON 通道帧预算 + 引擎入口载荷上限 [已�
    *   （本协议无分片层，1MB 物理帧档不适用）。
    */
   test('33MB 帧应被命名上限拒绝（ChildFrameLimitExceeded）', async () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'goal-poc3-skip-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'goal-adv3-skip-'));
     try {
       const scriptPath = path.join(dir, 'victim.facade.ts');
       fs.writeFileSync(scriptPath, VICTIM_SCRIPT);
@@ -189,7 +189,7 @@ describe('PoC-3 防线: NDJSON 通道帧预算 + 引擎入口载荷上限 [已�
   });
 
   test('超限 report 条目端到端应触发 ReportCapExceeded（per-item cap）', async () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'goal-poc3-report-skip-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'goal-adv3-report-skip-'));
     try {
       const scriptPath = path.join(dir, 'big.facade.ts');
       fs.writeFileSync(scriptPath, 'phase("Cap");\nawait report({ blob: "R".repeat(1000001) });\nreturn 1;\n');
@@ -212,7 +212,7 @@ describe('PoC-3 防线: NDJSON 通道帧预算 + 引擎入口载荷上限 [已�
     // 超限 ask 不进入 seat/FIFO/预算路径，直接以 ChildFrameLimitExceeded 拒绝。
     const { FacadeEngine } = await import('../../dist/src/dwf/engine.js');
     const engine = new FacadeEngine({
-      runId: 'poc3-boundary-cap',
+      runId: 'adv3-boundary-cap',
       workspace: process.cwd(),
       store: {
         saveDwfNode: async () => {},

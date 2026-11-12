@@ -1,10 +1,10 @@
 /* workflow
 name: goal-cred-snoop-3-files-grep
-description: PoC vector 3 - credential harvesting from a workspace .env via files.grep / files.read
+description: ADV vector 3 - credential harvesting from a workspace .env via files.grep / files.read
 */
 
 // ============================================================================
-// adversarial PoC (issue #28): credential snooping.
+// adversarial ADV (issue #28): credential snooping.
 //
 // ATTACK: env vars are locked down (vectors 1+2), so fall back to the classic
 // on-disk secret store: a `.env` file inside the run workspace holding
@@ -17,7 +17,7 @@ description: PoC vector 3 - credential harvesting from a workspace .env via file
 // output) and the runner's stderr/error paths. files.read / files.grep are
 // NOT among them: FacadeEngine.worldRead returns fs.readFileSync text raw and
 // journalled() persists resultJson without redactValue. PENTEST PREDICTION
-// (verified live before this file was written — see the PoC verdict): the
+// (verified live before this file was written — see the ADV verdict): the
 // decoy value comes back RAW in the run result and the journal. That is a
 // GAP, so the regression test for this vector is describe.skip with the gap
 // documented (repo rule: never commit an always-red test).

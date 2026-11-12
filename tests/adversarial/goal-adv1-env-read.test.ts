@@ -1,4 +1,4 @@
-// PoC1 regression: a facade script must NOT be able to read host credentials out
+// ADV1 regression: a facade script must NOT be able to read host credentials out
 // of process.env — the compile-time purity gate bans the `process` identifier
 // outright (src/dwf/compile.ts BANNED_IDENTIFIERS, diagnostic 9002).
 //
@@ -21,9 +21,9 @@ const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
 const fixture = path.join(repoRoot, 'tests', 'adversarial', 'fixtures', 'goal-cred-snoop-1-env-read.ts');
 const DECOY = 'sk-decoy-123';
 
-describe('PoC1: static interception of process.env credential reads', () => {
+describe('ADV1: static interception of process.env credential reads', () => {
   test('run-script rejects the env-read script with purity-ban 9002 and the decoy value never reaches any output', () => {
-    const dbPath = path.join(os.tmpdir(), `goal-poc1-${process.pid}-${Date.now()}.sqlite`);
+    const dbPath = path.join(os.tmpdir(), `goal-adv1-${process.pid}-${Date.now()}.sqlite`);
     try {
       const res = spawnSync(
         process.execPath,

@@ -15,7 +15,7 @@
  * (logicalFrameAssemblyMaxBytes)，残留积压预算取官方 32MB staged 上限。字符
  * 长度作字节预算的代理（setEncoding('utf8') 后 code units ≤ 字节数），防线
  * 方向为宽松（不误杀合法帧）；ASCII 超限拒绝路径由
- * tests/adversarial/goal-poc3-oversize-frames.test.ts 实测锁定。
+ * tests/adversarial/goal-adv3-oversize-frames.test.ts 实测锁定。
  */
 import type { ChildToParent } from './protocol.js';
 

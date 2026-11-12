@@ -1,6 +1,6 @@
 /**
  * Tier 5 Adversarial Stress Challenge Suite: Demo App 2 (Repo Migration Engine)
- * Empirical Challenger: challenger_m3_2
+ * Adversarial hardening suite
  *
  * Verifies:
  * 1. Adversarial Gate Failure Handling:

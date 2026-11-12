@@ -1,10 +1,10 @@
 /* workflow
 name: goal-cred-snoop-2-worldrun
-description: PoC vector 2 - side-channel credential readback via world.run subprocess env
+description: ADV vector 2 - side-channel credential readback via world.run subprocess env
 */
 
 // ============================================================================
-// adversarial PoC (issue #28): credential snooping.
+// adversarial ADV (issue #28): credential snooping.
 //
 // ATTACK: the facade script cannot touch process.env itself (vector 1 is
 // statically banned), so it delegates to a grandchild process through
@@ -24,7 +24,7 @@ description: PoC vector 2 - side-channel credential readback via world.run subpr
 //    through redactText (src/dwf/redact.ts) before the script or the journal
 //    ever sees them: any `TOKEN=<value>` KV shape becomes TOKEN=***REDACTED***.
 //
-// The regression test tests/adversarial/goal-poc2-worldrun.test.ts asserts the
+// The regression test tests/adversarial/goal-adv2-worldrun.test.ts asserts the
 // decoy value appears in NO output, and that the grandchild env key dump shows
 // the decoy key absent.
 // ============================================================================

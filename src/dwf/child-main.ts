@@ -7,7 +7,7 @@
  * realm has no `process`, no `require`, no `fetch`.
  *
  * The PreSeed rules below are not speculative hardening — they close a breach that
- * was actually exploited. PoC2b (cross-realm Function escape; captured in the
+ * was actually exploited. ADV2b (cross-realm Function escape; captured in the
  * adversarial regression run dwfrun-01748f21, Issue
  * #31): the pre-#31 shape parsed args in the HOST
  * realm and injected the whole object graph into the sandbox, so
@@ -100,14 +100,14 @@ async function main(): Promise<void> {
   const rl = readline.createInterface({ input: process.stdin, terminal: false });
   const scriptText = fs.readFileSync(scriptJsPath, 'utf8');
 
-  // 预Seed sandbox（Issue #31，PoC2b 的根因修复）：跨界入站只有原语（__argsJson
+  // 预Seed sandbox（Issue #31，ADV2b 的根因修复）：跨界入站只有原语（__argsJson
   // 字符串、__budgetTotal number|null）与两个即捕即删的能力（__send / __timer，
   // 由 BOOTSTRAP 捕获进闭包后从 realm 全局物理 delete）；严禁在宿主域构造对象图
-  // 注入 —— 宿主对象的 .constructor.constructor 就是宿主 Function，正是 PoC2b
+  // 注入 —— 宿主对象的 .constructor.constructor 就是宿主 Function，正是 ADV2b
   // 逃逸的根因。null 原型使 sandbox 自身原型链不可能漏进全局查找（实测普通 {}
   // 作 sandbox 时 globalThis.constructor 会沿宿主 Object.prototype 解析到宿主
   // Function 并成功编译字符串 = 逃逸；contextified sandbox 的原型属性会泄成
-  // realm 全局，见 PoC2b 跨域逃逸回归记录）。
+  // realm 全局，见 ADV2b 跨域逃逸回归记录）。
   const sandbox: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
   sandbox.__argsJson = argsJson;
   sandbox.__budgetTotal = seededBudgetTotal;
@@ -125,7 +125,7 @@ async function main(): Promise<void> {
     // function being invoked, so it stops compilation on this realm's own intrinsics
     // cold (realm Function("...") → EvalError) but is powerless against a leaked
     // host-realm Function, which compiles under the host realm's unrestricted policy
-    // — the exact channel PoC2b used (probe-verified). What actually closes that
+    // — the exact channel ADV2b used (probe-verified). What actually closes that
     // hole is the PreSeed seeding above: nothing host-realm ever becomes
     // script-reachable.
     codeGeneration: { strings: false, wasm: false },

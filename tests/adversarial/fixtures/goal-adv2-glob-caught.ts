@@ -1,5 +1,5 @@
 /**
- * goal-poc2 (caught form): same 3000-file bomb; the script catches the rejection and
+ * goal-adv2 (caught form): same 3000-file bomb; the script catches the rejection and
  * returns it as the run value.
  *
  * Expected defense: the cap surfaces as a catchable Promise rejection carrying the

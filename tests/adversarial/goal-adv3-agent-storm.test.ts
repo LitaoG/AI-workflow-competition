@@ -1,11 +1,11 @@
 /**
- * PoC3 regression: agent storm — 64 concurrent mock subagents, and a
+ * ADV3 regression: agent storm — 64 concurrent mock subagents, and a
  * 1280-ask loop that runs into the 1000-call cap.
  *
  * Attack (fixtures, run byte-identical from a temp run dir built by this test):
- *   tests/adversarial/fixtures/goal-poc3-agent-storm.ts  — 64 agents x 1 ask, Promise.all
- *   tests/adversarial/fixtures/goal-poc3-cap-caught.ts   — 64 x 20 = 1280 asks, cap caught
- *   tests/adversarial/fixtures/goal-poc3-cap-uncaught.ts — same trip, uncaught
+ *   tests/adversarial/fixtures/goal-adv3-agent-storm.ts  — 64 agents x 1 ask, Promise.all
+ *   tests/adversarial/fixtures/goal-adv3-cap-caught.ts   — 64 x 20 = 1280 asks, cap caught
+ *   tests/adversarial/fixtures/goal-adv3-cap-uncaught.ts — same trip, uncaught
  *
  * Defenses under test:
  *   - src/dwf/engine.ts:418-431  withAskSeat FIFO seat gate (maxConcurrency, engine
@@ -13,14 +13,14 @@
  *     ask executes exactly once (journal: 64 completed ask nodes), nothing crashes.
  *   - src/dwf/engine.ts:124 + 286-294  AGENT_CALL_CAP = 1000 → ask #1001 rejects with
  *     WorkflowAgentCapError; CATCHABLE in-script (run survives), uncaught it fails the
- *     run structurally. Live PoC run: 1280 attempted, 1000 executed, error at ask#3.
+ *     run structurally. Live ADV run: 1280 attempted, 1000 executed, error at ask#3.
  *   - src/dwf/governor.ts:1-4  the AIMD bucket "Providers without signals (mock) never
  *     trip it" — scheduling stays clean under the mock storm (asserted via full success).
  *
  * Observability: caught fixtures carry their observations in the run's RETURN VALUE
  * (result.value) — script-level log()/report() content is dropped by the child realm
  * (child-main.ts:95-96 forwards the lowered site id, lower.ts:137-141, as the payload;
- * found during this PoC, reported to the run owner).
+ * found during this ADV, reported to the run owner).
  */
 import { test, describe } from 'node:test';
 import * as assert from 'node:assert/strict';
@@ -32,15 +32,15 @@ import { fileURLToPath } from 'node:url';
 import { runFacadeScript } from '../../dist/src/dwf/runner.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const stormFixture = path.join(here, 'fixtures', 'goal-poc3-agent-storm.ts');
-const capCaughtFixture = path.join(here, 'fixtures', 'goal-poc3-cap-caught.ts');
-const capUncaughtFixture = path.join(here, 'fixtures', 'goal-poc3-cap-uncaught.ts');
+const stormFixture = path.join(here, 'fixtures', 'goal-adv3-agent-storm.ts');
+const capCaughtFixture = path.join(here, 'fixtures', 'goal-adv3-cap-caught.ts');
+const capUncaughtFixture = path.join(here, 'fixtures', 'goal-adv3-cap-uncaught.ts');
 
-const SEAT = 4; // CLI -c default, mirrors the live PoC run
+const SEAT = 4; // CLI -c default, mirrors the live ADV run
 const RUN_WALL_BUDGET_MS = 55_000; // per-run bound; each test file stays far under 60s
 
 async function makeRunDir(fixture: string): Promise<string> {
-  const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'goal-poc3-storm-'));
+  const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'goal-adv3-storm-'));
   await fs.promises.copyFile(fixture, path.join(dir, 'attack.ts'));
   return dir;
 }
@@ -57,7 +57,7 @@ async function rmRunDir(dir: string): Promise<void> {
       return;
     } catch (err) {
       if (attempt === 5) {
-        console.warn(`goal-poc3: temp run dir not removable yet (child exit race): ${(err as Error).message}`);
+        console.warn(`goal-adv3: temp run dir not removable yet (child exit race): ${(err as Error).message}`);
         return;
       }
       await new Promise((r) => setTimeout(r, 250));
@@ -65,14 +65,14 @@ async function rmRunDir(dir: string): Promise<void> {
   }
 }
 
-describe('PoC3: 64-agent mock storm and the 1000-call breaker', () => {
+describe('ADV3: 64-agent mock storm and the 1000-call breaker', () => {
   test('64 concurrent mock agents: run completes, all 64 asks journalled completed', async () => {
     const dir = await makeRunDir(stormFixture);
     try {
       const result = await runFacadeScript({
         scriptPath: path.join(dir, 'attack.ts'),
         cwd: dir,
-        dbPath: path.join(dir, '.workflow', 'poc3.db'),
+        dbPath: path.join(dir, '.workflow', 'adv3.db'),
         maxConcurrency: SEAT,
         runTimeoutMs: RUN_WALL_BUDGET_MS,
       });
@@ -91,7 +91,7 @@ describe('PoC3: 64-agent mock storm and the 1000-call breaker', () => {
       const result = await runFacadeScript({
         scriptPath: path.join(dir, 'attack.ts'),
         cwd: dir,
-        dbPath: path.join(dir, '.workflow', 'poc3.db'),
+        dbPath: path.join(dir, '.workflow', 'adv3.db'),
         maxConcurrency: SEAT,
         runTimeoutMs: RUN_WALL_BUDGET_MS,
       });
@@ -112,7 +112,7 @@ describe('PoC3: 64-agent mock storm and the 1000-call breaker', () => {
       const result = await runFacadeScript({
         scriptPath: path.join(dir, 'attack.ts'),
         cwd: dir,
-        dbPath: path.join(dir, '.workflow', 'poc3.db'),
+        dbPath: path.join(dir, '.workflow', 'adv3.db'),
         maxConcurrency: SEAT,
         runTimeoutMs: RUN_WALL_BUDGET_MS,
       });

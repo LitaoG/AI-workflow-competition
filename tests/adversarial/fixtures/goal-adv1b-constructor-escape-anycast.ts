@@ -1,4 +1,4 @@
-// goal-poc1b: goal-poc1 with an `any` cast so the static layer sees nothing
+// goal-adv1b: goal-adv1 with an `any` cast so the static layer sees nothing
 // (Function-typed value becomes any → no TS2349; no banned identifier referenced).
 // This variant measures defense ② alone: the vm realm's own Function constructor
 // must refuse string compilation (EvalError) when the static layer is bypassed.

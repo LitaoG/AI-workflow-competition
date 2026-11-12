@@ -1,27 +1,27 @@
 /**
- * 攻防回归 — PoC2: 跨 realm Function 逃逸 → process → child_process.
+ * 攻防回归 — ADV2: 跨 realm Function 逃逸 → process → child_process.
  *
  * Attack fixtures:
- *  - goal-poc2-crossrealm-function.ts — direct host-object route via Date.parse (statically caught);
- *  - goal-poc2b-crossrealm-args.ts — static-clean route via `args` (lowered to __host.args,
+ *  - goal-adv2-crossrealm-function.ts — direct host-object route via Date.parse (statically caught);
+ *  - goal-adv2b-crossrealm-args.ts — static-clean route via `args` (lowered to __host.args,
  *    a HOST-realm JSON.parse object, src/dwf/child-main.ts:107);
- *  - goal-poc2c-spawn-sync.ts — with host process in hand: process.binding('spawn_sync') code-exec proof.
+ *  - goal-adv2c-spawn-sync.ts — with host process in hand: process.binding('spawn_sync') code-exec proof.
  *
  * Measured matrix (node v22.23.2):
- *  - Defense ① on poc2: 3× diagnostic 9002 purity-ban ("Date.parse() is banned") — HELD.
- *  - Defense ① on poc2b/2c: ok:true — STATIC GAP (args is a declared facade primitive;
+ *  - Defense ① on adv2: 3× diagnostic 9002 purity-ban ("Date.parse() is banned") — HELD.
+ *  - Defense ① on adv2b/2c: ok:true — STATIC GAP (args is a declared facade primitive;
  *    .constructor chains and string-embedded code are invisible to compile.ts rules).
- *  - Defense ② on poc2b: BREACHED — run completed with hostProcess:"object"
+ *  - Defense ② on adv2b: BREACHED — run completed with hostProcess:"object"
  *    (host process captured); mainModule-undefined (child-main.js is ESM) and dynamic
  *    import inside host-compiled code throws "A dynamic import callback was not
  *    specified" — module routes are dead, but:
- *  - Defense ② on poc2c: BREACHED — process.binding('spawn_sync').spawn executed
+ *  - Defense ② on adv2c: BREACHED — process.binding('spawn_sync').spawn executed
  *    `cmd /c exit 42` (observed status 42) and wrote a file OUTSIDE the workspace
  *    (scratch marker), while the run reported completed (exit 0).
  *
  * Issue #31 closure (2026-11-02):
  *  - Static layer (GAP-02, already on main before #31): any .constructor/.prototype/
- *    ["constructor"] access is refused 9002 — poc2b/2c check ok:false; run-script dies
+ *    ["constructor"] access is refused 9002 — adv2b/2c check ok:false; run-script dies
  *    at the compile gate ("逃逸链在编译期即死，不再进入沙箱", Sandboxed Process Isolation & Supervision Specification §2.4).
  *  - Runtime layer (Issue #31 预Seed): args is rebuilt INSIDE the realm from the
  *    __argsJson string (realm-native arg seeding discipline), so its prototype
@@ -40,9 +40,9 @@ import { fileURLToPath } from 'node:url';
 import { spawn, spawnSync } from 'node:child_process';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const POC2 = path.join(ROOT, 'tests', 'adversarial', 'fixtures', 'goal-poc2-crossrealm-function.ts');
-const POC2B = path.join(ROOT, 'tests', 'adversarial', 'fixtures', 'goal-poc2b-crossrealm-args.ts');
-const POC2C = path.join(ROOT, 'tests', 'adversarial', 'fixtures', 'goal-poc2c-spawn-sync.ts');
+const POC2 = path.join(ROOT, 'tests', 'adversarial', 'fixtures', 'goal-adv2-crossrealm-function.ts');
+const POC2B = path.join(ROOT, 'tests', 'adversarial', 'fixtures', 'goal-adv2b-crossrealm-args.ts');
+const POC2C = path.join(ROOT, 'tests', 'adversarial', 'fixtures', 'goal-adv2c-spawn-sync.ts');
 const CHILD_MAIN = path.join(ROOT, 'dist', 'src', 'dwf', 'child-main.js');
 const SPAWN_TIMEOUT_MS = 45_000;
 
@@ -55,7 +55,7 @@ function runCli(args: string[]): ReturnType<typeof spawnSync> {
   });
 }
 
-test('PoC2 defense ①: the Date.parse host-object route is refused statically with purity-ban(9002)', () => {
+test('ADV2 defense ①: the Date.parse host-object route is refused statically with purity-ban(9002)', () => {
   const r = runCli(['check', '-j', POC2]);
 
   assert.equal(r.error, undefined, `check did not settle in time: ${String(r.error)}`);
@@ -70,12 +70,12 @@ test('PoC2 defense ①: the Date.parse host-object route is refused statically w
   assert.ok(purityBans.length >= 3, `expected >=3 code-9002 purity-ban diagnostics, got: ${JSON.stringify(analysis.diagnostics)}`);
 });
 
-describe('PoC2 defense ②: args-route host Function escape is sealed (GAP-02 static + Issue #31 runtime preseed)', () => {
+describe('ADV2 defense ②: args-route host Function escape is sealed (GAP-02 static + Issue #31 runtime preseed)', () => {
   // 原缺口（实测 2026-11-01，node v22.23.2，Issue #31 修复前）：
-  //  1. goal-poc2b-crossrealm-args.ts passes `check` clean (ok:true) and its run-script
+  //  1. goal-adv2b-crossrealm-args.ts passes `check` clean (ok:true) and its run-script
   //     COMPLETES with result {"hostProcess":"object",...} — the script captured the
   //     child host's real `process` object via args.constructor.constructor("return process")().
-  //  2. goal-poc2c-spawn-sync.ts (also check-clean) COMPLETES with
+  //  2. goal-adv2c-spawn-sync.ts (also check-clean) COMPLETES with
   //     {"spawnSync":"EXIT42:42:..."} — process.binding('spawn_sync') executed a
   //     command with an attacker-chosen exit status and wrote a marker file OUTSIDE
   //     the workspace; the parent reported the run as completed (exit 0).
@@ -91,7 +91,7 @@ describe('PoC2 defense ②: args-route host Function escape is sealed (GAP-02 st
   // 静态层断言在 ②a/②b（GAP-02 后 run-script 在编译门即 exit 1，逃逸根本进不了
   // realm——模板设想的 realm EvalError 只能由绕过编译器的 raw probe 断言，见 ②c）。
 
-  test('PoC2 defense ②a: poc2b/2c are refused at compile time with 9002 (GAP-02 static gate)', () => {
+  test('ADV2 defense ②a: adv2b/2c are refused at compile time with 9002 (GAP-02 static gate)', () => {
     for (const fixture of [POC2B, POC2C]) {
       const r = runCli(['check', '-j', fixture]);
       assert.equal(r.error, undefined, `check did not settle in time: ${String(r.error)}`);
@@ -108,8 +108,8 @@ describe('PoC2 defense ②: args-route host Function escape is sealed (GAP-02 st
     }
   });
 
-  test('PoC2 defense ②b: run-script refuses poc2b at the compile gate — the escape never reaches the realm', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'goal-poc2-run-'));
+  test('ADV2 defense ②b: run-script refuses adv2b at the compile gate — the escape never reaches the realm', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'goal-adv2-run-'));
     try {
       const r = runCli(['run-script', POC2B, '--db', path.join(dir, 'journal.sqlite')]);
       assert.equal(r.error, undefined, `run-script did not settle in time: ${String(r.error)}`);
@@ -125,8 +125,8 @@ describe('PoC2 defense ②: args-route host Function escape is sealed (GAP-02 st
     }
   });
 
-  test('PoC2 defense ②c: raw realm probe (compiler bypassed) — args.constructor.constructor cannot reach host process', async () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'goal-poc2-realm-'));
+  test('ADV2 defense ②c: raw realm probe (compiler bypassed) — args.constructor.constructor cannot reach host process', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'goal-adv2-realm-'));
     try {
       // Computed access ("con"+"structor") is invisible to the compile gate's
       // string-literal rules — this probe bypasses the compiler entirely to pin the

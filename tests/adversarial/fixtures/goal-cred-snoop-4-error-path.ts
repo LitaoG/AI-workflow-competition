@@ -1,10 +1,10 @@
 /* workflow
 name: goal-cred-snoop-4-error-path
-description: PoC vector 4 - credential exfil attempt through the script error path (files.read then throw)
+description: ADV vector 4 - credential exfil attempt through the script error path (files.read then throw)
 */
 
 // ============================================================================
-// adversarial PoC (issue #28): credential snooping.
+// adversarial ADV (issue #28): credential snooping.
 //
 // ATTACK: harvest the workspace .env (same as vector 3) but exfiltrate it
 // through the FAILURE channel — throw an Error whose message carries the raw

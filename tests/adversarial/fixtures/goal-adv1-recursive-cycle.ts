@@ -1,5 +1,5 @@
 /**
- * goal-poc1 variant: a TRUE self-referential type handed to ask<T>.
+ * goal-adv1 variant: a TRUE self-referential type handed to ask<T>.
  *
  * Attack goal: infinite recursion inside the schema synthesizer (stack overflow /
  * hang). Expected defense (src/dwf/schema-synth.ts): the path-scoped seen-set detects
@@ -7,7 +7,7 @@
  * <typeName>") instead of burning the depth stack.
  *
  * Not compiled by tsconfig; consumed by the CLI "check" command and
- * tests/adversarial/goal-poc1-deep-type.test.ts.
+ * tests/adversarial/goal-adv1-deep-type.test.ts.
  */
 phase('probe');
 

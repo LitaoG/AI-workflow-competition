@@ -1,7 +1,7 @@
 /**
- * goal-poc2 (uncaught form): a workspace holding 3000 files vs `files.glob('*.txt')` —
+ * goal-adv2 (uncaught form): a workspace holding 3000 files vs `files.glob('*.txt')` —
  * past the 2000-file cap. Run it with the CWD set to a directory containing 3000
- * `*.txt` files (the regression test goal-poc2-glob-bomb.test.ts builds that bomb in a
+ * `*.txt` files (the regression test goal-adv2-glob-bomb.test.ts builds that bomb in a
  * temp dir and runs this fixture byte-identical from there).
  *
  * Expected defense (src/dwf/engine.ts:595-599 + src/dwf/glob.ts:54): the walk collects

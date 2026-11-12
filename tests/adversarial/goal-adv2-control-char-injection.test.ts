@@ -1,5 +1,5 @@
 /**
- * PoC-2 回归测试 — 控制字符注入（\r\n、\u0000-\u001f、\u2028/\u2029）经
+ * ADV-2 回归测试 — 控制字符注入（\r\n、\u0000-\u001f、\u2028/\u2029）经
  * ask 提示与 log 通道打进真实 compile→lower→sandbox-child→engine→journal 管线。
  *
  * 攻击载荷经 --args（JSON 文件，G4：argv 32KB 限制规避）携带 RAW 控制字符进入
@@ -7,7 +7,7 @@
  * ask 调用将被丢弃，run 必然失败/挂死；若 journal 完整，inputHash 逐字节可验证。
  *
  * import 风格参照 tests/pbt/engine-invariants.test.ts（node --test 直跑）：
- *   node --experimental-strip-types --test tests/adversarial/goal-poc2-control-char-injection.test.ts
+ *   node --experimental-strip-types --test tests/adversarial/goal-adv2-control-char-injection.test.ts
  *
  * 实测结论（2026-11-01, worktree feat/issue-28-goal-e2e-pentest @ 30eb54f）：
  * - 315KB 控制字符载荷经 ask 通道全程字节级完整（journal inputHash EXACT）
@@ -49,13 +49,13 @@ function cleanup(dir: string): void {
   try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* Windows 句柄延迟释放 */ }
 }
 
-describe('PoC-2: 控制字符注入 — ask 通道帧完整性', () => {
+describe('ADV-2: 控制字符注入 — ask 通道帧完整性', () => {
 
   test('315KB 控制字符载荷经 ask 通道全程字节级完整（journal inputHash EXACT）', async () => {
     const PAYLOAD = poison(300_000);
     assert.ok(PAYLOAD.includes('\x00') && PAYLOAD.includes('\r\n') && PAYLOAD.includes('\u2028'));
 
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'goal-poc2-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'goal-adv2-'));
     try {
       // ask 提示 + log 双通道同时投毒；帧若撕裂，JSON.parse 失败 → 调用被丢 → run 失败
       const SCRIPT = [
@@ -120,7 +120,7 @@ describe('PoC-2: 控制字符注入 — ask 通道帧完整性', () => {
     // 防线[已验证]：child-main 的 realm 全局（child-main.ts:215-246 makeSandboxGlobals）
     // 不含 process；Node 注入的 per-context console 不与进程 fd1/fd2 相连。
     // 攻击面：若 console 输出直达子进程 stdout，攻击者可注入 {"t":"done",...} 伪造终态。
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'goal-poc2-realm-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'goal-adv2-realm-'));
     try {
       const payloadPath = path.join(dir, 'probe.js');
       fs.writeFileSync(payloadPath, [
@@ -158,7 +158,7 @@ describe('PoC-2: 控制字符注入 — ask 通道帧完整性', () => {
 // ---------------------------------------------------------------------------
 // 防线转正（原 describe.skip 缺口：GAP-01 载荷丢失回归，Issue #31 收口轮转正）
 // ---------------------------------------------------------------------------
-describe('PoC-2 log()/report() 通道 round-trip（GAP-01 已修复：child-main 适配 (siteId, ...args) 签名）', () => {
+describe('ADV-2 log()/report() 通道 round-trip（GAP-01 已修复：child-main 适配 (siteId, ...args) 签名）', () => {
   /**
    * 缺口记录[已验证 2026-11-01]：
    * lower.ts:138-141（bea9a05 "P3 hygiene batch" 起）把 log(msg)/report(item) 降级为
@@ -173,7 +173,7 @@ describe('PoC-2 log()/report() 通道 round-trip（GAP-01 已修复：child-main
    */
   test('log(PAYLOAD) 的 dwf_log 事件必须逐字节还原 315KB 控制字符载荷', async () => {
     const PAYLOAD = poison(300_000);
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'goal-poc2-log-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'goal-adv2-log-'));
     try {
       const scriptPath = path.join(dir, 'poison.facade.ts');
       fs.writeFileSync(scriptPath, 'phase("Poison");\nlog(String(args.payload));\nreturn 1;\n');

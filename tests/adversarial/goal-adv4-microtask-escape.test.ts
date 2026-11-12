@@ -1,11 +1,11 @@
 /**
- * 攻防回归 — PoC4: 异步 microtask 逃逸（审计点后执行）.
+ * 攻防回归 — ADV4: 异步 microtask 逃逸（审计点后执行）.
  *
- * Attack fixture: tests/adversarial/fixtures/goal-poc4-microtask-escape.ts
+ * Attack fixture: tests/adversarial/fixtures/goal-adv4-microtask-escape.ts
  * The script's synchronous surface is benign (returns "POC4-benign-main"); a
  * Promise.resolve().then() microtask fires after the main body returned and before
  * the done frame is emitted (child-main.ts awaits the runner promise; its continuation
- * is queued after the script's own microtasks). The microtask uses the PoC2b escape to
+ * is queued after the script's own microtasks). The microtask uses the ADV2b escape to
  * forge a done frame straight onto child stdout; the parent settles the run with the
  * ATTACKER-chosen value and silently ignores the real done frame (src/dwf/runner.ts
  * handleChildFrame returns early once settled).
@@ -18,7 +18,7 @@
  *    no hang — the forgery is indistinguishable from a legitimate completion.
  *
  * Issue #31 closure (2026-11-02):
- *  - The escape itself is PoC2b's (host-realm args object → host Function → process);
+ *  - The escape itself is ADV2b's (host-realm args object → host Function → process);
  *    the preseed fix rebuilds args INSIDE the realm, so the microtask's
  *    args.constructor.constructor lands on the realm Function and throws EvalError
  *    ("Code generation from strings disallowed") — swallowed by the fixture's own
@@ -40,7 +40,7 @@ import { fileURLToPath } from 'node:url';
 import { spawn, spawnSync } from 'node:child_process';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const POC4 = path.join(ROOT, 'tests', 'adversarial', 'fixtures', 'goal-poc4-microtask-escape.ts');
+const POC4 = path.join(ROOT, 'tests', 'adversarial', 'fixtures', 'goal-adv4-microtask-escape.ts');
 const CHILD_MAIN = path.join(ROOT, 'dist', 'src', 'dwf', 'child-main.js');
 
 function runCli(args: string[]): ReturnType<typeof spawnSync> {
@@ -52,16 +52,16 @@ function runCli(args: string[]): ReturnType<typeof spawnSync> {
   });
 }
 
-describe('PoC4 defense ②: a microtask cannot forge the done frame after the audit point (Issue #31 preseed)', () => {
-  // 原缺口（实测 2026-11-01，node v22.23.2）：goal-poc4-microtask-escape.ts passes
+describe('ADV4 defense ②: a microtask cannot forge the done frame after the audit point (Issue #31 preseed)', () => {
+  // 原缺口（实测 2026-11-01，node v22.23.2）：goal-adv4-microtask-escape.ts passes
   // check clean; run-script completes with result "MT-FORGED-DONE" while the script
-  // returned "POC4-benign-main". The escape itself is PoC2b's (host-realm args object
-  // → host Function → process.stdout.write of a forged {t:'done'} frame); what PoC4
+  // returned "POC4-benign-main". The escape itself is ADV2b's (host-realm args object
+  // → host Function → process.stdout.write of a forged {t:'done'} frame); what ADV4
   // adds is that the forged effect lands AFTER the synchronous audit point (the
   // return value) and the parent cannot distinguish it from a legitimate completion
   // (src/dwf/runner.ts ignores frames once settled — the real done frame is dropped).
 
-  test('PoC4 defense ①: the fixture is refused at compile time with 9002 (GAP-02 static gate)', () => {
+  test('ADV4 defense ①: the fixture is refused at compile time with 9002 (GAP-02 static gate)', () => {
     const r = runCli(['check', '-j', POC4]);
     assert.equal(r.error, undefined, `check did not settle in time: ${String(r.error)}`);
     assert.equal(r.status, 1, `expected exit 1, got ${String(r.status)}`);
@@ -69,20 +69,20 @@ describe('PoC4 defense ②: a microtask cannot forge the done frame after the au
       ok: boolean;
       diagnostics: Array<{ code: number; category: string; message: string }>;
     };
-    assert.equal(analysis.ok, false, 'the poc4 fixture must not compile clean any more');
+    assert.equal(analysis.ok, false, 'the adv4 fixture must not compile clean any more');
     const bans = analysis.diagnostics.filter((d) =>
       d.code === 9002 && d.category === 'purity-ban' && d.message.includes('"constructor" property access is banned'),
     );
     assert.ok(bans.length >= 1, `expected a 9002 constructor-chain ban, got: ${JSON.stringify(analysis.diagnostics)}`);
   });
 
-  test('PoC4 defense ②: raw realm probe (compiler bypassed) — the microtask escape throws and the run result stays benign', async () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'goal-poc4-realm-'));
+  test('ADV4 defense ②: raw realm probe (compiler bypassed) — the microtask escape throws and the run result stays benign', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'goal-adv4-realm-'));
     try {
       // The fixture's attack, verbatim, against the fixed realm: benign synchronous
       // return; a queued microtask tries the (statically invisible) concat-bypass
       // escape to forge a done frame onto child stdout.
-      const scriptPath = path.join(dir, 'poc4-probe.js');
+      const scriptPath = path.join(dir, 'adv4-probe.js');
       fs.writeFileSync(scriptPath, [
         'async function __workflowScript__() {',
         '  __host.log("POC4-main-start");',
@@ -100,7 +100,7 @@ describe('PoC4 defense ②: a microtask cannot forge the done frame after the au
         '}',
       ].join('\n'));
       const argsJsonPath = path.join(dir, 'args.json');
-      fs.writeFileSync(argsJsonPath, JSON.stringify({ probe: 'poc4' }));
+      fs.writeFileSync(argsJsonPath, JSON.stringify({ probe: 'adv4' }));
 
       const raw = await new Promise<{ stdout: string; stderr: string; code: number | null }>((resolve) => {
         const child = spawn(process.execPath, [CHILD_MAIN, scriptPath, argsJsonPath], {
@@ -109,7 +109,7 @@ describe('PoC4 defense ②: a microtask cannot forge the done frame after the au
         let stdout = ''; let stderr = '';
         child.stdout.on('data', (c: Buffer) => { stdout += c.toString(); });
         child.stderr.on('data', (c: Buffer) => { stderr += c.toString(); });
-        child.stdin.write(JSON.stringify({ t: 'notify', op: 'runInfo', runId: 'poc4-probe' }) + '\n');
+        child.stdin.write(JSON.stringify({ t: 'notify', op: 'runInfo', runId: 'adv4-probe' }) + '\n');
         setTimeout(() => child.stdin.end(), 500);
         child.on('close', (code) => resolve({ stdout, stderr, code }));
         setTimeout(() => { try { child.kill('SIGKILL'); } catch { /* gone */ } }, 15_000);

@@ -1,5 +1,5 @@
 /**
- * goal-poc1: resource bomb — a 500-level deep type chain handed to ask<T>.
+ * goal-adv1: resource bomb — a 500-level deep type chain handed to ask<T>.
  *
  * Attack goal: exhaust the facade compiler's compile-time check (hang the typechecker,
  * or overflow the schema synthesizer's recursion) so that "workflow check" never returns.
@@ -11,7 +11,7 @@
  *
  * This file is intentionally hostile TypeScript: it is NOT in tsconfig include
  * (tests/adversarial/** is excluded) and is only consumed by the CLI "check" command
- * and tests/adversarial/goal-poc1-deep-type.test.ts.
+ * and tests/adversarial/goal-adv1-deep-type.test.ts.
  */
 phase('probe');
 interface A0 { v0: number }

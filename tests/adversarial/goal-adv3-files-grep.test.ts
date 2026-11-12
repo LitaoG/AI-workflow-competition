@@ -1,4 +1,4 @@
-// PoC3 regression: workspace file harvesting of on-disk credentials.
+// ADV3 regression: workspace file harvesting of on-disk credentials.
 //
 // VERDICT SPLIT (live-verified 2026-11-01, run dwfrun-mvxr8jgi-4c03b4 for the
 // value path and dwfrun-mvxrb8cc-45b103 for the error path):
@@ -41,7 +41,7 @@ const ENV_CONTENT = `GOAL_POC_TOKEN=${DECOY}\nDATABASE_URL=postgres://app:hunter
 
 /** Decoy workspace: a .env with the credential plus one benign file. */
 function makeDecoyWorkspace(tag: string): string {
-  const dir = path.join(os.tmpdir(), `goal-poc3-ws-${tag}-${process.pid}-${Date.now()}`);
+  const dir = path.join(os.tmpdir(), `goal-adv3-ws-${tag}-${process.pid}-${Date.now()}`);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, '.env'), ENV_CONTENT, 'utf8');
   fs.writeFileSync(path.join(dir, 'README.md'), 'benign file\n', 'utf8');
@@ -71,11 +71,11 @@ function rmTempSync(p: string, opts: { recursive?: boolean }): void {
   }
 }
 
-describe('PoC3: error path redaction (defense holds today)', () => {
+describe('ADV3: error path redaction (defense holds today)', () => {
   test('a thrown script error carrying the harvested .env content is redacted before CLI output and journal', () => {
     const fixture = path.join(repoRoot, 'tests', 'adversarial', 'fixtures', 'goal-cred-snoop-4-error-path.ts');
     const ws = makeDecoyWorkspace('err');
-    const dbPath = path.join(os.tmpdir(), `goal-poc3-err-${process.pid}-${Date.now()}.sqlite`);
+    const dbPath = path.join(os.tmpdir(), `goal-adv3-err-${process.pid}-${Date.now()}.sqlite`);
     try {
       const { status, out } = runScript(fixture, ws, dbPath);
       assert.notEqual(status, 0, `expected the run to fail (the script throws):\n${out}`);
@@ -92,7 +92,7 @@ describe('PoC3: error path redaction (defense holds today)', () => {
   });
 });
 
-describe('PoC3: files.grep / files.read must not leak workspace .env credentials', () => {
+describe('ADV3: files.grep / files.read must not leak workspace .env credentials', () => {
   // Enabled (GAP-03): journalled() masks the value at the boundary, so the
   // script-visible value, the CLI result line and dwf_nodes.result_json all
   // carry the mask. run-script on goal-cred-snoop-3-files-grep.ts from a
@@ -101,7 +101,7 @@ describe('PoC3: files.grep / files.read must not leak workspace .env credentials
   test('grep hits and file content come back redacted and the decoy value reaches no output', () => {
     const fixture = path.join(repoRoot, 'tests', 'adversarial', 'fixtures', 'goal-cred-snoop-3-files-grep.ts');
     const ws = makeDecoyWorkspace('val');
-    const dbPath = path.join(os.tmpdir(), `goal-poc3-val-${process.pid}-${Date.now()}.sqlite`);
+    const dbPath = path.join(os.tmpdir(), `goal-adv3-val-${process.pid}-${Date.now()}.sqlite`);
     try {
       const { status, out } = runScript(fixture, ws, dbPath);
       assert.equal(status, 0, `run-script failed:\n${out}`);

@@ -1,4 +1,4 @@
-// goal-poc2: cross-realm Function leak → process → mainModule.require('child_process').
+// goal-adv2: cross-realm Function leak → process → mainModule.require('child_process').
 //
 // The sandbox globals handed to vm.createContext (src/dwf/child-main.ts:215-246,
 // 285-287) are HOST-realm objects: `Date.parse` is the real host Date.parse, and
