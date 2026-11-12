@@ -26,7 +26,6 @@
 | **产品展示页** | `docs/showcase.html` | 单文件深色主题展示页：pitch、失败模式修复、架构 SVG、实拍演示输出，无构建步骤 |
 | **PR 提交模板** | `.github/PULL_REQUEST_TEMPLATE.md` | PR 提交模板、自检清单与测试输出指纹约束 |
 | **Issue 立项模板** | `.github/ISSUE_TEMPLATE/` | 新特性、缺陷、治理与重构的结构化 Issue 模板 |
-| **CI 自动化门禁** | `.github/workflows/ci.yml` | 最小权限、并发取消机制的 GitHub Actions CI 工作流 |
 | **审查门禁脚本** | `scripts/pr_review_gate.mjs` | PR 审查意见回复与冷却期自动化检测工具 |
 
 ---
@@ -41,7 +40,6 @@
 | PR 模板格式是什么、发起 PR 必须贴哪些测试指纹 | `.github/PULL_REQUEST_TEMPLATE.md` |
 | 怎么立项结构化 Issue、Issue 模板有哪些字段 | `.github/ISSUE_TEMPLATE/` |
 | 自动化评审门禁工具怎么用、参数有哪些 | `scripts/pr_review_gate.mjs` |
-| CI 工作流跑哪些任务、并发控制怎么配置 | `.github/workflows/ci.yml` |
 | 引擎核心组件之间如何通信、RPC Schema 怎么定义 | `docs/ARCHITECTURE.md` |
 | 怎么扩展新的 Slash 命令或自定义 Agent 角色 | `docs/DEVELOPER_GUIDE.md` |
 | 怎么把引擎接入 Kiro（specs / hooks / steering / MCP / PBT） | `docs/KIRO_INTEGRATION.md` |

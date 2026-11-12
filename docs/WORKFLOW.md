@@ -69,7 +69,6 @@
 | 证据驱动三档主张、五态测试报告、A-E 交付分级 | `docs/AI-EVIDENCE-STANDARD.md` |
 | PR 模板规范与测试指纹自检清单 | `.github/PULL_REQUEST_TEMPLATE.md` |
 | Issue 结构化模板配置 | `.github/ISSUE_TEMPLATE/` |
-| CI 自动化门禁配置 | `.github/workflows/ci.yml` |
 | 自动化评审回复与冷却期检查脚本 | `scripts/pr_review_gate.mjs` |
 | 引擎架构设计、ZCode 启发式理念与状态持久化 | `docs/ARCHITECTURE.md` |
 | 扩展开发指南与自定义 Agent 接入方法 | `docs/DEVELOPER_GUIDE.md` |
