@@ -39,7 +39,7 @@ test('Tier 1 - Feature 10: Mandatory Kiro Integration (/.kiro)', async (t) => {
     }
   });
 
-  await t.test('T1_F10_03: /.kiro/hooks contains lifecycle.json with official Kiro lifecycle events', () => {
+  await t.test('T1_F10_03: /.kiro/hooks contains lifecycle.json with canonical Kiro lifecycle events', () => {
     const lifecyclePath = path.join(kiroDir, 'hooks', 'lifecycle.json');
     let lifecycle: any;
     if (fs.existsSync(lifecyclePath)) {

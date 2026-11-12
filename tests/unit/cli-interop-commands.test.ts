@@ -23,7 +23,7 @@ interface Health {
 }
 `;
 
-test('setup --target all lands the full D.md §四 adapter matrix with parseable JSON', async () => {
+test('setup --target all lands the full adapter matrix with parseable JSON', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'setup-all-'));
   try {
     const exit = await executeSetup({ target: 'all', dir });

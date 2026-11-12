@@ -46,11 +46,11 @@ export const BANNED_IDENTIFIERS = new Set(['globalThis', 'eval', 'Function', 'pr
 export const PROTOTYPE_CHAIN_PROPS = new Set(['constructor', '__proto__', 'prototype']);
 
 /**
- * 9001 facade siting (official pass1 minimal subset, message verbatim): a facade callable
+ * 9001 facade siting (minimal-subset contract, message verbatim): a facade callable
  * may only appear as the callee of a direct call. Any other position — alias assignment,
  * destructuring extraction, argument passing, bind/call/apply — reifies the callable into
  * a value the lowering never sites, desyncing the static site table from the execution
- * order the journal and replay are keyed on. The official pass is checker-based; this walk
+ * order the journal and replay are keyed on. The reference approach is checker-based; this walk
  * is syntactic and matches the facade's own names (functions, namespace objects, their
  * members) — the same name basis the site walk itself uses, so every reference it can
  * express is a reference the lowering would miss. `run`/`args` stay out: they are plain

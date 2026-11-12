@@ -7,7 +7,7 @@ import { StateStore, WorkflowEvent, StepCheckpoint, WorkflowArtifact, WorkflowSt
 // builder engine inherits the same credential-shape rule the dwf journal
 // already enforces at its own boundary. Redaction is idempotent — the dwf
 // engine's earlier masking is preserved as-is. Leaf-utility import (redact.ts
-// pulls only ../prober), same precedent as the Phase 6 gate migration.
+// pulls only ../prober), same precedent as the permission-gate migration.
 import { redactValue } from '../dwf/redact.js';
 
 /**

@@ -1,7 +1,7 @@
 /**
  * PoC-1 回归测试 — child NDJSON 协议投毒（帧撕裂 / 粘包 / 垃圾行 / 伪造帧 / 静默超时）。
  *
- * TEST-GOAL 阶段4.2 攻防：攻击脚本 tests/adversarial/fixtures/goal-poc1-frame-poison-child.mjs
+ * 攻防：攻击脚本 tests/adversarial/fixtures/goal-poc1-frame-poison-child.mjs
  * 通过 RunFacadeOptions.childEntryPath（src/dwf/runner.ts:53 测试钩子）顶替沙箱子进程，
  * 向真实父端解析器（src/dwf/runner.ts:373-390）投喂毒化字节流。
  *

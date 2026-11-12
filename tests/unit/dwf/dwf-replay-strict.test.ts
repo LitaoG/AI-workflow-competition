@@ -60,7 +60,7 @@ test('same-script resume: a drifted ask input at its journal position fails loud
     // Run 2 (same runId → same script, the runner's scriptHash gate enforces
     // this upstream): the ask input drifted. The row at the call's arrival
     // position holds a different inputHash → loud failure, not a silent
-    // live re-run (P0-2, official InputHashMismatch semantics).
+    // live re-run (P0-2, canonical InputHashMismatch semantics).
     const engine2 = makeEngine(runId, store);
     const actor2 = await engine2.handleCall(actorFrame(3, 'actor#1'));
     await assert.rejects(

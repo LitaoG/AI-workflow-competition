@@ -38,7 +38,7 @@ import {
   isJournalMismatchError,
   type DomainError,
 } from '../../src/domain/errors.js';
-// Core compatibility shim (Issue #94 Phase 1): the nine legacy classes carry domain tags/details.
+// Core compatibility shim (Issue #94): the nine legacy classes carry domain tags/details.
 import {
   WorkflowError,
   StepExecutionError,
@@ -308,10 +308,10 @@ test('DomainError: fromSerializableError never throws and never echoes payloads'
 });
 
 // ============================================================================
-// F.md five failure domains → tag attribution (Issue #94 Phase 1)
+// five failure domains → tag attribution (Issue #94)
 // ============================================================================
 
-test('DomainError: F.md five failure domains attribute every tag of the closed set exactly once', () => {
+test('DomainError: five failure domains attribute every tag of the closed set exactly once', () => {
   const FIVE_DOMAIN_TAGS = {
     compile: ['CompileError'],
     sandbox: ['SandboxTimeout', 'SandboxSpawnError'],
@@ -326,7 +326,7 @@ test('DomainError: F.md five failure domains attribute every tag of the closed s
 });
 
 // ============================================================================
-// Core error migration: nine-class compatibility shim (Issue #94 Phase 1)
+// Core error migration: nine-class compatibility shim (Issue #94)
 // ============================================================================
 
 test('Core error migration: nine classes keep the legacy faces while carrying domain tags and details', () => {
@@ -385,7 +385,7 @@ test('Core error migration: nine classes keep the legacy faces while carrying do
   assert.equal(aborted.isRecoverable, false);
   assert.equal(notFound.isRecoverable, false);
 
-  // Tag mapping per the Phase 1 decision table.
+  // Tag mapping per the domain decision table.
   assert.equal(stepExec.tag, 'AgentError');
   assert.equal(gate.tag, 'AgentError');
   assert.equal(provider.tag, 'AgentError');
@@ -395,7 +395,7 @@ test('Core error migration: nine classes keep the legacy faces while carrying do
   assert.equal(notFound.tag, 'StorageError');
   assert.equal(schema.tag, 'SchemaValidationError');
 
-  // Details payloads per the Phase 1 mapping table.
+  // Details payloads per the domain mapping table.
   assert.deepEqual(stepExec.details, { stepId: 'step-1', phaseId: 'phase-1', rootMessage: 'boom', errorName: 'Error' });
   assert.deepEqual(gate.details, { stepId: 'gate-1', command: 'npm test', exitCode: 1 });
   assert.deepEqual(provider.details, { providerId: 'mock', statusCode: 503 });

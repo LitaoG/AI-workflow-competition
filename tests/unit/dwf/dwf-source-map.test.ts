@@ -1,5 +1,5 @@
 /**
- * Phase 4 (F.md §六, Issue #126 §2.2): runtime line mapping — the lowering emits
+ * (Issue #126 §2.2): runtime line mapping — the lowering emits
  * a source map alongside script.js, and a script error's top `workflow.facade.js`
  * frame maps back to the author's row/column.
  *

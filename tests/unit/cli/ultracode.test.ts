@@ -1,5 +1,5 @@
 /**
- * Phase 7b (F.md §5.7, Issue #154): the ultracode fixpoint — synthesized
+ * (Issue #154): the ultracode fixpoint — synthesized
  * scripts land in the project saved-workflow registry with proper
  * frontmatter, discoverable by listSavedWorkflows with project scope; name
  * slugs are filesystem-safe and re-saves are idempotent.

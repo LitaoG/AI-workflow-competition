@@ -4,7 +4,7 @@ description: PoC vector 4 - credential exfil attempt through the script error pa
 */
 
 // ============================================================================
-// TEST-GOAL Phase 4.2 adversarial PoC (issue #28): credential snooping.
+// adversarial PoC (issue #28): credential snooping.
 //
 // ATTACK: harvest the workspace .env (same as vector 3) but exfiltrate it
 // through the FAILURE channel — throw an Error whose message carries the raw

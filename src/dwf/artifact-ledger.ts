@@ -17,7 +17,7 @@ const ARTIFACT_FILE_CAP = 20 * 1024 * 1024; // 20 MiB
 const ARTIFACT_MD_CAP = 256 * 1024; // 256 KiB
 const ARTIFACT_ID_CAP = 32;
 const ARTIFACT_VERSION_CAP = 16;
-const ARTIFACT_SPEC_BYTES_CAP = 8 * 1024; // 8 KiB serialized spec (official parity)
+const ARTIFACT_SPEC_BYTES_CAP = 8 * 1024; // 8 KiB serialized spec (canonical parity)
 const ARTIFACT_TITLE_CAP = 120;
 const ARTIFACT_DESCRIPTION_CAP = 500;
 
@@ -46,7 +46,7 @@ function isField(v: unknown): boolean {
 }
 
 /**
- * Validate a preset spec (official artifact-spec.ts parity, hand-written:
+ * Validate a preset spec (contract parity, hand-written:
  * a human-readable sentence, not a boolean — the message lands in the run
  * failure and the author edits the script from it). undefined = valid.
  */
@@ -239,7 +239,7 @@ export class ArtifactLedger {
   }
 
   /**
-   * Issue #38 D8-③ preset declaration (official declarePresetArtifact parity).
+   * Issue #38 D8-③ preset declaration (canonical declarePresetArtifact parity).
    * Pure admission + state mutation — the caller journals the returned record.
    * Throws (failRun semantics — presets are void, there is no catch channel):
    * spec invalid / kind mismatch / different re-declaration / primary conflict
@@ -277,7 +277,7 @@ export class ArtifactLedger {
         e.name = 'ArtifactRedeclared';
         throw e;
       }
-      // identical re-declaration: no-op — no new journal row, no event (official parity).
+      // identical re-declaration: no-op — no new journal row, no event (canonical parity).
       return { id, kind, spec, canonical, primary: existing.primary, fresh: false };
     }
     const wantsPrimary = isPlainObject(spec) && spec.primary === true;

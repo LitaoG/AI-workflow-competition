@@ -1,8 +1,8 @@
 /**
- * Swarm dispatch policy (F.md §5.4, Issue #140): the single source for the
+ * Swarm dispatch policy (Issue #140): the single source for the
  * concurrency window and the swarm agent cap the engine enforces.
  *
- * The window formula mirrors the official runner core and UltraCode runtime:
+ * The window formula follows the canonical multi-agent runtime design:
  *   min(16, max(2, cores − 2))
  * overridable, in priority order, by an explicit option and then the
  * AI_WORKFLOW_MAX_CONCURRENT_AGENTS environment variable. Invalid overrides
@@ -11,10 +11,10 @@
  * silently disables the limit).
  *
  * The agent cap is the whole-run circuit breaker for swarm-style task loops
- * (F.md: agent cap 1000 熔断) — the engine throws WorkflowAgentCapError at it.
+ * (agent cap 1000 熔断) — the engine throws WorkflowAgentCapError at it.
  */
 
-/** Whole-run swarm agent cap (F.md §5.4: agent cap 1000 熔断). */
+/** Whole-run swarm agent cap (agent cap 1000 熔断). */
 export const SWARM_AGENT_CAP = 1000;
 
 import { availableParallelism } from 'node:os';

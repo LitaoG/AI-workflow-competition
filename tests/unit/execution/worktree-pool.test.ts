@@ -1,5 +1,5 @@
 /**
- * Phase 5 (F.md §5.4, Issue #140): WorktreePool lifecycle — acquire on its own
+ * (Issue #140): WorktreePool lifecycle — acquire on its own
  * branch, release removes clean trees (zero residue), keeps dirty ones for
  * review, merges back, and disposes without residue.
  */

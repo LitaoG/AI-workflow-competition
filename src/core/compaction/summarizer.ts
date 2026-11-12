@@ -1,6 +1,6 @@
 /**
  * Conversational summarizer: tier 3 of the context compaction pipeline
- * (F.md §5.2, Issue #102). When the context nears its budget, a light model
+ * (Issue #102). When the context nears its budget, a light model
  * turns the older history into a factual snapshot, and the pipeline rebuilds
  * the context as system prompt + goal + snapshot + recent turns.
  *

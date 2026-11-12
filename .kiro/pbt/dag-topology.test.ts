@@ -1,5 +1,5 @@
 /**
- * Phase 8a (F.md §5.8, Issue #155): Kahn machinery invariants over
+ * (Issue #155): Kahn machinery invariants over
  * fc-generated DAGs. `Workflow.validate()` is the Kahn implementation
  * (src/core/workflow.ts): a dependency graph validates exactly when a
  * topological order exists, and every failure names its cause.

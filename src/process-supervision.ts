@@ -209,7 +209,7 @@ export function onHostSignals(
 }
 
 // ---------------------------------------------------------------------------
-// Win32 Job Object supervision (Issue #98 Phase 2): a tiny C# helper
+// Win32 Job Object supervision (Issue #98): a tiny C# helper
 // (scripts/win32-jobhelper.cs, compiled lazily by the Windows built-in
 // csc.exe into a gitignored cache) becomes the DIRECT parent of the supervised
 // command and owns a Job Object with KILL_ON_JOB_CLOSE (+ an optional
@@ -495,7 +495,7 @@ export function spawnSupervised(cmd: string, args: string[], opts: SupervisedSpa
       if (settled) return;
       settled = true;
       if (timer) clearTimeout(timer);
-      // Job-helper spawn-failure sentinel (Issue #98 Phase 2): the helper
+      // Job-helper spawn-failure sentinel (Issue #98): the helper
       // reports CreateProcessW / in-job-check failures with a stderr line —
       // the AUTHORITATIVE criterion, because its exit codes 2/3 collide with
       // 1:1-forwarded child exit codes. Mapped to exitCode -1 + the sentinel

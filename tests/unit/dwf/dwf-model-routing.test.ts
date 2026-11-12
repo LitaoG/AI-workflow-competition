@@ -2,7 +2,7 @@
  * Issue #38 D8-③ ②: model()/ModelRef routing through the facade chain —
  * compile enforces the closed-set literal rules (9015: non-literal/empty arg,
  * value-position ban, bad persona shapes), lowering passes the id as the fifth
- * createActor argument (model never crosses the host — official parity), and
+ * createActor argument (model never crosses the host — canonical parity), and
  * the engine resolves the binding against the run's model directory at actor
  * CREATION (unresolved → the run fails before any ask) with persona-model
  * precedence over provider/tier.
@@ -34,7 +34,7 @@ test('#38 compile: model() literal rules — non-literal/empty arg is 9015', () 
   assert.ok(badShape.diagnostics.some((d) => d.code === 9015 && /model option/.test(d.message)));
 });
 
-test('#38 compile: a ModelRef in a value position is banned (official 9010 value-position rule)', () => {
+test('#38 compile: a ModelRef in a value position is banned (canonical 9010 value-position rule)', () => {
   const stray = compile(`const m = model("mock");\nconst a = agent("x", { model: m });`);
   assert.equal(stray.ok, false);
   assert.ok(stray.diagnostics.some((d) => d.code === 9015 && /only valid as the agent\(\) opts\.model binding/.test(d.message)));

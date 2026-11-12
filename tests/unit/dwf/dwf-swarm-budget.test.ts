@@ -1,5 +1,5 @@
 /**
- * Phase 5 (F.md §5.4, Issue #140): the engine-level trigger for the swarm
+ * (Issue #140): the engine-level trigger for the swarm
  * token-budget drop-slot. The budget is enforced at ask-entry granularity —
  * in-flight asks complete and account their spend ("in-flight agents will
  * complete; their results are preserved"), and every ask that ENTERS after the
@@ -8,7 +8,7 @@
  * ordinary failures still reject the swarm.
  *
  * Drives the same host-call frames the child realm sends, with the swarm flag
- * the Phase 4 engine path consumes.
+ * the swarm engine path consumes.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -67,7 +67,7 @@ test('asks entering after the budget is spent reject with WorkflowBudgetExceeded
     // the summary log line ride on.
     const second = engine.handleCall(askFrame(3, 'swarm#1', actor, 'second task'));
     const third = engine.handleCall(askFrame(4, 'swarm#1', actor, 'third task'));
-    // Domain errors are tagged plain objects (Phase 1 algebra), not Error
+    // Domain errors are tagged plain objects (domain algebra), not Error
     // instances — match on the message and the rebuilt error name.
     const budgetRejection = async (p: Promise<unknown>): Promise<void> => {
       await assert.rejects(p, (e: { message?: string; details?: { errorName?: string } }) =>

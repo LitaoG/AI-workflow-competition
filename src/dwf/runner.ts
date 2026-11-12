@@ -84,7 +84,7 @@ export interface RunFacadeOptions {
   maxConcurrency?: number;
   /**
    * Per-ask stall clock. Defaults to AI_WORKFLOW_STALL_MS, else 90000ms
-   * (official 2.1.316 parity); 0 disables it.
+   * (reference parity); 0 disables it.
    */
   stallMs?: number;
   /**
@@ -96,7 +96,7 @@ export interface RunFacadeOptions {
   /** Restored output-token counter for a resumed run (audit gap #4). */
   restoreOutputTokensSpent?: number;
   /**
-   * Run-level output-token budget (official parity: the script cannot set it).
+   * Run-level output-token budget (canonical parity: the script cannot set it).
    * Injected into the sandbox as a frozen, read-only `budget` object; omit for
    * unlimited. A resumed run must pass the same value again to keep the cap
    * continuous (spent is restored separately).
@@ -535,7 +535,7 @@ async function runInner(
     // inbound frame follows a parking call to re-run that check. Deliberately NOT
     // fixed here: a live signal needs the child to exclude parking calls from its
     // in-flight accounting, count escalations alongside holes, and re-check after
-    // the microtask queue drains (the official engine's __checkStalled moment) —
+    // the microtask queue drains (the stall-check moment) —
     // plus a host-side re-arm when the signal lands after this timer did. That is
     // a parking-latency behavior change needing its own design round; the 10s
     // fallback is semantically correct (the park happens, resumption recovers) and

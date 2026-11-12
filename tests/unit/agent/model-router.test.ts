@@ -1,5 +1,5 @@
 /**
- * Phase 6 (F.md §5.6, Issue #151): task-attribute model routing — the tier
+ * (Issue #151): task-attribute model routing — the tier
  * fast/deep dual track resolves the failover chain's HEAD. Explicit actor
  * provider wins, then explicit tier, then attributes (schema / prompt size),
  * each tier only when configured (options > env); unconfigured tiers fall

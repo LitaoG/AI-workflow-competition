@@ -25,12 +25,12 @@ import { FacadeDiagnostic } from './diagnostics.js';
 
 const MAX_DEPTH = 8;
 const MAX_PROPS = 64;
-// Official MAX_UNION_MEMBERS (schema/types.ts:90) — the cap exists to keep the schema
+// MAX_UNION_MEMBERS — the cap exists to keep the schema
 // the subagent reads legible, not to bound synthesis cost.
 const MAX_UNION = 100;
 
 /**
- * Builtins whose instances are not JSON-serializable (official REJECTED_BUILTINS,
+ * Builtins whose instances are not JSON-serializable (canonical REJECTED_BUILTINS,
  * emit.ts:34-65): matched by constructor name at the type level — a generic
  * instantiation (Map<string, number>) carries the same declared symbol name as the
  * bare constructor (Map).

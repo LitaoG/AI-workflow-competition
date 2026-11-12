@@ -1,6 +1,6 @@
 /**
  * SVG topology canvas — the server-side, pure-function SVG generator for the
- * Studio (Issue #156, F.md Phase 8b).
+ * Studio (Issue #156).
  *
  * Input is the {@link DAGGraph} data contract the journal projection emits
  * (`projectEventsToGraph`, src/dag/journal-projection.ts) — the same shape the
@@ -11,14 +11,14 @@
  *
  * Node status coloring — the vocabulary is `StepStatus`
  * (src/domain/workflow-types.ts): `pending | running | completed | failed |
- * skipped | replayed`. F.md's "Pending/Running/Succeeded/Failed/Cancelled"
+ * skipped | replayed`. "Pending/Running/Succeeded/Failed/Cancelled"
  * maps onto it as: pending → gray, running → blue, completed ("Succeeded") →
  * green, failed → red, skipped (the cancellation-adjacent terminal — a step
  * whose dependency failed or was replayed away; there is NO `cancelled` wire
  * value in the canonical vocabulary) → yellow, and the projection's extra
  * zero-cost-reuse terminal `replayed` → cyan.
  *
- * Bézier edges (the F.md:411 "曲线错位" fix): every edge is a cubic Bézier
+ * Bézier edges (the "curve-misalignment" fix): every edge is a cubic Bézier
  * whose two endpoints are anchored EXACTLY on the node boundary — the source
  * anchor is the midpoint of the source node's BOTTOM edge, the target anchor
  * the midpoint of the target node's TOP edge (nodes are laid out phase-band by
@@ -34,9 +34,9 @@ import type { DAGGraph, DAGNode, StepStatus } from '../types.js';
 export const STATUS_COLORS: Record<StepStatus, string> = {
   pending: '#64748b', // gray
   running: '#3b82f6', // blue
-  completed: '#10b981', // green — F.md "Succeeded"
+  completed: '#10b981', // green — "Succeeded"
   failed: '#ef4444', // red
-  skipped: '#eab308', // yellow — F.md "Cancelled" (no such wire value; skipped is the cancellation-adjacent terminal)
+  skipped: '#eab308', // yellow — "Cancelled" (no such wire value; skipped is the cancellation-adjacent terminal)
   replayed: '#38bdf8', // cyan — zero-cost journal/warm-cache reuse (projection-specific)
 };
 

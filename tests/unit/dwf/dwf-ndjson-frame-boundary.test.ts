@@ -1,6 +1,6 @@
 /**
  * NDJSON frame-boundary tests against the REAL parent runner (Issue #98
- * Phase 2, blueprint step 8 — locks the audit-2 gap list as an automatically
+ * Blueprint step 8 — locks the audit-2 gap list as an automatically
  * gated suite; the adversarial PoCs predate it but only run via
  * test:adversarial, while this file is picked up by build + test:unit through
  * the tsconfig include of tests/unit/**).

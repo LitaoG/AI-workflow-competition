@@ -4,7 +4,7 @@ description: PoC vector 3 - credential harvesting from a workspace .env via file
 */
 
 // ============================================================================
-// TEST-GOAL Phase 4.2 adversarial PoC (issue #28): credential snooping.
+// adversarial PoC (issue #28): credential snooping.
 //
 // ATTACK: env vars are locked down (vectors 1+2), so fall back to the classic
 // on-disk secret store: a `.env` file inside the run workspace holding

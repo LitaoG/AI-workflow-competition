@@ -1,5 +1,5 @@
 /**
- * Phase 6 (F.md §5.6, Issue #151): tier routing through the facade chain —
+ * (Issue #151): tier routing through the facade chain —
  * compile records the tier literal (and refuses non-literals at 9014),
  * lowering passes it as the fourth createActor argument, and the engine
  * routes the ask's failover-chain head through the model router (explicit

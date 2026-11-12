@@ -51,7 +51,7 @@ test('CLI Run: non-existent workflow file exits with code 2', async () => {
   assert.equal(exitCode, 2);
 });
 
-test('CLI Run: --watch alias parses like --watch-graph (D.md 支柱一; an unregistered option would not reach the file-not-found exit 2)', async () => {
+test('CLI Run: --watch alias parses like --watch-graph (an unregistered option would not reach the file-not-found exit 2)', async () => {
   const exitCode = await runCLI(['node', 'bin/workflow.js', 'run', './non-existent-file-404.ts', '--watch']);
   assert.equal(exitCode, 2);
 });

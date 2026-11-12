@@ -1,5 +1,5 @@
 /**
- * History snipper: tier 2 of the context compaction pipeline (F.md §5.2,
+ * History snipper: tier 2 of the context compaction pipeline (
  * Issue #102). It folds old turns into one-line records.
  *
  * Only the most recent `keepRecentTurns` turns stay verbatim. Every older

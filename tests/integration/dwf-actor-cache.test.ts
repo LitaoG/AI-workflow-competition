@@ -151,7 +151,7 @@ test('#39 content change diverges the actor monotonically (downstream identical 
 
     // alpha's FIRST ask changes — alpha diverges at seq 0, so its SECOND ask
     // (identical content) also runs live: the conversation is no longer the
-    // lineage's (monotonic divergence, official parity). beta is untouched.
+    // lineage's (monotonic divergence, canonical parity). beta is untouched.
     const v2 = `
 phase("P");
 const alpha = agent('alpha', { provider: 'tap39d' });

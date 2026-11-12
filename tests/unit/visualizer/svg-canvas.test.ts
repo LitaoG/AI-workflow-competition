@@ -2,7 +2,7 @@
  * SVG topology canvas tests (Issue #156): the status→color mapping (vocabulary:
  * StepStatus, src/domain/workflow-types.ts), the Bézier anchor contract — every
  * edge endpoint sits EXACTLY on the source's bottom-edge midpoint and the
- * target's top-edge midpoint (the F.md:411 curve-misalignment fix) — plus
+ * target's top-edge midpoint (the curve-misalignment fix) — plus
  * duration-in-title, empty/single-node boundaries and XML escaping.
  */
 
@@ -87,7 +87,7 @@ test('status→color mapping covers the whole canonical StepStatus vocabulary', 
   }
 });
 
-test('F.md:411 fix: cross-phase edge anchors bottom-edge-mid → top-edge-mid exactly', () => {
+test('cross-phase edge anchors bottom-edge-mid → top-edge-mid exactly', () => {
   const graph = makeGraph(
     [
       makeNode('a', 'completed', { phaseId: 'p1', phaseName: 'A' }),

@@ -1,8 +1,8 @@
 /**
- * Permission modes (F.md §5.6 Phase 6, Issue #151).
+ * Permission modes (Issue #151).
  *
  * Three runtime postures for the core agent loop's tool calls, layered on the
- * Phase 3 `PermissionGate` seam (agent-loop.ts) — the loop itself never learns
+ * The `PermissionGate` seam (agent-loop.ts) — the loop itself never learns
  * the mode, it only sees decisions:
  *
  * - `plan`  — read-only. Every call to a tool that is not provably
@@ -10,10 +10,10 @@
  * - `build` — writes require an explicit human confirmation. A write call is
  *   denied with a structured `pending` marker so an interactive host can
  *   surface the confirmation and re-issue the call; read-only tools run.
- * - `yolo`  — everything runs (the pre-Phase-6 default, `allowAllPermissions`
+ * - `yolo`  — everything runs (the pre-permission default, `allowAllPermissions`
  *   semantics preserved verbatim).
  *
- * The official surface has five modes; this repo ships the three F.md names
+ * The wider ecosystem defines five modes; this repo ships three names
  * and maps the rest only when a real consumer needs them (#151 明确不做).
  */
 export type PermissionMode = 'plan' | 'build' | 'yolo';

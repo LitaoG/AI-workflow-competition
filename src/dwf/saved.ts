@@ -171,7 +171,7 @@ export function slugifyWorkflowName(name: string): string {
 
 /**
  * Persist a facade script into the PROJECT registry with saved-workflow
- * frontmatter (Project Y Phase 7b, Issue #154). Same name+slug → overwrite
+ * frontmatter (Issue #154). Same name+slug → overwrite
  * (an idempotent re-save of the workflow under refinement), so the registry
  * never accumulates duplicates of one workflow. The registry name stays
  * verbatim (frontmatter); only the filename is slugged.

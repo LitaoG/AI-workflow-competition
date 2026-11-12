@@ -1,10 +1,10 @@
 /**
- * QueryEngine (F.md §5.1, Issue #102): the single entry point that owns one
+ * QueryEngine (Issue #102): the single entry point that owns one
  * engine's dependencies (main model, tools, permission gate, compaction
  * pipeline, snapshot hook) and drives queryLoop() for a goal.
  *
  * Model routing (Thinking vs Flash) and the Plan / Build / YOLO permission
- * modes are F.md Phase 6 (#151): the gate resolves through
+ * modes are (Issue #151): the gate resolves through
  * permissions/permission-manager.ts (`permissionMode`, default 'yolo' — the
  * pre-Phase-6 allow-all posture), and provider routing layers the model
  * router (src/agent/model-router.ts) over the caller's explicit choices.
@@ -35,7 +35,7 @@ export interface QueryEngineOptions {
   tools?: readonly ToolDefinition[];
   /** Permission gate (default: the 'yolo' mode gate — allow every call). */
   permissions?: PermissionGate;
-  /** Phase 6 permission posture; ignored when an explicit `permissions` gate is given. */
+  /** Permission posture; ignored when an explicit `permissions` gate is given. */
   permissionMode?: PermissionMode;
   compaction: CompactionConfig;
   /** Base instruction placed before the tool protocol in the system prompt. */

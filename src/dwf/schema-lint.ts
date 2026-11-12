@@ -1,9 +1,8 @@
 /**
- * Pre-dispatch JSON Schema lint (official parity: `agent({schema})` is validated
+ * Pre-dispatch JSON Schema lint (canonical parity: `agent({schema})` is validated
  * BEFORE a subagent is spawned, so an unusable contract never costs a model call).
  *
- * The official engine distinguishes two classes (`workflow-module-pretty.js`
- * 2139-2148):
+ * The design distinguishes two classes :
  *   - invalid: the value is not a usable JSON Schema at all;
  *   - unsatisfiable: a well-formed schema no instance can satisfy (e.g. a
  *     required key that `additionalProperties:false` simultaneously forbids).
@@ -198,7 +197,7 @@ function check(node: unknown, path: string, ctx: LintContext): SchemaLintIssue[]
   }
 
   // required: array of strings; a required key that additionalProperties:false
-  // forbids is the official "no output can satisfy this schema" case.
+  // forbids is the canonical "no output can satisfy this schema" case.
   if (node.required !== undefined) {
     if (!Array.isArray(node.required) || !node.required.every((r) => typeof r === 'string')) {
       invalid(at(path, 'required'), 'required must be an array of strings');

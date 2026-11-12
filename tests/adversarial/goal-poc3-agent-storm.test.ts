@@ -1,5 +1,5 @@
 /**
- * TEST-GOAL 4.2 PoC3 regression: agent storm — 64 concurrent mock subagents, and a
+ * PoC3 regression: agent storm — 64 concurrent mock subagents, and a
  * 1280-ask loop that runs into the 1000-call cap.
  *
  * Attack (fixtures, run byte-identical from a temp run dir built by this test):
@@ -65,7 +65,7 @@ async function rmRunDir(dir: string): Promise<void> {
   }
 }
 
-describe('TEST-GOAL PoC3: 64-agent mock storm and the 1000-call breaker', () => {
+describe('PoC3: 64-agent mock storm and the 1000-call breaker', () => {
   test('64 concurrent mock agents: run completes, all 64 asks journalled completed', async () => {
     const dir = await makeRunDir(stormFixture);
     try {

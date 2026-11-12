@@ -1,5 +1,5 @@
 /**
- * Phase 4 (F.md §六, Issue #134): `swarm<T>(agents, tasks)` end-to-end through
+ * (Issue #134): `swarm<T>(agents, tasks)` end-to-end through
  * the real runner — compile, lower, child realm, engine seats, journal, resume.
  */
 import { test } from 'node:test';

@@ -4,7 +4,7 @@ description: PoC vector 1 - direct process.env credential read from inside a fac
 */
 
 // ============================================================================
-// TEST-GOAL Phase 4.2 adversarial PoC (issue #28): credential snooping.
+// adversarial PoC (issue #28): credential snooping.
 //
 // ATTACK: a facade script tries to read the decoy credential the host shell
 // exported (GOAL_POC_TOKEN=sk-decoy-123) straight out of process.env and

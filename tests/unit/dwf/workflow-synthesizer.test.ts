@@ -1,5 +1,5 @@
 /**
- * Phase 7b (F.md §5.7, Issue #154): the workflow synthesizer — the LLM's
+ * (Issue #154): the workflow synthesizer — the LLM's
  * script is only accepted when it passes the SAME compile purity gate as
  * hand-written scripts; failed attempts feed the exact diagnostics back,
  * bounded retries, then a structured failure with the last diagnostics.

@@ -132,7 +132,7 @@ test('idle reset: restores max, clears the cooldown, flips the epoch once — an
 });
 
 // ---------------------------------------------------------------------------
-// Issue #37: the four-layer discipline (official ConcurrencyController parity)
+// Issue #37: the four-layer discipline (canonical ConcurrencyController parity)
 // ---------------------------------------------------------------------------
 
 test('#37 layer 1: model-granular bucket keys — provider/model buckets are independent', async () => {

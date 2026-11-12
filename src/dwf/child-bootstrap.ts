@@ -211,10 +211,10 @@ export const BOOTSTRAP = `"use strict";
     get run() {
       return __runState;
     },
-    // Budget is a frozen snapshot seeded by the run config (official parity):
+    // Budget is a frozen snapshot seeded by the run config (canonical parity):
     // total is read-only, spent()/remaining() read the parent-pushed mirror.
     // Object.create(null) keeps the prototype chain from leaking into the realm;
-    // freeze makes a strict-mode assignment to total throw, as in the official VM.
+    // freeze makes a strict-mode assignment to total throw, as in the canonical VM.
     budget: Object.freeze(Object.assign(Object.create(null), {
       total: __budget.total,
       spent: function () {
@@ -242,7 +242,7 @@ export const BOOTSTRAP = `"use strict";
    * parent's seat gate caps how many run at a time. Resolves with the answers in
    * task order.
    *
-   * Failure policy (fanout.parallel parity, F.md §5.4 token 预算超限 drop-slot):
+   * Failure policy (fanout.parallel parity, token 预算超限 drop-slot):
    * a WorkflowBudgetExceededError drops that task to null (with one summary log
    * line) — the budget is a run-level fact, failing the whole swarm adds nothing;
    * any other error rejects the swarm with the first such error. Settled turns
@@ -559,7 +559,7 @@ export const BOOTSTRAP = `"use strict";
     }
     return new __NativeDate(...ctorArgs);
   };
-  // Seal the constructor chain (official parity: workflow-module-pretty.js:311-336).
+  // Seal the constructor chain (spec parity).
   // Two bypasses were verified before this seal (Issue #55):
   //   Object.getPrototypeOf(Date).now()   — setPrototypeOf(__SafeDate, __NativeDate) leaked it
   //   new Date(0)["constructor"].now()    — __NativeDate.prototype.constructor was untouched
@@ -580,8 +580,8 @@ export const BOOTSTRAP = `"use strict";
 
   // Intl no-arg date formatting is a wall-clock side channel that survives the
   // Date seal: Intl.DateTimeFormat#format()/formatToParts() default to
-  // %Date.now% when no date is supplied. Verified in this realm and in the
-  // official 2.1.316 runtime (Issue #55). Seal the no-arg forms while keeping
+  // %Date.now% when no date is supplied. Verified in this realm and in a
+  // reference runtime (Issue #55). Seal the no-arg forms while keeping
   // explicit-date formatting deterministic.
   const __dtfProto = Intl.DateTimeFormat.prototype;
   const __formatDescriptor = Object.getOwnPropertyDescriptor(__dtfProto, 'format');

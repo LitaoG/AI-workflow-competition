@@ -1,5 +1,5 @@
 /**
- * TEST-GOAL 阶段4.2 攻防回归 — PoC3: 原型链污染（realm 内 vs 跨 realm）.
+ * 攻防回归 — PoC3: 原型链污染（realm 内 vs 跨 realm）.
  *
  * Attack fixtures:
  *  - goal-poc3b-proto-pollution-realm-only.ts — CONTROL: pollution of the realm's OWN

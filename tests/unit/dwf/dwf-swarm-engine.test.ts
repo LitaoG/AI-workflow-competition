@@ -1,5 +1,5 @@
 /**
- * Phase 4 (F.md §六, Issue #126): engine-side `swarm()` semantics, driven through
+ * (Issue #126): engine-side `swarm()` semantics, driven through
  * the same host-call frames the child realm sends — no child process needed.
  *
  * Locked here:
@@ -133,7 +133,7 @@ test('swarm tasks carry no conversation; regular asks still accumulate history (
     const userTexts = recorder.calls.map((messages) => messages.find((m) => m.role === 'user')?.content);
     assert.deepEqual(userTexts, ['batch task 1', 'batch task 2', 'batch task 3', 'batch task 4'], 'each task sends exactly its own user turn');
 
-    // Regular asks on the SAME actor keep the official conversation contract:
+    // Regular asks on the SAME actor keep the canonical conversation contract:
     // the second one sees the first's turns as priorMessages.
     await engine.handleCall(askFrame(8, 'ask#1', actor, 'plain ask one', false));
     await engine.handleCall(askFrame(9, 'ask#1', actor, 'plain ask two', false));

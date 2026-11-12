@@ -4,7 +4,7 @@
  * execution. Pure execution, no journal policy: the engine wraps every call in
  * `journalled()` and owns replay/authorization; this module only measures the
  * workspace and enforces the resource caps (reject, never truncate — the
- * official world-read caps contract).
+ * canonical world-read caps contract).
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -123,7 +123,7 @@ export class WorldBoundary {
       }
       case 'git.log': {
         // D8④: over-cap requests are structurally rejected — never silently
-        // clamped (official world-read caps contract: reject, don't truncate).
+        // clamped (canonical world-read caps contract: reject, don't truncate).
         const requested = Number(args[0] ?? 20) || 20;
         if (requested > 100) {
           throw domainError('SchemaValidationError', `git.log count ${requested} exceeds the 100-entry cap — request fewer commits`, {

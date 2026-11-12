@@ -2,7 +2,7 @@
  * Lowering: rewrite the facade calls in a script into `__host.*` boundary calls with
  * compile-time site ids, then transpile TS → plain JS for the sandbox child.
  *
- * Same approach as ZCode's `packages/dynamic-workflow/src/lowering/lower.ts`: the
+ * Same approach as the ZCode lowering stage: the
  * orchestration control flow stays native TS (Promise.all, loops, ternaries are untouched);
  * only facade boundary calls are rewritten, each stamped with a stable site id
  * (`actor#2`, `ask#3`, ...) in AST visit order — the same order the analyzer numbers
@@ -126,7 +126,7 @@ function rewriteCall(node: ts.CallExpression, ctx: ts.TransformationContext, vis
         if (ts.isPropertyAssignment(prop) && ts.isIdentifier(prop.name) && prop.name.text === 'model') {
           // Issue #38: the model binding is a string literal or an inline
           // model("id") call — both collapse to the literal (model() itself
-          // lowers to its argument, official parity: model never crosses the host).
+          // lowers to its argument, canonical parity: model never crosses the host).
           const init = prop.initializer;
           if (ts.isStringLiteral(init)) {
             modelLiteral = f.createStringLiteral(init.text);
@@ -139,7 +139,7 @@ function rewriteCall(node: ts.CallExpression, ctx: ts.TransformationContext, vis
     return host('createActor', f.createStringLiteral(site.siteId), nameArg, providerLiteral ?? f.createNull(), tierLiteral ?? f.createNull(), modelLiteral ?? f.createNull());
   }
 
-  // model("id") → the literal itself (official parity: model() does not cross
+  // model("id") → the literal itself (canonical parity: model() does not cross
   // the host; the compile rules pin its legal positions).
   if (ts.isIdentifier(expr) && expr.text === 'model') {
     const visited = visitArgs();
@@ -207,7 +207,7 @@ function rewriteCall(node: ts.CallExpression, ctx: ts.TransformationContext, vis
 
   // artifact.chart / table / metrics / board (Issue #38 D8-③ preset family —
   // declaration, not effect): args packed positionally, zero validation in the
-  // lowering (official parity); the engine validates and journals the declaration.
+  // lowering (canonical parity); the engine validates and journals the declaration.
   if (ts.isPropertyAccessExpression(expr) && ts.isIdentifier(expr.expression) && expr.expression.text === 'artifact'
     && (expr.name.text === 'chart' || expr.name.text === 'table' || expr.name.text === 'metrics' || expr.name.text === 'board')) {
     const site = nextSite('artifact');

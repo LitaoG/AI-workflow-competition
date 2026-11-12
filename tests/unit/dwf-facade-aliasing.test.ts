@@ -1,10 +1,10 @@
 /**
- * 9001 facade siting (official pass1 minimal subset): a facade callable may only ever
+ * 9001 facade siting (canonical pass1 minimal subset): a facade callable may only ever
  * appear as the direct callee of a call — aliasing, method extraction, destructuring,
  * argument passing and bind/call/apply reify the callable and desync the static site
  * table from the execution order the journal and replay are keyed on.
  *
- * Message text is the official FACADE_SITING wording, verbatim modulo the name.
+ * Message text is the canonical FACADE_SITING wording, verbatim modulo the name.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -56,7 +56,7 @@ test('9001 ①: hole/escalate/workflow/phase aliases are flagged too', () => {
   }
 });
 
-test('9001 ①: destructuring extraction const { ask } = p (official pass1 form)', () => {
+test('9001 ①: destructuring extraction const { ask } = p (canonical pass1 form)', () => {
   const { r, hit } = diag9001('const p = agent("planner");\nconst { ask } = p;\nreturn null;');
   assert.equal(r.ok, false);
   assert.ok(hit, JSON.stringify(r.diagnostics));

@@ -16,7 +16,7 @@ test('AIMD: multiplicative decrease on failure, additive increase after successe
   let snap = g.snapshot().find((s) => s.providerId === 'p1')!;
   assert.equal(snap.limit, 4, '8 × 0.5 = 4 after one failure');
 
-  // official semantics: the additive increase needs demand — fill the bucket and
+  // canonical semantics: the additive increase needs demand — fill the bucket and
   // park waiters first. drain() wakes every waiter at once (one admits, the rest
   // re-park on the next microtask), so settle one tick before the streak-completing
   // release to have a waiter back in the queue; otherwise the streak only records

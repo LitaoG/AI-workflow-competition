@@ -1,13 +1,13 @@
 /**
- * Git worktree physical isolation for subagent tasks (F.md §5.4, Issue #140).
+ * Git worktree physical isolation for subagent tasks (Issue #140).
  *
  * A pool mints one physical worktree per task key, at a branch cut from the
  * workspace's HEAD, under a pool directory beside the workspace (never inside
  * it — AGENTS.md §1.8 sibling-directory discipline). Semantics mirror the
- * official subagent contract:
+ * canonical subagent contract:
  *   - a task that changed nothing is removed on release (zero residue), and
  *   - a task with changes is KEPT for review, its worktreePath/branch/diff
- *     handed back to the caller (workflow-module-pretty.js 2291-2305 parity),
+ *     handed back to the caller (reference parity),
  *   - mergeIntoBase fast-forwards/merges a lease's branch back into the base
  *     branch from the main workspace, failing loudly on conflicts.
  *
@@ -93,7 +93,7 @@ export class WorktreePool {
     const worktreePath = path.join(this.poolDir, `task-${safe}`);
     const branch = `swarm/${this.poolId}/${safe}`;
     fs.mkdirSync(this.poolDir, { recursive: true });
-    // A branch per task (official parity: changes stay addressable for merge);
+    // A branch per task (canonical parity: changes stay addressable for merge);
     // -B tolerates a re-acquire after a crash left the branch behind.
     await this.git(`worktree add -B ${branch} ${JSON.stringify(worktreePath)} ${this.baseRef}`);
     const lease: WorktreeLease = { taskKey, worktreePath, branch };

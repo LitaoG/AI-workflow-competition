@@ -9,7 +9,7 @@ import { sanitizeEnv } from '../prober/index.js';
 /** Default V8 heap cap (MB) for the sandbox child — see buildSandboxChildArgs. */
 const DEFAULT_SANDBOX_MAX_OLD_SPACE_MB = 512;
 
-/** Official 2.1.316 stall window default (90000ms); 0 disables the clock. */
+//** Default stall window (90000ms); 0 disables the clock. */
 export const DEFAULT_STALL_MS = 90_000;
 
 /**

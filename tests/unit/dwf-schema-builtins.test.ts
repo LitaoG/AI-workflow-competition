@@ -1,8 +1,8 @@
 /**
- * Schema hardening (official 9002 REJECTED_BUILTINS + MAX_UNION_MEMBERS=100):
+ * Schema hardening (9002 REJECTED_BUILTINS + MAX_UNION_MEMBERS=100):
  * builtins whose instances are not JSON-serializable are refused by constructor name
  * through the existing schema diagnostic channel, and the union cap aligns with the
- * official schema/types.ts:90 value.
+ * MAX_UNION=100 value.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

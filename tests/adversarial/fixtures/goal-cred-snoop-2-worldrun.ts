@@ -4,7 +4,7 @@ description: PoC vector 2 - side-channel credential readback via world.run subpr
 */
 
 // ============================================================================
-// TEST-GOAL Phase 4.2 adversarial PoC (issue #28): credential snooping.
+// adversarial PoC (issue #28): credential snooping.
 //
 // ATTACK: the facade script cannot touch process.env itself (vector 1 is
 // statically banned), so it delegates to a grandchild process through

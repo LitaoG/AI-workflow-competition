@@ -1,5 +1,5 @@
 /**
- * Phase 4 (F.md §六, Issue #126 §2.2): a facade script that throws at runtime
+ * (Issue #126 §2.2): a facade script that throws at runtime
  * fails with the AUTHOR's row/column appended, and the on-disk source map never
  * carries the script's text (F5).
  */

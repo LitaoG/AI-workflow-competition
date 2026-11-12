@@ -1,5 +1,5 @@
 /**
- * `workflow ultracode "<task>"` (Project Y Phase 7b, Issue #154): synthesize a
+ * `workflow ultracode "<task>"` (Issue #154): synthesize a
  * facade workflow from a task description, optionally trial-run it (mock or
  * real) and/or fixpoint it into the project saved-workflow registry — from
  * where `workflow workflows run <name>` runs it like any hand-written script.

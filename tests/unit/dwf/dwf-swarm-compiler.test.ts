@@ -1,5 +1,5 @@
 /**
- * Phase 4 (F.md §六, Issue #134): `swarm<T>(agents, tasks)` at the compiler and
+ * (Issue #134): `swarm<T>(agents, tasks)` at the compiler and
  * lowering layers — one ask site shared by every task, schema synthesis from the
  * type argument, and the 9001/9004 misuse guards.
  */

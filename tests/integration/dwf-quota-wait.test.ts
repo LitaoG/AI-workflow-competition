@@ -9,7 +9,7 @@ import type { LLMProvider, LLMRequest, LLMResponse } from '../../src/types.js';
 
 /**
  * A provider that reports a structured quota reset on its first call (the shape
- * official `class Bo` consumes: `quotaLimits = { status: 'rejected', resetsAt }`),
+ * canonical quota-reset contract consumes: `quotaLimits = { status: 'rejected', resetsAt }`),
  * then succeeds. `resetsAt` is epoch seconds.
  */
 class QuotaResetProvider implements LLMProvider {

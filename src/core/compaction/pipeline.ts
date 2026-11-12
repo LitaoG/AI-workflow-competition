@@ -1,5 +1,5 @@
 /**
- * Context compaction pipeline (F.md §5.2, Issue #102). It keeps every model
+ * Context compaction pipeline (Issue #102). It keeps every model
  * request inside a token budget with three tiers:
  *
  *   1. micro: read-time projection of one oversized tool output
@@ -8,7 +8,7 @@
  *      the context passes `snipRatio` of the budget;
  *   3. summarize: replace the older history with a model-written snapshot
  *      (summarizer.ts) once the context passes `summarizeRatio` of the budget
- *      (default 70%, F.md §5.2) or `budgetTokens - summarizeReserveTokens`,
+ *      (default 70%, ) or `budgetTokens - summarizeReserveTokens`,
  *      and only when that history holds at least `summarizeMinNewTokens` of
  *      material that is not already a snapshot. Without that floor a context
  *      whose recent turns alone sit above the trigger would call the summary

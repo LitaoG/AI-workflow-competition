@@ -2,7 +2,7 @@
  * Facade-script compiler: strict in-memory TS check against the facade d.ts, plus
  * AST-level authorization rules and the site table.
  *
- * Design copied from ZCode's `packages/dynamic-workflow/src/compiler/compile.ts`:
+ * Design follows the ZCode dynamic-workflow compiler architecture:
  *  - The script is wrapped in `async function __workflowScript__() { ... }` so
  *    top-level await/return are legal inside a plain function body.
  *  - A virtual CompilerHost serves the script, the facade d.ts and lib files from a
@@ -391,7 +391,7 @@ export function analyzeFacadeScript(source: string): FacadeAnalysis {
       return; // arguments still visited by forEachChild for nested bans
     }
     // model("id") — only legal as the agent() opts.model initializer (Issue #38);
-    // a ModelRef in any value position is the official 9010 value-position ban.
+    // a ModelRef in any value position is the canonical 9010 value-position ban.
     if (ts.isIdentifier(expr) && expr.text === 'model') {
       const arg = node.arguments[0];
       if (!ts.isStringLiteral(arg) || (arg as ts.StringLiteral).text.length === 0) {
@@ -484,7 +484,7 @@ export function analyzeFacadeScript(source: string): FacadeAnalysis {
       } else if (member === 'chart' || member === 'table' || member === 'metrics' || member === 'board') {
         sites.push({ siteId: `artifact#${++siteCounter}`, kind: 'artifact', line: lineOf(node) });
         const idArg = checkArtifactId(node, member);
-        // 9008 (official ARTIFACT_HOISTING): preset declarations are top-level —
+        // 9008 (canonical ARTIFACT_HOISTING): preset declarations are top-level —
         // banned inside loops, callbacks and conditionals (hole bodies are exempt:
         // the spliced fill body recompiles at fill time and is judged there).
         if (inBannedDeclarationScope()) {

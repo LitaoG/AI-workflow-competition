@@ -244,7 +244,7 @@ export function agent(name: string, defaults?: { signal?: AbortSignal }): AgentR
           const cap = policy?.maxRetries ?? maxRetries;
           const allowed = policy?.retryOn ? policy.retryOn.includes(c.category) : c.retryable;
           if (allowed && attempt < cap) {
-            // Official 2.1.316 rewrites the retried prompt with a "(retry N)"
+            // The retried prompt is rewritten with a "(retry N)"
             // marker. Do the same on the last user turn, replacing any previous
             // marker instead of accumulating it. The journal key still hashes
             // the original prompt, so replay identity is unchanged.

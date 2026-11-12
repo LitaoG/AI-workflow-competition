@@ -1,5 +1,5 @@
 /**
- * Phase 7a (F.md §5.7, Issue #153): the MCP tool catalog and the real
+ * (Issue #153): the MCP tool catalog and the real
  * protocol face must never drift — `workflow mcp list` renders what
  * tools/list returns (TOOL_CATALOG), and every cataloged tool must actually
  * dispatch (no虚标). Drives the REAL BuiltinWorkflowMCPServer over

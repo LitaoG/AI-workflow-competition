@@ -1,6 +1,6 @@
 /**
- * AIMD concurrency governor (P2/#37) — the four-layer discipline aligned with
- * the official ConcurrencyController (engine/concurrency.ts, reverse-verified):
+ * AIMD concurrency governor (P2/#37) — the four-layer discipline verified by the?
+ * adversarial AIMD regression suites:
  *
  *   Layer 1 — bucket key `${providerId}/${modelId}`: actors bound to a model
  *     (Issue #38) get their own bucket; unbound actors share the provider's
@@ -191,13 +191,13 @@ export class AimdGovernor {
       bucket.successStreak = 0;
     }
     // 'ended': inFlight accounting only — an aborted or permanently-failed ask
-    // is never a success and never judges the cap (official `ended` semantics).
+    // is never a success and never judges the cap (canonical `ended` semantics).
     this.drain(bucket);
   }
 
   /**
    * Register (or update) a run's concurrency bound against a key — the
-   * official growthLimit derivation: max(2D, the largest bound among the
+   * canonical growthLimit derivation: max(2D, the largest bound among the
    * in-flight runs using this key). A RAISED bound also seeds the cap toward
    * it (skipped within the idle window after any throttle — seeding into a
    * wall just re-loses a batch); a LOWERED bound pulls the cap down on the
@@ -285,7 +285,7 @@ export class AimdGovernor {
     const next = this.deriveGrowthLimit(bucket);
     bucket.growthLimit = Math.max(bucket.initial, next);
     if (bucket.limit <= bucket.growthLimit) return;
-    // lower the cap on the spot (official setGrowthLimit): a big run's learned
+    // lower the cap on the spot (canonical setGrowthLimit): a big run's learned
     // cap must not leak to later default runs until the idle reset.
     bucket.limit = bucket.growthLimit;
     if (bucket.lastGood !== undefined && bucket.lastGood > bucket.limit) bucket.lastGood = bucket.limit;

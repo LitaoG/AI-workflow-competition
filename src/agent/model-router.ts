@@ -1,6 +1,5 @@
 /**
- * Task-attribute model routing — the Thinking/Flash dual track (F.md §5.6
- * Phase 6, Issue #151; ZCode-inspired). The router picks the HEAD of the
+ * Task-attribute model routing — the Thinking/Flash dual track (Issue #151; ZCode-inspired). The router picks the HEAD of the
  * failover chain per ask; it sits on top of the existing
  * providerRegistry + buildFailoverChain + RetryOrchestrator/AIMD reliability
  * chain and replaces none of it.
@@ -37,7 +36,7 @@ export interface RouterOptions {
 export const DEFAULT_DEEP_PROMPT_THRESHOLD = 6000;
 
 /**
- * Resolve a persona model binding (Issue #38 D8-③, official 9011 parity):
+ * Resolve a persona model binding (Issue #38 D8-③, canonical 9011 parity):
  * "providerId/modelId" pins the provider part (must be registered);
  * "modelId" resolves through the run's model directory (modelId → providerId),
  * falling back to the provider self-map (every registered provider id is a
@@ -76,7 +75,7 @@ function envProviderFor(tier: ProviderTier): string | undefined {
 export function resolveRoutedProvider(input: {
   /** The actor's resolved model provider (persona model binding — Issue #38).
    *  Resolved at actor creation against the run's model directory; wins over
-   *  provider/tier per the official precedence (persona model binding first). */
+   *  provider/tier per the canonical precedence (persona model binding first). */
   actorModelProvider?: string;
   /** The actor's explicit provider literal, when the script declared one. */
   actorProvider?: string;

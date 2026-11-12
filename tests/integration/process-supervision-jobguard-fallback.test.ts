@@ -1,5 +1,5 @@
 /**
- * Job-guard DEGRADATION suite (Issue #98 Phase 2, blueprint step 7).
+ * Job-guard DEGRADATION suite (Issue #98, blueprint step 7).
  *
  * Deliberately a separate file: the injected fake csc path poisons the
  * module-level memo (the first verdict sticks for the process lifetime by

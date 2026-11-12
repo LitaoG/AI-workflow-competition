@@ -1,5 +1,5 @@
 /**
- * TEST-GOAL 阶段4.2 攻防回归 — PoC1: 构造器链逃逸 ({ }).constructor.constructor("return process")().
+ * 攻防回归 — PoC1: 构造器链逃逸 ({ }).constructor.constructor("return process")().
  *
  * Attack fixtures: tests/adversarial/fixtures/goal-poc1-constructor-escape.ts (direct form)
  *                  tests/adversarial/fixtures/goal-poc1b-constructor-escape-anycast.ts (any-cast form)

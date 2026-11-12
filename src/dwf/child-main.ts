@@ -2,8 +2,7 @@
  * Sandbox child entry: runs the lowered facade script inside a `node:vm` realm with
  * only the facade host reachable.
  *
- * Isolation target is fault isolation and determinism, NOT a security boundary (same
- * as the official engine): the child is a disposable process, and the realm denies the
+ * Isolation target is fault isolation and determinism, NOT a security boundary (by design): the child is a disposable process, and the realm denies the
  * script access to the host module system and Node APIs by construction — a fresh vm
  * realm has no `process`, no `require`, no `fetch`.
  *
@@ -26,7 +25,7 @@
  * become script-reachable — with the static constructor-chain ban (compile.ts
  * 9002, GAP-02) rejecting known text shapes on top of it.
  *
- * PreSeed discipline (Issue #31, aligned with the official engine's child-source.ts):
+ * PreSeed discipline (Issue #31):
  * the script touches only context-native values. What crosses the boundary is:
  *   - inbound: `__argsJson` (a STRING — args are `Object.freeze(JSON.parse(...))`-ed
  *     INSIDE the realm by the BOOTSTRAP, so their prototype chain is context-native
@@ -75,7 +74,7 @@ type TaggedError = Error & { __dwfTagged?: unknown };
 
 const scriptJsPath = process.argv[2];
 const argsArg = process.argv[3] ?? '{}';
-// Run-level output-token budget (official parity: the script cannot set it).
+// Run-level output-token budget (canonical parity: the script cannot set it).
 // argv[4] is absent for older parents and for runs with no budget.
 const budgetTotalArg = process.argv[4] ?? '';
 const budgetTotal = Number(budgetTotalArg);

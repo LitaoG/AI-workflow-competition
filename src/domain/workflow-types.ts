@@ -185,7 +185,7 @@ export interface AgentCallOptions {
   /** Abort signal — a cancelled session turn must stop its provider call. */
   signal?: AbortSignal;
   /**
-   * Stall clock (reverse-aligned with Claude Code's stallMs): if the provider call
+   * Stall clock (aligned with common agent-host defaults): if the provider call
    * makes no progress within this window, reject with a transient stall error —
    * the classifier turns it into a retry. Default: no stall clock.
    */

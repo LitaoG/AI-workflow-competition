@@ -1,5 +1,5 @@
 /**
- * Core agent loop (F.md §5.1, Issue #102). `queryLoop()` is an async generator
+ * Core agent loop (Issue #102). `queryLoop()` is an async generator
  * that drives one ReAct session turn by turn:
  *
  *   1. budget check and compaction (CompactionPipeline.ensureBudget);
@@ -65,7 +65,7 @@ export interface ToolDefinition {
   description: string;
   /** JSON Schema of the input object, shown to the model. */
   inputSchema?: Record<string, unknown>;
-  /** True when the tool never changes state (the Phase 6 Plan mode relies on it). */
+  /** True when the tool never changes state (the Plan mode relies on it). */
   readOnly?: boolean;
   execute(input: Record<string, unknown>, context: ToolContext): Promise<string> | string;
 }
@@ -85,10 +85,10 @@ export interface PermissionGate {
   check(call: ToolCall, tool: ToolDefinition | undefined): PermissionDecision | Promise<PermissionDecision>;
 }
 
-/** Phase 6 (#151): the three concrete modes behind the gate — plan/build/yolo. */
+/** (#151): the three concrete modes behind the gate — plan/build/yolo. */
 export type { PermissionMode } from './permissions/modes.js';
 
-/** Phase 3 default: every call is allowed — the same semantics as the Phase 6 'yolo' mode (permissions/permission-manager.ts). */
+/** Default: every call is allowed — the same semantics as the 'yolo' mode (permissions/permission-manager.ts). */
 export const allowAllPermissions: PermissionGate = {
   check: (): PermissionDecision => ({ ok: true }),
 };
@@ -108,7 +108,7 @@ export interface LoopEngine {
   readonly tools: ReadonlyMap<string, ToolDefinition>;
   readonly permissions: PermissionGate;
   readonly compaction: CompactionPipeline;
-  /** Called after every turn with tool calls and once at the end (F.md §5.1 step 6). */
+  /** Called after every turn with tool calls and once at the end (step 6). */
   persistSnapshot?(session: SessionContext): Promise<void> | void;
 }
 

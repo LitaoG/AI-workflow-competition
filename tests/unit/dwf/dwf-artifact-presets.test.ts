@@ -3,7 +3,7 @@
  * compile enforces the declaration discipline (9007 id/tag rules, 9008
  * top-level hoisting, 9009 primary conflict), lowering emits the
  * declareArtifact frame (args packed positionally, zero validation), and the
- * engine journals the declaration with official failRun semantics: spec
+ * engine journals the declaration with canonical failRun semantics: spec
  * validation, kind mismatch, identical re-declaration no-op, different-spec
  * ArtifactRedeclared, primary conflict, per-run id cap — plus report(item, tag)
  * linkage on the journal events.

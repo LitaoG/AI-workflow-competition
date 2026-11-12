@@ -1,5 +1,5 @@
 /**
- * Phase 6 (F.md §5.6, Issue #151): the legacy gates run under the supervised
+ * (Issue #151): the legacy gates run under the supervised
  * spawn standard — shell-less argv parsing, allowlist-only env, whole-tree
  * timeout kill, irreversible output redaction — with the exec-era outcome
  * contract preserved (GateFailureError for gateStep, a false GateResult for

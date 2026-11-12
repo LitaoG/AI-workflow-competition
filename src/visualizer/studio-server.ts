@@ -1,6 +1,5 @@
 /**
- * AI-Workflow Studio — WebSocket live push + time travel (Issue #156, F.md
- * Phase 8b).
+ * AI-Workflow Studio — WebSocket live push + time travel (Issue #156).
  *
  * Two capabilities, one RFC 6455 endpoint (default path `/ws`), ZERO npm
  * dependencies (P0 supply-chain red line — the protocol is implemented here on

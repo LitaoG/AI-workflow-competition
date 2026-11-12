@@ -1,5 +1,5 @@
 /**
- * TEST-GOAL 阶段4.2 攻防回归 — PoC4: 异步 microtask 逃逸（审计点后执行）.
+ * 攻防回归 — PoC4: 异步 microtask 逃逸（审计点后执行）.
  *
  * Attack fixture: tests/adversarial/fixtures/goal-poc4-microtask-escape.ts
  * The script's synchronous surface is benign (returns "POC4-benign-main"); a

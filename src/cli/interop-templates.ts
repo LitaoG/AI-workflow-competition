@@ -173,7 +173,7 @@ openai\`). List them live with \`workflow mcp list\`.
 `;
 
 /**
- * ZCode runtime alignment config (.zcode/config.json, D.md §四): declares the
+ * ZCode runtime alignment config (.zcode/config.json): declares the
  * engine entry points and journal paths so ZCode can read and run workflows
  * bidirectionally without re-probing the project.
  */

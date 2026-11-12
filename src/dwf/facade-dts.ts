@@ -1,7 +1,7 @@
 /**
  * Facade type declarations for facade-script workflows (Level-1 authoring surface).
  *
- * Modeled on ZCode's dynamic-workflow facade (`workflow-facade.d.ts` constant): the
+ * Modeled on the ZCode dynamic-workflow facade surface: the
  * script author sees exactly these primitives and nothing else. The compiler injects
  * this text as an extra in-memory source file, so any use of Node/web ambient APIs
  * (`process`, `fetch`, `fs`, ...) fails typechecking before the script ever runs.
@@ -38,7 +38,7 @@ declare interface Agent {
  * configured both resolve to the registry default. Without a tier, asks with a
  * schema or a large prompt route deep automatically. All options must be
  * compile-time string literals — routing is part of the approved run shape.
- * opts.model binds the actor to a MODEL via model() (Issue #38 D8-③, official
+ * opts.model binds the actor to a MODEL via model() (Issue #38 D8-③, canonical
  * parity): it wins over provider/tier; the id resolves against the run's model
  * directory at actor creation and an unknown id fails the run before any ask.
  */
@@ -81,7 +81,7 @@ declare const args: Record<string, unknown>;
 declare const run: { readonly id: string; readonly resumedFrom?: string };
 
 /**
- * The run's output-token budget (official parity: injected by the run config and
+ * The run's output-token budget (canonical parity: injected by the run config and
  * READ-ONLY — a script can read it but never raise its own cap). Set it with the
  * runner's budgetTotal option (workflow run-script --budget-total <n> or the
  * MCP budgetTotal argument). At agent()-call granularity, spending past total
@@ -187,7 +187,7 @@ declare function escalate(question: string): Promise<string>;
 declare function workflow(name: string): Promise<unknown>;
 
 /**
- * Fan-out primitives (reverse-aligned with Claude Code's exact semantics):
+ * Fan-out primitives (exact host-actor semantics):
  * - parallel(thunks): run thunk functions concurrently; a failed thunk becomes null
  *   (never rejects); budget-exceeded slots are dropped with a summary line.
  * - pipeline(items, ...stages): each item flows through every stage independently

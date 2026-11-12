@@ -1,7 +1,7 @@
 /**
- * QueryEngine and compaction pipeline tests (F.md Phase 3, Issue #102).
+ * QueryEngine and compaction pipeline tests (Issue #102).
  *
- * The headline case is the Phase 3 delivery check: a 20-turn tool session in
+ * The headline case is the compaction budget check: a 20-turn tool session in
  * which every tool output is far larger than the whole budget, and the three
  * compaction tiers keep every model request inside the context budget. Models
  * are scripted (no network): each one records every request it received, so
@@ -84,7 +84,7 @@ function fakeSleep(waits: number[]): (ms: number) => Promise<void> {
 
 const echoTool: ToolDefinition = { name: 'echo', description: 'Echo the input.', execute: (input) => JSON.stringify(input) };
 
-test('Phase 3 DoD: a 20-turn tool session keeps every model request inside the context budget', async () => {
+test('Compaction budget DoD: a 20-turn tool session keeps every model request inside the context budget', async () => {
   const BUDGET = 2000;
   const spillDir = tempDir('qe-spill-');
   try {

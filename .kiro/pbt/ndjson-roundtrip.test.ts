@@ -1,5 +1,5 @@
 /**
- * Phase 8a (F.md §5.8, Issue #155): the NDJSON wire-format contract between
+ * (Issue #155): the NDJSON wire-format contract between
  * the dwf engine and its child realm (src/dwf/protocol.ts encodeFrame; the
  * runner's inline frame pump is the consumer). The pump's incremental
  * behavior assumes exactly one property, and this locks it as a format law:

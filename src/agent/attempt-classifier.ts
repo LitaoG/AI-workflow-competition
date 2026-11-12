@@ -61,7 +61,7 @@ export function classifyFailure(err: unknown, attempt: number): Classification {
   // a message-based classifier cannot tell an unknown provider PROTOCOL code from
   // a genuine logic error, and give-up is the storm-safe default. ZCode's
   // unknown-code-9-retries assumes a code table we do not have (documented
-  // divergence in claude-code-workflow-internals.md).
+  // divergence).
   return { category: 'fatal', retryable: false, backoffMs: 0 };
 }
 

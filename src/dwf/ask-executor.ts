@@ -22,7 +22,7 @@ import type { LLMMessage, TokenUsage, WorkflowEventType } from '../types.js';
 const MAX_QUOTA_WAIT_MS = 24 * 60 * 60_000;
 
 /**
- * Structured quota reset from a provider error. Accepts both the official
+ * Structured quota reset from a provider error. Accepts both the canonical
  * `details.quotaLimits = { status: 'rejected', resetsAt }` (epoch seconds) and
  * the adapter-friendly `details.resetAtMs` (epoch ms). Absent/invalid metadata
  * falls through to the existing policy-stop path — never a blind sleep.
@@ -179,7 +179,7 @@ export async function executeAsk(ctx: AskExecutionContext): Promise<unknown> {
       emit('dwf_ask_complete', { siteId, actor: actor.name });
       return reply;
     } catch (err) {
-      // Issue #37 layer 4 (official `ended` semantics): a cancelled ask is
+      // Issue #37 layer 4 (canonical `ended` semantics): a cancelled ask is
       // NEVER a success — it neither grows the streak nor judges the cap.
       if ((err as Error).name === 'AbortError') {
         aimdGovernor.release(routedProvider, 'ended', { modelId: aimdModel });
@@ -192,7 +192,7 @@ export async function executeAsk(ctx: AskExecutionContext): Promise<unknown> {
       const aimdClass = classifyFailure(err, providerRetries).category;
       const aimdOutcome = aimdClass === 'rate_limit' ? 'throttled' : aimdClass === 'transient' ? 'transient' : 'ended';
       aimdGovernor.release(routedProvider, aimdOutcome, { modelId: aimdModel, retryAfterMs: retryAfterFromError(err) });
-      // Structured quota reset (official Bo): wait and retry the SAME provider
+      // Structured quota reset (canonical quota-reset contract): wait and retry the SAME provider
       // instead of a policy stop — but only when the reset is within the
       // whole-run deadline and the per-ask wait budget.
       const resetAtMs = resetAtFromError(err);

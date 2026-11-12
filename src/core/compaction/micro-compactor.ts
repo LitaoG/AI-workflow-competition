@@ -1,5 +1,5 @@
 /**
- * Micro-compactor: tier 1 of the context compaction pipeline (F.md §5.2,
+ * Micro-compactor: tier 1 of the context compaction pipeline (
  * Issue #102). It is a read-time projection of ONE oversized tool output.
  *
  * When a tool result is estimated above the threshold, the full output is

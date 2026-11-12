@@ -1,6 +1,6 @@
 /**
  * Budget ledger — run-level output-token accounting and live-call caps
- * (reverse-aligned with Claude Code's WorkflowBudgetExceededError /
+ * (the WorkflowBudgetExceededError /
  * WorkflowAgentCapError). Replayed asks cost nothing and never trip these;
  * enforcement happens at live agent()-call granularity. The AIMD provider
  * buckets themselves live in `governor.ts` — this module is the run's ledger,

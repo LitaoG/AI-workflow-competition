@@ -1,5 +1,5 @@
 /**
- * Phase 6 (F.md §5.6, Issue #151): the plan / build / yolo permission modes —
+ * (Issue #151): the plan / build / yolo permission modes —
  * plan denies every write (and every unverifiable tool), build denies writes
  * with a structured confirmation-pending marker, yolo allows everything (the
  * pre-Phase-6 posture). The write class is the tool's own `readOnly` flag.

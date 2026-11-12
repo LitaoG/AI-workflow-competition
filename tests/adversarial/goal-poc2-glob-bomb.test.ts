@@ -1,5 +1,5 @@
 /**
- * TEST-GOAL 4.2 PoC2 regression: glob bomb — 3000 files in the run workspace vs
+ * PoC2 regression: glob bomb — 3000 files in the run workspace vs
  * `files.glob('*.txt')`, over the 2000-file cap.
  *
  * Attack (fixtures, run byte-identical from a temp-dir bomb field built by this test):
@@ -10,7 +10,7 @@
  * collects cap+1 = 2001 matches and the call REJECTS ("files.glob matched more than
  * 2000 files — narrow the pattern"). Form verified live: Promise reject CATCHABLE in
  * the script; uncaught it fails the run structurally. Exactly 2000 files must NOT
- * reject (cap+1 semantics — the boundary official ZCode keeps with maxResults: cap+1,
+ * reject (cap+1 semantics — the boundary ZCode keeps with maxResults: cap+1,
  * bootstrap/src/app/workflow-world-read.ts:112-123).
  *
  * Observability: the caught fixture carries its observation in the run's RETURN VALUE
@@ -63,7 +63,7 @@ async function makeBombField(count: number, fixture: string): Promise<string> {
   return dir;
 }
 
-describe('TEST-GOAL PoC2: files.glob 3000-file resource bomb', () => {
+describe('PoC2: files.glob 3000-file resource bomb', () => {
   test('uncaught: 3000 files → structural run failure carrying the cap message', async () => {
     const dir = await makeBombField(BOMB_SIZE, uncaughtFixture);
     try {

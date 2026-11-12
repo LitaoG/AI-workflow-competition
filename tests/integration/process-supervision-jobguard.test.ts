@@ -1,5 +1,5 @@
 /**
- * Win32 Job Object supervision — behavioral gate suite (Issue #98 Phase 2).
+ * Win32 Job Object supervision — behavioral gate suite (Issue #98).
  *
  * All assertions are observable terminal states / counts (tasklist rows, pids,
  * exit codes) — no ever-true assertions. Cases (b)/(b2)/(c)/(d) require the

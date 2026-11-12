@@ -97,7 +97,7 @@ export interface FacadeEngineOptions {
    */
   restoreOutputTokensSpent?: number;
   /**
-   * Run-level output-token budget (official parity: read-only in the sandbox).
+   * Run-level output-token budget (canonical parity: read-only in the sandbox).
    * Omit/null for unlimited. The runner seeds the child and the enforcer with
    * the same value so the script can read but never raise its cap.
    */
@@ -106,7 +106,7 @@ export interface FacadeEngineOptions {
   deadlineMs?: number;
   maxConcurrency?: number;
   /**
-   * Per-ask stall clock (official 2.1.316 90s parity). 0 disables it. The runner
+   * Per-ask stall clock (90s default parity). 0 disables it. The runner
    * resolves the default from AI_WORKFLOW_STALL_MS or 90000ms.
    */
   stallMs?: number;
@@ -143,7 +143,7 @@ export class FacadeEngine {
    * Issue #39: per-actor named-cache consumption state (amend import path).
    * Attached lazily at the actor's first ask: a candidate exists when the
    * imported lineage carries ask rows under the SAME effective name and the
-   * canonical persona matches (official matchImportedActor parity — an
+   * canonical persona matches (canonical matchImportedActor parity — an
    * anonymous actor never attaches). Divergence is monotonic: one content
    * miss detaches the actor for good.
    */
@@ -245,11 +245,10 @@ export class FacadeEngine {
   }
 
   /**
-   * workflow(name) — compose a saved workflow as a CHILD run (reverse-aligned with
-   * Claude Code's workflow() composition): own runId (lineage → this run), own
+   * workflow(name) — compose a saved workflow as a CHILD run (host-style composition): own runId (lineage → this run), own
    * compile-checked approvals, own sandbox. Composition is multi-level but bounded:
    * at most MAX_WORKFLOW_NESTING_DEPTH saved workflows in a chain, and a name may
-   * not repeat in the chain (cycle guard). Official 2.1.316 hard-rejects any
+   * not repeat in the chain (cycle guard). The base contract hard-rejects any
    * nesting; this is a deliberate, documented extension.
    */
   private async composeWorkflow(siteId: string, name: string): Promise<unknown> {
@@ -362,9 +361,9 @@ export class FacadeEngine {
       });
     }
     // Issue #38: the persona model binding resolves against the run's model
-    // directory at CREATION time (official 9011 parity — an unresolved id fails
+    // directory at CREATION time (canonical 9011 parity — an unresolved id fails
     // the run before any ask spends tokens); the resolved provider wins routing
-    // over provider/tier (official precedence: persona model binding first).
+    // over provider/tier (canonical precedence: persona model binding first).
     const modelProvider = model === undefined ? undefined : resolveModelToProvider(model, this.options.modelDirectory);
     this.actors.set(siteId, {
       name: display,
@@ -434,7 +433,7 @@ export class FacadeEngine {
     }
 
     // Per-actor FIFO: asks issued while the actor is busy wait their turn — the
-    // official facade contract. The chain stays alive across failures. The abort
+    // canonical facade contract. The chain stays alive across failures. The abort
     // controller registers synchronously (at frame-processing time), so a
     // sessions.cancel arriving immediately after the call still finds it.
     //
@@ -796,7 +795,7 @@ export class FacadeEngine {
           throw new Error(`${cached.errorText} (journalled failure at ${siteId}#${ordinal} — it replays on resume; edit the script or start a fresh run to retry)`);
         }
       } else if (kind === 'ask' && this.sameScriptResume) {
-        // Positional replay defense (P0-2, the official InputHashMismatch
+        // Positional replay defense (P0-2, the canonical InputHashMismatch
         // subset): on a same-script resume the ask sequence is deterministic,
         // so the journal row at this call's arrival position must be its own
         // row. A content miss with an UNCONSUMED ask row at that position means
@@ -851,7 +850,7 @@ export class FacadeEngine {
         // Issue #39: per-actor named-cache second chance — the site-keyed pool
         // misses whenever an amend renumbers sites, but a named actor whose
         // canonical persona matches the lineage still consumes its prior asks
-        // 1:1 by position + content hash (official matchImportedActor parity).
+        // 1:1 by position + content hash (canonical matchImportedActor parity).
         const actorHit = kind === 'ask' && actorSiteId !== undefined && meta?.actorCache !== undefined && !this.divergedActors.has(actorSiteId)
           ? this.takeActorImport(actorSiteId, meta.actorCache)
           : undefined;
@@ -1004,7 +1003,7 @@ export class FacadeEngine {
    * payloads with `redactText` (see redact.ts for the boundary discipline).
    */
   /**
-   * Issue #39: consume the next imported ask for this actor (official
+   * Issue #39: consume the next imported ask for this actor (canonical
    * ImportedActorState.take parity): attached by (effective name + canonical
    * persona), consumed by per-actor position + site-independent content
    * hash, monotonic divergence on any miss. Returns the recorded reply JSON
@@ -1029,7 +1028,7 @@ export class FacadeEngine {
     const entry = state.rows[state.cursor];
     if (entry === undefined || entry.contentHash !== cache.contentHash) {
       // hash mismatch (instructions changed) or a NEW ask beyond the prefix —
-      // both diverge; the cascade is free and dynamic (official parity).
+      // both diverge; the cascade is free and dynamic (canonical parity).
       state.diverged = true;
       // divergedActors registration happens in the caller's diverge block (so
       // the dwf_amend_diverged event keeps its at-most-once semantics).

@@ -1,5 +1,5 @@
 /**
- * Phase 4 (F.md §六, Issue #126): complex TypeScript types in `ask<T>` become
+ * (Issue #126): complex TypeScript types in `ask<T>` become
  * Draft-07 JSON Schema, and the Zod validator built from that schema accepts what
  * the type allows and rejects what it does not.
  *

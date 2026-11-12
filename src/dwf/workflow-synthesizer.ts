@@ -1,5 +1,5 @@
 /**
- * Workflow synthesizer (F.md §5.7 Phase 7b, Issue #154 — 代差1 core deliverable):
+ * Workflow synthesizer (Issue #154):
  * an LLM writes the facade script for a task, and the script is only accepted
  * when it passes the SAME compile purity gate every hand-written script goes
  * through (analyzeFacadeScript — AST bans, literal rules, type check). Failed
@@ -35,7 +35,7 @@ export interface SynthesizerOptions {
   task: string;
   /** Hard cap on compile-gate attempts (default 3 — one draft + bounded repairs). */
   maxAttempts?: number;
-  /** Provider id for the synthesis ask (routing is part of the call; Phase 6 tiers apply via env). */
+  /** Provider id for the synthesis ask (routing is part of the call; tier routing applies via env). */
   providerId?: string;
 }
 

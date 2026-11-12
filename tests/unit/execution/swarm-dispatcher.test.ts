@@ -1,5 +1,5 @@
 /**
- * Phase 5 (F.md §5.4, Issue #140): swarm dispatch policy — the single source
+ * (Issue #140): swarm dispatch policy — the single source
  * the engine's seat gate and agent cap resolve through. Formula, option, env
  * override precedence, and invalid-override fallback.
  */
@@ -51,6 +51,6 @@ test('invalid overrides (NaN, zero, negative, non-integer) fall back instead of 
   }
 });
 
-test('the swarm agent cap is the F.md value (1000)', () => {
+test('the swarm agent cap is 1000', () => {
   assert.equal(SWARM_AGENT_CAP, 1000);
 });

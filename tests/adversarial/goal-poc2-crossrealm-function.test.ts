@@ -1,5 +1,5 @@
 /**
- * TEST-GOAL 阶段4.2 攻防回归 — PoC2: 跨 realm Function 逃逸 → process → child_process.
+ * 攻防回归 — PoC2: 跨 realm Function 逃逸 → process → child_process.
  *
  * Attack fixtures:
  *  - goal-poc2-crossrealm-function.ts — direct host-object route via Date.parse (statically caught);
