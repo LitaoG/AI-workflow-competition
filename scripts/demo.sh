@@ -31,21 +31,21 @@ fi
 echo ""
 echo "== 2/9 run: incident triage & remediation (mock) =="
 cd "$ROOT/demos/incident-triage-remediation"
-OUT=$(node "$BIN" run-script facade.workflow.ts --db "$DB" --args '{"scenario":"p1_db_pool_exhaustion"}')
+OUT=$(node "$BIN" run-script facade.workflow.ts --db "$DB" --args '{"scenario":"p1_db_pool_exhaustion"}' --approve-cmd node)
 echo "$OUT" | grep -E "run dwfrun|result:" | head -2
 INCIDENT_ID=$(echo "$OUT" | grep -oE 'dwfrun-[A-Za-z0-9_-]+' | tail -1)
 if echo "$OUT" | grep -q "completed"; then act_ok 2 "sandbox run completed"; else act_fail 2 "$OUT"; fi
 
 echo ""
 echo "== 3/9 resume: the SAME run replays at ZERO provider calls =="
-OUT=$(node "$BIN" run-script facade.workflow.ts --db "$DB" --args '{"scenario":"p1_db_pool_exhaustion"}' --resume "$INCIDENT_ID")
+OUT=$(node "$BIN" run-script facade.workflow.ts --db "$DB" --args '{"scenario":"p1_db_pool_exhaustion"}' --resume "$INCIDENT_ID" --approve-cmd node)
 echo "$OUT" | grep -E "asks:|⚡" | head -4
 if echo "$OUT" | grep -q "asks: 0 (replayed from journal:"; then act_ok 3 "zero-provider replay"; else act_fail 3 "$OUT"; fi
 
 echo ""
 echo "== 4/9 run: AWS SDK v2->v3 migration (mock) =="
 cd "$ROOT/demos/repo-migration-engine"
-MIG_OUT=$(node "$BIN" run-script facade.workflow.ts --db "$DB")
+MIG_OUT=$(node "$BIN" run-script facade.workflow.ts --db "$DB" --approve-cmd node)
 echo "$MIG_OUT" | grep -E "asks:|result:" | head -2
 if echo "$MIG_OUT" | grep -q "completed"; then act_ok 4 "migration completed"; else act_fail 4 "$MIG_OUT"; fi
 
@@ -81,7 +81,7 @@ if echo "$ANS_OUT" | grep -q "completed with the answer"; then act_ok 7 "escalat
 
 echo ""
 echo "== 8/9 budget: budget.total hard-stops further agent() calls =="
-BUD_OUT=$(node "$BIN" run-script budget.facade.ts --db "$DB")
+BUD_OUT=$(node "$BIN" run-script budget.facade.ts --db "$DB" --budget-total 80)
 echo "$BUD_OUT" | grep -E "result:" | head -1
 if echo "$BUD_OUT" | grep -q "WorkflowBudgetExceededError"; then act_ok 8 "budget hard stop"; else act_fail 8 "$BUD_OUT"; fi
 
