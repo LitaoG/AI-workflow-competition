@@ -48,3 +48,7 @@ coverage/
 
 # win32-jobhelper.exe lazy-compile cache
 .cache/
+
+# Machine-local ZCode wiring (MCP stdio entry + skill junction); the
+# canonical skill lives in skills/ai-workflow/ and INTEGRATION.md documents setup
+/.zcode/
