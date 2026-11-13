@@ -141,7 +141,9 @@ export async function executeRunScript(
             console.log(`  ♻ amended run reused: ${e.data.siteId}#${e.data.ordinal} (0 provider calls)`);
             break;
           case 'dwf_amend_diverged':
-            console.log(`  ⑂ amended run diverged: ${e.data.siteId}#${e.data.ordinal} (executing live)`);
+            // The event fires before the live ordinal is allocated and is
+            // per-actor once — the siteId already carries the node number.
+            console.log(`  ⑂ amended run diverged: ${e.data.siteId} (executing live)`);
             break;
           case 'dwf_world_run':
             console.log(`  $ ${e.data.cmd} ${(e.data.args as string[] | undefined)?.join(' ') ?? ''}`);

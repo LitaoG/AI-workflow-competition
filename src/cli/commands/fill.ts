@@ -43,7 +43,7 @@ export async function executeFill(
           console.log(`  ♻ amended run reused: ${e.data.siteId}#${e.data.ordinal} (0 provider calls)`);
           break;
         case 'dwf_amend_diverged':
-          console.log(`  ⑂ amended run diverged: ${e.data.siteId}#${e.data.ordinal} (executing live)`);
+          console.log(`  ⑂ amended run diverged: ${e.data.siteId} (executing live)`);
           break;
         case 'dwf_ask_start':
           console.log(`  ask → ${e.data.actor} (${e.data.siteId})`);
