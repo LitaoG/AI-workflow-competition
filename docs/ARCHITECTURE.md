@@ -380,7 +380,7 @@ $$C(t) = (1-t)^3 P_0 + 3(1-t)^2 t P_1 + 3(1-t) t^2 P_2 + t^3 P_3, \quad t \in [0
 - **平移缩放**：纯 CSS/SVG 矩阵变换，滚轮与拖拽导航；
 - **节点检查抽屉**：点击步骤滑出抽屉，渲染 JSON 输入输出、运行时长、角色与错误堆栈；
 - **Kanban 看板**（`dag/kanban.ts`）：按产物类型分四列——`probe`（探测上下文）/ `patch`（Agent 补丁与 AST）/ `gate`（门禁与测试日志）/ `deliverable`（交付物），卡片状态 `pending`/`active`/`done`/`failed`；
-- **AI-Workflow Studio**（`visualizer/studio-renderer.ts` + `studio-server.ts`）：单文件自包含 SPA（拓扑画布、实时事件终端、节点检查器一体的暗色工作台，`file://` 离线可用）。服务端在零 npm 依赖前提下手写 RFC 6455 WebSocket：`broadcastEvent` 向所有连接实时推帧；客户端 `{"op":"seek","ordinal":N}` 触发**时间旅行**——把 `events.jsonl` 前 N 条事件折叠为状态快照回放（复用同一投影器 `projectEventsToGraph`），新连接以全量折叠开场，画布直接落在"现在"；
+- **AI-Workflow Studio**（`visualizer/studio-renderer.ts` + `studio-server.ts`）：单文件自包含 SPA（AffectUI 风格拓扑画布、抽屉式实时事件终端与节点检查器，`file://` 离线可用；默认 Canvas-First 全屏展示工作流全貌，点击节点或切换按钮平滑展开右侧抽屉；阶段标题自适应换行，卡片采用意图摘要与状态指标多行布局，跨阶段节点以 SVG 贝塞尔带箭头导向连线贯通）。服务端在零 npm 依赖前提下手写 RFC 6455 WebSocket：`broadcastEvent` 向所有连接实时推帧；客户端 `{"op":"seek","ordinal":N}` 触发**时间旅行**——把 `events.jsonl` 前 N 条事件折叠为状态快照回放（复用同一投影器 `projectEventsToGraph`），新连接以全量折叠开场，画布直接落在"现在"；
 - **多格式导出**：单文件 HTML/SVG、Mermaid markdown 图、终端 ASCII 树（`workflow graph --format html|mermaid|ascii`）。
 
 ---

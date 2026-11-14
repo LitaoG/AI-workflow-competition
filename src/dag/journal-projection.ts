@@ -147,6 +147,8 @@ interface ProjectionState {
   order: string[];
   /** Per-phase last created node key — the creation-order dependency chain. */
   lastNodeByPhase: Map<string, string>;
+  /** Overall last created node key — wires inter-phase sequential handoffs. */
+  lastNodeOverall?: string;
   edges: DAGEdge[];
 }
 
@@ -181,17 +183,22 @@ function ensurePhase(state: ProjectionState, name: string): PhaseColumn {
   return column;
 }
 
-/** Create a node, append it to the creation order and wire the per-phase chain edge. */
+/** Create a node, append it to the creation order and wire intra- and inter-phase chain edges. */
 function createNode(state: ProjectionState, key: string, init: Omit<DAGNode, 'dependsOn'>): DAGNode {
-  const last = state.lastNodeByPhase.get(init.phaseId);
-  const dependsOn = last !== undefined && last !== key ? [last] : [];
+  const lastInPhase = state.lastNodeByPhase.get(init.phaseId);
+  let prev = lastInPhase;
+  if (prev === undefined && state.lastNodeOverall !== undefined && state.lastNodeOverall !== key) {
+    prev = state.lastNodeOverall;
+  }
+  const dependsOn = prev !== undefined && prev !== key ? [prev] : [];
   const node: DAGNode = { ...init, dependsOn };
   state.sites.set(key, { node });
   state.order.push(key);
-  if (last !== undefined && last !== key) {
-    state.edges.push({ fromNodeId: last, toNodeId: key });
+  if (prev !== undefined && prev !== key) {
+    state.edges.push({ fromNodeId: prev, toNodeId: key });
   }
   state.lastNodeByPhase.set(init.phaseId, key);
+  state.lastNodeOverall = key;
   return node;
 }
 
@@ -251,6 +258,7 @@ function applyEvent(state: ProjectionState, event: WorkflowEvent): void {
       if (entry.startedAtMs !== undefined && Number.isFinite(end) && end >= entry.startedAtMs) {
         entry.node.durationMs = end - entry.startedAtMs;
       }
+      if (data.result !== undefined) entry.node.outputs = data.result;
       break;
     }
     case 'dwf_replay_hit':
@@ -320,6 +328,9 @@ function applyEvent(state: ProjectionState, event: WorkflowEvent): void {
           // An emitted artifact did land — the only event kind that is a completion fact itself.
           status: 'completed',
         });
+      }
+      if (data.bytes !== undefined) {
+        state.sites.get(key)!.node.outputs = { id, bytes: Number(data.bytes) || 0 };
       }
       break;
     }

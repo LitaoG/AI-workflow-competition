@@ -1,5 +1,40 @@
 # Changelog
 
+## 2.4.0 (2026-11-15) — Antigravity primitives absorption, unawaited-promise sentry, affectUI adaptive cards
+
+Feature sync from the upstream engine line (`c7d4b77..78e3b43`, patch-ported per the
+established two-repo recipe; competition deliverables untouched). Three things land:
+
+- **dwf**: absorb Google Antigravity native-dynamic-workflow primitives — an in-flight
+  promise/agent registry inside the facade sandbox and child executor, with a mandatory
+  final-state audit before the done frame. A script that forgets `await` on any async
+  primitive now fails loudly with `WorkflowUnawaitedPromiseError` (task label, creation
+  site, suggested fix) instead of reporting success without having run the real work —
+  the fake-green failure mode eliminated at the engine level
+  (`src/dwf/child-bootstrap.ts`, `src/dwf/child-main.ts`, `src/dag/journal-projection.ts`,
+  `tests/unit/dwf/unawaited-promise.test.ts`).
+- **visualizer**: affectUI adaptive cards — node cards auto-size to wrapped titles, an
+  intent summarizer surfaces each node's journalled intent line, and the DAG canvas
+  gains the new flow rendering (`src/visualizer/studio-template.ts`,
+  `src/visualizer/studio-renderer.ts`, `src/dag/journal-projection.ts`,
+  `tests/unit/visualizer/issue-280-affectui-overhaul.test.ts`).
+- **research corpus**: `docs/research/ANTIGRAVITY-RUN-WORKFLOW-WHITEPAPER.md` —
+  Antigravity architecture reverse-engineering (dual-process isolation, FD-hijack clean
+  RPC, unawaited-promise audit defense) with a four-lineage comparison;
+  `docs/absorbed-capabilities.md` registers the fourth lineage (Google Antigravity) and
+  CAP-006/CAP-007.
+- **fix (regression riding in the sync)**: the #280/#281 client script is embedded in a
+  TypeScript template literal, where `[\r\n]` and `\s` are cooked before emission — the
+  emitted boot script contained a regex with a literal newline, so the **entire Studio
+  boot script failed to parse** (blank canvas in both the static journal view and live
+  serve). Escaped to `\\r\\n` / `\\s` in `src/visualizer/studio-template.ts` and verified
+  the full render (cards, replay chips, intent lines) in-browser; the flagship screenshot
+  was re-shot from the fixed view.
+
+Full gates on this machine (Node v26.13.0): npm test 770/770 (unit 563 + integration 207),
+e2e 118/118, adversarial 158/158, PBT 16/16, governance 34/34, demo.sh exit 0.
+README/SUBMISSION fingerprints refreshed 763 → 770.
+
 ## 2.2.0 (2026-11-14) — affectUI visual system, progress channel, research corpus
 
 Feature sync from the upstream engine line (ported and reconciled with this repo's

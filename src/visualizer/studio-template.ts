@@ -182,7 +182,8 @@ export const STUDIO_TEMPLATE = `<!doctype html>
   }
   button.primary:hover { transform: translateY(-1px); }
   /* ---------- main grid ---------- */
-  #grid { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1fr) clamp(360px, 34vw, 520px); grid-template-rows: minmax(0, 1fr); min-height: 0; }
+  #grid { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1fr) 0px; grid-template-rows: minmax(0, 1fr); min-height: 0; transition: grid-template-columns .24s var(--aui-ease); }
+  body.sidebar-open #grid { grid-template-columns: minmax(0, 1fr) clamp(360px, 32vw, 480px); }
   body.focus-logs #grid { grid-template-columns: minmax(0, 1fr); }
   body.focus-logs #canvas-pane { display: none; }
   #canvas-pane { position: relative; min-width: 0; min-height: 0; }
@@ -192,8 +193,9 @@ export const STUDIO_TEMPLATE = `<!doctype html>
     position: absolute; bottom: 12px; left: 14px; color: var(--aui-faint); font-size: 11px;
     pointer-events: none; font-family: var(--aui-mono);
   }
-  #right { display: grid; grid-template-rows: minmax(0, 1fr) minmax(0, 42%); min-width: 0; min-height: 0; border-left: 1px solid var(--aui-border); background: var(--aui-bg-raised); }
-  body.focus-logs #right { grid-template-rows: minmax(0, 1fr); }
+  #right { display: none; grid-template-rows: minmax(0, 1fr) minmax(0, 42%); min-width: 0; min-height: 0; border-left: 1px solid var(--aui-border); background: var(--aui-bg-raised); }
+  body.sidebar-open #right { display: grid; }
+  body.focus-logs #right { display: grid; grid-template-rows: minmax(0, 1fr); }
   body.focus-logs #inspector-pane { display: none; }
   .pane { display: flex; flex-direction: column; min-height: 0; }
   .pane + .pane { border-top: 1px solid var(--aui-border); }
@@ -204,6 +206,12 @@ export const STUDIO_TEMPLATE = `<!doctype html>
     background: var(--aui-bg-raised);
   }
   .pane-head .spacer { flex: 1; }
+  .pane-close {
+    all: unset; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 6px; color: var(--aui-muted); font-size: 12px;
+    transition: background-color .16s ease, color .16s ease;
+  }
+  .pane-close:hover { background: var(--aui-wash); color: var(--aui-ink); }
   .pane-head input {
     background: var(--aui-bg); border: 1px solid var(--aui-border); color: var(--aui-ink);
     border-radius: var(--aui-radius-sm); padding: 5px 10px; font: 12px var(--aui-mono); width: 40%;
@@ -333,13 +341,13 @@ export const STUDIO_TEMPLATE = `<!doctype html>
   #a2ui .hint { color: var(--aui-faint); font-size: 10.5px; font-family: var(--aui-mono); margin-top: 10px; word-break: break-all; }
   /* ---------- SVG topology ---------- */
   .col-bg { fill: rgba(23,23,23,.014); stroke: var(--aui-border); stroke-width: 1; rx: 16; }
-  .col-title { fill: var(--aui-muted); font: 700 12px var(--aui-sans); letter-spacing: .3px; }
-  .col-count { fill: var(--aui-faint); font: 10.5px var(--aui-mono); }
-  .edge { fill: none; stroke-width: 2; }
-  .edge.st-completed { stroke: rgba(30,138,79,.5); }
+  .col-title { fill: var(--aui-ink); font: 700 11.5px/1.35 var(--aui-sans); text-transform: uppercase; letter-spacing: .6px; }
+  .col-count { fill: var(--aui-faint); font: 500 10.5px var(--aui-sans); }
+  .edge { fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: stroke .2s var(--aui-ease); }
+  .edge.st-completed { stroke: #1e8a4f; }
   .edge.st-running { stroke: var(--aui-blue); stroke-dasharray: 7 5; animation: aui-dash .9s linear infinite; }
-  .edge.st-failed { stroke: rgba(196,50,10,.55); }
-  .edge.st-replayed { stroke: rgba(8,145,178,.5); }
+  .edge.st-failed { stroke: rgba(196,50,10,.6); }
+  .edge.st-replayed { stroke: rgba(8,145,178,.55); }
   .edge.st-pending, .edge.st-skipped { stroke: #dcdcdf; }
   .edge-dot { fill: #ffffff; stroke-width: 1.5; }
   .edge-dot.st-completed { stroke: #1e8a4f; }
@@ -348,12 +356,12 @@ export const STUDIO_TEMPLATE = `<!doctype html>
   .edge-dot.st-replayed { stroke: #0891b2; }
   .node { cursor: pointer; }
   .node > .card {
-    fill: url(#aui-node-fill); stroke: var(--aui-border); stroke-width: 1; rx: 12;
-    filter: drop-shadow(0 1px 2px rgba(0,0,0,.07));
-    transition: stroke .2s var(--aui-ease);
+    fill: #ffffff; stroke: var(--aui-border); stroke-width: 1; rx: 14;
+    filter: drop-shadow(0 1px 3px rgba(0,0,0,.06));
+    transition: stroke .2s var(--aui-ease), filter .2s var(--aui-ease);
   }
-  .node:hover > .card { stroke: var(--aui-border-strong); }
-  .node.selected > .card { stroke: var(--aui-blue); stroke-width: 1.6; }
+  .node:hover > .card { stroke: var(--aui-border-strong); filter: drop-shadow(0 2px 8px rgba(0,0,0,.08)); }
+  .node.selected > .card { stroke: var(--aui-blue); stroke-width: 1.8; filter: drop-shadow(0 0 0 3px rgba(0,96,226,.15)); }
   .node.st-running > .card { stroke: var(--aui-blue); animation: aui-pulse-blue 2s var(--aui-ease-2) infinite; }
   .node.st-failed > .card { stroke: rgba(196,50,10,.5); }
   .node.st-replayed > .card { stroke: rgba(8,145,178,.5); }
@@ -365,9 +373,11 @@ export const STUDIO_TEMPLATE = `<!doctype html>
   .node.st-failed .nicon { stroke: var(--aui-red); }
   .node.st-replayed .nicon { stroke: var(--aui-cyan); }
   .node.st-pending .nicon, .node.st-skipped .nicon { stroke: var(--aui-faint); }
-  .node .ntitle { fill: var(--aui-ink); font: 600 12px var(--aui-sans); }
-  .node .ntask { fill: var(--aui-muted); font: 10.5px var(--aui-sans); }
-  .node .nmeta { fill: var(--aui-faint); font: 10.5px var(--aui-mono); }
+  .node .ntitle { fill: var(--aui-ink); font: 600 12.5px/1.3 var(--aui-sans); letter-spacing: -.01em; }
+  .node .ntask { fill: #374151; font: 500 11.5px/1.35 var(--aui-sans); }
+  .node .nstatus-badge { font: 500 11px var(--aui-sans); }
+  .node .nmeta { fill: var(--aui-faint); font: 10px var(--aui-mono); }
+  .node .nline { stroke: #f0f0f0; stroke-width: 1; }
   .node .nerr { fill: var(--aui-red); font: 10.5px var(--aui-mono); }
   .npill-text { font: 600 9px var(--aui-sans); letter-spacing: .2px; }
   .npill-halo { opacity: .35; animation: aui-breath 1.8s ease-in-out infinite; }
@@ -386,6 +396,7 @@ export const STUDIO_TEMPLATE = `<!doctype html>
   <div class="actions">
     <button id="btn-fit" title="Fit graph to view">__STUDIO_FIT__</button>
     <button id="btn-reset" title="Reset zoom">100%</button>
+    <button id="btn-sidebar" title="Toggle inspector sidebar">📋 __STUDIO_INSPECTOR__</button>
     <button id="btn-logs" title="Toggle fullscreen event stream">__STUDIO_LOGS__</button>
   </div>
 </header>
@@ -397,6 +408,24 @@ export const STUDIO_TEMPLATE = `<!doctype html>
           <stop offset="0" stop-color="#ffffff" />
           <stop offset="1" stop-color="#fafafa" />
         </linearGradient>
+        <marker id="aui-arrow-pending" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#c8c8cf" />
+        </marker>
+        <marker id="aui-arrow-skipped" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#c8c8cf" />
+        </marker>
+        <marker id="aui-arrow-running" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#2a8ce0" />
+        </marker>
+        <marker id="aui-arrow-completed" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#1e8a4f" />
+        </marker>
+        <marker id="aui-arrow-replayed" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#0891b2" />
+        </marker>
+        <marker id="aui-arrow-failed" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#c4320a" />
+        </marker>
       </defs>
       <g id="viewport"></g>
     </svg>
@@ -408,7 +437,7 @@ export const STUDIO_TEMPLATE = `<!doctype html>
       <div id="term"></div>
     </div>
     <div class="pane" id="inspector-pane">
-      <div class="pane-head">__STUDIO_INSPECTOR__ <span class="spacer"></span><span id="insp-tag" class="mono" style="text-transform:none"></span></div>
+      <div class="pane-head">__STUDIO_INSPECTOR__ <span class="spacer"></span><span id="insp-tag" class="mono" style="text-transform:none"></span><button id="btn-close-sidebar" class="pane-close" title="Close inspector">✕</button></div>
       <div id="inspector"><div class="empty">__STUDIO_INSPECTOR_EMPTY__</div></div>
     </div>
   </section>
@@ -528,14 +557,20 @@ export const STUDIO_TEMPLATE = `<!doctype html>
     return 14 + (tone.live ? 10 : 0) + String(status).length * 5.2;
   }
   function cardWidth() {
-    var g = state.graph, maxTitle = 0, maxPill = 0;
+    var g = state.graph, maxTitle = 0, maxPill = 0, maxPhase = 0;
     var fam = bodyFontFamily();
     (g.nodes || []).forEach(function (n) {
-      maxTitle = Math.max(maxTitle, measureText(nodeTitle(n), '600 12px ' + fam));
+      maxTitle = Math.max(maxTitle, measureText(nodeTitle(n), '600 13px ' + fam));
       maxPill = Math.max(maxPill, pillWidth(n.status || 'pending'));
     });
-    return Math.min(460, Math.max(234, Math.ceil(maxTitle + 42 + maxPill + 22)));
+    (g.phases || []).forEach(function (p) {
+      var pw = measureText(p.name || '', '700 11.5px ' + fam);
+      maxPhase = Math.max(maxPhase, Math.min(380, Math.ceil(pw * 0.58 + 32)));
+    });
+    var baseW = Math.max(maxTitle + 52 + maxPill + 24, maxPhase);
+    return Math.min(500, Math.max(280, Math.ceil(baseW)));
   }
+
   // The ACTUAL work a node does, journalled by the engine: the ask prompt
   // (redacted, capped at 400 chars), a gate's command line, or the parked
   // question — whatever the script really asked this step to do (Issue #252).
@@ -543,6 +578,37 @@ export const STUDIO_TEMPLATE = `<!doctype html>
     var inputs = n.inputs || {};
     return inputs.prompt || inputs.cmd || inputs.question || '';
   }
+
+  // Human-readable task summarizer (AffectUI intent pattern):
+  // Strips noisy unformatted serialized JSON payloads and extracts concise human intent.
+  function humanizeTask(n) {
+    if (n.errorMessage) return '✖ ' + n.errorMessage;
+    var raw = taskTextOf(n);
+    if (!raw) return '';
+    var jsonIdx = raw.search(/[\{\[]/);
+    if (jsonIdx > 0) {
+      var prefix = raw.slice(0, jsonIdx).replace(/[:：\\s]+$/, '').trim();
+      var jsonStr = raw.slice(jsonIdx);
+      try {
+        var obj = JSON.parse(jsonStr);
+        var keyDetails = [];
+        if (obj.incidentId) keyDetails.push(obj.incidentId);
+        if (obj.service || obj.serviceName) keyDetails.push(obj.service || obj.serviceName);
+        if (obj.strategy) keyDetails.push(obj.strategy);
+        if (obj.severity) keyDetails.push(obj.severity);
+        if (keyDetails.length) {
+          return prefix ? (prefix + ' · ' + keyDetails.join(' · ')) : keyDetails.join(' · ');
+        }
+      } catch (e) {
+        // Fall back to prefix
+      }
+      if (prefix && prefix.length > 5) return prefix;
+    }
+    var clean = raw.replace(/\\"/g, '"').replace(/[\\r\\n]+/g, ' ').trim();
+    if (clean.indexOf('node -e') === 0) return 'CLI: ' + clean.slice(7).trim();
+    return clean;
+  }
+
   // Greedy two-line wrap by measured width: word-first (latin), char fallback
   // for CJK/oversized words, ellipsis terminating the second line.
   function wrapTask(text, fontCss, maxW) {
@@ -574,8 +640,64 @@ export const STUDIO_TEMPLATE = `<!doctype html>
     }
     return lines;
   }
+
+  // Wrap phase titles across at most 2 lines so long phase names never overflow columns
+  function wrapPhaseTitle(text, fontCss, maxW) {
+    if (!text) return [''];
+    var fullW = measureText(text, fontCss);
+    if (fullW <= maxW) return [text];
+    var words = String(text).split(/\\s+/).filter(Boolean);
+    if (words.length <= 1) {
+      var half = Math.floor(text.length / 2);
+      return [text.slice(0, half), text.slice(half)];
+    }
+    var l1 = '', l2 = '';
+    for (var i = 0; i < words.length; i++) {
+      var w = words[i];
+      var cand = l1 ? l1 + ' ' + w : w;
+      if (measureText(cand, fontCss) <= maxW) {
+        l1 = cand;
+      } else {
+        l2 = words.slice(i).join(' ');
+        break;
+      }
+    }
+    if (!l1) { l1 = words[0]; l2 = words.slice(1).join(' '); }
+    if (measureText(l2, fontCss) > maxW) {
+      while (l2 && measureText(l2 + '…', fontCss) > maxW) l2 = l2.slice(0, -1);
+      l2 += '…';
+    }
+    return [l1, l2];
+  }
+
+  function nodeStatusDetail(n) {
+    var st = n.status || 'pending';
+    var isZh = window.__STUDIO_LANG__ === 'zh';
+    if (st === 'running') {
+      var d = n.durationMs !== undefined ? fmtDur(n.durationMs) : '0s';
+      return isZh ? ('⚡ 正在执行 · ' + d) : ('⚡ Running · ' + d);
+    }
+    if (st === 'completed') {
+      var d = n.durationMs !== undefined ? fmtDur(n.durationMs) : '';
+      var subagent = (n.role && n.role !== 'gate' && n.role !== 'coordinator') ? (isZh ? '1 个子代理完成' : '1 subagent') : '';
+      var parts = isZh ? ['✔ 已完成'] : ['✔ Completed'];
+      if (d) parts.push('耗时 ' + d);
+      if (subagent) parts.push(subagent);
+      return parts.join(' · ');
+    }
+    if (st === 'replayed') {
+      return isZh ? '⚡ 缓存重放 (Replay) · 0ms' : '⚡ Replayed (Cache) · 0ms';
+    }
+    if (st === 'failed') {
+      var err = n.errorMessage ? (' · ' + n.errorMessage.slice(0, 24)) : '';
+      return (isZh ? '✖ 执行失败' : '✖ Failed') + err;
+    }
+    // pending
+    return isZh ? '⏳ 等待上游阶段交接' : '⏳ Waiting for upstream handoff';
+  }
+
   function computeLayout() {
-    var W = cardWidth(), H = 88, VGAP = 18, COLGAP = 66, TOP = 58, PAD = 30;
+    var W = cardWidth(), H = 138, VGAP = 22, COLGAP = 68, TOP = 72, PAD = 32;
     var g = state.graph;
     var cols = (g.phases || []).slice().sort(function (a, b) { return a.order - b.order; })
       .map(function (p) { return { id: p.id, name: p.name, nodes: [] }; });
@@ -597,7 +719,7 @@ export const STUDIO_TEMPLATE = `<!doctype html>
     var maxBottom = TOP;
     cols.forEach(function (c) { maxBottom = Math.max(maxBottom, TOP + c.nodes.length * (H + VGAP)); });
     var height = maxBottom + PAD;
-    LAYOUT = { pos: pos, cols: cols, width: width, height: height, W: W, H: H };
+    LAYOUT = { pos: pos, cols: cols, width: width, height: height, W: W, H: H, TOP: TOP };
   }
 
   /* 拓扑连线物理算法 —— 见模块 TSDoc 军规。所有分支都锚定卡片边缘，无倒扣。
@@ -640,20 +762,32 @@ export const STUDIO_TEMPLATE = `<!doctype html>
     var g = state.graph;
     // column backgrounds + headers
     LAYOUT.cols.forEach(function (c, i) {
-      var x = LAYOUT.pos[c.nodes.length ? c.nodes[0].id : ''] ? LAYOUT.pos[c.nodes[0].id].x : (30 + i * (LAYOUT.W + 66));
+      var x = LAYOUT.pos[c.nodes.length ? c.nodes[0].id : ''] ? LAYOUT.pos[c.nodes[0].id].x : (32 + i * (LAYOUT.W + 68));
       var rows = Math.max(c.nodes.length, 1);
-      var h = 58 + rows * (LAYOUT.H + 18) + 6;
-      vp.appendChild(svg('rect', { x: x - 12, y: 12, width: LAYOUT.W + 24, height: h, rx: 14, 'class': 'col-bg' }));
-      var t = svg('text', { x: x, y: 36, 'class': 'col-title' }); t.textContent = c.name; vp.appendChild(t);
-      var cnt = svg('text', { x: x, y: 52, 'class': 'col-count' }); cnt.textContent = nodesLabel(c.nodes.length); vp.appendChild(cnt);
+      var h = LAYOUT.TOP + rows * (LAYOUT.H + 22) + 8;
+      vp.appendChild(svg('rect', { x: x - 14, y: 12, width: LAYOUT.W + 28, height: h, rx: 16, 'class': 'col-bg' }));
+      var fam = bodyFontFamily();
+      var tLines = wrapPhaseTitle(c.name, '700 11.5px ' + fam, LAYOUT.W - 12);
+      if (tLines.length > 1 && tLines[1]) {
+        var t1 = svg('text', { x: x, y: 30, 'class': 'col-title' }); t1.textContent = tLines[0]; vp.appendChild(t1);
+        var t2 = svg('text', { x: x, y: 44, 'class': 'col-title' }); t2.textContent = tLines[1]; vp.appendChild(t2);
+        var cnt = svg('text', { x: x, y: 60, 'class': 'col-count' }); cnt.textContent = nodesLabel(c.nodes.length); vp.appendChild(cnt);
+      } else {
+        var t = svg('text', { x: x, y: 34, 'class': 'col-title' }); t.textContent = tLines[0] || c.name; vp.appendChild(t);
+        var cnt = svg('text', { x: x, y: 52, 'class': 'col-count' }); cnt.textContent = nodesLabel(c.nodes.length); vp.appendChild(cnt);
+      }
     });
-    // edges first (under cards), with junction dots at the source anchor
+    // edges first (under cards), with junction dots and arrow markers
     (g.edges || []).forEach(function (e) {
       var a = LAYOUT.pos[e.fromNodeId], b = LAYOUT.pos[e.toNodeId];
       if (!a || !b) return;
       var st = b.status || 'pending';
       var p = edgePath(a, b);
-      var path = svg('path', { d: p.d, 'class': 'edge st-' + st });
+      var path = svg('path', {
+        d: p.d,
+        'class': 'edge st-' + st,
+        'marker-end': 'url(#aui-arrow-' + st + ')'
+      });
       if (e.label) {
         var tt = svg('title'); tt.textContent = e.label; path.appendChild(tt);
       }
@@ -667,6 +801,7 @@ export const STUDIO_TEMPLATE = `<!doctype html>
       var p = LAYOUT.pos[n.id]; if (!p) return;
       var st = n.status || 'pending';
       var grp = svg('g', { 'class': 'node st-' + st, 'data-id': n.id });
+
       // Hover tooltip: FULL title, task and error regardless of on-card caps.
       var tip = svg('title');
       var tipText = nodeTitle(n);
@@ -675,83 +810,84 @@ export const STUDIO_TEMPLATE = `<!doctype html>
       if (n.errorMessage) tipText += '\\n✖ ' + n.errorMessage;
       tip.textContent = tipText;
       grp.appendChild(tip);
-      grp.appendChild(svg('rect', { x: p.x, y: p.y, width: p.w, height: p.h, rx: 12, 'class': 'card' }));
+
+      // Card boundary
+      grp.appendChild(svg('rect', { x: p.x, y: p.y, width: p.w, height: p.h, rx: 14, 'class': 'card' }));
       var barColor = { completed: '#1e8a4f', running: '#2a8ce0', failed: '#c4320a', replayed: '#0891b2' }[st] || '#d4d4d8';
-      grp.appendChild(svg('rect', { x: p.x, y: p.y + 10, width: 3, height: p.h - 20, rx: 2, fill: barColor, 'class': 'sbar' }));
-      // icon tile + per-type stroke icon
-      grp.appendChild(svg('rect', { x: p.x + 12, y: p.y + 10, width: 22, height: 22, rx: 6, 'class': 'ntile' }));
+      grp.appendChild(svg('rect', { x: p.x, y: p.y + 12, width: 3.5, height: p.h - 24, rx: 2, fill: barColor, 'class': 'sbar' }));
+
+      // --- Row 1: Icon Tile + Node Title + Status Pill ---
+      grp.appendChild(svg('rect', { x: p.x + 12, y: p.y + 12, width: 22, height: 22, rx: 6, 'class': 'ntile' }));
       var icon = svg('path', {
         d: iconPathOf(n), 'class': 'nicon',
-        transform: 'translate(' + (p.x + 15) + ',' + (p.y + 13) + ')'
+        transform: 'translate(' + (p.x + 15) + ',' + (p.y + 15) + ')'
       });
       grp.appendChild(icon);
+
       // status pill (top-right, soft tint)
       var tone = NPILL[st] || NPILL.pending;
       var pw = 14 + (tone.live ? 10 : 0) + String(st).length * 5.2;
-      var px = p.x + p.w - pw - 10;
-      grp.appendChild(svg('rect', { x: px, y: p.y + 9, width: pw, height: 16, rx: 8, fill: tone.bg }));
+      var px = p.x + p.w - pw - 12;
+      grp.appendChild(svg('rect', { x: px, y: p.y + 12, width: pw, height: 18, rx: 9, fill: tone.bg }));
       if (tone.live) {
-        grp.appendChild(svg('circle', { cx: px + 8, cy: p.y + 17, r: 5, fill: tone.fg, 'class': 'npill-halo' }));
-        grp.appendChild(svg('circle', { cx: px + 8, cy: p.y + 17, r: 2.6, fill: tone.fg }));
+        grp.appendChild(svg('circle', { cx: px + 8, cy: p.y + 21, r: 5, fill: tone.fg, 'class': 'npill-halo' }));
+        grp.appendChild(svg('circle', { cx: px + 8, cy: p.y + 21, r: 2.6, fill: tone.fg }));
       }
-      var ptxt = svg('text', { x: px + (tone.live ? 14 : 8), y: p.y + 20.5, fill: tone.fg, 'class': 'npill-text' });
+      var ptxt = svg('text', { x: px + (tone.live ? 14 : 8), y: p.y + 24.5, fill: tone.fg, 'class': 'npill-text' });
       ptxt.textContent = st;
       grp.appendChild(ptxt);
-      // title: full text — the card width was measured to fit it (Issue #250);
-      // only the 460px cap can still force a proportional fallback cut.
+
+      // title: full text measured to fit
       var fam = bodyFontFamily();
-      var avail = p.w - 42 - (pw + 16);
+      var avail = p.w - 42 - (pw + 18);
       var tFull = nodeTitle(n);
-      var tW = measureText(tFull, '600 12px ' + fam);
+      var tW = measureText(tFull, '600 12.5px ' + fam);
       var titleText = tFull;
       if (tW > avail) {
         var cut = Math.max(6, Math.floor(tFull.length * avail / tW) - 1);
         titleText = tFull.slice(0, cut) + '…';
       }
-      var title = svg('text', { x: p.x + 42, y: p.y + 25, 'class': 'ntitle' });
+      var title = svg('text', { x: p.x + 42, y: p.y + 27, 'class': 'ntitle' });
       title.textContent = titleText;
       grp.appendChild(title);
-      // task line (Issue #252): WHAT this step actually does — the journalled
-      // prompt / gate command / parked question, wrapped to two measured
-      // lines. On a failed node the error takes the slot (red); the tooltip
-      // and the inspector always carry the full text.
-      var famTask = bodyFontFamily();
-      var taskW = p.w - 42 - 12;
-      var task = n.errorMessage ? '' : taskTextOf(n);
-      if (task) {
-        var tLines = wrapTask(task, '10.5px ' + famTask, taskW);
+
+      // --- Row 2: Humanized Goal / Prompt Summary (Issue #280: Short, punchy, no raw JSON) ---
+      var intentW = p.w - 28;
+      var cleanTask = humanizeTask(n);
+      if (cleanTask) {
+        var tLines = wrapTask(cleanTask, '500 11.5px ' + fam, intentW);
         if (tLines[0]) {
-          var tl1 = svg('text', { x: p.x + 42, y: p.y + 42, 'class': 'ntask' });
+          var tl1 = svg('text', { x: p.x + 14, y: p.y + 54, 'class': 'ntask' });
           tl1.textContent = tLines[0]; grp.appendChild(tl1);
         }
-        if (tLines[1]) {
-          var tl2 = svg('text', { x: p.x + 42, y: p.y + 56, 'class': 'ntask' });
-          tl2.textContent = tLines[1]; grp.appendChild(tl2);
-        }
-      } else if (n.errorMessage) {
-        var eAvail = taskW;
-        var eW = measureText('✖ ' + n.errorMessage, '10.5px ' + monoFontFamily());
-        var errText = '✖ ' + n.errorMessage;
-        if (eW > eAvail) {
-          var ecut = Math.max(8, Math.floor(n.errorMessage.length * eAvail / eW) - 1);
-          errText = '✖ ' + n.errorMessage.slice(0, ecut) + '…';
-        }
-        var eline = svg('text', { x: p.x + 42, y: p.y + 42, 'class': 'nerr' });
-        eline.textContent = errText; grp.appendChild(eline);
       }
-      // meta row: duration · role (bottom row, fixed rhythm)
+
+      // --- Row 3: Real-Time Execution Status & Handoff / Metrics ---
+      var statusDetail = nodeStatusDetail(n);
+      var statusColor = { completed: '#1e8a4f', running: '#2456d6', failed: '#c4320a', replayed: '#0891b2' }[st] || '#737373';
+      var statusBg = { completed: '#e6f6ed', running: '#eaf1ff', failed: '#fdecea', replayed: '#e0f4f8' }[st] || '#f4f4f5';
+      var sWidth = measureText(statusDetail, '500 11px ' + fam) + 16;
+      var maxSW = p.w - 28;
+      if (sWidth > maxSW) sWidth = maxSW;
+      grp.appendChild(svg('rect', { x: p.x + 14, y: p.y + 68, width: sWidth, height: 20, rx: 6, fill: statusBg }));
+      var stext = svg('text', { x: p.x + 22, y: p.y + 82, fill: statusColor, 'class': 'nstatus-badge' });
+      stext.textContent = statusDetail;
+      grp.appendChild(stext);
+
+      // --- Row 4: Hairline Divider + Metadata Strip ---
+      grp.appendChild(svg('line', { x1: p.x + 14, y1: p.y + 102, x2: p.x + p.w - 14, y2: p.y + 102, 'class': 'nline' }));
       var metaBits = [];
-      if (n.durationMs !== undefined) metaBits.push(fmtDur(n.durationMs));
-      if (n.role && n.role !== 'coordinator') metaBits.push(n.role);
-      if (metaBits.length) {
-        var meta = svg('text', { x: p.x + 42, y: p.y + 73, 'class': 'nmeta' });
-        meta.textContent = metaBits.join(' · ');
-        grp.appendChild(meta);
-      }
+      if (n.role) metaBits.push('role: ' + n.role);
+      if (n.type) metaBits.push('type: ' + n.type);
+      if (n.dependsOn && n.dependsOn.length) metaBits.push('deps: ' + n.dependsOn.length);
+      var meta = svg('text', { x: p.x + 14, y: p.y + 122, 'class': 'nmeta' });
+      meta.textContent = metaBits.join(' · ');
+      grp.appendChild(meta);
+
       if (st === 'replayed') {
-        var bw = 62;
-        grp.appendChild(svg('rect', { x: p.x + p.w - bw - 10, y: p.y - 8, width: bw, height: 16, rx: 8, 'class': 'rbadge-rect' }));
-        var bt = svg('text', { x: p.x + p.w - bw - 4, y: p.y + 3.5, 'class': 'rbadge-text' });
+        var bw = 58;
+        grp.appendChild(svg('rect', { x: p.x + p.w - bw - 12, y: p.y - 7, width: bw, height: 16, rx: 8, 'class': 'rbadge-rect' }));
+        var bt = svg('text', { x: p.x + p.w - bw - 6, y: p.y + 4.5, 'class': 'rbadge-text' });
         bt.textContent = '⚡ Replay'; grp.appendChild(bt);
       }
       grp.addEventListener('click', function () { selectNode(n.id); });
@@ -799,7 +935,22 @@ export const STUDIO_TEMPLATE = `<!doctype html>
     document.getElementById('btn-fit').addEventListener('click', fitView);
     document.getElementById('btn-reset').addEventListener('click', function () { view = { k: 1, x: 24, y: 12 }; applyView(); });
     document.getElementById('btn-logs').addEventListener('click', function () { document.body.classList.toggle('focus-logs'); });
+    var btnSidebar = document.getElementById('btn-sidebar');
+    if (btnSidebar) btnSidebar.addEventListener('click', function () { toggleSidebar(); });
+    var closeBtn = document.getElementById('btn-close-sidebar');
+    if (closeBtn) closeBtn.addEventListener('click', function () { toggleSidebar(false); });
   })();
+
+  function toggleSidebar(force) {
+    var willOpen = force !== undefined ? force : !document.body.classList.contains('sidebar-open');
+    if (willOpen) {
+      document.body.classList.add('sidebar-open');
+      document.body.classList.remove('focus-logs');
+    } else {
+      document.body.classList.remove('sidebar-open');
+    }
+    requestAnimationFrame(function () { fitView(); });
+  }
 
   // ---------- inspector ----------
   function markSelected() {
@@ -810,6 +961,7 @@ export const STUDIO_TEMPLATE = `<!doctype html>
   }
   function selectNode(id) {
     selectedId = id; markSelected(); renderInspector();
+    toggleSidebar(true);
   }
   function nodeById(id) {
     var list = state.graph.nodes || [];
