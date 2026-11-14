@@ -74,10 +74,10 @@ facade script, check it, run it, and resume from the journal on failure.
 ## Loop
 
 1. Write \`./<task>.facade.ts\` in the target workspace.
-2. \`workflow check <script>\` — must report \`Result: OK\` before any run.
+2. \`workflow check <script>\` — must print \`facade script compiled clean\` before any run.
 3. \`workflow run <script> --set key=value --cwd <workspace>\` — facade scripts
    are auto-detected (\`workflow run-script\` is the explicit alias). Parse the
-   final \`Result:\` JSON and the stats line (\`model calls: N, replayed: M\`).
+   final \`Result:\` JSON and the stats line (\`asks: N (replayed from journal: M)\`).
 4. On failure: fix the script, re-run with \`--resume <runId>\` — completed
    nodes replay from the journal at zero provider calls.
 

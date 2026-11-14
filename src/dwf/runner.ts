@@ -88,6 +88,13 @@ export interface RunFacadeOptions {
    */
   stallMs?: number;
   /**
+   * Force tier routing to the built-in mock for every ask in this run
+   * (CLI `--mock`). The documented offline promise: 0 tokens, deterministic,
+   * <4s — honored even when the provider registry default points at a real
+   * provider. An explicit actor-level provider literal still wins.
+   */
+  mock?: boolean;
+  /**
    * Failover chain for actor asks: after the routed provider fails with a
    * retryable classified error, these providers are tried in order
    * (retry-orchestrator: per-provider + total budgets, circuit breaker).
@@ -194,6 +201,15 @@ export function resolveDwfJournalPath(cwd: string, dbPath?: string): string {
 }
 
 const DEFAULT_RUN_TIMEOUT_MS = 600_000;
+
+/** Strictly-positive integer from an environment variable, else undefined. */
+function parsePositiveIntEnv(name: string): number | undefined {
+  const raw = process.env[name];
+  if (!raw) return undefined;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : undefined;
+}
+
 /** Default V8 heap cap (MB) for the sandbox child — see buildSandboxChildArgs. */
 const DEFAULT_SANDBOX_MAX_OLD_SPACE_MB = 512;
 /**
@@ -211,9 +227,28 @@ export async function runFacadeScript(options: RunFacadeOptions): Promise<RunFac
     resolveDwfJournalPath(cwd, options.dbPath),
   ) as SQLiteStateStore & DwfJournalStore;
 
+  // --mock forces tier routing to the built-in mock for every ask in this run:
+  // the provider registry default may have been flipped to a real provider
+  // (AI_WORKFLOW_PROVIDER / ANTHROPIC_API_KEY), and the documented offline flag
+  // must keep its promise instead of silently making real provider calls (it
+  // used to be accepted and dropped). The tier router reads these env vars at
+  // ask time; scoped to the run and restored even on a thrown run. An explicit
+  // actor-level provider literal still wins — the script author asked for it.
+  const prevFastProvider = process.env.AI_WORKFLOW_FAST_PROVIDER;
+  const prevDeepProvider = process.env.AI_WORKFLOW_DEEP_PROVIDER;
   try {
+    if (options.mock) {
+      process.env.AI_WORKFLOW_FAST_PROVIDER = 'mock';
+      process.env.AI_WORKFLOW_DEEP_PROVIDER = 'mock';
+    }
     return await runInner(options, cwd, store);
   } finally {
+    if (options.mock) {
+      if (prevFastProvider === undefined) delete process.env.AI_WORKFLOW_FAST_PROVIDER;
+      else process.env.AI_WORKFLOW_FAST_PROVIDER = prevFastProvider;
+      if (prevDeepProvider === undefined) delete process.env.AI_WORKFLOW_DEEP_PROVIDER;
+      else process.env.AI_WORKFLOW_DEEP_PROVIDER = prevDeepProvider;
+    }
     store.close();
   }
 }
@@ -347,6 +382,12 @@ async function runInner(
   const live = options.liveHtmlPath ? new LiveGraph(options.liveHtmlPath, runId) : undefined;
 
   const stallMs = resolveStallMs(options.stallMs);
+  // Whole-run wall clock: explicit option wins, then AI_WORKFLOW_RUN_TIMEOUT_MS,
+  // then the 600s default. Without the env/option path a human-in-the-loop run
+  // (escalation answers, host-provided asks) could never outlive 10 minutes.
+  const runTimeoutMs =
+    options.runTimeoutMs ??
+    (parsePositiveIntEnv('AI_WORKFLOW_RUN_TIMEOUT_MS') ?? DEFAULT_RUN_TIMEOUT_MS);
 
   let asks = 0;
   let replayHits = 0;
@@ -418,7 +459,7 @@ async function runInner(
     confirmWorldRun: options.confirmWorldRun,
     // Quota-reset waits must never outlive the whole-run clock: the engine uses
     // this deadline to decline a wait that the runner would kill anyway.
-    deadlineMs: Date.now() + (options.runTimeoutMs ?? DEFAULT_RUN_TIMEOUT_MS),
+    deadlineMs: Date.now() + runTimeoutMs,
     restoreOutputTokensSpent: options.restoreOutputTokensSpent ?? priorSpentTokens,
     importedCache,
     modelDirectory: options.modelDirectory,
@@ -519,8 +560,8 @@ async function runInner(
 
     const killTimer = setTimeout(() => {
       // The tree kill itself is finish()'s job — the single unified kill path.
-      finish({ status: 'failed', error: `run exceeded the whole-run timeout (${options.runTimeoutMs ?? DEFAULT_RUN_TIMEOUT_MS}ms)` });
-    }, options.runTimeoutMs ?? DEFAULT_RUN_TIMEOUT_MS);
+      finish({ status: 'failed', error: `run exceeded the whole-run timeout (${runTimeoutMs}ms)` });
+    }, runTimeoutMs);
 
     // Branch-level hole parking (P2): the child's idle signal is the precise trigger —
     // sibling branches keep running until the realm has nothing left but parked holes.
@@ -594,7 +635,7 @@ async function runInner(
       // would either throw or write into a dead pipe.
       if (settled) return;
       if (frame.t === 'notify') {
-        if (frame.op === 'actorCreated') engine.onActorCreated(frame.siteId, frame.name, frame.provider, frame.tier);
+        if (frame.op === 'actorCreated') engine.onActorCreated(frame.siteId, frame.name, frame.provider, frame.tier, frame.model);
         if (frame.op === 'cancelCall' && typeof frame.cancelId === 'number') engine.onCancelCall(frame.cancelId);
         // Branch-level hole parking: the child itself reports "nothing left but
         // parked holes" — precise, no heuristic timers.

@@ -87,6 +87,8 @@ export interface ChildNotifyFrame {
   provider?: string;
   /** For actorCreated: the actor's tier routing literal ('fast' | 'deep') when declared (#151). */
   tier?: string;
+  /** For actorCreated: the persona model() literal the script declared (Issue #38 D8-③). */
+  model?: string;
   /** For cancelCall: the child call id whose provider request must abort. */
   cancelId?: number;
   /** For budgetSync: the parent-side output-token total spent by completed asks. */

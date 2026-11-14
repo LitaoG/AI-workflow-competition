@@ -183,7 +183,16 @@ export async function resolveRunLineage(
       priorNodes.push(...(await store.getDwfNodes(lineageCursor)).filter(keepImported));
       lineageCursor = row.parentRunId ?? '';
     }
-    importedCache = new Map(priorNodes.map((n) => [`${n.siteId}#${n.ordinal}`, n]));
+    // The walk above collects rows newest-run-first, so the cache map is built
+    // in REVERSE (oldest ancestor first): `new Map` lets the LAST entry win
+    // each siteId#ordinal key, and the documented contract (header: "newest
+    // wins on key conflicts") requires the NEWEST run's node to win. The old
+    // build let a stale ancestor row — e.g. a journalled FAILURE from a run
+    // that was later rerun successfully — shadow the newer run's completed
+    // node and replay its rejection (observed live in the 2026-11-14 repair
+    // round: rerun-from-gates replayed an ancestor's network failure instead
+    // of the descendant's 12/12 confirmed verdicts).
+    importedCache = new Map(priorNodes.slice().reverse().map((n) => [`${n.siteId}#${n.ordinal}`, n]));
     amendedFrom = sourceRunId;
     priorBudgetTotal = prior.budgetTotal; // amend/rerun inherit the cap (Issue #118)
     runId = mintRunId();

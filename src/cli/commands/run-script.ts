@@ -18,6 +18,8 @@ export async function executeRunScript(
     /** Site id where a --rerun starts executing live. */
     from?: string;
     mock?: boolean;
+  /** Whole-run wall clock override in ms (see runFacadeOptions.runTimeoutMs). */
+  runTimeoutMs?: string;
     dbPath?: string;
     failoverProviders?: string[];
     ultracode?: boolean;
@@ -77,6 +79,11 @@ export async function executeRunScript(
     console.error('Error: --budget-total must be a positive integer.');
     return 1;
   }
+  const runTimeoutMs = options.runTimeoutMs === undefined ? undefined : Number(options.runTimeoutMs);
+  if (runTimeoutMs !== undefined && (!Number.isFinite(runTimeoutMs) || runTimeoutMs <= 0)) {
+    console.error('Error: --run-timeout must be a positive number of milliseconds.');
+    return 1;
+  }
 
   const started = Date.now();
   let result;
@@ -93,6 +100,8 @@ export async function executeRunScript(
       failoverProviders: options.failoverProviders,
       budgetTotal,
       approvedCommands: options.approveCmd,
+      mock: options.mock,
+      runTimeoutMs,
       confirmWorldRun: process.stdin.isTTY && process.stdout.isTTY
         ? async (cmd: string, args: string[]) => {
             // Issue #127 direction 1, source ③: interactive per-call confirmation.

@@ -72,3 +72,15 @@ test('rpc retry loop: auth failures fail immediately without burning attempts', 
   );
   assert.equal(calls, 1, 'auth failures are fatal on the first attempt');
 });
+
+test('classifyFailure: HTTP 500 provider errors are transient (retryable), matching the adapters retryable flag', () => {
+  // The adapters mark status >= 500 retryable (anthropic-provider/openai-provider);
+  // the TRANSIENT regex used to list only 502/503/504, so a plain 500 fell to the
+  // fatal branch and was never retried or failed over (2026-11-14 self-review,
+  // src/agent/attempt-classifier.ts:20, confirmed).
+  for (const status of [500, 502, 503, 504]) {
+    const c = classifyFailure(new Error(`Anthropic API error (HTTP ${status}): upstream exploded`), 0);
+    assert.equal(c.category, 'transient', `HTTP ${status}`);
+    assert.equal(c.retryable, true, `HTTP ${status}`);
+  }
+});

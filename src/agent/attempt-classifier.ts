@@ -17,7 +17,7 @@ export interface Classification {
 }
 
 const RATE_LIMIT = /\b429\b|throttl|rate[._-]?limit|too many requests|quota exceeded|capacity/i;
-const TRANSIENT = /timeout|timed?\s?out|ETIMEDOUT|ECONNRESET|ECONNREFUSED|EAI_AGAIN|socket|network|fetch failed|\b502\b|\b503\b|\b504\b|overloaded|temporarily/i;
+const TRANSIENT = /timeout|timed?\s?out|ETIMEDOUT|ECONNRESET|ECONNREFUSED|EAI_AGAIN|socket|network|fetch failed|\b500\b|\b502\b|\b503\b|\b504\b|overloaded|temporarily/i;
 const AUTH = /api key|unauthorized|\b401\b|\b403\b|forbidden|invalid credentials|signature/i;
 const QUOTA = /quota exceeded|insufficient quota|billing|credit|usage limit/i;
 const INVALID_REQUEST = /invalid_request|invalid model|malformed request|unsupported parameter/i;

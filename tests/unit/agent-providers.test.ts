@@ -115,7 +115,8 @@ test('AnthropicProvider.chat sends the Messages API request shape', async () => 
   assert.equal(body.temperature, 0.2);
   assert.equal(body.system, SYSTEM_AND_USER[0]!.content, 'system prompt must be lifted to the top-level system field');
   assert.deepEqual(body.messages, [{ role: 'user', content: 'give me the answer' }], 'system must not repeat inside messages');
-  assert.deepEqual(body.cache_control, { type: 'ephemeral' }, 'automatic prompt-cache marker rides the request by default');
+  assert.equal(body.cache_control, undefined, 'a top-level cache_control field is invalid Messages API shape (HTTP 400) and must never be sent');
+  assert.equal(typeof body.system, 'string', 'system stays a plain string unless prompt caching is explicitly enabled');
 
   assert.equal(result.content, '{"answer": 42}');
   assert.equal(result.model, 'claude-test');
@@ -129,6 +130,19 @@ test('AnthropicProvider can turn the prompt-cache marker off for proxies that re
   await provider.complete('ping');
   const body = JSON.parse(calls[0]!.init.body!) as any;
   assert.equal(body.cache_control, undefined, 'cacheControl:false must omit the field entirely');
+});
+
+test('AnthropicProvider cacheControl:true marks the SYSTEM content block, never a top-level field', async () => {
+  const { fetch, calls } = mockFetch({ body: { content: [{ type: 'text', text: 'ok' }], model: 'claude-test' } });
+  const provider = new AnthropicProvider({ apiKey: ANTHROPIC_KEY, fetchImpl: fetch, cacheControl: true });
+  await provider.chat(SYSTEM_AND_USER);
+  const body = JSON.parse(calls[0]!.init.body!) as any;
+  assert.equal(body.cache_control, undefined, 'the top-level field is invalid Messages API shape (HTTP 400)');
+  assert.deepEqual(
+    body.system,
+    [{ type: 'text', text: SYSTEM_AND_USER[0]!.content, cache_control: { type: 'ephemeral' } }],
+    'the marker rides the system content block — the only cache_control form the Messages API accepts',
+  );
 });
 
 test('AnthropicProvider.complete returns the bare text and uses configured defaults', async () => {

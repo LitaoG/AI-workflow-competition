@@ -1,7 +1,7 @@
 // Example facade script for the ai-workflow skill: scan a workspace for
 // marked lines, fan out typed reviews, adversarially verify, gate, report.
 //
-//   workflow script run examples/review.facade.ts \
+//   workflow run-script examples/review.facade.ts \
 //     --cwd <workspace-root> --args '{"glob":"src/**/*.ts","gate":"node"}'
 
 interface Marked {

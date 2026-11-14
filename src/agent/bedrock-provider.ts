@@ -87,9 +87,13 @@ export class BedrockProvider implements LLMProvider {
         },
         latencyMs: Date.now() - startTime,
       };
-    } catch {
-      // Degrade safely to mock provider
-      return await this.fallbackMock.generate(request);
+    } catch (err) {
+      // Fail loudly (rpc.ts contract: silently degrading to the mock in
+      // production would fake success instead of failing loudly — mock output
+      // would pass schema validation and be journalled as real evidence).
+      // The offline-mock fallback is ONLY for the missing-credentials path
+      // above, which checkHealth discloses.
+      throw err;
     }
   }
 }

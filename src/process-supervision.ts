@@ -434,6 +434,34 @@ export function spawnJobGuarded(cmd: string, args: string[], opts: SpawnJobGuard
 }
 
 /**
+ * Windows: package-manager CLIs are `.cmd`/`.bat` shims (npm.cmd, npx.cmd,
+ * tsc.cmd, …) and a `shell: false` spawn cannot exec them — `world.run('npm', …)`
+ * failed with ENOENT on every Windows machine. When the bare command name
+ * resolves through the (sanitized) PATH to a `.cmd`/`.bat` shim, return the
+ * cmd.exe binary so the caller routes through `cmd /c`; real executables and
+ * explicit paths are returned untouched. POSIX is a pass-through.
+ */
+export function resolveWindowsSpawnCommand(cmd: string, env: NodeJS.ProcessEnv): string {
+  if (process.platform !== 'win32') return cmd;
+  if (/[\\/]/.test(cmd)) return cmd; // explicit path — the caller's responsibility
+  const pathDirs = (env.PATH ?? env.Path ?? '').split(';').map((d) => d.trim()).filter(Boolean);
+  const exts = (env.PATHEXT ?? '.COM;.EXE;.BAT;.CMD').split(';').map((e) => e.trim().toLowerCase()).filter(Boolean);
+  for (const dir of pathDirs) {
+    for (const ext of exts) {
+      try {
+        const candidate = path.join(dir, `${cmd}${ext}`);
+        if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+          return ext === '.cmd' || ext === '.bat' ? env.COMSPEC ?? 'cmd.exe' : cmd;
+        }
+      } catch {
+        // unreadable PATH entry — keep scanning
+      }
+    }
+  }
+  return cmd; // not found — let the spawn fail with its own ENOENT
+}
+
+/**
  * Spawn a supervised process: own process group on POSIX, whole-tree kill on
  * timeout or via killTree(), and a sanitized environment. On Windows the spawn
  * goes through the Job Object helper when it is available (spawnJobGuarded);
@@ -444,14 +472,17 @@ export function spawnSupervised(cmd: string, args: string[], opts: SupervisedSpa
   const isWindows = process.platform === 'win32';
   const env = buildSanitizedEnv(opts.envAllowlist, opts.env);
 
+  const resolved = resolveWindowsSpawnCommand(cmd, env);
+  const spawnArgs = resolved === cmd ? args : ['/d', '/s', '/c', cmd, ...args];
+
   const child = isWindows
-    ? spawnJobGuarded(cmd, args, {
+    ? spawnJobGuarded(resolved, spawnArgs, {
         cwd: opts.cwd,
         env,
         stdio: ['ignore', 'pipe', 'pipe'],
         processMemoryLimitMb: opts.processMemoryLimitMb,
       })
-    : spawn(cmd, args, {
+    : spawn(resolved, spawnArgs, {
         cwd: opts.cwd,
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,

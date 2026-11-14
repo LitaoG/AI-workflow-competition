@@ -21,12 +21,12 @@ cost. Control flow is your code; every side effect goes through the facade.
 ## The authoring loop (every time, in order)
 
 1. **Write** the script to the target workspace (e.g. `./<task>.facade.ts`).
-2. **Check** — never skip: `workflow script check <script>`. It must report
-   `Result: OK`. Fix diagnostics before running; uncompilable scripts never
-   reach a run.
-3. **Run** — `workflow script run <script> --args '<json>'` (use `--cwd` when
+2. **Check** — never skip: `workflow check <script>`. It must print
+   `✔ facade script compiled clean (N sites)`. Fix diagnostics before running;
+   uncompilable scripts never reach a run.
+3. **Run** — `workflow run-script <script> --args '<json>'` (use `--cwd` when
    the script's workspace root differs from where you invoke). Parse the final
-   `Result:` JSON and the stats line (`model calls: N, replayed: M`).
+   `Result:` JSON and the stats line (`asks: N (replayed from journal: M)`).
 4. **Resume on failure** — a failed run keeps every completed node. Fix the
    script and re-run with `--resume <runId>`: completed asks/world reads/gates
    replay from the journal at zero provider calls; execution continues from
@@ -94,7 +94,7 @@ See [`examples/review.facade.ts`](./examples/review.facade.ts) — scan →
 parallel typed reviews → adversarial verify → gate → report. Run it:
 
 ```bash
-workflow script run examples/review.facade.ts --cwd <workspace> --args '{"glob":"src/**/*.ts"}'
+workflow run-script examples/review.facade.ts --cwd <workspace> --args '{"glob":"src/**/*.ts"}'
 ```
 
 ## When NOT to reach for this

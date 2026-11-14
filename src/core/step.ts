@@ -279,11 +279,23 @@ export function fanOutStep<TItem, TResult>(
     const concurrency = config.concurrency ?? 5;
     const results: TResult[] = new Array(items.length);
     let currentIndex = 0;
+    // errgroup discipline (workflow.ts): once one worker fails or the step is
+    // cancelled, start no NEW items — the batch signal has been aborted and the
+    // step is already being recorded as failed, so the old behavior (pool
+    // workers kept pulling queued items whose results were then discarded)
+    // spent real side effects on garbage.
+    let stopped = false;
 
     const executeWorker = async () => {
       while (currentIndex < items.length) {
+        if (stopped || ctx.signal?.aborted) return;
         const idx = currentIndex++;
-        results[idx] = await config.worker(items[idx], idx, ctx);
+        try {
+          results[idx] = await config.worker(items[idx], idx, ctx);
+        } catch (err) {
+          stopped = true;
+          throw err;
+        }
       }
     };
 
@@ -311,6 +323,8 @@ export interface ActionStepConfig<TInput, TOutput> {
   role?: string;
   action: (input: TInput, ctx: ExecutionContext) => Promise<TOutput>;
   dependsOn?: string[];
+  /** Wall-clock cap for one execution of this step (enforced by Workflow.run — see withStepTimeout). */
+  timeoutMs?: number;
 }
 
 export function actionStep<TInput, TOutput>(
@@ -323,6 +337,7 @@ export function actionStep<TInput, TOutput>(
     type: 'action',
     role: config.role ?? 'worker',
     dependsOn: config.dependsOn,
+    timeoutMs: config.timeoutMs,
     runner: config.action,
   };
 }

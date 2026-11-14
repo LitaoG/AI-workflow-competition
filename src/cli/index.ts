@@ -1,4 +1,5 @@
 import { Command } from 'commander';
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { normalizeSlashArgs } from './slash-parser.js';
 import { getDictionary, resolveLang } from './i18n/index.js';
@@ -40,6 +41,24 @@ function collectSet(value: string, previous: string[]): string[] {
   return [...previous, value];
 }
 
+/**
+ * The CLI banner version, read from the package manifest so the published
+ * tarball, the docs and `workflow --version` can never drift apart (they used
+ * to: the hardcoded literal said 1.0.0 while package.json said 2.0.0).
+ * Dist layout resolves three levels up; strip-types source runs two up.
+ */
+function cliVersion(): string {
+  for (const rel of ['../../../package.json', '../../package.json']) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(new URL(rel, import.meta.url), 'utf8')) as { version?: string };
+      if (typeof pkg.version === 'string' && pkg.version) return `ai-workflow ${pkg.version}`;
+    } catch {
+      // try the next candidate layout
+    }
+  }
+  return 'ai-workflow';
+}
+
 export async function runCLI(rawArgv: string[] = process.argv): Promise<number> {
   // Route worker asks through an external agent CLI when configured
   // (AI_WORKFLOW_PROVIDER=codex|gemini|opencode); mock stays the default.
@@ -67,7 +86,7 @@ export async function runCLI(rawArgv: string[] = process.argv): Promise<number> 
     .name('workflow')
     .description(dict.CLI_DESCRIPTION)
     .usage(dict.CLI_USAGE)
-    .version('ai-workflow 1.0.0')
+    .version(cliVersion())
     .option('-l, --lang <lang>', dict.OPT_LANG, 'en')
     .addHelpText(
       'after',
@@ -118,6 +137,7 @@ Commands:
     .option('--watch-graph', 'Rewrite the run dir graph.html after every event (facade scripts)')
     .option('--watch', 'Alias of --watch-graph: rewrite the run dir graph.html after every event (facade scripts)')
     .option('--ui', 'When the run settles, serve the AI-Workflow Studio (SSE + A2UI resume) and open the browser')
+    .option('--run-timeout <ms>', 'Whole-run wall clock in ms for facade runs (default 600000; env AI_WORKFLOW_RUN_TIMEOUT_MS)')
     .option('--cwd <path>', 'Workspace the workflow executes in (journal resolution + sandbox child cwd)')
     .action(async (file, opts) => {
       const effectiveLang = opts.lang ?? program.opts().lang ?? lang;
@@ -150,6 +170,7 @@ Commands:
           live: opts.live,
           watchGraph: opts.watchGraph || opts.watch,
           ui: opts.ui,
+          runTimeoutMs: opts.runTimeout,
           cwd: opts.cwd,
           lang: effectiveLang,
         });
@@ -284,6 +305,8 @@ Commands:
     .option('--live <path>', 'Write a self-refreshing HTML execution view while the run goes')
     .option('--watch-graph', 'Rewrite the run dir graph.html after every event (same journal projection as `workflow graph` cold replay)')
     .option('--ui', 'When the run settles, serve the AI-Workflow Studio (SSE + A2UI resume) and open the browser')
+    .option('--mock', 'Force tier routing to the built-in mock provider (offline, 0 tokens; overrides AI_WORKFLOW_*_PROVIDER tier routing)')
+    .option('--run-timeout <ms>', 'Whole-run wall clock in ms (default 600000; env AI_WORKFLOW_RUN_TIMEOUT_MS)')
     .option('-l, --lang <lang>', dict.OPT_LANG)
     .action(async (file, opts) => {
       const composed = composeScriptArgs({ argsJson: opts.args, argsFile: opts.argsFile, setPairs: opts.set });
@@ -298,6 +321,7 @@ Commands:
         cwd: opts.cwd,
         dbPath: opts.db,
         liveHtmlPath: opts.live,
+        runTimeoutMs: opts.runTimeout,
         failoverProviders: typeof opts.failover === 'string' ? opts.failover.split(',').map((x: string) => x.trim()).filter(Boolean) : undefined,
         lang: opts.lang ?? program.opts().lang ?? lang,
       });

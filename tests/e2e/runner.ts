@@ -44,7 +44,10 @@ async function main() {
 
   const tiers = [
     { name: 'Tier 1 — Feature Coverage (10 Features × 5 Tests)', files: tier1Files, expected: 50 },
-    { name: 'Tier 2 — Boundary & Corner Cases (10 Features × 5 Tests)', files: tier2Files, expected: 50 },
+    // 47, not 50: t2-10-kiro was rewritten (2026-11-14 repair round) from five
+    // cannot-fail subtests to two real executed hook-contract tests — the old
+    // expected count was inflated by tests that could never fail.
+    { name: 'Tier 2 — Boundary & Corner Cases', files: tier2Files, expected: 47 },
     { name: 'Tier 3 — Cross-Feature Combinations (15 Pairwise Suites)', files: tier3Files, expected: 15 },
     { name: 'Tier 4 — Real-World Application Scenarios (6 Workloads)', files: tier4Files, expected: 6 },
   ];

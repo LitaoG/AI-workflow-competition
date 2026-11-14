@@ -15,9 +15,9 @@ npm link && workflow --help
 The facade-script loop (what an agent drives):
 
 ```bash
-workflow script check <script.ts>                     # must be clean
-workflow script run <script.ts> --cwd <ws> --args '{}' # journal records every node
-workflow script run <script.ts> --cwd <ws> --resume <runId>  # zero-cost replay
+workflow check <script.ts>                     # must be clean
+workflow run-script <script.ts> --cwd <ws> --args '{}' # journal records every node
+workflow run-script <script.ts> --cwd <ws> --resume <runId>  # zero-cost replay
 ```
 
 ## 2. MCP server (Claude Code / ZCode / opencode / Codex CLI / Cursor…)
@@ -77,9 +77,9 @@ by default; Bedrock available). To route asks through an external agent CLI as
 the worker, set the provider before launching:
 
 ```bash
-AI_WORKFLOW_PROVIDER=codex    workflow script run script.ts ...   # codex exec
-AI_WORKFLOW_PROVIDER=gemini   workflow script run script.ts ...   # gemini -p
-AI_WORKFLOW_PROVIDER=opencode workflow script run script.ts ...   # opencode run
+AI_WORKFLOW_PROVIDER=codex    workflow run-script script.ts ...   # codex exec
+AI_WORKFLOW_PROVIDER=gemini   workflow run-script script.ts ...   # gemini -p
+AI_WORKFLOW_PROVIDER=opencode workflow run-script script.ts ...   # opencode run
 AI_WORKFLOW_CLI_COMMAND='<path-to-codex.exe>'  # explicit binary override
 AI_WORKFLOW_CLI_TIMEOUT_MS=120000
 ```

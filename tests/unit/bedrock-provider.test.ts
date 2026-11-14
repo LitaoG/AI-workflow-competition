@@ -104,16 +104,19 @@ test('BedrockProvider degrades to the offline mock when AWS credentials are miss
   });
 });
 
-test('BedrockProvider degrades to the offline mock when the AWS SDK is unavailable', () => {
+test('BedrockProvider fails loudly when credentials exist but the AWS call path is unavailable', () => {
   const provider = new BedrockProvider();
 
   return withAwsEnv({ AWS_ACCESS_KEY_ID: 'AKIA-TEST', AWS_SECRET_ACCESS_KEY: 'secret-test' }, async () => {
     // Credentials exist, so generate() proceeds past the gate; the repo does
-    // not ship @aws-sdk/client-bedrock-runtime, so the dynamic import fails
-    // and the catch path must fall back to the mock (never throw).
-    const res = await provider.generate(SAMPLE_REQUEST);
-    assert.equal(res.model, 'mock-claude-3-5-sonnet', 'SDK absence must degrade to the offline mock, not throw');
-    const parsed = JSON.parse(res.content) as { severity?: string };
-    assert.equal(parsed.severity, 'P1');
+    // not ship @aws-sdk/client-bedrock-runtime, so the dynamic import fails.
+    // That is a REAL configuration failure: mock output here would pass schema
+    // validation and be journalled as evidence (rpc.ts forbids the silent
+    // mock switch), so the provider must reject instead of degrading.
+    await assert.rejects(
+      () => provider.generate(SAMPLE_REQUEST),
+      (err: unknown) => err instanceof Error,
+      'SDK absence with live credentials must throw, not fake success',
+    );
   });
 });

@@ -21,6 +21,30 @@ import { computeStepCheckpointHash, stableStringify } from './checkpoint-hash.js
 // workflow module (tests, replay tooling).
 export { computeStepCheckpointHash, stableStringify } from './checkpoint-hash.js';
 
+/**
+ * Enforce StepDefinition.timeoutMs: race the step promise against the deadline.
+ * The deadline also aborts the step's signal (composite, see executePhaseSteps)
+ * so cooperative runners, MCP calls and gate children stop; the race is what
+ * fails an UNcooperative runner instead of hanging the whole run.
+ */
+async function withStepTimeout<T>(promise: Promise<T>, timeoutMs: number | undefined, stepId: string): Promise<T> {
+  if (timeoutMs === undefined || !Number.isFinite(timeoutMs) || timeoutMs <= 0) return promise;
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`step "${stepId}" exceeded its configured timeoutMs (${timeoutMs}ms)`)),
+          timeoutMs,
+        );
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
 export interface DefineWorkflowOptions {
   name: string;
   description?: string;
@@ -47,6 +71,8 @@ export class Workflow extends EventEmitter {
   readonly phases: PhaseDefinition[] = [];
   private stepsMap: Map<string, StepDefinition> = new Map();
   private abortController: AbortController = new AbortController();
+  /** The currently executing errgroup batch, aborted directly by abort() so in-flight steps stop too. */
+  private activeBatch: AbortController | undefined;
 
   constructor(options: { name: string; description?: string; version?: string }) {
     super();
@@ -90,6 +116,10 @@ export class Workflow extends EventEmitter {
 
   abort(reason?: string): void {
     this.abortController.abort(reason);
+    // Steps only ever receive the per-batch signal (createChildContext passes
+    // batch.signal verbatim), so without aborting the active batch an in-flight
+    // step kept running to completion after abort().
+    this.activeBatch?.abort(new WorkflowAbortedError(reason ?? `workflow "${this.name}" aborted`));
   }
 
   /**
@@ -185,7 +215,7 @@ export class Workflow extends EventEmitter {
         });
 
         // Filter phase steps and execute with DAG concurrency
-        await this.executePhaseSteps(phase, context, completedSteps, failedSteps);
+        await this.executePhaseSteps(phase, context, completedSteps, failedSteps, options?.maxConcurrency);
 
         await this.emitEvent(store, {
           id: `evt-${Date.now()}-phase-end-${phase.id}`,
@@ -198,13 +228,24 @@ export class Workflow extends EventEmitter {
         });
       }
 
-      const finalStatus: WorkflowStatus = failedSteps.size > 0 ? 'failed' : 'completed';
+      // An aborted run must never read as 'completed': the phase/batch loops
+      // above break on abort and silently drop pending steps, so the old
+      // failedSteps-only check reported success (and run.ts printed it). A
+      // caller-requested abort dominates — steps cancelled BECAUSE of the
+      // abort are consequences, recorded in the events, not a separate
+      // failure cause.
+      const aborted = this.abortController.signal.aborted;
+      const finalStatus: WorkflowStatus = aborted ? 'aborted' : failedSteps.size > 0 ? 'failed' : 'completed';
 
       await this.emitEvent(store, {
         id: `evt-${Date.now()}-end`,
         workflowId: this.name,
         runId: context.runId,
-        type: finalStatus === 'completed' ? 'workflow_complete' : 'workflow_failed',
+        type: aborted
+          ? 'workflow_aborted'
+          : finalStatus === 'completed'
+            ? 'workflow_complete'
+            : 'workflow_failed',
         timestamp: new Date().toISOString(),
         data: { status: finalStatus, completedSteps: Array.from(completedSteps) },
       });
@@ -231,7 +272,8 @@ export class Workflow extends EventEmitter {
     phase: PhaseDefinition,
     context: ExecutionContext,
     completedSteps: Set<string>,
-    failedSteps: Set<string>
+    failedSteps: Set<string>,
+    maxConcurrency?: number
   ): Promise<void> {
     const pendingSteps = new Set(phase.steps.map((s) => s.id));
 
@@ -256,6 +298,7 @@ export class Workflow extends EventEmitter {
       // before it reports that first failure. Nothing outlives the batch, so the
       // run's `finally` never closes MCP connections under a running step.
       const batch = new AbortController();
+      this.activeBatch = batch;
       let firstFailedStepId: string | undefined;
       const cancelSiblings = (stepId: string): void => {
         if (batch.signal.aborted) return;
@@ -270,8 +313,17 @@ export class Workflow extends EventEmitter {
         // the error instance the cancellation survives the whole chain.
         batch.abort(new WorkflowAbortedError(`sibling step "${stepId}" failed`));
       };
-      const settled = await Promise.allSettled(
-        readySteps.map(async (step) => {
+      // WorkflowOptions.maxConcurrency was previously accepted but never
+      // enforced — every ready step launched at once. Bound the batch with a
+      // worker pool when a cap is configured (1 = sequential; unset = the old
+      // all-at-once behavior). Junk caps (NaN/0/negative) fall back to uncapped
+      // rather than poisoning Math.min into a zero-worker livelock.
+      const rawCap = maxConcurrency ?? readySteps.length;
+      const safeCap = Number.isFinite(rawCap) && rawCap >= 1 ? Math.floor(rawCap) : readySteps.length;
+      const limit = Math.max(1, Math.min(safeCap, readySteps.length));
+      const rejectionReasons = new Map<string, unknown>();
+      const launchStep = (index: number): Promise<void> =>
+        Promise.resolve(readySteps[index]!).then(async (step) => {
           pendingSteps.delete(step.id);
           const startTime = Date.now();
 
@@ -330,9 +382,23 @@ export class Workflow extends EventEmitter {
             data: { stepName: step.name, type: step.type },
           });
 
-          try {
-            const stepCtx = context.createChildContext(step.id, batch.signal);
-            const output = await withRetry(() => step.runner(input, stepCtx), step.retryPolicy, batch.signal);
+            try {
+            // timeoutMs was previously accepted but silently ignored — a
+            // hanging step hung the whole run forever. Enforce it: the step's
+            // signal is a composite of the batch signal and the deadline (so
+            // MCP calls and gate children stop at the deadline), and the
+            // promise is raced against it (so even an uncooperative runner
+            // fails the step instead of hanging the run).
+            const stepSignal =
+              step.timeoutMs !== undefined && Number.isFinite(step.timeoutMs) && step.timeoutMs > 0
+                ? AbortSignal.any([batch.signal, AbortSignal.timeout(step.timeoutMs)])
+                : batch.signal;
+            const stepCtx = context.createChildContext(step.id, stepSignal);
+            const output = await withStepTimeout(
+              withRetry(() => step.runner(input, stepCtx), step.retryPolicy, batch.signal),
+              step.timeoutMs,
+              step.id,
+            );
             context.setOutput(step.id, output);
             completedSteps.add(step.id);
 
@@ -398,19 +464,32 @@ export class Workflow extends EventEmitter {
 
             throw new StepExecutionError(step.id, phase.id, err);
           }
-        }).map((pending, index) =>
+        }).catch((err: unknown) => {
+          rejectionReasons.set(readySteps[index]!.id, err);
           // A failure outside the step's own try (checkpoint lookup, event
           // emit) cancels the siblings too.
-          pending.catch((err: unknown) => {
-            cancelSiblings(readySteps[index].id);
-            throw err;
-          })
-        )
+          cancelSiblings(readySteps[index]!.id);
+          throw err;
+        });
+      let nextIdx = 0;
+      const settled = await Promise.allSettled(
+        limit >= readySteps.length
+          ? readySteps.map((_, i) => launchStep(i))
+          : Array.from({ length: limit }, async () => {
+              // errgroup: once a sibling failed, start nothing new.
+              while (nextIdx < readySteps.length && firstFailedStepId === undefined && !batch.signal.aborted) {
+                const i = nextIdx++;
+                await launchStep(i);
+              }
+            }),
       );
+      this.activeBatch = undefined;
 
       if (firstFailedStepId !== undefined) {
-        const first = settled[readySteps.findIndex((s) => s.id === firstFailedStepId)];
-        if (first?.status === 'rejected') throw first.reason;
+        const reason = rejectionReasons.get(firstFailedStepId);
+        if (reason !== undefined) throw reason;
+        const first = settled.find((r) => r.status === 'rejected');
+        if (first) throw first.reason;
       }
     }
   }

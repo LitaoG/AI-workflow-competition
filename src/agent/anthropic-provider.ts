@@ -45,10 +45,12 @@ export interface AnthropicProviderOptions {
   /** Injectable `fetch` for offline tests; defaults to the global fetch. */
   fetchImpl?: typeof fetch;
   /**
-   * Send Anthropic's automatic prompt-cache marker (default true). The marker is
-   * a top-level `cache_control` on the request, so the API caches the last
-   * cacheable block and reuses the stable prefix (system + prior actor turns) on
-   * subsequent asks. Set false for a proxy that rejects the field.
+   * Mark the system prompt as prompt-cacheable (default false). When true, the
+   * system prompt is sent as a content block carrying
+   * `cache_control: { type: 'ephemeral' }` — the ONLY shape the Messages API
+   * accepts (a top-level `cache_control` field is rejected with HTTP 400
+   * "Extra inputs are not permitted", which is what the previous
+   * top-level-marker implementation triggered against the real API).
    */
   cacheControl?: boolean;
 }
@@ -82,7 +84,7 @@ export class AnthropicProvider implements ProviderContract {
     this.maxTokens = options.maxTokens;
     this.timeoutMs = options.timeoutMs;
     this.fetchImpl = options.fetchImpl ?? globalThis.fetch;
-    this.cacheControl = options.cacheControl ?? true;
+    this.cacheControl = options.cacheControl ?? false;
   }
 
   /** Env/config-level readiness probe — no network call, no key material. */
@@ -112,12 +114,18 @@ export class AnthropicProvider implements ProviderContract {
       temperature: options?.temperature ?? this.temperature ?? 0.0,
       messages: apiMessages,
     };
-    if (system) body.system = system;
+    if (system) {
+      // Warm-cache alignment: actor sessions re-send the whole conversation on
+      // every ask (engine.ts priorMessages). When enabled, the system prompt
+      // rides as a cache-marked content block — the form the Messages API
+      // actually accepts — so the stable prefix is reused instead of billed
+      // at full price each turn. A top-level body.cache_control field is NOT
+      // valid Messages API shape (HTTP 400).
+      body.system = this.cacheControl
+        ? [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }]
+        : system;
+    }
     if (options?.stopSequences?.length) body.stop_sequences = options.stopSequences;
-    // Warm-cache alignment: actor sessions re-send the whole conversation on every
-    // ask (engine.ts priorMessages). The automatic marker lets the API reuse the
-    // stable prefix instead of billing it at full price each turn.
-    if (this.cacheControl) body.cache_control = { type: 'ephemeral' };
 
     return await this.post('/v1/messages', body, options);
   }

@@ -291,6 +291,16 @@ export class SQLiteStateStore implements StateStore {
         workflowName: event.workflowId,
         status: 'completed',
       });
+    } else if (event.type === 'workflow_aborted') {
+      // The aborted status must persist too — before this branch an aborted
+      // run's DB row stayed 'running' forever (and even earlier, wrongly read
+      // 'completed'; 2026-11-14 repair round, verifier residual).
+      this.upsertRun({
+        runId: event.runId,
+        workflowId: event.workflowId,
+        workflowName: event.workflowId,
+        status: 'aborted',
+      });
     } else if (event.type === 'workflow_failed') {
       this.upsertRun({
         runId: event.runId,
