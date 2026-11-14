@@ -73,21 +73,21 @@ Demo 1 includes 3 realistic production scenarios defined in `scenarios/`:
 ### 1. Run Default Scenario in Offline Mock Mode (<2s)
 ```bash
 # Using the /workflow slash-command CLI
-node bin/workflow.js run demos/incident-triage-remediation/workflow.ts --mock
+node bin/workflow.js run apps/incident-triage-remediation/workflow.ts --mock
 ```
 
 ### 2. Run with Specific Scenario
 ```bash
 # On Linux / macOS
-SCENARIO=p1_bad_deploy_regression node bin/workflow.js run demos/incident-triage-remediation/workflow.ts --mock
+SCENARIO=p1_bad_deploy_regression node bin/workflow.js run apps/incident-triage-remediation/workflow.ts --mock
 
 # On Windows PowerShell
-$env:SCENARIO="p1_bad_deploy_regression"; node bin/workflow.js run demos/incident-triage-remediation/workflow.ts --mock
+$env:SCENARIO="p1_bad_deploy_regression"; node bin/workflow.js run apps/incident-triage-remediation/workflow.ts --mock
 ```
 
 ### 3. Run with Chinese Localization (`--lang zh`)
 ```bash
-node bin/workflow.js run demos/incident-triage-remediation/workflow.ts --mock --lang zh
+node bin/workflow.js run apps/incident-triage-remediation/workflow.ts --mock --lang zh
 ```
 
 ### 4. Run Automated Integration Test Suite (<4s)

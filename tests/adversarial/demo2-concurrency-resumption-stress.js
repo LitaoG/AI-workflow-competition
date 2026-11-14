@@ -88,13 +88,13 @@ function cleanupTempDir(dirPath) {
   } catch {}
 }
 
-const DEMO2_WORKFLOW_PATH = path.resolve(process.cwd(), 'demos', 'repo-migration-engine', 'workflow.ts');
+const DEMO2_WORKFLOW_PATH = path.resolve(process.cwd(), 'apps', 'repo-migration-engine', 'workflow.ts');
 
 // Gate-failure injection via fixture-local marker (Issue #174): workflow-level
 // gates run under the allowlist-only supervised env (Issue #151), so
 // CLI-process env like SIMULATE_GATE_FAILURE never reaches the gate child.
 // DIRECT gate spawns keep the env channel — it still works there.
-const GATE_FAILURE_MARKER = path.resolve(process.cwd(), 'demos', 'repo-migration-engine', 'gates', '.simulate-gate-failure-resumption');
+const GATE_FAILURE_MARKER = path.resolve(process.cwd(), 'apps', 'repo-migration-engine', 'gates', '.simulate-gate-failure-resumption');
 function setGateFailure(on) {
   if (on) fs.writeFileSync(GATE_FAILURE_MARKER, 'on');
   else try { fs.rmSync(GATE_FAILURE_MARKER, { force: true }); } catch { /* already gone */ }

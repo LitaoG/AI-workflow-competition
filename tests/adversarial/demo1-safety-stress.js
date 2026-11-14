@@ -32,14 +32,14 @@ import {
   RemediationExecutionResultSchema,
   ActionItemSchema,
   PostMortemReportSchema,
-} from '../../demos/incident-triage-remediation/schemas.ts';
+} from '../../apps/incident-triage-remediation/schemas.ts';
 
-import { workflow } from '../../demos/incident-triage-remediation/workflow.ts';
-import { SCENARIO_BUNDLES } from '../../demos/incident-triage-remediation/mocks/mock-agent-responses.ts';
+import { workflow } from '../../apps/incident-triage-remediation/workflow.ts';
+import { SCENARIO_BUNDLES } from '../../apps/incident-triage-remediation/mocks/mock-agent-responses.ts';
 import { SQLiteStateStore } from '../../dist/src/state/sqlite-store.js';
 import { GateFailureError, StepExecutionError } from '../../dist/src/core/error.js';
 
-const DEMO1_DIR = path.resolve(process.cwd(), 'demos', 'incident-triage-remediation');
+const DEMO1_DIR = path.resolve(process.cwd(), 'apps', 'incident-triage-remediation');
 const GATES_DIR = path.join(DEMO1_DIR, 'gates');
 const GATE_RUNNER = path.join(GATES_DIR, 'gate-runner.js');
 const BASELINE_CMD = path.join(GATES_DIR, 'baseline-health-gate.cmd');

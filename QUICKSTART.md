@@ -34,7 +34,7 @@ node bin/workflow.js demo
 
 ```powershell
 # 方式一：Key-Value 传参（PowerShell 安全，推荐）— 跑内置 capabilities-tour 示例
-node bin/workflow.js run demos/capabilities-tour/lineage.facade.ts
+node bin/workflow.js run apps/capabilities-tour/lineage.facade.ts
 
 # 方式二：JSON 文件直传（零转义烦恼）
 node bin/workflow.js run my.flow.ts --args-file params.json

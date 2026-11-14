@@ -7,11 +7,11 @@
 // journalled for zero-provider-call resume.
 //
 // Run it offline (mock provider is the registry default, <4s, 0 tokens):
-//   node bin/workflow.js run-script demos/incident-triage-remediation/facade.workflow.ts \
-//     --cwd demos/incident-triage-remediation --args '{"scenario":"p1_db_pool_exhaustion"}'
+//   node bin/workflow.js run-script apps/incident-triage-remediation/facade.workflow.ts \
+//     --cwd apps/incident-triage-remediation --args '{"scenario":"p1_db_pool_exhaustion"}'
 // Replay the completed run at zero cost:
-//   node bin/workflow.js run-script demos/incident-triage-remediation/facade.workflow.ts \
-//     --cwd demos/incident-triage-remediation --args '{"scenario":"p1_db_pool_exhaustion"}' --resume <runId>
+//   node bin/workflow.js run-script apps/incident-triage-remediation/facade.workflow.ts \
+//     --cwd apps/incident-triage-remediation --args '{"scenario":"p1_db_pool_exhaustion"}' --resume <runId>
 //
 // Mock-mode substitutions (documented, deterministic):
 // - Phase 1 telemetry comes from files.read of a scenario fixture instead of a
@@ -66,7 +66,7 @@ phase('Detection & Telemetry Probing');
 // Self-locating: works whether the workspace root is the repo or this demo dir.
 const scenarioHits = await files.glob(`**/scenarios/${scenarioName}.json`);
 if (scenarioHits.length === 0) {
-  throw new Error(`scenario fixture not found: scenarios/${scenarioName}.json (expected in demos/incident-triage-remediation/scenarios/)`);
+  throw new Error(`scenario fixture not found: scenarios/${scenarioName}.json (expected in apps/incident-triage-remediation/scenarios/)`);
 }
 const scenarioText = await files.read(scenarioHits[0]!);
 const scenario = JSON.parse(scenarioText) as {

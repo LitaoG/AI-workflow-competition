@@ -502,7 +502,7 @@ export const workflow = defineWorkflow({
         const html = visualizer.renderHTML(graph, ctx.lang);
 
         // Write deliverables to artifacts directory. Mock runs (the test
-        // harness) must not mutate the tracked demos/<app>/artifacts source
+        // harness) must not mutate the tracked apps/<app>/artifacts source
         // tree: parallel integration suites raced writes on that shared
         // directory and its stale committed content poisoned assertions
         // (gate round 1) — mock runs export to the run cwd only (P-TEST-2).

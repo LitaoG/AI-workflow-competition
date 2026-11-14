@@ -86,7 +86,7 @@ export async function collectTelemetry(options: TelemetryProbeOptions = {}): Pro
   if (!rawData) {
     const fixtureCandidates = [
       options.scenarioPath,
-      path.join(cwd, 'demos', 'incident-triage-remediation', 'scenarios', `${scenarioName}.json`),
+      path.join(cwd, 'apps', 'incident-triage-remediation', 'scenarios', `${scenarioName}.json`),
       path.join(__dirname, '..', 'scenarios', `${scenarioName}.json`),
       path.join(cwd, 'scenarios', `${scenarioName}.json`),
     ].filter(Boolean) as string[];

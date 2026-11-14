@@ -5,7 +5,7 @@
  * 状态（2026-11，Issue #240）：该 demo 已迁出本仓（由下游展示仓持有），demo fixture
  * 目录不存在时本脚本按下方行为约定静默退出 —— 保留以维持 postinstall 门禁链稳定。
  *
- * 背景：demos/repo-migration-engine/fixtures/legacy-aws-sdk-app 是一个模拟
+ * 背景：apps/repo-migration-engine/fixtures/legacy-aws-sdk-app 是一个模拟
  * "遗留 AWS SDK v2 企业应用" 的练习靶子，其 package.json 声明了 aws-sdk@^2
  * 真实依赖；fixture 的单元测试与迁移后验证（npm test 的 Demo 2 集成套件、
  * facade 迁移用例）都需要该依赖与 @aws-sdk v3 客户端可解析。离线演示不
@@ -23,7 +23,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const fixture = path.join(root, 'demos', 'repo-migration-engine', 'fixtures', 'legacy-aws-sdk-app');
+const fixture = path.join(root, 'apps', 'repo-migration-engine', 'fixtures', 'legacy-aws-sdk-app');
 const stubsDir = path.join(fixture, 'sdk-stubs');
 const nmDir = path.join(fixture, 'node_modules');
 

@@ -117,9 +117,19 @@ logic):
 
 | Path | Application |
 | --- | --- |
-| `demos/incident-triage-remediation/` | P1 database connection pool exhaustion: 100/100 DB connections, 38.5% HTTP 500 spike → deterministic probe → typed triage → planner + independent safety reviewer → recovery gate → post-mortem report (3 scenarios; destructive commands intercepted; automated rollback) |
-| `demos/repo-migration-engine/` | AWS SDK v2 → v3 migration (S3, DynamoDB, SQS): baseline test gate → AST/deprecation scan → parallel worker+reviewer fan-out per file → `tsc --noEmit && npm test` merge gate → publication-ready `PULL_REQUEST.md` |
-| `demos/capabilities-tour/` | Reusable pattern library powering acts 5–8: amend lineage, hole growth, escalation, budget |
+| `apps/incident-triage-remediation/` | P1 database connection pool exhaustion: 100/100 DB connections, 38.5% HTTP 500 spike → deterministic probe → typed triage → planner + independent safety reviewer → recovery gate → post-mortem report (3 scenarios; destructive commands intercepted; automated rollback) |
+| `apps/repo-migration-engine/` | AWS SDK v2 → v3 migration (S3, DynamoDB, SQS): baseline test gate → AST/deprecation scan → parallel worker+reviewer fan-out per file → `tsc --noEmit && npm test` merge gate → publication-ready `PULL_REQUEST.md` |
+| `apps/capabilities-tour/` | Reusable pattern library powering acts 5–8: amend lineage, hole growth, escalation, budget |
+
+**Category compliance map** — the official Skeleton Crew requirement reads: *"Your repo must
+contain 2 separate repo folders for the 2 separate applications."* This repository carries
+exactly that:
+
+| Official requirement | This repository |
+| --- | --- |
+| Repo folder for application #1 | [`apps/incident-triage-remediation/`](apps/incident-triage-remediation/) — self-contained repo folder: own `package.json`, `tsconfig.json`, README (EN / 中文), workflow sources, shell gates, scenarios and committed artifacts |
+| Repo folder for application #2 | [`apps/repo-migration-engine/`](apps/repo-migration-engine/) — self-contained repo folder: own `package.json`, `tsconfig.json`, README (EN / 中文), workflow sources, MCP clients, fixtures, tests and committed artifacts |
+| One reusable code foundation | the skeleton both import: `src/dwf/` compiler + sandbox + journal, `bin/` CLI, MCP server — zero shared demo logic between the two applications |
 
 **Docs** — [README](README.md) (full feature/architecture tour) ·
 [Architecture](docs/ARCHITECTURE.md) · [Integration guide](docs/INTEGRATION.md) ·
@@ -161,11 +171,38 @@ directory is **fully tracked in Git** and carries five subsystems — the comple
   (append-only event-stream audit), `Stop` (no exit until verification gates pass).
 - **Steering** (`.kiro/steering/`) — frontmatter (`inclusion: always`) guardrails: "code, not
   conversation" philosophy, security policy, workflow conventions, bilingual presentation.
-- **MCP** (`.kiro/mcp/mcp-server.json`) — exposes the engine to Kiro over stdio, including
-  `workflow_script_check` / `workflow_script_run`.
+- **MCP** (`.kiro/mcp/mcp-server.json`) — mounts the engine's MCP server over stdio (declared
+  tools: `workflow_run` / `probe` / `inspect` / `replay` / `graph`; the served catalog also
+  includes `workflow_script_check` / `workflow_script_run`).
 - **PBT** (`.kiro/pbt/`) — `fast-check` properties proving 5 invariants (50–100 randomized cases
   per property, see `.kiro/pbt/engine-invariants.test.ts`): DAG acyclicity, idempotent zero-token
   replay, typed-RPC soundness, monotonic event-log ordering, credential redaction.
 
 The namesake **Skeleton Crew roster** (`.kiro/crew/`): `Conductor`, `Prober`, `Worker`,
 `Reviewer`, `GateKeeper` — with least-privilege permission ceilings per role.
+
+### How Kiro was used to build this project
+
+Kiro was not the chat window the work happened in — it was the contract the work had to satisfy.
+Concretely, during development:
+
+1. **Specs as the contract** (`.kiro/specs/`): the engine's semantics (state machine, Kahn-algorithm DAG
+   invariant, the typed `agent(name).ask<T>(prompt, schema)` RPC contract, `State(k) =
+   Fold(Events[0..k])` replay invariant) are written up as formal spec documents with
+   machine-readable JSON schemas, and the implementation is tested against them
+   (governance + PBT suites).
+2. **Hooks as hard gates** (`.kiro/hooks/`): the `PreToolUse` hook blocks destructive shell
+   syntax with Kiro's exit-code-2 deny protocol; `PostToolUse` SHA-256-hashes generated
+   artifacts for append-only audit; the `Stop` hook refuses to end a session until verification
+   gates pass — these handlers run for real (`node .kiro/hooks/*.js`, registered in
+   `.kiro/hooks/lifecycle.json`), not as documentation.
+3. **Steering as standing policy** (`.kiro/steering/`): `inclusion: always` guardrails — the
+   "code, not conversation" philosophy, the security policy (destructive shell syntax banned,
+   credentials sanitized) and bilingual presentation rules — injected into every session.
+4. **MCP as the integration surface** (`.kiro/mcp/`): `.kiro/mcp/mcp-server.json` mounts the
+   engine's MCP server over stdio (`workflow_run` / `probe` / `inspect` / `replay` / `graph`
+   declared; the served catalog also includes `workflow_script_check` / `workflow_script_run`)
+   — the same server surface ZCode consumes.
+5. **PBT as proof, not vibes** (`.kiro/pbt/`): fast-check property suites (wired into
+   `npm run test:pbt`) prove DAG acyclicity, idempotent zero-token replay, typed-RPC soundness,
+   monotonic event ordering and credential redaction — 50–100 randomized cases per property.
