@@ -2,6 +2,11 @@
 
 > 本文件记录 Project Y 中每一项外部能力的**吸收或拒收决策**：来源、原理、四级过滤（T1–T4）结论、落地模块、对应 Issue / PR 与验证证据。
 >
+> - **四大技术谱系来源**：
+>   1. **ZCode 官方 Dynamic Workflow**：动态 LLM DAG 编排与类型推导；
+>   2. **Claude Code 原生 Dynamic Workflow**：VM 沙箱纯度封印与上下文预算硬约束；
+>   3. **morluto/rea**：向内依赖架构、证据凭证法则与 Tagged Error 代数；
+>   4. **Google Antigravity 原生动态工作流**：双进程物理隔离、FD 劫持干净 RPC 管道、未 Await 挂起 Promise 自动审计防御、双模态 Agent 析构与弱引用协同。
 > - **只增不删**：决策被推翻时追加新条目，并在旧条目标注「已被 CAP-xxx 取代」，不删除旧条目。
 > - **证据是快照**：「验证证据」记录的是条目落地当时、在指定基线上运行命令的输出，属于审计快照；现行数值以重新运行同一命令为准（遵循 `docs/README.md` 的「动态数据不硬编码」规则）。
 > - **四级过滤**：T1 解决真实问题；T2 符合向内依赖架构，错误走 Tagged Error 代数；T3 控制流是确定性的 TypeScript 代码；T4 能被 `node:test` / `fast-check` / E2E 机械验证。四级全过才吸收。
@@ -140,6 +145,36 @@
 - **对应 Issue & PR**：Issue #157（y.md 支柱二）；PR #160。
 - **验证证据**（审计快照，2026-11-07，head `499a886`）：build exit 0；unit `tests 452, pass 452, fail 0`（448→452）；PBT 9/9；E2E `pass 121, fail 0`；governance 24/24；check-clean 通过。
 
+### [CAP-006] Studio 双语表面 + stdio 看门狗收养 + world.run 外部审批（第三波三件）
+
+- **汲取来源**：双语——仓库自有 steering 规则（bilingual-presentation）落地为渲染层字典注入；看门狗——经典 orphan-watchdog 模式（OpenProcess 双等，宿主死 → TerminateProcess）适配 MCP SDK 的 blind-spawn 边界；外部审批——Claude Code 逐条确认语义反推到 world.run 面。
+- **原理解析**：① STUDIO_I18N 单表驱动服务端模板与客户端注入（占位符精确上下文替换，避免 token/属性名同名的 /g 自伤）；② SDK 在 StdioClientTransport 内部 blind-spawn —— spawnJobGuarded 不可见，改 watch-and-adopt（helper 双等宿主与子，宿主死 → TerminateProcess；**刻意不用嵌套 kill-on-close job**：与 SDK 子进程生命周期管理碰撞有 #120 B bisect 实证）；③ 审批三源（显式列表 ∪ 项目 allowlist ∪ 交互 y/N 持久化）pre-flight 于引擎存在之前，拒绝即零子进程。
+- **4-Tier 评估**：T1: PASS（双语=演示分；孤儿=宿主强杀零残留；审批=堵提示注入执行链），T2: PASS（各自落在所属层），T3: PASS（确定性控制流），T4: PASS（双语 3 例 / adopt 真机收割 2 例 / 审批 6 例；#120 B 真实 stdio 家族 12/12 回归）。
+- **落地模块**：`src/visualizer/studio-renderer.ts`、`scripts/win32-jobhelper.cs`（adopt 模式）+ `src/process-supervision.ts`（adoptPidIntoJobGuard）+ `src/mcp/client.ts`、`src/dwf/approvals.ts` + runner/CLI/MCP 接线。
+- **对应 Issue & PR**：#128→PR #187；#117→PR #189；#127 方向 2+3→PR #191（已合入）；方向 1→DRAFT PR #197（B 类：全量 unit 套件挂死待解，单测 6/6 隔离全绿）。
+- **验证证据**（2026-11-08）：双语 unit 548/548 + CLI 冒烟全中文；adopt 真机收割 2/2 + #120 B 12/12；审批模块/runner 6/6（未批准→零子进程预检拒绝、批准→命令真执行、allowlist 持久化）。
+
+### [CAP-007] 动态工作流未 Await 挂起 Promise / Agent 自动审计防御（Unawaited Promise & Agent Leak Audit）
+
+- **汲取来源**：
+  - Google Antigravity 原生动态工作流（run-workflow Prelude 注入运行时 `antigravity_workflow_prelude.py:470-476, 1315-1329`）中的 `_tracked` 与 `_agents` 扫描器；
+  - 详见权威对标白皮书 [ANTIGRAVITY-RUN-WORKFLOW-WHITEPAPER.md](research/ANTIGRAVITY-RUN-WORKFLOW-WHITEPAPER.md) §2.5 与 §4.1。
+- **原理解析**：
+  1. 在动态代码编排（Code as Workflow）中，LLM 或开发者书写异步脚本时极易遗漏 `await`（如写出裸 `agent(...).ask(...)` 或 `ctx.mcp.callTool(...)`）。标准 Node.js / V8 事件循环不会将未等待的 Promise 视为致命语法错误，悬挂的任务在微任务队列末尾漂移或直接被宿主进程退出丢弃，导致工作流在未完成真实任务的情况下报出 `dwf_done`（假绿，Fake Green）。
+  2. 新机制在 Facade 执行沙箱与子进程执行器（`src/dwf/`）内部维护在途挂起 Promise 注册表；所有异步原语实例在构造时自动登记，在 resolve/reject 时注销；
+  3. 在脚本主入口执行完毕、即将派发完成帧之前，实施强制终态审计：一旦发现任何已创建但未被 await 的 Promise 或悬挂 Agent，立即拦截退出流程，向事件流派发失败事件并抛出结构化具名错误 `WorkflowUnawaitedPromiseError`（包含未被等待的任务标签、创建代码位置与建议修复措施）；
+  4. 彻底杜绝漏写 await 导致的「未跑真任务却报成功」假绿现象。
+- **与来源的刻意差异**：
+  - Antigravity 运行在 Python 解释器环境，使用弱引用（`weakref`）和 `__await__` 特殊方法扫描；本仓基于 TypeScript / Node.js 异步执行沙箱，在 `src/dwf/` 门面及 `child-main.ts` 中通过在途任务跟踪集合实现确定性校验。
+- **4-Tier 评估**：T1: PASS, T2: PASS, T3: PASS, T4: PASS
+  - T1：解决大模型生成动态工作流脚本时漏写 await 导致的假绿放行顽疾；
+  - T2：向内依赖架构，错误派发为领域层 Tagged Error 代数；
+  - T3：检查为确定性的集合为空断言，不经过任何 LLM 不确定性推断；
+  - T4：可通过单测构造未 await 脚本机械验证 100% 报错拦截。
+- **落地模块**：`src/dwf/`（运行时门面与 `child-main.ts`）；白皮书 [docs/research/ANTIGRAVITY-RUN-WORKFLOW-WHITEPAPER.md](research/ANTIGRAVITY-RUN-WORKFLOW-WHITEPAPER.md)。
+- **对应 Issue & PR**：Issue #274；分支 `feat/issue-274-antigravity-workflow`。
+- **验证证据**：见 [docs/research/ANTIGRAVITY-RUN-WORKFLOW-WHITEPAPER.md](research/ANTIGRAVITY-RUN-WORKFLOW-WHITEPAPER.md) §2.5 与 §5。
+
 ---
 
 ## 二、已拒收（Rejected）
@@ -150,11 +185,11 @@
 - **拒收理由**：T1: FAIL。本仓是「代码即工作流」，步骤按显式名字调用工具；没有任何代码把工具 Schema 注入 LLM 提示词（`toolRegistry` 只在 `src/mcp/server.ts` 注册时写入，没有读取方把它交给模型）。该能力目前不解决任何真实问题。
 - **重新评估条件**：出现「把 MCP 工具目录交给模型自主挑选」的步骤类型时。
 
-### [CAP-006] Studio 双语表面 + stdio 看门狗收养 + world.run 外部审批（第三波三件）
+### [REJ-002] 引入外部 Python 解释器作为默认工作流执行宿主（Python Subprocess as Default Host）
 
-- **汲取来源**：双语——仓库自有 steering 规则（bilingual-presentation）落地为渲染层字典注入；看门狗——经典 orphan-watchdog 模式（OpenProcess 双等，宿主死 → TerminateProcess）适配 MCP SDK 的 blind-spawn 边界；外部审批——Claude Code 逐条确认语义反推到 world.run 面。
-- **原理解析**：① STUDIO_I18N 单表驱动服务端模板与客户端注入（占位符精确上下文替换，避免 token/属性名同名的 /g 自伤）；② SDK 在 StdioClientTransport 内部 blind-spawn —— spawnJobGuarded 不可见，改 watch-and-adopt（helper 双等宿主与子，宿主死 → TerminateProcess；**刻意不用嵌套 kill-on-close job**：与 SDK 子进程生命周期管理碰撞有 #120 B bisect 实证）；③ 审批三源（显式列表 ∪ 项目 allowlist ∪ 交互 y/N 持久化）pre-flight 于引擎存在之前，拒绝即零子进程。
-- **4-Tier 评估**：T1: PASS（双语=演示分；孤儿=宿主强杀零残留；审批=堵提示注入执行链），T2: PASS（各自落在所属层），T3: PASS（确定性控制流），T4: PASS（双语 3 例 / adopt 真机收割 2 例 / 审批 6 例；#120 B 真实 stdio 家族 12/12 回归）。
-- **落地模块**：`src/visualizer/studio-renderer.ts`、`scripts/win32-jobhelper.cs`（adopt 模式）+ `src/process-supervision.ts`（adoptPidIntoJobGuard）+ `src/mcp/client.ts`、`src/dwf/approvals.ts` + runner/CLI/MCP 接线。
-- **对应 Issue & PR**：#128→PR #187；#117→PR #189；#127 方向 2+3→PR #191（已合入）；方向 1→DRAFT PR #197（B 类：全量 unit 套件挂死待解，单测 6/6 隔离全绿）。
-- **验证证据**（2026-11-08）：双语 unit 548/548 + CLI 冒烟全中文；adopt 真机收割 2/2 + #120 B 12/12；审批模块/runner 6/6（未批准→零子进程预检拒绝、批准→命令真执行、allowlist 持久化）。
+- **汲取来源**：Google Antigravity run_workflow 的 Python 3.8+ 架构。
+- **拒收理由**：T1: FAIL / T2: FAIL。
+  1. 本仓 AI-workflow 核心定位是为 Node.js / TypeScript 生态打造的开箱即用「代码即工作流」引擎；
+  2. 引入外部 Python 依赖将违背 P-BUILD-1 供应链红线，显著增加环境碎片（PATH、virtualenv、Python 版本冲突）与跨平台排障复杂度；
+  3. 本仓基于 TypeScript 编译器 API（`ts.TypeChecker`）做强类型 Schema 擦除与 AST 纯度检查具有结构性优势。仅吸收其 FD 隔离与 Promise 泄漏审计思想，不引入 Python 运行时。
+- **重新评估条件**：未来若立项官方多语言工作流 SDK（如独立 Python Facade 绑定）时。

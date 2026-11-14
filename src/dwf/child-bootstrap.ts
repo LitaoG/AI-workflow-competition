@@ -75,6 +75,8 @@ export const BOOTSTRAP = `"use strict";
   var __pending = new Map();
   /** Actors created in this realm — createActor is synchronous (no IPC round-trip). */
   var __localActors = new Set();
+  /** Actors used in ask() calls — tracks actor usage across the run. */
+  var __usedActors = new Set();
   /** Pending ask promises → their child call id, so sessions.cancel can route an abort. */
   var __cancellable = new Map();
   /** Budget mirror: total is run-config seeded; the parent pushes spent totals. */
@@ -109,7 +111,7 @@ export const BOOTSTRAP = `"use strict";
   function __call(op, siteId, payload) {
     var id = ++__nextId;
     var promise = new Promise(function (resolve, reject) {
-      __pending.set(id, { resolve: resolve, reject: reject });
+      __pending.set(id, { resolve: resolve, reject: reject, siteId: siteId, op: op });
       __emit({ t: 'call', id: id, op: op, siteId: siteId, payload: payload });
     });
     if (op === 'ask') __cancellable.set(promise, id);
@@ -124,6 +126,8 @@ export const BOOTSTRAP = `"use strict";
   function __cancelTurn(turn) {
     var callId = __cancellable.get(turn);
     if (callId !== undefined) {
+      var entry = __pending.get(callId);
+      if (entry) entry.cancelled = true;
       __emit({ t: 'notify', op: 'cancelCall', cancelId: callId });
     }
     // already-settled turns are a no-op: cancellation only applies to pending work
@@ -154,6 +158,7 @@ export const BOOTSTRAP = `"use strict";
         var message = 'ask() receiver is not an actor created by agent() in this run (site ' + siteId + ')';
         return Promise.reject(__tagged('AgentError', message, { siteId: siteId }));
       }
+      __usedActors.add(actor.__actor ?? '');
       // The fifth argument marks a swarm() task (issue #126): the parent skips the
       // per-actor FIFO and the conversation for it. The flag travels with the
       // frame rather than being re-derived from the siteId prefix, so the engine
@@ -616,11 +621,17 @@ export const BOOTSTRAP = `"use strict";
   // （独立评审第 1 轮边界面收紧）。返回 'abort' 交外层 exit(2)；childIdle 的发射
   // 条件与原宿主侧实现逐字一致（每条已解析行处理后：pending 清空且仍有 parked hole）。
   var __deliver = function (line) {
+    if (line === '__sentinel_get_pending__' || line === '__get_pending__') {
+      return __deliver.getPending();
+    }
     let frame;
     try {
       frame = JSON.parse(line);
     } catch {
       return ''; // ignore malformed lines; the protocol is ours on both ends
+    }
+    if (frame && (frame.t === '__get_pending__' || frame.op === 'getPending')) {
+      return __deliver.getPending();
     }
     if (frame.t === 'ok' && typeof frame.id === 'number') {
       const waiter = __pending.get(frame.id);
@@ -656,6 +667,22 @@ export const BOOTSTRAP = `"use strict";
       __cellArmProbe();
     }
     return frame.t === 'abort' ? 'abort' : '';
+  };
+  __deliver.getPending = function (all) {
+    var list = [];
+    __pending.forEach(function (val) {
+      if (!val.cancelled && (all || (val.op !== 'enterPhase' && val.op !== 'log' && val.op !== 'report' && val.op !== 'declareArtifact'))) {
+        list.push({ siteId: val.siteId, op: val.op });
+      }
+    });
+    return list;
+  };
+  __deliver.getActorUsage = function () {
+    var created = [];
+    __localActors.forEach(function (a) { created.push(a); });
+    var used = [];
+    __usedActors.forEach(function (a) { used.push(a); });
+    return { created: created, used: used };
   };
   // 引导源的完成值：唯一一个不经 globalThis 交宿主的 realm 函数引用。
   return __deliver;

@@ -66,7 +66,7 @@
 import * as fs from 'node:fs';
 import * as vm from 'node:vm';
 import readline from 'node:readline';
-import { isDomainError, toDomainError, toSerializableError } from '../domain/errors.js';
+import { domainError, isDomainError, toDomainError, toSerializableError } from '../domain/errors.js';
 import { BOOTSTRAP } from './child-bootstrap.js';
 
 /** An `Error` that carries its tagged algebra value for the boundary conversion. */
@@ -144,7 +144,12 @@ async function main(): Promise<void> {
   // lines, and only a true 'abort' line triggers exit(2) below) — the realm-internal
   // mirrors stay parent-driven, exactly like the pre-#31 shape where inbound parsing
   // lived in the host readline callback.
-  const deliver = vm.runInContext(BOOTSTRAP, context, { filename: 'workflow-bootstrap.js' }) as (line: string) => string;
+  interface DeliverFunction {
+    (line: string): string;
+    getPending?: () => Array<{ siteId?: string; op: string }>;
+    getActorUsage?: () => { created: string[]; used: string[] };
+  }
+  const deliver = vm.runInContext(BOOTSTRAP, context, { filename: 'workflow-bootstrap.js' }) as DeliverFunction;
   if (typeof deliver !== 'function') {
     process.stderr.write('child-main: bootstrap did not yield the inbound delivery function\n');
     process.exit(3);
@@ -173,6 +178,18 @@ async function main(): Promise<void> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const runner = (vm.runInContext('__workflowScript__()', context) as any) as Promise<unknown>;
     const value = await runner;
+    const pendingCalls = typeof deliver.getPending === 'function' ? deliver.getPending() : [];
+    if (pendingCalls.length > 0) {
+      const first = pendingCalls[0]!;
+      const siteDesc = first.siteId ?? 'unknown';
+      const msg = `workflow execution failed: unawaited facade call (site ${siteDesc}, op ${first.op}) was never awaited`;
+      const err = new Error(msg);
+      err.name = 'AgentError';
+      (err as TaggedError).__dwfTagged = domainError('AgentError', msg, {
+        details: { siteId: first.siteId, op: first.op },
+      });
+      throw err;
+    }
     sendToParent({ t: 'done', value: value === undefined ? null : value });
     process.exit(0);
   } catch (err) {

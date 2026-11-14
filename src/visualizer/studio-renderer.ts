@@ -92,7 +92,7 @@ export function renderStudioHtml(snap: StudioSnapshot, opts?: { live?: boolean; 
     .replace('__STUDIO_CANVAS_HINT__', () => T.canvasHint)
     .replace('__STUDIO_EVENT_STREAM__', () => T.eventStream)
     .replace('__STUDIO_FILTER__', () => T.filter)
-    .replace('__STUDIO_INSPECTOR__', () => T.inspector)
+    .replace(/__STUDIO_INSPECTOR__/g, () => T.inspector)
     .replace('__STUDIO_INSPECTOR_EMPTY__', () => T.inspectorEmpty)
     .replace('__STUDIO_I18N_JSON__', () => JSON.stringify(STUDIO_I18N).replace(/</g, '\\u003c'));
 }

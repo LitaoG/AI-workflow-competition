@@ -45,6 +45,7 @@
 |---|---|---|
 | **ZCode 官方深度逆向** | `docs/research/workflow-reverse-engineering.md` | ZCode 官方工作流机制逆向与三代演进拆解、rea 静态分析实测、差距分析与 P0→P2 融合蓝图 |
 | **Claude Code 对标白皮书** | `docs/research/CLAUDE-CODE-DYNAMIC-WORKFLOW-WHITEPAPER.md` | 官方 2.1.316 逆向、实机黑盒、双向对标、红蓝对抗与 Date 纯度封印落地 |
+| **Antigravity 原生动态工作流白皮书** | `docs/research/ANTIGRAVITY-RUN-WORKFLOW-WHITEPAPER.md` | Antigravity 架构逆向、FD 劫持隔离、未 Await 挂起 Promise 审计防御与四大谱系对标 |
 | **双轨实测对比基准** | `docs/research/OFFICIAL-VS-AI-WORKFLOW-BENCHMARK.md` | 4 大场景的实测/源码级证据、C 类受阻项与解除条件 |
 
 ### 4. 安全渗透类
@@ -90,6 +91,7 @@
 | 1 秒 demo、--set/--args-file 传参、Studio 看板怎么用 | `QUICKSTART.md` |
 | ZCode 官方工作流机制怎么逆向的、三代演进与 P0→P2 融合蓝图 | `docs/research/workflow-reverse-engineering.md` |
 | 官方 Dynamic Workflow 与本仓到底差在哪、有哪些实测证据与源码行号 | `docs/research/CLAUDE-CODE-DYNAMIC-WORKFLOW-WHITEPAPER.md` |
+| Google Antigravity 动态工作流架构、FD 劫持隔离、未 Await 泄漏审计与四大谱系对标 | `docs/research/ANTIGRAVITY-RUN-WORKFLOW-WHITEPAPER.md` |
 | 沙箱逃逸、协议投毒、DoS 资源炸弹、凭据窃取的攻防实测与防线状态 | `docs/research/PENETRATION-AND-SECURITY-AUDIT.md` |
 | 4 大双轨场景哪些真正实测了、哪些是 C 类受阻 | `docs/research/OFFICIAL-VS-AI-WORKFLOW-BENCHMARK.md` |
 | 某项外部能力为什么被吸收或拒收、来源是什么、落在哪个模块 | `docs/absorbed-capabilities.md` |
