@@ -299,7 +299,7 @@ test('Demo 2 Adversarial: Simulated interruption at Step 1 (Baseline Gate) via S
     // Verify final artifacts created
     assert.ok(fs.existsSync(path.join(outDir, 'PULL_REQUEST.md')), 'PULL_REQUEST.md must exist');
     assert.ok(fs.existsSync(path.join(outDir, 'kanban.json')), 'kanban.json must exist');
-    assert.ok(fs.existsSync(path.join(outDir, 'dag.html')), 'dag.html must exist');
+    assert.ok(fs.existsSync(path.join(outDir, 'migration_dag.html')), 'migration_dag.html must exist');
   } finally {
     cleanupTempDir(tempDir);
   }

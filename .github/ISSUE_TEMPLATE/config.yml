@@ -1,5 +1,5 @@
 blank_issues_enabled: false
 contact_links:
   - name: "多 Agent 研发工作流与规范总览"
-    url: "https://github.com/LitaoG/AI-workflow/blob/main/docs/WORKFLOW.md"
+    url: "https://github.com/LitaoG/AI-workflow-competition/blob/main/docs/WORKFLOW.md"
     about: "在立项前必读：查阅文档优先、Worktree 物理隔离、8步闭环与收尾必做三件事。"

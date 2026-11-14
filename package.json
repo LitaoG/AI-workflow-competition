@@ -73,7 +73,7 @@
   "prepublishOnly": "npm run build && npm test",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/LitaoG/AI-workflow.git"
+    "url": "git+https://github.com/LitaoG/AI-workflow-competition.git"
   },
   "keywords": [
     "ai-agents",
