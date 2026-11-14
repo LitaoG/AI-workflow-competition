@@ -277,8 +277,9 @@ node --experimental-strip-types scripts/pr_review_gate.mjs <pr_number>
 ### 7.3 合入操作（必须在主仓 main 执行）
 
 ```powershell
-# 1. 本仓库无远端 CI（2026-11-09 起，Issue #203）：不存在 gh pr checks 步骤；
-#    合入放行判据 = PR 正文本机门禁指纹 + scripts/pr_review_gate.mjs <pr_number> 校验通过
+# 1. 远端 CI 已于 2026-11-14 经用户重新拍板恢复（比赛仓为 public 仓库，Actions
+#    免费，Issue #7；历史拍板 Issue #203）：合入放行判据 = PR 正文本机门禁指纹
+#    + scripts/pr_review_gate.mjs <pr_number> 校验通过 + CI 绿（gh pr checks）。
 
 # 2. 确认放行后，执行 merge（禁止使用 && 或 ; 连写）
 gh pr merge <pr_number> --merge --delete-branch

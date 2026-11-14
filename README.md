@@ -7,6 +7,7 @@
 [![AWS Kiroween 2026 · Skeleton Crew](https://img.shields.io/badge/AWS%20Kiroween%202026-Skeleton%20Crew-orange)](SUBMISSION.md)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D22-green.svg)](package.json)
+[![CI](https://github.com/LitaoG/AI-workflow-competition/actions/workflows/ci.yml/badge.svg)](https://github.com/LitaoG/AI-workflow-competition/actions/workflows/ci.yml)
 
 **AWS Kiroween 2026 submission — Skeleton Crew category** (hosted by Kiro on Devpost).
 

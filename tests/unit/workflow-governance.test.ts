@@ -90,26 +90,41 @@ describe('Workflow & Governance Specification Suite Invariant Locks', () => {
     assert.ok(configContent.includes('blank_issues_enabled: false'), 'config.yml must disable blank issues');
   });
 
-  test('Tier 1: GitHub Actions CI must remain removed — local gates are the only verification chain (Issue #203)', () => {
-    // 2026-11-09 用户拍板：GitHub Actions 个人额度频繁耗尽（额度成本高于门禁价值），
-    // CI 工作流及其连带断言整体移除，验证链收敛到本机门禁（AGENTS.md §四）。
-    // 此为反向锁死：严禁无声复活 CI（会重新烧额度并使本机门禁链形同虚设）。
+  test('Tier 1: Remote CI must exist and mirror the local gate chain (restored 2026-11-14, Issue #7)', () => {
+    // 2026-11-09 用户拍板移除 CI（Issue #203：私有仓 Actions 额度频繁耗尽）。
+    // 2026-11-14 用户重新拍板恢复（Issue #7）：比赛仓库为公开仓，GitHub Actions
+    // 对公开仓免费（runner 分钟数只对私有仓计费），额度前提不复存在，且 Linux
+    // 侧验证此前零覆盖。本机门禁链（AGENTS.md §四）仍是合入放行的第一判据，
+    // 远端 CI 是公开可信信号与跨平台验证面——两链并存，互不替代。
     const ciPath = path.join(REPO_ROOT, '.github/workflows/ci.yml');
     assert.ok(
-      !fs.existsSync(ciPath),
-      '.github/workflows/ci.yml must NOT exist: GitHub Actions CI was removed (Issue #203). ' +
-      'Verification is local-only per AGENTS.md §四; do not silently re-introduce remote CI.'
+      fs.existsSync(ciPath),
+      '.github/workflows/ci.yml must exist: remote CI was restored by user decision ' +
+      '(Issue #7, 2026-11-14) and must mirror the local gate chain.'
     );
+    const ciYml = fs.readFileSync(ciPath, 'utf-8');
+    const requiredSteps = [
+      'npm run test:unit',
+      'npm run test:integration',
+      'npm run test:pbt',
+      'npm run test:governance',
+      'npm run test:e2e',
+      'npm run test:adversarial',
+      'scripts/demo.sh',
+    ];
+    for (const step of requiredSteps) {
+      assert.ok(ciYml.includes(step), `ci.yml must mirror the local gate step: ${step}`);
+    }
 
     const agentsMd = fs.readFileSync(path.join(REPO_ROOT, 'AGENTS.md'), 'utf-8');
     assert.ok(
-      !agentsMd.includes('.github/workflows/ci.yml'),
-      'AGENTS.md must not reference the removed ci.yml'
+      agentsMd.includes('Issue #7'),
+      'AGENTS.md must record the CI restoration decision (Issue #7, 2026-11-14)'
     );
     const readmeMd = fs.readFileSync(path.join(REPO_ROOT, 'README.md'), 'utf-8');
     assert.ok(
-      !readmeMd.includes('workflows/ci.yml') && !readmeMd.includes('GitHub Actions 工作流'),
-      'README.md must not advertise the removed CI workflow (ci.yml, removed per Issue #203)'
+      readmeMd.includes('actions/workflows/ci.yml/badge.svg'),
+      'README.md must surface the CI badge (restored per Issue #7)'
     );
   });
 

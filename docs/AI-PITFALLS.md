@@ -204,6 +204,7 @@
 - 正确做法：验证一律走本机全量门禁链（AGENTS.md §四：build → unit → integration → PBT → E2E → governance → pr_review_gate --check-clean）；严禁声称「CI 绿/红」、严禁执行 `gh pr checks` 等待远端状态；`.github/workflows/ci.yml` 已删除，任何交付物中「等待 CI」表述视为占位符级违规。
 - 门禁：`tests/unit/workflow-governance.test.ts`（Tier 1 反向锁死：ci.yml 必须不存在 + AGENTS.md/README.md 不得引用已移除的 CI）。
 - 原位置：Issue #203、`AGENTS.md` §1.8、`docs/WORKFLOW.md` §7.3、`README.md`「自动化门禁（本机为唯一验证链）」。
+- **状态更新（2026-11-14，Issue #7，只增不删）**：用户重新拍板恢复远端 CI——比赛仓库为 **public 仓库**，GitHub Actions 对 public 仓库免费（runner 分钟数只对私有仓计费），本条目的额度前提不复存在。现行为：本机门禁链仍是合入放行第一判据（本条「CI 重复本机门禁」的告诫仍然有效——CI 是公开信号与 Linux 跨平台验证面，**不替代本机门禁**）；治理锁死已由「ci.yml 不得存在」改写为「ci.yml 必须存在且镜像本机门禁链」；「引用 CI 绿/红属虚假证据」的告诫自本更新起仅在私有仓语境下成立。
 
 #### P-ENV-4 worktree 共享 node_modules 跳过 postinstall——demo fixture 离线 SDK 桩缺失，集成 baseline gate 假红
 - 复发性：G1 反复（家族第 2 次；首例=「新 worktree 缺 dist 首轮 unit 0 tests 假绿须先 build」，同为 worktree 缺生成产物家族）
