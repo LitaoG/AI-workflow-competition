@@ -738,7 +738,6 @@ export const workflow = defineWorkflow({
             fs.writeFileSync(path.join(dir, 'PULL_REQUEST.md'), prMarkdown, 'utf-8');
             fs.writeFileSync(path.join(dir, 'kanban.json'), JSON.stringify(kanbanData, null, 2), 'utf-8');
             fs.writeFileSync(path.join(dir, 'migration_dag.html'), html, 'utf-8');
-            fs.writeFileSync(path.join(dir, 'dag.html'), html, 'utf-8');
             fs.writeFileSync(path.join(dir, 'migration_dag.mermaid'), mermaid, 'utf-8');
           } catch {
             // Ignore write issues in temporary sandbox

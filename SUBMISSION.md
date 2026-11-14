@@ -61,8 +61,8 @@ default database path is `.workflow/dwf.sqlite`).
 ## 3. Reproduce the demo: one command, nine self-verifying acts
 
 ```bash
-git clone https://github.com/LitaoG/AI-workflow.git
-cd AI-workflow
+git clone https://github.com/LitaoG/AI-workflow-competition.git
+cd AI-workflow-competition
 npm install && npm run build
 bash scripts/demo.sh
 ```
@@ -85,12 +85,11 @@ Measured end-to-end 2026-11-03 (Git Bash on Windows, Node v26.13.0, warm npm cac
 
 ### Reproducible quality-gate fingerprints
 
-All run 2026-11-14, Node v26.13.0 (aligned with README for the 2.3.0 release — upstream
-engine sync: retry-signal race fix, cmd-route argument quoting, Anthropic prompt caching,
-DAG injection-surface hardening, actionStep retryPolicy):
+All run 2026-11-14, Node v26.13.0, from a **fresh build** (fresh-build numbers are what a judge
+clone reproduces — full context in [README](README.md#reproducible-quality-gate-fingerprints)):
 
 ```text
-npm test                                            → 764 tests, 764 pass, 0 fail
+npm test                                            → 763 tests, 763 pass, 0 fail
 npm run test:pbt                                    →  16 tests,  16 pass, 0 fail
 node --experimental-strip-types tests/e2e/runner.ts → 118/118 passed
 npm run test:adversarial                            → 158 tests, 158 pass, 0 fail
@@ -137,11 +136,10 @@ output, evidence fingerprints — no build step).
    model is cited as design inspiration only; no third-party proprietary code is incorporated.
 2. **Apache-2.0 license.** The entire repository is distributed under the Apache License 2.0
    ([LICENSE](LICENSE)).
-3. **Dependency supply chain.** All dependencies are version-pinned via `package-lock.json`. At
-   submission time `npm audit` reports 5 known advisories: 4 moderate, all in dev dependencies,
-   and 1 high in the runtime dependency `zod` 3.25.76 (GHSA-mrhx-c7xc-m3w5; the official fix,
-   `zod@4.6.7`, is a breaking major-version upgrade). The zod@4 migration is scheduled for the
-   next release.
+3. **Dependency supply chain.** All dependencies are version-pinned via `package-lock.json`. The
+   one high advisory (GHSA-mrhx-c7xc-m3w5 in `zod` 3.25.76) is **fixed**: the runtime dependency
+   pins `zod` 4.6.7 (the official fix version); `npm audit` now reports 4 moderate advisories,
+   all in dev dependencies. Full compliance details: [README §Compliance](README.md#compliance).
 4. **Zero private data leakage.** All demo scenarios, telemetry and fixtures are synthetic; every
    demo and test runs offline in mock mode with zero API keys; environment probing redacts
    credentials (`AKIA…`, JWTs → `***REDACTED***`, enforced by a PBT invariant). No private keys,
