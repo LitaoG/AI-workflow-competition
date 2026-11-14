@@ -18,7 +18,7 @@ export const McpJsonEntrySchema = z.object({
   type: z.enum(['stdio', 'sse']).optional(),
   command: z.string().optional(),
   args: z.array(z.string()).optional(),
-  env: z.record(z.string()).optional(),
+  env: z.record(z.string(), z.string()).optional(),
   url: z.string().optional(),
 });
 
