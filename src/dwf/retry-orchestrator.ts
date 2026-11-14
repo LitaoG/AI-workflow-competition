@@ -24,7 +24,7 @@ export interface RetryOrchestratorPolicy {
   circuitCooldownMs?: number;
   /** Engine-level attempts allowed per provider before the chain moves on (default 1 — the rpc layer already retries within a provider). */
   maxAttemptsPerProvider?: number;
-  /** Total engine-level attempts for one ask across the whole chain (default 6). */
+  /** Total engine-level attempts for one ask across the whole chain (default 6). Enforced by the ask executor (per-ask scope). */
   maxTotalAttempts?: number;
   /** Injectable clock (ms) for deterministic tests. */
   now?: () => number;
@@ -68,11 +68,16 @@ export class RetryOrchestrator {
     this.now = policy.now ?? Date.now;
   }
 
-  /** Circuit check + total budget — call BEFORE spending an attempt. */
+  /**
+   * Circuit check — call BEFORE spending an attempt. The TOTAL attempt budget
+   * is deliberately NOT checked here: this orchestrator instance is shared by
+   * every concurrent ask of a run, so a run-lifetime counter in canAttempt
+   * bricked all asks once 6 cumulative failures accrued (2026-11-14 round 2).
+   * The per-ask budget is enforced by the ask executor against
+   * {@link limits.maxTotalAttempts}; `attemptsSpent` stays as run-level
+   * telemetry only.
+   */
   canAttempt(providerId: string): { allowed: boolean; reason?: string } {
-    if (this.totalAttempts >= this.limits.maxTotalAttempts) {
-      return { allowed: false, reason: `total attempt budget exhausted (${this.limits.maxTotalAttempts})` };
-    }
     const st = this.states.get(providerId);
     if (st && st.circuitOpenUntil > this.now()) {
       return {

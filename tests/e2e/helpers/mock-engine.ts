@@ -268,6 +268,10 @@ export async function executeMockEngine(args: string[]): Promise<{ exitCode: num
         errLog(isZh ? '错误: 未指定工作流文件' : 'Error: Workflow file path required');
         return { exitCode: 1, stdout: stdoutArr.join('\n'), stderr: stderrArr.join('\n') };
       }
+      if (!fs.existsSync(filePath)) {
+        errLog(isZh ? `错误: 找不到文件 "${filePath}"` : `Error: File not found: "${filePath}"`);
+        return { exitCode: 1, stdout: stdoutArr.join('\n'), stderr: stderrArr.join('\n') };
+      }
 
       const formatIdx = cmdArgs.indexOf('--format');
       const format = formatIdx !== -1 ? cmdArgs[formatIdx + 1] : 'html';

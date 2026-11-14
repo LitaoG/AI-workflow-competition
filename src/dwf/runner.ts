@@ -597,9 +597,19 @@ async function runInner(
       if (!parkedAt || settled || !engineIdle()) return;
       if (drainTimer) return;
       drainTimer = setTimeout(() => {
-        if (parkedAt && !settled) {
-          finish({ status: 'parked', value: { parked: true, hole: parkedAt } });
+        drainTimer = undefined;
+        if (!parkedAt || settled) return;
+        // Fire-time idle re-check (2026-11-14 round 2): arming was gated on
+        // engineIdle(), but a sibling branch can start an ask between arming
+        // and firing — parking then aborted the in-flight ask mid-provider
+        // call, and aborted asks journal no node (double spend on resume).
+        // Defer instead: clear the one-shot above and re-arm until the engine
+        // really is idle (the whole-run kill timer still bounds this).
+        if (!engineIdle()) {
+          maybePark();
+          return;
         }
+        finish({ status: 'parked', value: { parked: true, hole: parkedAt } });
       }, childIdleSeen ? HOLE_PARK_DRAIN_MS : 10_000);
     };
     notifyActivity = maybePark;
@@ -805,7 +815,10 @@ async function runInner(
     amendedFrom,
     parkedAt: result.status === 'parked' ? parkedAt : undefined,
     stats: { asks, replayHits, amendHits, diverged, phases: analysis.phases },
-    reportItems: [],
+    // The documented terminal snapshot of report() items (interface contract
+    // above) — the engine tracks the last 256 deduplicated items; the old
+    // hardcoded [] silently broke every consumer of the field.
+    reportItems: engine.getReportItems(),
     outputTokensSpent: lastSpentTokens ?? priorSpentTokens,
   };
 }

@@ -108,6 +108,12 @@ export async function executeMCPCall(
       );
     }
     console.log(JSON.stringify(res, null, 2));
+    // The builtin server reports in-band tool failures via isError:true (the
+    // MCP SDK only throws on protocol errors) — surface them in the exit code
+    // so CI/scripting callers can distinguish failure (2026-11-14 round 2).
+    if ((res as { isError?: boolean } | null | undefined)?.isError === true) {
+      return 1;
+    }
     return 0;
   } catch (err: any) {
     console.error(`MCP Call Error: ${err.message}`);

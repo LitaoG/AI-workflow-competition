@@ -150,7 +150,9 @@ export async function executeGraph(filePath: string, options: GraphCommandOption
       return renderDwfProjection(events, options, lang);
     }
     console.error(t('ERR_FILE_NOT_FOUND', { path: filePath }, lang));
-    return 0;
+    // A missing file is a caller error — the T2_F4_02 boundary contract names
+    // non-zero; the old `return 0` masked the failure (2026-11-14 round 2).
+    return 1;
   }
 
   try {

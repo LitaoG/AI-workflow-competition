@@ -53,21 +53,22 @@ test('non-retryable classifications fail the ask outright, without counting as b
   assert.equal(fatal.action, 'give-up');
 });
 
-test('total attempt budget gates the chain via canAttempt; limits are exposed', () => {
+test('limits are exposed; the total budget is ASK-scoped, never a run-lifetime canAttempt gate', () => {
   const o = new RetryOrchestrator({ maxAttemptsPerProvider: 2, maxTotalAttempts: 4 });
   assert.equal(o.limits.maxAttemptsPerProvider, 2);
   assert.equal(o.limits.maxTotalAttempts, 4);
 
-  // Four failed attempts across four providers spend the total budget of 4;
-  // canAttempt then refuses any further provider in the chain.
+  // The orchestrator instance is shared by every concurrent ask of a run, so
+  // canAttempt must NOT gate on the run-lifetime attempt counter — a 6-cumulative-
+  // -failure run used to brick every subsequent ask with 'failover chain
+  // exhausted' (2026-11-14 round 2). The per-ask budget is enforced by the ask
+  // executor against limits.maxTotalAttempts; attemptsSpent stays telemetry.
   for (const pid of ['a', 'b', 'c', 'd']) {
     assert.equal(o.canAttempt(pid).allowed, true);
     o.decide(pid, 0, errOf('transient'));
   }
-  const blocked = o.canAttempt('e');
-  assert.equal(blocked.allowed, false);
-  assert.match(blocked.reason!, /total attempt budget exhausted \(4\)/);
-  assert.equal(o.attemptsSpent, 4);
+  assert.equal(o.canAttempt('e').allowed, true, 'past failures of other asks must not refuse a fresh provider');
+  assert.equal(o.attemptsSpent, 4, 'attemptsSpent stays run-level telemetry');
 });
 
 test('Retry-After hints override the exponential backoff', () => {

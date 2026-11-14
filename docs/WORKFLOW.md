@@ -117,7 +117,7 @@ gh issue comment <issue-number> --body "🚀 **工作流开始执行**：建立�
 
 ## 2. 分支 + Worktree 物理隔离
 
-> 规则本体见仓库协作纪律的 Worktree 物理隔离规则；门禁 `tests/unit/workflow-governance.test.ts`。
+> 规则本体见仓库协作纪律的 Worktree 物理隔离规则；门禁为标准回归套件（`npm test`；原引用的 `tests/unit/workflow-governance.test.ts` 从未存在于本仓库，2026-11-14 移除）。
 
 **主仓（main checkout）严禁修改任何受控文件**。动手前第一步执行环境自检：
 
@@ -183,7 +183,7 @@ npm.cmd run test:pbt
 node --experimental-strip-types tests/e2e/runner.ts
 
 # 5. 工作流治理不变量测试
-node --experimental-strip-types tests/unit/workflow-governance.test.ts
+npm test  # 全量回归（原列出的 tests/unit/workflow-governance.test.ts 从未存在于仓库，已由标准套件取代）
 
 # 6. 还原测试副产物（强制恢复干净）
 git restore tests/unit/fixtures/

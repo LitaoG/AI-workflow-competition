@@ -215,10 +215,12 @@ test('graph without --db: default journal resolves a bare facade runId', async (
     assert.equal(hit.code, 0);
     assert.ok(hit.out.includes('Phase 1: Inspect'), `projection should render the journalled phase: ${hit.out}`);
 
-    // A path that exists as neither file nor runId keeps the pre-existing
-    // not-found contract (message + exit code 0).
+    // A path that exists as neither file nor runId is a CALLER ERROR: the
+    // not-found message stays, and the exit code is now 1 (round 2 — the old
+    // contract masked the failure with exit 0, contradicting the T2_F4_02
+    // boundary test's named behavior).
     const miss = await capture(() => executeGraph('no-such-file-or-run.ts', {}));
-    assert.equal(miss.code, 0);
+    assert.equal(miss.code, 1);
     assert.ok(miss.err.length > 0, 'not-found error message preserved');
   } finally {
     process.chdir(prevCwd);

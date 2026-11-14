@@ -135,10 +135,23 @@ export class Workflow extends EventEmitter {
     }
 
     for (const [stepId, step] of this.stepsMap.entries()) {
+      const stepPhase = this.phases.find((p) => p.id === step.phaseId);
       if (step.dependsOn) {
         for (const depId of step.dependsOn) {
           if (!this.stepsMap.has(depId)) {
             throw new MissingDependencyError(stepId, depId);
+          }
+          // A FORWARD cross-phase dependency passes Kahn's algorithm (the DAG
+          // here is global, phase boundaries are not modeled) but deadlocks at
+          // runtime — executePhaseSteps only treats same-/earlier-phase deps
+          // as satisfied. Fail fast at validation, not mid-run (round 2).
+          const dep = this.stepsMap.get(depId)!;
+          const depPhase = this.phases.find((p) => p.id === dep.phaseId);
+          if (stepPhase && depPhase && depPhase.order > stepPhase.order) {
+            throw new Error(
+              `Step "${stepId}" (phase "${step.phaseId}") depends on "${depId}" from a LATER phase ("${dep.phaseId}") — ` +
+                'dependencies must point to the same or an earlier phase',
+            );
           }
           adjList.get(depId)!.push(stepId);
           inDegree.set(stepId, inDegree.get(stepId)! + 1);

@@ -1,6 +1,6 @@
 {
   "name": "ai-workflow",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Extensible dynamic workflow slash-command engine inspired by ZCode (\"Code, not conversation\", typed agent RPCs, deterministic environment probing, durable replay, DAG visualization, MCP integration)",
   "type": "module",
   "main": "./dist/src/index.js",

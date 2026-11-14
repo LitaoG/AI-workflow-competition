@@ -128,7 +128,16 @@ export function configureCliProvidersFromEnv(env: NodeJS.ProcessEnv = process.en
 
   const options: CliProviderOptions = {
     command: env.AI_WORKFLOW_CLI_COMMAND || undefined,
-    timeoutMs: env.AI_WORKFLOW_CLI_TIMEOUT_MS ? Number(env.AI_WORKFLOW_CLI_TIMEOUT_MS) : undefined,
+    // Validate: NaN/0/negative survived the old `?? 120_000` (nullish only)
+    // and reached setTimeout, which Node coerces to 1ms — every CLI ask died
+    // as 'timed out after NaNms' (2026-11-14 round 2). Junk falls back to the
+    // 120s default.
+    timeoutMs: (() => {
+      const raw = env.AI_WORKFLOW_CLI_TIMEOUT_MS?.trim();
+      if (!raw) return undefined;
+      const n = Number(raw);
+      return Number.isFinite(n) && n > 0 ? n : undefined;
+    })(),
   };
   if (process.env.AI_WORKFLOW_WORKSPACE) {
     options.cwd = path.resolve(process.env.AI_WORKFLOW_WORKSPACE);

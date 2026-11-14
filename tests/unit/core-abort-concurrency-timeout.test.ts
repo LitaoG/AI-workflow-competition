@@ -169,6 +169,20 @@ test('Core Workflow: fanOutStep starts no new items after a worker failure', asy
   assert.deepEqual(started, [1, 2, 3], 'items beyond the in-flight pool must never start (no ghost workers)');
 });
 
+test('Core Workflow: forward cross-phase dependency fails at validation, not mid-run deadlock', async () => {
+  const wf = new Workflow({ name: 'CrossPhaseForwardWorkflow' });
+  wf.addPhase({ id: 'p1', name: 'Phase 1' });
+  wf.addPhase({ id: 'p2', name: 'Phase 2' });
+  wf.addStep(actionStep({ id: 'early', name: 'Early', phaseId: 'p1', dependsOn: ['late'], action: async () => ({ ok: true }) }));
+  wf.addStep(actionStep({ id: 'late', name: 'Late', phaseId: 'p2', action: async () => ({ ok: true }) }));
+
+  await assert.rejects(
+    () => wf.run(),
+    /LATER phase/,
+    'a phase-1 step depending on a phase-2 step must fail fast at validation',
+  );
+});
+
 test('Core Workflow: junk maxConcurrency values fall back to uncapped, not a zero-worker hang', async () => {
   const wf = new Workflow({ name: 'JunkCapWorkflow' });
   wf.addPhase({ id: 'p1', name: 'Phase 1' });

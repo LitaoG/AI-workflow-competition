@@ -2,7 +2,7 @@ import test from 'node:test';
 import * as assert from 'node:assert';
 import { runCLI } from '../helpers/cli.ts';
 import { createTempDir, cleanupTempDir, writeTempFile } from '../helpers/env.ts';
-import { assertExitCode, assertStdoutContains } from '../helpers/assertions.ts';
+import { assertExitCode, assertStderrContains, assertStdoutContains } from '../helpers/assertions.ts';
 import { SAMPLE_LINEAR_WORKFLOW } from '../helpers/fixtures.ts';
 
 test('Tier 2 - Boundary: Feature 4 ZCode Timeline DAG Visualizer', async (t) => {
@@ -27,7 +27,11 @@ export default {
 
   await t.test('T2_F4_02: Graphing non-existent workflow file exits with non-zero error', () => {
     const res = runCLI(['graph', 'non-existent-file.ts']);
-    assertExitCode(res, 0); // handled gracefully or non-zero
+    // The old revision asserted 0 against its own name (and the mock engine
+    // rendered a graph for a file that did not exist) — both fixed to the
+    // named boundary contract (2026-11-14 round 2).
+    assertExitCode(res, 1);
+    assertStderrContains(res, 'File not found');
   });
 
   await t.test('T2_F4_03: Graph command with missing file argument exits with non-zero error', () => {

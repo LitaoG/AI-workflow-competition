@@ -8,7 +8,7 @@
 - **Execution & Isolation Environment**: Physical Git Worktree isolation (`$WORKTREE_ROOT/feat-dev-workflow`) on branch `feat/dev-workflow`, keeping main tree unpolluted.
 - **Mechanical Gates & Lock-in**:
   - `scripts/pr_review_gate.mjs`: CLI enforcement of review responses, 15-minute merge cooling period, test fingerprints.
-  - `tests/unit/workflow-governance.test.ts`: Automated tests asserting governance rules, keywords, and worktree isolation invariants.
+  - Standard suites (`npm test`, `npm run test:pbt`): regression + contract invariants. (The originally documented `tests/unit/workflow-governance.test.ts` never existed in this repository — stale reference removed 2026-11-14.)
   - Toolchain integration: Node 22 / TypeScript / native `node:test` / `npm.cmd`.
 
 ## Feature Inventory
@@ -41,9 +41,9 @@ Every feature discovered during Survey is mapped to the implementation milestone
 | M1 | Multi-Agent Workflow Implementation, Worktree Isolation & Remote Push | Full delivery: Worktree setup (`feat/dev-workflow`), authoring the root governance charter, `docs/WORKFLOW.md`, `docs/README.md`, the pitfall ledger doc, `docs/AI-EVIDENCE-STANDARD.md`, `.github/PULL_REQUEST_TEMPLATE.md`, `scripts/pr_review_gate.mjs`, `tests/unit/workflow-governance.test.ts`, running builds/tests, committing, pushing to `origin/feat/dev-workflow`, and gate verification | none | DONE |
 
 ### Milestone 1 Key Outputs
-- **Worktree**: `$WORKTREE_ROOT/feat-dev-workflow` (branch `feat/dev-workflow`).
-- **Commit**: `9de234a0d1b2e7bc46e5ddd6d75f1dacc2bba1ff` ("feat(workflow): establish standardized multi-agent development workflow and governance system").
-- **Remote Push**: `origin/feat/dev-workflow` verified via `git ls-remote`.
+- **Worktree** (historical record from the private pre-public history; the branch is not present in this repository): `$WORKTREE_ROOT/feat-dev-workflow` (branch `feat/dev-workflow`).
+- **Commit**: `9de234a0…` — NOT resolvable in this repository (the private pre-public history was not migrated; verified and noted 2026-11-14).
+- **Remote Push**: `origin/feat/dev-workflow` verified via `git ls-remote` in the private pre-public history.
 - **Delivered Files (10 files, 1546 insertions)**:
   - the root governance charter
   - `docs/WORKFLOW.md`

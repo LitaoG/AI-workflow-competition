@@ -119,6 +119,10 @@ Commands:
     .option('-o, --out <dir>', dict.OPT_OUTPUT)
     .option('--output-dir <dir>', dict.OPT_OUTPUT)
     .option('--dry-run', 'Validate workflow without executing')
+    // Demo workflows (demos/repo-migration-engine) read this from argv
+    // directly; registered so commander does not reject the documented
+    // resumption walkthrough (2026-11-14 round 2).
+    .option('--interrupt-at <n>', 'Demo resumption hook: stop the workflow after N steps (read by demo workflows from argv)')
     .option('-v, --verbose', dict.OPT_VERBOSE)
     // Facade-script face: `run` auto-detects facade traits (static scan — never
     // an import() probe, facade scripts have a top-level `return`) and forwards

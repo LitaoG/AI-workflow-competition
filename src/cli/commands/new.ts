@@ -188,7 +188,7 @@ export async function executeNew(name: string | undefined, options?: NewCommandO
   console.log(`✔ scaffolded ${file}`);
   console.log(`  template: ${tpl.title}`);
   console.log('Next steps:');
-  console.log(`  workflow check ${name}.facade.ts                 # must report Result: OK`);
+  console.log(`  workflow check ${name}.facade.ts                 # must print "facade script compiled clean"`);
   console.log(`  workflow run ${name}.facade.ts --cwd <workspace>  # mock provider offline by default`);
   return 0;
 }

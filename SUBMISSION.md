@@ -89,7 +89,7 @@ All run 2026-11-14, Node v26.13.0 (aligned with README after the 2.1.0 repair ro
 previous entry here was stale and contradicted README):
 
 ```text
-npm test                                            → 704 tests, 704 pass, 0 fail
+npm test                                            → 705 tests, 705 pass, 0 fail
 npm run test:pbt                                    →  16 tests,  16 pass, 0 fail
 node --experimental-strip-types tests/e2e/runner.ts → 118/118 passed
 bash scripts/demo.sh                                → exit 0, all nine acts OK

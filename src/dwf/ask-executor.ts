@@ -139,7 +139,13 @@ export async function executeAsk(ctx: AskExecutionContext): Promise<unknown> {
   // Official `class Bo` parity (bounded): wait out a structured quota reset at
   // most twice per ask, and never past the run deadline.
   let quotaWaits = 0;
+  // Per-ask total attempt budget (2026-11-14 round 2): the orchestrator is
+  // shared by every concurrent ask of the run, so its run-lifetime counter
+  // cannot gate a single ask — the budget lives HERE, in ask scope, and
+  // counts every provider round trip this ask spends across the chain.
+  let askAttempts = 0;
   while (chainIdx < failoverChain.length) {
+    if (askAttempts >= retryOrchestrator.limits.maxTotalAttempts) break;
     const routedProvider = failoverChain[chainIdx]!;
     const admission = retryOrchestrator.canAttempt(routedProvider);
     if (!admission.allowed) {
@@ -154,6 +160,7 @@ export async function executeAsk(ctx: AskExecutionContext): Promise<unknown> {
     // joins the growthLimit derivation on first use of this key.
     const aimdModel = actor.model;
     await aimdGovernor.acquire(routedProvider, { modelId: aimdModel, runId: ctx.aimdRun?.runId, runBound: ctx.aimdRun?.bound });
+    askAttempts += 1;
     try {
       const reply = await agent(actor.name).ask<unknown>(promptWithSchema, schema as never, {
         // swarm tasks carry no conversation: an empty priorMessages keeps

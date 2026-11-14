@@ -104,6 +104,7 @@ export function agent(name: string, defaults?: { signal?: AbortSignal }): AgentR
       // one backend without touching the global default.
       const provider = providerRegistry.get(options?.providerId);
       const maxRetries = options?.maxRetries ?? 3;
+      const policy = options?.retryPolicy;
       const signal = mergeSignals(options?.signal, defaults?.signal);
 
       // Transport-format mandate only (pillar 1): the schema's shape is NOT
@@ -129,12 +130,20 @@ export function agent(name: string, defaults?: { signal?: AbortSignal }): AgentR
 
       let lastRawOutput = '';
       let lastIssues: z.ZodIssue[] = [];
+      // The last INFRASTRUCTURE error (rate limit/timeout/network) that took a
+      // retry `continue`: when the loop then exits by its own bound, this is
+      // rethrown instead of a mislabeled SchemaValidationError (round 2 — the
+      // old path reported empty-rawText contract failures for provider faults).
+      let lastInfraError: unknown = undefined;
 
       // One attempt = one provider turn + one validation pass. Repair turns
       // appended below make `messages` grow, so attempt N sees attempt N-1's
       // raw output plus the validator's complaint — reflection over evidence,
-      // not a blind resend of the same prompt.
-      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      // not a blind resend of the same prompt. The bound honors a larger
+      // retryPolicy.maxRetries (a step's policy may exceed the ask default —
+      // the old fixed bound silently truncated the policy's promise).
+      const retries = Math.max(maxRetries, policy?.maxRetries ?? 0);
+      for (let attempt = 1; attempt <= retries; attempt++) {
         // Pre-flight re-check: a cancel landing during the backoff sleep is
         // already rejected there; this one catches a cancel between attempts.
         if (signal?.aborted) {
@@ -240,10 +249,10 @@ export function agent(name: string, defaults?: { signal?: AbortSignal }): AgentR
           // policy says otherwise. Retryable failures do NOT poison the repair
           // conversation — the same messages go back out untouched.
           const c = classifyFailure(err, attempt - 1);
-          const policy = options?.retryPolicy;
           const cap = policy?.maxRetries ?? maxRetries;
           const allowed = policy?.retryOn ? policy.retryOn.includes(c.category) : c.retryable;
           if (allowed && attempt < cap) {
+            lastInfraError = err;
             // The retried prompt is rewritten with a "(retry N)"
             // marker. Do the same on the last user turn, replacing any previous
             // marker instead of accumulating it. The journal key still hashes
@@ -264,6 +273,10 @@ export function agent(name: string, defaults?: { signal?: AbortSignal }): AgentR
           throw err;
         }
 
+        // A successful provider turn clears the infra-error memory: a later
+        // validation-budget exhaustion must report the contract failure, not
+        // a stale earlier outage.
+        lastInfraError = undefined;
         // Budget accounting hook: normalises the provider's optional usage
         // fields so callers can track spend per ask without knowing each
         // backend's reporting quirks.
@@ -336,6 +349,15 @@ export function agent(name: string, defaults?: { signal?: AbortSignal }): AgentR
         });
       }
 
+      // Retry budget exhausted on an INFRASTRUCTURE fault (the loop exited via
+      // a retryable `continue`): rethrow the real provider error — a
+      // SchemaValidationError with empty rawText here misreported a provider
+      // outage as a model-contract failure and swallowed the cause
+      // (2026-11-14 round 2). Only genuine budget-exhausted VALIDATION
+      // failures fall through to the contract-error below.
+      if (lastInfraError !== undefined) {
+        throw lastInfraError;
+      }
       // Retry budget exhausted: throw the real SchemaValidationError class
       // (Issue #110) — an Error instance with stack, carrying the domain tag +
       // persistence-safe details (stepId / attemptCount / issueCount) for the

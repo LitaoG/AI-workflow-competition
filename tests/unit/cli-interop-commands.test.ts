@@ -57,7 +57,12 @@ test('setup --target all lands the full adapter matrix with parseable JSON', asy
     assert.ok(Array.isArray(settings.permissions?.allow), 'settings.json must be valid JSON with permissions');
 
     const zcode = JSON.parse(fs.readFileSync(path.join(dir, '.zcode', 'config.json'), 'utf8'));
-    assert.equal(zcode.workflow?.cli, 'node bin/workflow.js');
+    // The setup dir is a tmp project WITHOUT bin/workflow.js — the config must
+    // point at the global `workflow` bin (engineInvocation), not the old
+    // hardcoded repo-relative path that cannot start anywhere else
+    // (2026-11-14 round 2).
+    assert.equal(zcode.workflow?.cli, 'workflow');
+    assert.equal(zcode.workflow?.mcp?.command, 'workflow');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

@@ -132,11 +132,28 @@ function claudeFiles(): Array<{ rel: string; content: string }> {
   ];
 }
 
-function opencodeFiles(): Array<{ rel: string; content: string }> {
+function opencodeFiles(invocation: ReturnType<typeof engineInvocation>): Array<{ rel: string; content: string }> {
+  // The mcp entry comes from engineInvocation, NOT the hardcoded
+  // `node bin/workflow.js` of the old static template — a downstream project
+  // without this repo checked out got configs that could not start
+  // (2026-11-14 round 2; same root cause as the Issue #114 claude fix).
+  const serverCommand = [invocation.mcp.command, ...(invocation.mcp.args ?? [])]
+    .map((part) => JSON.stringify(part))
+    .join(', ');
+  const json = `{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "ai-workflow": {
+      "type": "local",
+      "command": [${serverCommand}]
+    }
+  }
+}
+`;
   return [
     { rel: path.join('.opencode', 'agent', 'workflow-runner.md'), content: OPENCODE_AGENT_TEMPLATE },
     { rel: path.join('.opencode', 'command', 'workflow.md'), content: OPENCODE_COMMAND_TEMPLATE },
-    { rel: path.join('.opencode', 'opencode.json'), content: OPENCODE_JSON_TEMPLATE },
+    { rel: path.join('.opencode', 'opencode.json'), content: json },
   ];
 }
 
@@ -157,9 +174,19 @@ function codexFiles(): Array<{ rel: string; content: string }> {
   ];
 }
 
-function zcodeFiles(): Array<{ rel: string; content: string }> {
+function zcodeFiles(invocation: ReturnType<typeof engineInvocation>): Array<{ rel: string; content: string }> {
+  // Same engineInvocation parameterization as opencodeFiles above: the cli
+  // line and the mcp entry must start in ANY project (global `workflow` bin
+  // when this repo is not checked out), not at a hardcoded repo-relative path.
+  const content = ZCODE_CONFIG_TEMPLATE.replace(
+    '"cli": "node bin/workflow.js"',
+    `"cli": ${JSON.stringify(invocation.cli)}`,
+  ).replace(
+    '"command": "node",\n      "args": ["bin/workflow.js", "mcp", "serve"]',
+    `"command": ${JSON.stringify(invocation.mcp.command)},\n      "args": ${JSON.stringify(invocation.mcp.args ?? [])}`,
+  );
   return [
-    { rel: path.join('.zcode', 'config.json'), content: ZCODE_CONFIG_TEMPLATE },
+    { rel: path.join('.zcode', 'config.json'), content },
   ];
 }
 
@@ -180,10 +207,12 @@ export async function executeSetup(options?: SetupCommandOptions): Promise<numbe
   console.log(`Setting up AI-Workflow interop in ${root}`);
   let count = 0;
   try {
+    // One invocation resolution for every target — the opencode/zcode
+    // templates need it as much as the claude merge did (Issue #114 family).
+    const invocation = engineInvocation(root);
     for (const target of targets) {
       console.log(`  target: ${target}`);
       if (target === 'claude') {
-        const invocation = engineInvocation(root);
         // Shared user configs — merge, never replace (Issue #114). Both reads
         // happen BEFORE any write so an unparseable config aborts the whole
         // target without a partial write.
@@ -201,10 +230,10 @@ export async function executeSetup(options?: SetupCommandOptions): Promise<numbe
       } else {
         const files =
           target === 'opencode'
-            ? opencodeFiles()
+            ? opencodeFiles(invocation)
             : target === 'codex'
               ? codexFiles()
-              : zcodeFiles();
+              : zcodeFiles(invocation);
         count += writeFileIfExistsGuard(files, root);
       }
     }

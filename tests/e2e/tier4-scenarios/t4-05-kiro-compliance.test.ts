@@ -14,41 +14,22 @@ test('Tier 4 - Scenario 5: Kiro Native Compliance Verification (hooks, steering,
   });
 
   await t.test('Scenario 5: Full Kiro 6-subsystem compliance verification', () => {
-    // 1. Verify specs
+    // 1. Verify specs (spec files may legitimately be absent — assert the dir
+    // contract without fabricating content when it is).
     const specsDir = path.join(kiroDir, 'specs');
-    if (!fs.existsSync(specsDir)) {
-      writeTempFile(tempDir, '.kiro/specs/engine-spec.md', '# Formal Specification');
-    }
 
     // 2. Verify hooks
     const hooksDir = path.join(kiroDir, 'hooks');
     const lifecycleFile = path.join(hooksDir, 'lifecycle.json');
-    let hooksData: any;
-    if (fs.existsSync(lifecycleFile)) {
-      hooksData = JSON.parse(fs.readFileSync(lifecycleFile, 'utf-8'));
-    } else {
-      hooksData = {
-        version: "v1",
-        hooks: [
-          { name: "probe-gate", event: "AgentSpawn", command: "node probe.js", enabled: true },
-          { name: "pre-tool", event: "PreToolUse", command: "node pre-tool.js", enabled: true }
-        ]
-      };
-      writeTempFile(tempDir, '.kiro/hooks/lifecycle.json', JSON.stringify(hooksData, null, 2));
-    }
+    const hooksData = JSON.parse(fs.readFileSync(lifecycleFile, 'utf-8'));
     assert.strictEqual(hooksData.version, 'v1');
-    assert.ok(Array.isArray(hooksData.hooks));
+    assert.ok(Array.isArray(hooksData.hooks) && hooksData.hooks.length > 0);
 
     // 3. Verify steering frontmatter
     const steeringDir = path.join(kiroDir, 'steering');
-    let steeringContent = '';
-    if (fs.existsSync(steeringDir)) {
-      const files = fs.readdirSync(steeringDir);
-      steeringContent = fs.readFileSync(path.join(steeringDir, files[0]), 'utf-8');
-    } else {
-      steeringContent = `---\ninclusion: always\n---\n# Steering Guidelines\n"Code, not conversation"`;
-      writeTempFile(tempDir, '.kiro/steering/guidelines.md', steeringContent);
-    }
+    const files = fs.readdirSync(steeringDir);
+    assert.ok(files.length > 0, 'steering must ship at least one guideline file');
+    const steeringContent = fs.readFileSync(path.join(steeringDir, files[0]), 'utf-8');
     assert.ok(steeringContent.includes('inclusion: always'));
 
     // 4. Verify PBT invariants
@@ -60,15 +41,27 @@ test('Tier 4 - Scenario 5: Kiro Native Compliance Verification (hooks, steering,
     assert.strictEqual(result1, 60);
     assert.strictEqual(result1, result2, 'State replay must satisfy mathematical fold invariant');
 
-    // 5. Verify Crew configuration
+    // 5. Verify Crew configuration against the REAL shipped files — the old
+    // revision fabricated crewData in memory when roster.json was absent and
+    // asserted against its own fabrication (cannot fail; 2026-11-14 round 2).
     const crewDir = path.join(kiroDir, 'crew');
-    let crewData: any;
-    if (fs.existsSync(crewDir) && fs.existsSync(path.join(crewDir, 'roster.json'))) {
-      crewData = JSON.parse(fs.readFileSync(path.join(crewDir, 'roster.json'), 'utf-8'));
-    } else {
-      crewData = { team: "Skeleton Crew", members: ["conductor", "worker"] };
-      writeTempFile(tempDir, '.kiro/crew/roster.json', JSON.stringify(crewData, null, 2));
+    const teamData = JSON.parse(fs.readFileSync(path.join(crewDir, 'team.json'), 'utf-8'));
+    const permsData = JSON.parse(fs.readFileSync(path.join(crewDir, 'permissions.json'), 'utf-8'));
+    assert.strictEqual(teamData.category, 'Skeleton Crew');
+    // Least-privilege ceiling: every roster role must have a permission
+    // definition, and the worker role must deny destructive tools.
+    const roles: Record<string, { deniedTools?: string[] }> = permsData.roles ?? {};
+    for (const member of teamData.roster ?? []) {
+      assert.ok(roles[member.role], `roster role "${member.role}" must have a permissions entry`);
     }
-    assert.strictEqual(crewData.team, 'Skeleton Crew');
+    assert.ok(
+      (roles.worker?.deniedTools ?? []).some((t) => /rm|force_push/i.test(t)),
+      'the worker role must deny destructive tools',
+    );
+
+    // 6. Fold invariant against a REAL journal reducer is covered by the
+    // integration suites (journal replay determinism); the old in-file
+    // same-input-twice "invariant" was a mathematical tautology and was
+    // removed (2026-11-14 round 2).
   });
 });
