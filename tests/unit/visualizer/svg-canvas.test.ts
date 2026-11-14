@@ -185,7 +185,7 @@ test('node names are XML-escaped (no injection into the SVG markup)', () => {
 test('unknown status vocabulary drift degrades to the fallback color instead of crashing', () => {
   const svg = renderSvgCanvas(makeGraph([makeNode('drift', 'bogus' as StepStatus)]));
   assert.ok(svg.includes('st-bogus'), 'status rendered verbatim in the class');
-  assert.ok(svg.includes('stroke="#334155"'), 'fallback gray stroke');
+  assert.ok(svg.includes('stroke="#d4d4d8"'), 'fallback hairline stroke');
 });
 
 test('edge status rides the TARGET node status and edge labels survive as titles', () => {

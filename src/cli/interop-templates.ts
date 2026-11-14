@@ -27,7 +27,7 @@ effect goes through the facade.
 ## The authoring loop (every time, in order)
 
 1. **Write** the script to the target workspace (e.g. \`./<task>.facade.ts\`).
-2. **Check** — never skip: \`workflow check <script>\`. It must print \`facade script compiled clean\`.
+2. **Check** — never skip: \`workflow check <script>\`. It must print \`✔ facade script compiled clean (N sites)\`.
 3. **Run** — \`workflow run <script>\` (auto-detects facade scripts; \`workflow
    run-script\` is the explicit alias). Pass input via \`--set key=value\`
    (repeatable, type-inferred — the PowerShell-safe default), \`--args-file
@@ -109,7 +109,7 @@ Run the AI-Workflow loop for: $ARGUMENTS
 2. \`workflow check <script>\` — fix every diagnostic before running.
 3. \`workflow run <script> --set key=value --cwd <workspace>\` (use \`--args-file\`
    for JSON input files; \`--args '<json>'\` works but is not PowerShell-safe).
-4. Parse the final \`Result:\` JSON + stats line. On failure re-run with
+4. Parse the final \`result:\` JSON line + stats line. On failure re-run with
    \`--resume <runId>\`; on an open escalation use \`workflow answer <runId>
    <questionId> "<text>"\`; for a hole use \`workflow fill <runId> <name> <bodyFile>\`.
 5. Report the run id, the result value and where the journal lives
@@ -136,7 +136,8 @@ engine** CLI (\`workflow\`, or \`node bin/workflow.js\`).
 ## Loop
 
 1. **Author** a TypeScript facade script in the target workspace.
-2. **Check**: \`workflow check <script>\` — must print \`facade script compiled clean\`; fix all
+2. **Check**: \`workflow check <script>\` — must print
+   \`✔ facade script compiled clean (N sites)\`; fix all
    diagnostics before running.
 3. **Run**: \`workflow run <script> --set key=value --cwd <workspace>\`
    (facade scripts are auto-detected; \`workflow run-script\` is the explicit

@@ -6,6 +6,7 @@
  */
 import type { DAGGraph } from '../types.js';
 import { renderSvgCanvas } from './svg-canvas.js';
+import { AUI_CSS, AUI_TICKER_JS } from './design-system.js';
 
 // ---------------------------------------------------------------------------
 // The studio page — minimal shell over the SVG canvas + the WS client
@@ -43,28 +44,31 @@ export function renderStudioPage(graph: DAGGraph, ordinal: number, opts: StudioP
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</title>
-<style>
-  :root { color-scheme: dark; --bg:#090d16; --panel:#0d1322; --border:#1e293b; --text:#e2e8f0; --dim:#64748b; --accent:#8b5cf6; --mono:ui-monospace,Consolas,monospace; }
+<style>${AUI_CSS}
   * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--text); font:13px/1.45 ui-sans-serif,system-ui,sans-serif; height:100vh; display:grid; grid-template-rows:46px 1fr 52px; }
-  header { display:flex; align-items:center; gap:14px; padding:0 16px; border-bottom:1px solid var(--border); background:var(--panel); }
-  .brand { font-weight:700; color:var(--accent); }
-  .mono { font-family:var(--mono); font-size:12px; color:var(--dim); }
-  #ordinal { font-family:var(--mono); font-size:12px; }
-  main { display:grid; grid-template-columns:minmax(0,1fr) clamp(280px,26vw,420px); min-height:0; }
+  body { margin:0; background:var(--aui-bg); color:var(--aui-ink); font:13px/1.45 var(--aui-sans); height:100vh; display:grid; grid-template-rows:52px 1fr 44px; }
+  header { position:relative; z-index:10; display:flex; align-items:center; gap:14px; padding:0 16px; border-bottom:1px solid var(--aui-border); background:linear-gradient(180deg, rgba(0,0,0,.015), rgba(0,0,0,0)), var(--aui-bg-raised); }
+  .brand { font-weight:700; color:var(--aui-ink); }
+  .brand .logo { color:var(--aui-blue); margin-right:6px; }
+  .mono { font-family:var(--aui-mono); font-size:12px; color:var(--aui-muted); }
+  #ordinal { font-family:var(--aui-mono); font-size:12px; color:var(--aui-blue); font-variant-numeric:tabular-nums; }
+  main { position:relative; z-index:1; display:grid; grid-template-columns:minmax(0,1fr) clamp(280px,26vw,420px); min-height:0; }
   #canvas { overflow:auto; padding:10px; }
   #canvas svg { max-width:none; width:100%; height:auto; }
-  #feed { border-left:1px solid var(--border); overflow-y:auto; font-family:var(--mono); font-size:11.5px; padding:6px 0; }
-  .line { padding:1.5px 12px; white-space:pre-wrap; word-break:break-word; color:#94a3b8; }
-  footer { display:flex; align-items:center; gap:12px; padding:0 16px; border-top:1px solid var(--border); background:var(--panel); }
-  #seek { flex:1; }
+  #feed { border-left:1px solid var(--aui-border); overflow-y:auto; font-family:var(--aui-mono); font-size:11.5px; padding:6px 0; background:var(--aui-bg-raised); }
+  .line { padding:1.5px 12px; white-space:pre-wrap; word-break:break-word; color:var(--aui-muted); }
+  footer { display:flex; align-items:center; gap:12px; padding:0 16px; border-top:1px solid var(--aui-border); background:var(--aui-bg-raised); }
+  #seek { flex:1; accent-color:var(--aui-blue); }
 </style>
 </head>
 <body>
-<header><span class="brand">◆ Studio</span><span class="mono" id="runid"></span><span id="ordinal"></span></header>
+<div class="aui-backdrop"></div>
+<div class="aui-grid"></div>
+<header><span class="brand"><span class="logo">◆</span>Studio</span><span class="mono" id="runid"></span><span id="ordinal"></span></header>
 <main><section id="canvas"></section><aside id="feed"></aside></main>
 <footer><span class="mono" id="seek-label"></span><input id="seek" type="range" min="0" value="0"></footer>
 <script>window.__STUDIO__ = ${boot};</script>
+<script>${AUI_TICKER_JS}</script>
 <script>
 (function () {
   'use strict';
@@ -83,6 +87,10 @@ export function renderStudioPage(graph: DAGGraph, ordinal: number, opts: StudioP
     seekInput.value = String(msg.ordinal);
     seekLabel.textContent = 'event ' + msg.ordinal + ' / ' + total;
     document.getElementById('ordinal').textContent = 'viewing @' + msg.ordinal;
+    if (window.auiScanTickers) {
+      auiScanTickers(document.getElementById('seek-label'), 'seek');
+      auiScanTickers(document.getElementById('ordinal'), 'ord');
+    }
   }
   function feedLine(text) {
     var d = document.createElement('div');

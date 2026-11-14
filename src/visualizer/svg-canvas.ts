@@ -30,18 +30,20 @@
 
 import type { DAGGraph, DAGNode, StepStatus } from '../types.js';
 
-/** Status → color mapping. Vocabulary: `StepStatus` (src/domain/workflow-types.ts). */
+/** Status → color mapping. Vocabulary: `StepStatus` (src/domain/workflow-types.ts).
+ * Values follow the shared design system (src/visualizer/design-system.ts) —
+ * the light affectui.com palette, chosen to read on white surfaces. */
 export const STATUS_COLORS: Record<StepStatus, string> = {
-  pending: '#64748b', // gray
-  running: '#3b82f6', // blue
-  completed: '#10b981', // green — "Succeeded"
-  failed: '#ef4444', // red
-  skipped: '#eab308', // yellow — "Cancelled" (no such wire value; skipped is the cancellation-adjacent terminal)
-  replayed: '#38bdf8', // cyan — zero-cost journal/warm-cache reuse (projection-specific)
+  pending: '#a3a3a3', // faint gray
+  running: '#2a8ce0', // blue
+  completed: '#1e8a4f', // green — "Succeeded"
+  failed: '#c4320a', // danger red
+  skipped: '#d97706', // amber — "Cancelled" (no such wire value; skipped is the cancellation-adjacent terminal)
+  replayed: '#0891b2', // cyan — zero-cost journal/warm-cache reuse (projection-specific)
 };
 
 /** Fallback color for a status outside the canonical vocabulary (vocabulary drift must not crash the render). */
-const UNKNOWN_STATUS_COLOR = '#334155';
+const UNKNOWN_STATUS_COLOR = '#d4d4d8';
 
 /** Layout constants (px). Phase bands stack top → bottom; nodes sit in a row inside each band. */
 const NODE_WIDTH = 190;
@@ -184,9 +186,9 @@ export function renderSvgCanvas(graph: DAGGraph): string {
       `<g class="node st-${escapeXml(status)}" data-id="${escapeXml(p.node.id)}" data-status="${escapeXml(status)}">` +
         `<rect x="${p.x}" y="${p.y}" width="${p.width}" height="${p.height}" rx="9" fill="${color}" fill-opacity="0.14" stroke="${color}" stroke-width="1.6" class="node-card"/>` +
         `<circle cx="${p.x + 16}" cy="${p.y + p.height / 2}" r="5" fill="${color}" class="node-dot"/>` +
-        `<text x="${p.x + 30}" y="${p.y + 24}" fill="#e2e8f0" class="ntitle">${escapeXml(clip(titleText))}</text>` +
+        `<text x="${p.x + 30}" y="${p.y + 24}" fill="#171717" class="ntitle">${escapeXml(clip(titleText))}</text>` +
         `<text x="${p.x + 30}" y="${p.y + 42}" fill="${color}" class="nmeta">${escapeXml(status)}</text>` +
-        (err ? `<text x="${p.x + 30}" y="${p.y + 52}" fill="#f87171" class="nerror">${escapeXml('✖ ' + err)}</text>` : '') +
+        (err ? `<text x="${p.x + 30}" y="${p.y + 52}" fill="#c4320a" class="nerror">${escapeXml('✖ ' + err)}</text>` : '') +
         `</g>`,
     );
   }

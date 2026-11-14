@@ -76,8 +76,10 @@ test('review HIGH: `$` sequences in the payload must not splice the template', (
   );
   assert.ok(!hostile.includes('__STUDIO_SNAPSHOT__'), 'placeholder must be fully replaced');
   // Issue #128: the template legitimately grew a third script (the i18n
-  // dictionary injection) — the count tracks the template's own tags.
-  assert.equal(hostile.split('</script>').length - 1, 3, 'template must keep exactly its own three </script> tags');
+  // dictionary injection); 2026-11-14 visual system: a fourth (the shared
+  // number-ticker bootstrap from design-system.ts) — the count tracks the
+  // template's own tags, so a payload splice that adds tags still fails.
+  assert.equal(hostile.split('</script>').length - 1, 4, 'template must keep exactly its own four </script> tags');
   assert.ok(hostile.includes("bash: $'TAIL': command not found"), 'hostile payload must survive verbatim');
 });
 

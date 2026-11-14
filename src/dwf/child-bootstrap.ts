@@ -580,7 +580,7 @@ export const BOOTSTRAP = `"use strict";
 
   // Intl no-arg date formatting is a wall-clock side channel that survives the
   // Date seal: Intl.DateTimeFormat#format()/formatToParts() default to
-  // %Date.now% when no date is supplied. Verified in this realm and in a
+  // %Date.now% when no date is supplied. Verified in this realm and in the
   // reference runtime (Issue #55). Seal the no-arg forms while keeping
   // explicit-date formatting deterministic.
   const __dtfProto = Intl.DateTimeFormat.prototype;

@@ -6,7 +6,6 @@ import * as path from 'node:path';
 import { executeSetup } from '../../src/cli/commands/setup-interop.js';
 import { executeExportSchema } from '../../src/cli/commands/export-schema.js';
 import { executeNew, NEW_TEMPLATES } from '../../src/cli/commands/new.js';
-import { executeDemo } from '../../src/cli/commands/demo.js';
 import { executeInspect } from '../../src/cli/commands/inspect.js';
 import { runFacadeScript } from '../../src/dwf/runner.js';
 import { SQLiteStateStore } from '../../src/state/sqlite-store.js';
@@ -127,16 +126,6 @@ test('new <name> scaffolds a compile-oriented facade file for each registered te
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
-});
-
-test('demo runs the flagship facade offline and exports the Studio HTML without opening a browser', { timeout: 60000 }, async () => {
-  const exit = await executeDemo({ noOpen: true });
-  assert.equal(exit, 0);
-  const htmlPath = path.join(process.cwd(), '.workflow', 'views', 'demo.html');
-  assert.ok(fs.existsSync(htmlPath), 'demo must export a Studio HTML artifact');
-  const html = fs.readFileSync(htmlPath, 'utf8');
-  assert.ok(html.includes('AI-Workflow Studio'));
-  assert.ok(!html.includes('__STUDIO_SNAPSHOT__'), 'snapshot placeholder must be replaced');
 });
 
 test('inspect resolves facade runs through the default journal probe (no --db needed)', { timeout: 60000 }, async () => {

@@ -20,11 +20,14 @@ export class MermaidRenderer {
       lines.push(`  ${edge.fromNodeId} --> ${edge.toNodeId}`);
     }
 
-    // Class styles
-    lines.push('  classDef completed fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#fff;');
-    lines.push('  classDef running fill:#78350f,stroke:#f59e0b,stroke-width:2px,color:#fff;');
-    lines.push('  classDef failed fill:#7f1d1d,stroke:#ef4444,stroke-width:2px,color:#fff;');
-    lines.push('  classDef pending fill:#1e293b,stroke:#475569,stroke-width:1px,color:#94a3b8;');
+    // Class styles — the shared design-system light palette
+    // (src/visualizer/design-system.ts), tuned to read on light surfaces.
+    lines.push('  classDef completed fill:#e7f6ee,stroke:#1e8a4f,stroke-width:2px,color:#14532d;');
+    lines.push('  classDef running fill:#e8f1fd,stroke:#2a8ce0,stroke-width:2px,color:#0c4a8e;');
+    lines.push('  classDef failed fill:#fdeae4,stroke:#c4320a,stroke-width:2px,color:#7c2d12;');
+    lines.push('  classDef pending fill:#ffffff,stroke:#d4d4d8,stroke-width:1px,color:#737373;');
+    lines.push('  classDef replayed fill:#e3f4fa,stroke:#0891b2,stroke-width:1.5px,color:#155e75;');
+    lines.push('  classDef skipped fill:#fdf1e3,stroke:#b45309,stroke-width:1px,color:#7c2d12;');
 
     return lines.join('\n');
   }

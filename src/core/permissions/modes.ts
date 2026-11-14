@@ -2,7 +2,7 @@
  * Permission modes (Issue #151).
  *
  * Three runtime postures for the core agent loop's tool calls, layered on the
- * The `PermissionGate` seam (agent-loop.ts) — the loop itself never learns
+ * Phase 3 `PermissionGate` seam (agent-loop.ts) — the loop itself never learns
  * the mode, it only sees decisions:
  *
  * - `plan`  — read-only. Every call to a tool that is not provably

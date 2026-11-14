@@ -4,56 +4,293 @@
   <meta charset="UTF-8">
   <title>AI-Workflow Visualizer — CLIRunTestWorkflow</title>
   <style>
-    :root {
-      --bg: #090d16;
-      --card-bg: #131b2e;
-      --border: #1e293b;
-      --text: #f1f5f9;
-      --text-muted: #94a3b8;
-      --accent: #38bdf8;
-      --completed: #10b981;
-      --running: #f59e0b;
-      --failed: #ef4444;
-      --gate-color: #8b5cf6;
+  :root {
+    color-scheme: light;
+    --aui-bg: #f7f7f8;
+    --aui-bg-raised: #ffffff;
+    --aui-surface: #ffffff;
+    --aui-surface-2: #fafafa;
+    --aui-subtle: #f0f0f0;
+    --aui-wash: #f4f4f5;
+    --aui-border: #e5e5e5;
+    --aui-border-strong: #d4d4d8;
+    --aui-ink: #171717;
+    --aui-muted: #737373;
+    --aui-faint: #a3a3a3;
+    --aui-blue: #2a8ce0;
+    --aui-blue-deep: #0060e2;
+    --aui-info: #2456d6;
+    --aui-info-soft: #eaf1ff;
+    --aui-cyan: #0891b2;
+    --aui-green: #1e8a4f;
+    --aui-success-soft: #e6f6ed;
+    --aui-amber: #b45309;
+    --aui-warning: #b25e00;
+    --aui-warning-soft: #fff1e0;
+    --aui-red: #c4320a;
+    --aui-danger-soft: #fdecea;
+    --aui-violet: #7c3aed;
+    --aui-purple: #8a35d6;
+    --aui-purple-soft: #f4ebfd;
+    --aui-radius-sm: 7px;
+    --aui-radius-lg: 16px;
+    --aui-radius-xl: 20px;
+    --aui-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --aui-ease-2: cubic-bezier(0.25, 1, 0.5, 1);
+    --aui-ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --aui-focus: rgba(0, 96, 226, 0.7);
+    --aui-shadow-card: 0 0 0 1px rgba(0,0,0,.05), 0 1px 2px rgba(0,0,0,.06);
+    --aui-shadow-hover: 0 0 0 1px var(--aui-border-strong), 0 2px 6px -1px rgba(0,0,0,.08);
+    --aui-shadow-pop: 0 12px 40px rgba(0,0,0,.14), 0 0 0 1px rgba(0,0,0,.06);
+    --aui-shadow-float: 0 1px 2px rgba(0,0,0,.03), 0 8px 24px rgba(0,0,0,.035);
+    --aui-code-bg: #fafafa;
+    --aui-tok-key: #171717;
+    --aui-tok-str: #0b8576;
+    --aui-tok-num: #b25e00;
+    --aui-tok-lit: #8a35d6;
+    --aui-sans: 'Inter', ui-sans-serif, system-ui, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    --aui-mono: ui-monospace, 'Cascadia Code', Consolas, 'Courier New', monospace;
+  }
+
+  /* --- backdrop: gradient floor + drifting grid (generic patterns, original CSS) --- */
+  .aui-backdrop {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(1100px 620px at 78% -12%, rgba(0,96,226,.06), transparent 62%),
+      radial-gradient(880px 520px at 8% 112%, rgba(124,58,237,.045), transparent 58%);
+  }
+  .aui-grid {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: .6;
+    background-image:
+      linear-gradient(rgba(23,23,23,.032) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(23,23,23,.032) 1px, transparent 1px);
+    background-size: 34px 34px;
+    -webkit-mask-image: radial-gradient(ellipse 92% 82% at 50% 42%, #000 26%, transparent 100%);
+    mask-image: radial-gradient(ellipse 92% 82% at 50% 42%, #000 26%, transparent 100%);
+    animation: aui-grid-drift 36s linear infinite;
+  }
+  @keyframes aui-grid-drift { to { background-position: 34px 34px, 34px 34px; } }
+
+  /* --- motion vocabulary --- */
+  @keyframes aui-dash { to { stroke-dashoffset: -26; } }
+  @keyframes aui-pulse-blue {
+    0%, 100% { filter: drop-shadow(0 0 2px rgba(42,140,224,.22)); }
+    50% { filter: drop-shadow(0 0 9px rgba(0,96,226,.55)); }
+  }
+  @keyframes aui-fade-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  @keyframes aui-breath { 50% { opacity: .45; } }
+  @keyframes aui-shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+  @keyframes aui-live {
+    0% { transform: scale(1); opacity: .5; }
+    70%, 100% { transform: scale(2.6); opacity: 0; }
+  }
+  @keyframes aui-ray { 0% { opacity: 1; } 100% { opacity: .18; } }
+  @keyframes aui-draw { to { stroke-dashoffset: 0; } }
+  @keyframes aui-sweep { from { background-position: 100% 0; } to { background-position: 0% 0; } }
+  @keyframes aui-pop {
+    0% { transform: scale(.9); }
+    60% { transform: scale(1.06); }
+    100% { transform: scale(1); }
+  }
+  .aui-shimmer-text {
+    background: linear-gradient(90deg, var(--aui-faint) 35%, var(--aui-ink) 50%, var(--aui-faint) 65%);
+    background-size: 200% 100%;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: aui-shimmer 2.4s linear infinite;
+  }
+
+  /* --- soft status pill (affectui Badge pattern, original CSS): tint bg + strong
+         fg, leading dot with an optional live halo --- */
+  .aui-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 20px; padding: 0 9px; border-radius: 999px;
+    font: 500 11px/16px var(--aui-sans); letter-spacing: 0;
+    white-space: nowrap; font-variant-numeric: tabular-nums;
+    background: var(--aui-subtle); color: var(--aui-muted);
+  }
+  .aui-badge .dot { position: relative; flex: none; width: 6px; height: 6px; margin: 0 1px; border-radius: 50%; background: currentColor; }
+  .aui-badge .dot.live::after {
+    content: ""; position: absolute; inset: 0; border-radius: inherit;
+    background: currentColor; animation: aui-live 1.8s var(--aui-ease) infinite;
+  }
+  .aui-badge.tone-info { background: var(--aui-info-soft); color: var(--aui-info); }
+  .aui-badge.tone-success { background: var(--aui-success-soft); color: var(--aui-green); }
+  .aui-badge.tone-warning { background: var(--aui-warning-soft); color: var(--aui-warning); }
+  .aui-badge.tone-danger { background: var(--aui-danger-soft); color: var(--aui-red); }
+  .aui-badge.tone-purple { background: var(--aui-purple-soft); color: var(--aui-purple); }
+  .aui-badge.tone-neutral { background: var(--aui-subtle); color: var(--aui-muted); }
+
+  /* --- KPI cell (affectui Trace-Waterfall metric-strip pattern, original CSS):
+         tiny letterspaced label over a large tabular value --- */
+  .aui-kpi { display: inline-flex; flex-direction: column; gap: 1px; line-height: 1.25; }
+  .aui-kpi .k-label {
+    font: 600 9px/1.2 var(--aui-sans); letter-spacing: .8px; text-transform: uppercase;
+    color: var(--aui-faint);
+  }
+  .aui-kpi .k-value { font: 600 13px/1.2 var(--aui-sans); color: var(--aui-ink); font-variant-numeric: tabular-nums; }
+  .aui-kpi .k-value .k-unit { font: 500 11px/1.2 var(--aui-sans); color: var(--aui-muted); }
+
+  /* --- icon tile (affectui tool-call-card tile pattern, original CSS) --- */
+  .aui-tile {
+    display: inline-grid; place-items: center; flex: none;
+    width: 24px; height: 24px; border-radius: 7px;
+    background: var(--aui-wash);
+    box-shadow: inset 0 0 0 1px var(--aui-border);
+    color: var(--aui-ink);
+  }
+  .aui-tile > svg { display: block; width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* --- ghost button (affectui secondary-button pattern, original CSS):
+         white surface + hairline ring, hover lift --- */
+  .aui-btn-ghost {
+    font: 600 12px/1 var(--aui-sans); color: var(--aui-ink);
+    background: var(--aui-surface); border: 0; border-radius: var(--aui-radius-sm);
+    padding: 7px 13px; cursor: pointer;
+    box-shadow: 0 0 0 1px var(--aui-border), 0 1px 2px rgba(0,0,0,.04);
+    transition: transform .16s var(--aui-ease), box-shadow .16s var(--aui-ease), background-color .16s var(--aui-ease);
+  }
+  .aui-btn-ghost:hover { background: #f7f7f7; box-shadow: 0 0 0 1px var(--aui-border-strong), 0 2px 6px -1px rgba(0,0,0,.08); }
+  .aui-btn-ghost:active { transform: scale(.98); }
+  .aui-btn-ghost:focus-visible { outline: 2px solid var(--aui-focus); outline-offset: 2px; }
+
+  /* --- ink button (affectui primary-button pattern, original CSS) --- */
+  .aui-btn-ink {
+    font: 600 12px/1 var(--aui-sans); color: #fafafa;
+    background: linear-gradient(180deg, #323137, #201e25);
+    border: 0; border-radius: var(--aui-radius-sm);
+    padding: 7px 14px; cursor: pointer;
+    box-shadow: 0 0 0 1px #0d0d0d, 0 2px 4px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.14);
+    transition: transform .16s var(--aui-ease), box-shadow .16s var(--aui-ease), filter .16s var(--aui-ease);
+  }
+  .aui-btn-ink:hover { filter: brightness(1.15); transform: translateY(-1px); }
+  .aui-btn-ink:active { transform: translateY(0) scale(.98); filter: brightness(.92); }
+  .aui-btn-ink:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(0,96,226,.35), 0 0 0 1px #0d0d0d; }
+
+  /* --- 8-ray spinner (affectui Thinking-Loader pattern, original CSS over inline SVG) --- */
+  .aui-rays { animation: aui-rays-spin 1s linear infinite; }
+  .aui-rays line {
+    stroke: currentColor; stroke-width: 1.6; stroke-linecap: round;
+    opacity: .18; animation: aui-ray 800ms linear infinite;
+  }
+  .aui-rays line:nth-child(1) { animation-delay: -700ms; }
+  .aui-rays line:nth-child(2) { animation-delay: -600ms; }
+  .aui-rays line:nth-child(3) { animation-delay: -500ms; }
+  .aui-rays line:nth-child(4) { animation-delay: -400ms; }
+  .aui-rays line:nth-child(5) { animation-delay: -300ms; }
+  .aui-rays line:nth-child(6) { animation-delay: -200ms; }
+  .aui-rays line:nth-child(7) { animation-delay: -100ms; }
+  .aui-rays line:nth-child(8) { animation-delay: 0ms; }
+  @keyframes aui-rays-spin { to { transform: rotate(360deg); } }
+
+  /* --- drawn check (affectui tool-call-card / Thinking-Loader done state, original CSS) --- */
+  .aui-check-draw { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .aui-check-draw path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: aui-draw 360ms var(--aui-ease) 80ms forwards; }
+
+  /* --- shine sweep over a working label (affectui Thinking-Loader pattern, original CSS) --- */
+  .aui-shine { position: relative; }
+  .aui-shine::after {
+    content: attr(data-text);
+    position: absolute; inset: 0; white-space: nowrap; color: transparent;
+    background: linear-gradient(90deg, transparent 38%, rgba(255,255,255,.82) 50%, transparent 62%) 100% 0 / 300% 100% no-repeat;
+    -webkit-background-clip: text; background-clip: text;
+    animation: aui-sweep 1.8s linear infinite; pointer-events: none;
+  }
+
+  /* --- JSON token colors (affectui tool-call-card code palette, original CSS) --- */
+  .aui-tok-key { color: var(--aui-tok-key); }
+  .aui-tok-str { color: var(--aui-tok-str); }
+  .aui-tok-num { color: var(--aui-tok-num); }
+  .aui-tok-lit { color: var(--aui-tok-lit); }
+
+  .aui-chip {
+    font: 600 11px/1.2 var(--aui-sans);
+    color: var(--aui-muted);
+    background: var(--aui-surface);
+    border-radius: 999px; padding: 5px 12px;
+    box-shadow: 0 0 0 1px var(--aui-border), 0 1px 2px rgba(0,0,0,.05);
+    white-space: nowrap;
+  }
+  .aui-chip b { color: var(--aui-ink); font-weight: 700; }
+
+  /* --- scrollbars --- */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: #dcdcdf; border-radius: 999px;
+    border: 3px solid transparent; background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: #c6c6cb; background-clip: content-box; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .aui-badge .dot.live::after, .aui-rays, .aui-rays line, .aui-shine::after, .aui-shimmer-text { animation: none !important; }
+    .aui-check-draw path { stroke-dashoffset: 0; animation: none; }
+  }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--aui-sans); }
+    body { background: var(--aui-bg); color: var(--aui-ink); overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+    header {
+      position: relative; height: 56px;
+      display: flex; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 10;
+      background: linear-gradient(180deg, rgba(0,0,0,.015), rgba(0,0,0,0)), var(--aui-bg-raised);
+      border-bottom: 1px solid var(--aui-border);
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace; }
-    body { background: var(--bg); color: var(--text); overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
-    header { height: 60px; background: #0f172a; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; z-index: 10; }
-    .header-left { display: flex; align-items: center; gap: 16px; }
-    .title { font-size: 16px; font-weight: 700; color: var(--accent); }
-    .metrics { font-size: 13px; color: var(--text-muted); background: #1e293b; padding: 4px 12px; border-radius: 9999px; }
-    .header-right { display: flex; align-items: center; gap: 12px; }
-    button { background: #1e293b; border: 1px solid var(--border); color: var(--text); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
-    button:hover { background: #334155; }
-    #canvas-container { flex: 1; position: relative; overflow: hidden; cursor: grab; }
+    .header-left { display: flex; align-items: center; gap: 14px; }
+    .title { font-size: 14px; font-weight: 700; letter-spacing: .2px; color: var(--aui-ink); }
+    .title .logo { color: var(--aui-blue); margin-right: 6px; }
+    .metrics {
+      font-size: 11px; font-weight: 600; color: var(--aui-muted);
+      background: var(--aui-surface); padding: 5px 12px; border-radius: 999px;
+      box-shadow: 0 0 0 1px var(--aui-border), 0 1px 2px rgba(0,0,0,.05);
+      font-variant-numeric: tabular-nums;
+    }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    button {
+      font: 600 12px/1 var(--aui-sans); color: var(--aui-ink);
+      background: linear-gradient(180deg, #33323a, #222028); border: 0;
+      padding: 7px 14px; border-radius: var(--aui-radius-sm); cursor: pointer;
+      box-shadow: 0 0 0 1px #0d0d0d, 0 2px 4px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.08);
+      transition: transform .16s var(--aui-ease), filter .16s var(--aui-ease);
+    }
+    button:hover { filter: brightness(1.12); transform: translateY(-1px); }
+    button:active { transform: translateY(0); filter: brightness(.9); }
+    #canvas-container { flex: 1; position: relative; overflow: hidden; cursor: grab; z-index: 1; }
     #canvas-container:active { cursor: grabbing; }
     svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-    .phase-column { fill: #0f172a; stroke: var(--border); stroke-dasharray: 4; rx: 8; opacity: 0.6; }
-    .phase-label { font-size: 14px; font-weight: 600; fill: var(--text-muted); text-anchor: middle; }
-    .node-card { fill: var(--card-bg); stroke: var(--border); rx: 8; cursor: pointer; transition: stroke 0.2s; }
-    .node-card:hover { stroke: var(--accent); }
-    .node-card.completed { stroke: var(--completed); }
-    .node-card.running { stroke: var(--running); stroke-width: 2; }
-    .node-card.failed { stroke: var(--failed); }
-    .node-card.gate { stroke: var(--gate-color); }
-    .node-title { font-size: 12px; font-weight: 600; fill: var(--text); }
-    .node-role { font-size: 10px; fill: var(--text-muted); }
+    .phase-column { fill: url(#aui-phase-fill); stroke: var(--aui-border); rx: 16; }
+    .phase-label { font-size: 13px; font-weight: 700; letter-spacing: .5px; fill: var(--aui-muted); text-anchor: middle; text-transform: uppercase; }
+    .node-card { fill: url(#aui-node-fill); stroke: var(--aui-border); stroke-width: 1; rx: 10; cursor: pointer; transition: stroke .2s var(--aui-ease); }
+    .node-card:hover { stroke: var(--aui-border-strong); }
+    .node-card.completed { stroke: rgba(30,138,79,.5); }
+    .node-card.running { stroke: var(--aui-blue); stroke-width: 1.6; animation: aui-pulse-blue 2s var(--aui-ease-2) infinite; }
+    .node-card.failed { stroke: rgba(196,50,10,.6); }
+    .node-card.gate { stroke: rgba(124,58,237,.5); }
+    .node-title { font-size: 12px; font-weight: 600; fill: var(--aui-ink); }
+    .node-task { font-size: 10px; fill: var(--aui-muted); }
+    .node-error { font-size: 10px; fill: var(--aui-red); font-family: var(--aui-mono); }
+    .node-role { font-size: 10px; fill: var(--aui-muted); font-family: var(--aui-mono); }
     .node-badge { font-size: 10px; font-weight: bold; }
-    .bezier-edge { fill: none; stroke: #334155; stroke-width: 2; transition: stroke 0.2s; }
-    .bezier-edge.active { stroke: var(--accent); stroke-dasharray: 6; animation: dash 1s linear infinite; }
-    .bezier-edge.completed { stroke: var(--completed); stroke-width: 2.5; }
-    .bezier-edge.failed { stroke: var(--failed); }
-    @keyframes dash { to { stroke-dashoffset: -12; } }
-    #drawer { position: fixed; top: 60px; right: -420px; width: 420px; height: calc(100vh - 60px); background: #0f172a; border-left: 1px solid var(--border); transition: right 0.25s ease; padding: 24px; overflow-y: auto; z-index: 20; }
+    .bezier-edge { fill: none; stroke: #d4d4d8; stroke-width: 1.8; transition: stroke .2s var(--aui-ease); }
+    .bezier-edge.active { stroke: var(--aui-blue); stroke-dasharray: 7 6; animation: aui-dash .9s linear infinite; }
+    .bezier-edge.completed { stroke: rgba(30,138,79,.55); stroke-width: 2.2; }
+    .bezier-edge.failed { stroke: rgba(196,50,10,.65); }
+    #drawer {
+      position: fixed; top: 56px; right: -430px; width: 430px; height: calc(100vh - 56px);
+      background: linear-gradient(180deg, #ffffff, #fafafa);
+      border-left: 1px solid var(--aui-border); box-shadow: -24px 0 60px rgba(0,0,0,.1);
+      transition: right .3s var(--aui-ease); padding: 24px; overflow-y: auto; z-index: 20;
+    }
     #drawer.open { right: 0; }
     .drawer-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    pre { background: #090d16; padding: 12px; border-radius: 6px; font-size: 11px; color: #a5b4fc; overflow-x: auto; margin-top: 8px; }
+    .drawer-header h3 { font-size: 15px; font-weight: 700; }
+    pre { background: #f7f7f8; border: 1px solid var(--aui-border); border-radius: 8px; padding: 12px; font-size: 11px; font-family: var(--aui-mono); color: #4338ca; overflow-x: auto; margin-top: 8px; }
   </style>
 </head>
 <body>
+  <div class="aui-backdrop"></div>
+  <div class="aui-grid"></div>
   <header>
     <div class="header-left">
-      <div class="title">AI-Workflow Visualizer</div>
+      <div class="title"><span class="logo">◆</span>AI-Workflow Visualizer</div>
       <div class="metrics status-bar" id="metrics-label">
         1 phases · 0 subagents active
       </div>
@@ -65,26 +302,35 @@
   </header>
 
   <div id="canvas-container">
-    <svg id="svg-canvas" viewBox="0 0 400 245">
+    <svg id="svg-canvas" viewBox="0 0 400 226">
       <defs>
+        <linearGradient id="aui-node-fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#ffffff" />
+          <stop offset="1" stop-color="#fafafa" />
+        </linearGradient>
+        <linearGradient id="aui-phase-fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="rgba(23,23,23,0.02)" />
+          <stop offset="1" stop-color="rgba(23,23,23,0.005)" />
+        </linearGradient>
         <marker id="arrow-completed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-          <path d="M 0 1 L 10 5 L 0 9 z" fill="#10b981" />
+          <path d="M 0 1 L 10 5 L 0 9 z" fill="#1e8a4f" />
         </marker>
         <marker id="arrow-active" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-          <path d="M 0 1 L 10 5 L 0 9 z" fill="#38bdf8" />
+          <path d="M 0 1 L 10 5 L 0 9 z" fill="#2a8ce0" />
         </marker>
         <marker id="arrow-pending" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-          <path d="M 0 1 L 10 5 L 0 9 z" fill="#475569" />
+          <path d="M 0 1 L 10 5 L 0 9 z" fill="#d4d4d8" />
         </marker>
         <marker id="arrow-failed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-          <path d="M 0 1 L 10 5 L 0 9 z" fill="#ef4444" />
+          <path d="M 0 1 L 10 5 L 0 9 z" fill="#c4320a" />
         </marker>
       </defs>
 
       <g id="transform-group">
         <!-- Phase Columns -->
         
-          <rect x="40" y="30" width="260" height="195" class="phase-column" />
+          <rect x="40" y="30" width="260" height="186" class="phase-column" />
+          <title>Phase 1</title>
           <text x="170" y="60" class="phase-label">Phase 1</text>
         
 
@@ -93,15 +339,17 @@
 
         <!-- Nodes -->
         
-          <g onclick="inspectNode('step-ok')">
-            <rect x="60" y="90" width="220" height="85"
+          <g style="animation: aui-fade-up .5s var(--aui-ease) both; animation-delay: 0ms" onclick="inspectNode('step-ok')">
+            <title>Step OK</title>
+            <rect x="60" y="90" width="220" height="104"
                   class="node-card pending " />
             <text x="74" y="116" class="node-title">Step OK</text>
-            <text x="74" y="136" class="node-role">
+            
+            <text x="74" y="156" class="node-role">
               [WORKER] 
             </text>
-            <text x="256" y="116" class="node-badge" fill="#94a3b8">
-              ⏳
+            <text x="256" y="116" class="node-badge" fill="#a3a3a3">
+              ○
             </text>
           </g>
         
@@ -117,8 +365,41 @@
     <div id="drawer-content"></div>
   </div>
 
+  <script>(function () {
+  'use strict';
+  var last = Object.create(null);
+  function animate(node, from, to, finalText, dur) {
+    var t0 = performance.now();
+    function frame(t) {
+      var p = Math.min(1, (t - t0) / dur);
+      var e = 1 - Math.pow(1 - p, 4);
+      var v = Math.round(from + (to - from) * e);
+      node.nodeValue = finalText.replace(/[\d][\d,]*/, String(v));
+      if (p < 1) requestAnimationFrame(frame);
+      else node.nodeValue = finalText;
+    }
+    requestAnimationFrame(frame);
+  }
+  function scan(root, scope) {
+    if (!root) return;
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    var n, i = 0;
+    while ((n = walker.nextNode())) {
+      var m = n.nodeValue && n.nodeValue.match(/[\d][\d,]*/);
+      if (!m) continue;
+      var key = scope + ':' + (i++);
+      var target = parseFloat(m[0].replace(/,/g, ''), 10);
+      if (isNaN(target)) continue;
+      var prev = last[key];
+      if (prev === undefined) animate(n, 0, target, n.nodeValue, 900);
+      else if (prev !== target) animate(n, prev, target, n.nodeValue, 420);
+      last[key] = target;
+    }
+  }
+  window.auiScanTickers = function (root, scope) { scan(root, scope || 'aui'); };
+})();</script>
   <script>
-    const nodes = [{"id":"step-ok","name":"Step OK","phaseId":"p1","phaseName":"Phase 1","role":"worker","type":"action","status":"pending","dependsOn":[],"x":60,"y":90,"width":220,"height":85}];
+    const nodes = [{"id":"step-ok","name":"Step OK","phaseId":"p1","phaseName":"Phase 1","role":"worker","type":"action","status":"pending","dependsOn":[],"x":60,"y":90,"width":220,"height":104}];
     let scale = 1, panX = 0, panY = 0, isDragging = false, startX, startY;
     const group = document.getElementById('transform-group');
     const container = document.getElementById('canvas-container');
@@ -180,6 +461,7 @@
       document.getElementById('btn-lang').innerText = t().toggle;
       if (!openNodeId) document.getElementById('drawer-title').innerText = t().inspector;
       if (openNodeId) inspectNode(openNodeId, true);
+      if (window.auiScanTickers) auiScanTickers(document.getElementById('metrics-label'), 'metrics');
     }
     function toggleLang() {
       uiLang = uiLang === 'zh' ? 'en' : 'zh';

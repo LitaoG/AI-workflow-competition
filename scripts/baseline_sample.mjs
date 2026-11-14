@@ -2,7 +2,7 @@
 /**
  * 基线瞬态采样与指纹汇总层 (baseline_sample.mjs)
  *
- * 规则本体：Issue #32 及本仓库测试采样的历史教训（失败用例必须留名）。
+ * 规则本体：Issue #32、docs/AI-PITFALLS.md P-TEST-3。
  * 核心职责：
  * 1. 对 unit+integration 全量门禁（node --test 加 dist/tests/unit 与 dist/tests/integration
  *    两个目录下递归的全部 *.test.js，见 TEST_GLOB_ARGS）

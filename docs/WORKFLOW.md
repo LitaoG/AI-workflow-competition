@@ -2,7 +2,7 @@
 
 > 本文件是 **AI-workflow 项目的大厂级标准研发流程**。任何针对文档、配置或代码的修改，一律严格执行本流程。
 > 严禁直接在 `main` 分支修改，严禁跳步。
-> 流程原则与纪律本体见仓库协作纪律；全仓事实与文档索引见 `docs/README.md`。
+> 流程原则与纪律本体见 `AGENTS.md`；全仓事实与文档索引见 `docs/README.md`。
 
 ---
 
@@ -62,17 +62,17 @@
 
 | 待查事项 / 疑问 | 权威文档出处 |
 |---|---|
-| AI 必守纪律、P0 红线、收尾三件事 | 仓库协作纪律 |
+| AI 必守纪律、P0 红线、收尾三件事 | `AGENTS.md` |
 | 全流程开发规范、本机验证命令、PR 门禁 | 本文件 `docs/WORKFLOW.md` |
 | 全仓文档一览表、单一事实源与防腐规则 | `docs/README.md` |
-| 历史反复踩坑清单、高代价事故与强制规则 | 仓库历史踩坑与教训清单 |
+| 历史反复踩坑清单、高代价事故与强制规则 | `docs/AI-PITFALLS.md` |
 | 证据驱动三档主张、五态测试报告、A-E 交付分级 | `docs/AI-EVIDENCE-STANDARD.md` |
 | PR 模板规范与测试指纹自检清单 | `.github/PULL_REQUEST_TEMPLATE.md` |
 | Issue 结构化模板配置 | `.github/ISSUE_TEMPLATE/` |
 | 自动化评审回复与冷却期检查脚本 | `scripts/pr_review_gate.mjs` |
 | 引擎架构设计、ZCode 启发式理念与状态持久化 | `docs/ARCHITECTURE.md` |
 | 扩展开发指南与自定义 Agent 接入方法 | `docs/DEVELOPER_GUIDE.md` |
-| 测试基础设施、分层覆盖率与验证方法 | 仓库测试基础设施说明 |
+| 测试基础设施、分层覆盖率与验证方法 | `TEST_INFRA.md` |
 
 ### 0.4 为什么是硬纪律（本仓库实证反例）
 
@@ -87,7 +87,7 @@
 
 ### 0.5 动代码前查踩坑清单
 
-查清「这是什么」之后，在动代码前必须查阅仓库历史踩坑清单。
+查清「这是什么」之后，在动代码前必须查阅 `docs/AI-PITFALLS.md`。
 - 查看拟修改的模块或环节是否存在历史陷阱；
 - 新增分支判断、异步流程、状态持久化或测试时必查。
 - 清单严格实行 **G1/G2/G3** 准入门槛，**只增不删**。
@@ -117,7 +117,7 @@ gh issue comment <issue-number> --body "🚀 **工作流开始执行**：建立�
 
 ## 2. 分支 + Worktree 物理隔离
 
-> 规则本体见仓库协作纪律的 Worktree 物理隔离规则；门禁为标准回归套件（`npm test`；原引用的 `tests/unit/workflow-governance.test.ts` 从未存在于本仓库，2026-11-14 移除）。
+> 规则本体见 `AGENTS.md` §1.8；门禁 `tests/unit/workflow-governance.test.ts`。
 
 **主仓（main checkout）严禁修改任何受控文件**。动手前第一步执行环境自检：
 
@@ -137,7 +137,7 @@ git worktree add -b feat/issue-<id>-<short-desc> ../AI-workflow-worktrees/issue-
 - **目录隔离**：严禁在主仓内部嵌套创建 worktree，必须位于同级目录。
 - **依赖复用**：若需复用主仓 `node_modules`，可使用 Windows 目录联接：
   ```cmd
-  cmd /c mklink /J ..\AI-workflow-worktrees\issue-<id>-<short-desc>\node_modules %AI_WORKFLOW_ROOT%\node_modules
+  cmd /c mklink /J ..\AI-workflow-worktrees\issue-<id>-<short-desc>\node_modules C:\Users\86183\Desktop\AI-workflow\node_modules
   ```
 
 ### 2.2 Worktree「用完即删」机械判据
@@ -153,15 +153,19 @@ git worktree add -b feat/issue-<id>-<short-desc> ../AI-workflow-worktrees/issue-
 
 ## 3. 实现约束
 
-1. **最小改动两档制开发规范**：
+1. **最小改动两档制开发规范**（规则本体见 `AGENTS.md` §1.4）：
    - **常规档（改动运行时行为）**：就地改那一处，不新建平行逻辑或冗余实现，不夹带格式化与无关重构；
    - **重构档（零行为变更）**：显式豁免「就地改」与「不新建」，但要求接口与可观察行为逐字一致，一次只重构一个内聚单元，单独成 PR；
    - 提交前对照 Issue 范围执行自检：`git diff --stat`。
-2. **多 Agent 分工编排原则**：
+2. **多 Agent 分工编排原则**（规则本体见 `AGENTS.md` §1.3）：
    - 复杂大任务拆解为互不重叠的子任务；
    - 总代理对子代理汇报的路径、测试结果、构建状态进行抽查复核，严禁盲信转述。
-3. **假定用户会出错，当场指出**：
+3. **假定用户会出错，当场指出**（规则本体见 `AGENTS.md` §1.6）：
    - 遇到事实错误、决策冲突或违背红线时，当场提供具体依据并指出后果；用户确认坚持原方案则按用户方案执行并留痕。
+4. **文档同步纪律**（规则本体见 `AGENTS.md` §1.11）：
+   - 改动代码导致任何文档语义受影响时，必须在同一次 PR 内更新全部受影响文档，严禁留下过时文档；
+   - 以 `docs/README.md` 索引为起点全局检索受影响语义，列出「受影响文档清单」逐一更新；
+   - PR 正文列明「已同步的受影响文档清单」，或明确声明「无文档影响」并附理由。
 
 ---
 
@@ -176,16 +180,19 @@ npm.cmd run build
 # 2. 单元测试套件
 npm.cmd run test:unit
 
-# 3. 不变式与性质测试（PBT）
+# 3. 集成测试套件（预算/failover/replay/MCP 等花钱与恢复路径；触及 src/dwf、src/mcp、src/cli/commands、src/state 时必跑）
+npm.cmd run test:integration
+
+# 4. 不变式与性质测试（PBT）
 npm.cmd run test:pbt
 
-# 4. E2E 全场景流程测试
+# 5. E2E 全场景流程测试
 node --experimental-strip-types tests/e2e/runner.ts
 
-# 5. 工作流治理不变量测试
-npm test  # 全量回归（原列出的 tests/unit/workflow-governance.test.ts 从未存在于仓库，已由标准套件取代）
+# 6. 工作流治理不变量测试
+node --experimental-strip-types tests/unit/workflow-governance.test.ts
 
-# 6. 还原测试副产物（强制恢复干净）
+# 7. 还原测试副产物（强制恢复干净）
 git restore tests/unit/fixtures/
 git status --porcelain
 ```
@@ -248,6 +255,11 @@ git push -u origin feat/issue-<issue-id>-<desc>
   2. **刻意不改 + 明确理由**（给出事实与架构考量）；
   3. **需人拍板**（列出分歧请求裁决）。
   **必回一条回音（必回的是回音，不是照办）**：审查意见不一定对（P-SRC-3 人数不是证据），判定为误报也必须回复驳回依据，严禁静默跳过。
+- **回音判定规则（Issue #109，机械锁死于门禁）**：
+  1. 编号闭环：带编号的发现项（F1、F2…）逐条记账；回音必须**同时引用对应编号并携带三态关键词**（已处理/刻意不改/需人拍板…），一条回音只消它引用的编号；
+  2. 角色判别：带审查标题（`## 监督席`、`## 审查意见` 等）的评论是意见不是回音——回音写在 PR 正文（模板 §5）或普通评论里均可；
+  3. 时间线：comments 与 reviews（`submittedAt`）按时间合并排序，回音必须晚于意见；
+  4. 关联 Issue 并入（F5）：门禁从 PR 正文 `Closes/Fixes/Resolves #N` 拉取该 Issue 的评论并入同一时间轴——**写在 Issue 上的审查意见必须在 PR 内闭环**，不得只在 Issue 下回音。
 
 ### 7.2 审查门禁工具校验
 
@@ -259,15 +271,16 @@ node --experimental-strip-types scripts/pr_review_gate.mjs <pr_number>
 - PR 正文是否明确关联有效 Issue（`Closes #NN`）；
 - PR 正文是否包含真实测试指纹与无未消除占位符；
 - PR 创建时间是否已过 15 分钟冷却期（支持 `--ack` / `--bypass-cooling` 授权豁免）；
-- 评论与 Review 流中所有审查意见是否均已完成三态回复交代。
+- 评论与 Review 流（含关联 Issue 评论，F5）中所有审查意见是否均已完成三态回复交代：带编号发现项须引用编号 + 三态关键词，带审查标题的评论不算回音，时间轴合并排序；
+- PR 正文是否包含真实测试指纹与无未消除占位符（指纹只认 `Ran N tests` / `pass N, fail 0` / node:test 分行摘要，N > 0；裸 "passed" 一词不算，Issue #109）。
 
 ### 7.3 合入操作（必须在主仓 main 执行）
 
 ```powershell
-# 1. 确认门禁校验放行后，在主仓检查 checks 状态
-gh pr checks <pr_number>
+# 1. 本仓库无远端 CI（2026-11-09 起，Issue #203）：不存在 gh pr checks 步骤；
+#    合入放行判据 = PR 正文本机门禁指纹 + scripts/pr_review_gate.mjs <pr_number> 校验通过
 
-# 2. 确认 pass 后，执行 merge（禁止使用 && 或 ; 连写）
+# 2. 确认放行后，执行 merge（禁止使用 && 或 ; 连写）
 gh pr merge <pr_number> --merge --delete-branch
 ```
 

@@ -1,0 +1,693 @@
+{
+  "benchmark": "cross-engine-deliverable-4",
+  "track": "official",
+  "engine": "ZCode apps/zcode-cli/packages/dynamic-workflow (dist)",
+  "pkgRoot": "C:/Users/86183/Desktop/AI-workflow-research/ZCode/apps/zcode-cli/packages/dynamic-workflow",
+  "node": "v26.13.0",
+  "mission": "cross-benchmark-mission.facade.ts (planner -> 4-way fanout -> verifier self-heal -> report/complete; common-subset facade)",
+  "facadeSurfaceUsed": [
+    "agent(name)",
+    ".ask (untyped)",
+    "phase(literal)",
+    "report(item)",
+    "log(text)"
+  ],
+  "compile": {
+    "coldCompileMs": 66.444,
+    "coldLowerMs": 217.611,
+    "warmCompileMeanMs": 51.072,
+    "diagnostics": 0,
+    "loweredSiteIds": [
+      "actor#1",
+      "ask#1",
+      "report#1",
+      "actor#2",
+      "actor#3",
+      "actor#4",
+      "actor#5",
+      "ask#2",
+      "ask#3",
+      "ask#4",
+      "ask#5",
+      "report#2",
+      "ask#6",
+      "ask#7",
+      "ask#8",
+      "ask#9",
+      "report#3",
+      "actor#6",
+      "ask#10",
+      "report#4"
+    ],
+    "holeBodies": []
+  },
+  "maxConcurrency": 4,
+  "runs": [
+    {
+      "runId": "cross-official-run-1",
+      "wallMs": 167.271,
+      "artifact": {
+        "plan": {
+          "steps": [
+            "isolate the connection pool",
+            "probe healthz until green"
+          ],
+          "owner": "sre-oncall"
+        },
+        "findingCount": 4,
+        "challengeCount": 4,
+        "verdict": {
+          "approve": true,
+          "riskScore": 42,
+          "rejected": [
+            "deploys"
+          ],
+          "notes": "two malformed rounds healed on round 3"
+        },
+        "healRounds": 3
+      },
+      "artifactMatchesExpected": true,
+      "settlement": {
+        "status": "completed",
+        "artifact": {
+          "plan": {
+            "steps": [
+              "isolate the connection pool",
+              "probe healthz until green"
+            ],
+            "owner": "sre-oncall"
+          },
+          "findingCount": 4,
+          "challengeCount": 4,
+          "verdict": {
+            "approve": true,
+            "riskScore": 42,
+            "rejected": [
+              "deploys"
+            ],
+            "notes": "two malformed rounds healed on round 3"
+          },
+          "healRounds": 3
+        }
+      },
+      "eventsEmitted": 70,
+      "eventCounts": {
+        "run-started": 1,
+        "phase-entered": 4,
+        "actor-created": 6,
+        "node-queued": 12,
+        "node-dispatched": 12,
+        "usage-updated": 12,
+        "node-settled": 12,
+        "log": 6,
+        "report": 4,
+        "run-settled": 1
+      },
+      "eventTypeSequence": [
+        "run-started",
+        "phase-entered",
+        "actor-created",
+        "node-queued",
+        "node-dispatched",
+        "usage-updated",
+        "node-settled",
+        "log",
+        "report",
+        "phase-entered",
+        "actor-created",
+        "actor-created",
+        "actor-created",
+        "actor-created",
+        "node-queued",
+        "node-queued",
+        "node-queued",
+        "node-queued",
+        "node-dispatched",
+        "node-dispatched",
+        "node-dispatched",
+        "node-dispatched",
+        "usage-updated",
+        "node-settled",
+        "usage-updated",
+        "node-settled",
+        "usage-updated",
+        "node-settled",
+        "usage-updated",
+        "node-settled",
+        "log",
+        "report",
+        "phase-entered",
+        "node-queued",
+        "node-queued",
+        "node-queued",
+        "node-queued",
+        "node-dispatched",
+        "node-dispatched",
+        "node-dispatched",
+        "node-dispatched",
+        "usage-updated",
+        "node-settled",
+        "usage-updated",
+        "node-settled",
+        "usage-updated",
+        "node-settled",
+        "usage-updated",
+        "node-settled",
+        "log",
+        "report",
+        "phase-entered",
+        "actor-created",
+        "node-queued",
+        "node-dispatched",
+        "usage-updated",
+        "node-settled",
+        "log",
+        "node-queued",
+        "node-dispatched",
+        "usage-updated",
+        "node-settled",
+        "log",
+        "node-queued",
+        "node-dispatched",
+        "usage-updated",
+        "node-settled",
+        "report",
+        "log",
+        "run-settled"
+      ],
+      "settleSequence": [
+        "ask:ask#1@1",
+        "ask:ask#5@1",
+        "ask:ask#3@1",
+        "ask:ask#4@1",
+        "ask:ask#2@1",
+        "ask:ask#9@1",
+        "ask:ask#7@1",
+        "ask:ask#8@1",
+        "ask:ask#6@1",
+        "ask:ask#10@1",
+        "ask:ask#10@2",
+        "ask:ask#10@3"
+      ],
+      "journalEventSequence": [],
+      "phasesEntered": [
+        "Plan",
+        "Research",
+        "CrossExamine",
+        "Verify"
+      ],
+      "driverSessions": 6,
+      "disposedCalls": 1,
+      "instanceTimings": [
+        {
+          "instance": "ask#1@1",
+          "queueWaitMs": 0.183,
+          "occupancyMs": 26.265,
+          "totalMs": 26.448
+        },
+        {
+          "instance": "report#1@1",
+          "queueWaitMs": null,
+          "occupancyMs": null,
+          "totalMs": null
+        },
+        {
+          "instance": "ask#2@1",
+          "queueWaitMs": 0.159,
+          "occupancyMs": 45.658,
+          "totalMs": 45.817
+        },
+        {
+          "instance": "ask#3@1",
+          "queueWaitMs": 0.167,
+          "occupancyMs": 30.403,
+          "totalMs": 30.569
+        },
+        {
+          "instance": "ask#4@1",
+          "queueWaitMs": 0.156,
+          "occupancyMs": 45.472,
+          "totalMs": 45.628
+        },
+        {
+          "instance": "ask#5@1",
+          "queueWaitMs": 0.14,
+          "occupancyMs": 30.003,
+          "totalMs": 30.144
+        },
+        {
+          "instance": "report#2@1",
+          "queueWaitMs": null,
+          "occupancyMs": null,
+          "totalMs": null
+        },
+        {
+          "instance": "ask#6@1",
+          "queueWaitMs": 0.119,
+          "occupancyMs": 45.804,
+          "totalMs": 45.923
+        },
+        {
+          "instance": "ask#7@1",
+          "queueWaitMs": 0.141,
+          "occupancyMs": 30.382,
+          "totalMs": 30.523
+        },
+        {
+          "instance": "ask#8@1",
+          "queueWaitMs": 0.137,
+          "occupancyMs": 45.643,
+          "totalMs": 45.781
+        },
+        {
+          "instance": "ask#9@1",
+          "queueWaitMs": 0.147,
+          "occupancyMs": 30.215,
+          "totalMs": 30.361
+        },
+        {
+          "instance": "report#3@1",
+          "queueWaitMs": null,
+          "occupancyMs": null,
+          "totalMs": null
+        },
+        {
+          "instance": "ask#10@1",
+          "queueWaitMs": 0.031,
+          "occupancyMs": 15.002,
+          "totalMs": 15.033
+        },
+        {
+          "instance": "ask#10@2",
+          "queueWaitMs": 0.015,
+          "occupancyMs": 15.73,
+          "totalMs": 15.746
+        },
+        {
+          "instance": "ask#10@3",
+          "queueWaitMs": 0.015,
+          "occupancyMs": 15.443,
+          "totalMs": 15.457
+        },
+        {
+          "instance": "report#4@1",
+          "queueWaitMs": null,
+          "occupancyMs": null,
+          "totalMs": null
+        }
+      ],
+      "askSitesStarted": [
+        "ask#1@1",
+        "ask#2@1",
+        "ask#3@1",
+        "ask#4@1",
+        "ask#5@1",
+        "ask#6@1",
+        "ask#7@1",
+        "ask#8@1",
+        "ask#9@1",
+        "ask#10@1",
+        "ask#10@2",
+        "ask#10@3"
+      ]
+    },
+    {
+      "runId": "cross-official-run-2",
+      "wallMs": 155.256,
+      "artifact": {
+        "plan": {
+          "steps": [
+            "isolate the connection pool",
+            "probe healthz until green"
+          ],
+          "owner": "sre-oncall"
+        },
+        "findingCount": 4,
+        "challengeCount": 4,
+        "verdict": {
+          "approve": true,
+          "riskScore": 42,
+          "rejected": [
+            "deploys"
+          ],
+          "notes": "two malformed rounds healed on round 3"
+        },
+        "healRounds": 3
+      },
+      "artifactMatchesExpected": true,
+      "settlement": {
+        "status": "completed",
+        "artifact": {
+          "plan": {
+            "steps": [
+              "isolate the connection pool",
+              "probe healthz until green"
+            ],
+            "owner": "sre-oncall"
+          },
+          "findingCount": 4,
+          "challengeCount": 4,
+          "verdict": {
+            "approve": true,
+            "riskScore": 42,
+            "rejected": [
+              "deploys"
+            ],
+            "notes": "two malformed rounds healed on round 3"
+          },
+          "healRounds": 3
+        }
+      },
+      "eventsEmitted": 70,
+      "eventCounts": {
+        "run-started": 1,
+        "phase-entered": 4,
+        "actor-created": 6,
+        "node-queued": 12,
+        "node-dispatched": 12,
+        "usage-updated": 12,
+        "node-settled": 12,
+        "log": 6,
+        "report": 4,
+        "run-settled": 1
+      },
+      "eventTypeSequence": [
+        "run-started",
+        "phase-entered",
+        "actor-created",
+        "node-queued",
+        "node-dispatched",
+        "usage-updated",
+        "node-settled",
+        "log",
+        "report",
+        "phase-entered",
+        "actor-created",
+        "actor-created",
+        "actor-created",
+        "actor-created",
+        "node-queued",
+        "node-queued",
+        "node-queued",
+        "node-queued",
+        "node-dispatched",
+        "node-dispatched",
+        "node-dispatched",
+        "node-dispatched",
+        "usage-updated",
+        "node-settled",
+        "usage-updated",
+        "node-settled",
+        "usage-updated",
+        "node-settled",
+        "usage-updated",
+        "node-settled",
+        "log",
+        "report",
+        "phase-entered",
+        "node-queued",
+        "node-queued",
+        "node-queued",
+        "node-queued",
+        "node-dispatched",
+        "node-dispatched",
+        "node-dispatched",
+        "node-dispatched",
+        "usage-updated",
+        "node-settled",
+        "usage-updated",
+        "node-settled",
+        "usage-updated",
+        "node-settled",
+        "usage-updated",
+        "node-settled",
+        "log",
+        "report",
+        "phase-entered",
+        "actor-created",
+        "node-queued",
+        "node-dispatched",
+        "usage-updated",
+        "node-settled",
+        "log",
+        "node-queued",
+        "node-dispatched",
+        "usage-updated",
+        "node-settled",
+        "log",
+        "node-queued",
+        "node-dispatched",
+        "usage-updated",
+        "node-settled",
+        "report",
+        "log",
+        "run-settled"
+      ],
+      "settleSequence": [
+        "ask:ask#1@1",
+        "ask:ask#5@1",
+        "ask:ask#3@1",
+        "ask:ask#4@1",
+        "ask:ask#2@1",
+        "ask:ask#9@1",
+        "ask:ask#7@1",
+        "ask:ask#8@1",
+        "ask:ask#6@1",
+        "ask:ask#10@1",
+        "ask:ask#10@2",
+        "ask:ask#10@3"
+      ],
+      "journalEventSequence": [],
+      "phasesEntered": [
+        "Plan",
+        "Research",
+        "CrossExamine",
+        "Verify"
+      ],
+      "driverSessions": 6,
+      "disposedCalls": 1,
+      "instanceTimings": [
+        {
+          "instance": "ask#1@1",
+          "queueWaitMs": 0.025,
+          "occupancyMs": 14.168,
+          "totalMs": 14.193
+        },
+        {
+          "instance": "report#1@1",
+          "queueWaitMs": null,
+          "occupancyMs": null,
+          "totalMs": null
+        },
+        {
+          "instance": "ask#2@1",
+          "queueWaitMs": 0.12,
+          "occupancyMs": 47.087,
+          "totalMs": 47.207
+        },
+        {
+          "instance": "ask#3@1",
+          "queueWaitMs": 0.125,
+          "occupancyMs": 31.443,
+          "totalMs": 31.568
+        },
+        {
+          "instance": "ask#4@1",
+          "queueWaitMs": 0.116,
+          "occupancyMs": 46.996,
+          "totalMs": 47.112
+        },
+        {
+          "instance": "ask#5@1",
+          "queueWaitMs": 0.096,
+          "occupancyMs": 31.355,
+          "totalMs": 31.451
+        },
+        {
+          "instance": "report#2@1",
+          "queueWaitMs": null,
+          "occupancyMs": null,
+          "totalMs": null
+        },
+        {
+          "instance": "ask#6@1",
+          "queueWaitMs": 0.082,
+          "occupancyMs": 46.992,
+          "totalMs": 47.074
+        },
+        {
+          "instance": "ask#7@1",
+          "queueWaitMs": 0.123,
+          "occupancyMs": 30.43,
+          "totalMs": 30.552
+        },
+        {
+          "instance": "ask#8@1",
+          "queueWaitMs": 0.129,
+          "occupancyMs": 46.831,
+          "totalMs": 46.96
+        },
+        {
+          "instance": "ask#9@1",
+          "queueWaitMs": 0.121,
+          "occupancyMs": 30.331,
+          "totalMs": 30.453
+        },
+        {
+          "instance": "report#3@1",
+          "queueWaitMs": null,
+          "occupancyMs": null,
+          "totalMs": null
+        },
+        {
+          "instance": "ask#10@1",
+          "queueWaitMs": 0.03,
+          "occupancyMs": 15.369,
+          "totalMs": 15.398
+        },
+        {
+          "instance": "ask#10@2",
+          "queueWaitMs": 0.015,
+          "occupancyMs": 14.948,
+          "totalMs": 14.963
+        },
+        {
+          "instance": "ask#10@3",
+          "queueWaitMs": 0.018,
+          "occupancyMs": 15.278,
+          "totalMs": 15.296
+        },
+        {
+          "instance": "report#4@1",
+          "queueWaitMs": null,
+          "occupancyMs": null,
+          "totalMs": null
+        }
+      ],
+      "askSitesStarted": [
+        "ask#1@1",
+        "ask#2@1",
+        "ask#3@1",
+        "ask#4@1",
+        "ask#5@1",
+        "ask#6@1",
+        "ask#7@1",
+        "ask#8@1",
+        "ask#9@1",
+        "ask#10@1",
+        "ask#10@2",
+        "ask#10@3"
+      ]
+    }
+  ],
+  "determinism": {
+    "settleSequenceIdentical": true,
+    "eventTypeSequenceIdentical": true,
+    "journalEventSequenceIdentical": true,
+    "artifactIdentical": true,
+    "artifactMatchesExpectedTable": true
+  },
+  "repairNudge": {
+    "mechanism": "typed-ask submit_result validation (REPAIR_ATTEMPTS=3, NUDGE_ATTEMPTS=1)",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "pass": {
+          "type": "boolean"
+        },
+        "risk": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "pass",
+        "risk"
+      ],
+      "additionalProperties": false
+    },
+    "repair": {
+      "scriptedSubmitPayloads": [
+        {
+          "wrong": 1
+        },
+        {
+          "pass": "no",
+          "risk": "low"
+        },
+        {
+          "pass": true,
+          "risk": "low"
+        }
+      ],
+      "submitVerdicts": [
+        "reject",
+        "reject",
+        "accept"
+      ],
+      "nodeRepairingEvents": [
+        1,
+        1
+      ],
+      "repairRounds": 2,
+      "outcome": {
+        "ok": true,
+        "value": {
+          "pass": true,
+          "risk": "low"
+        }
+      },
+      "wallMs": 92.899
+    },
+    "nudge": {
+      "turnEndedWithoutSubmit": true,
+      "submitVerdicts": [
+        "nudge",
+        "accept"
+      ],
+      "nodeNudgedEvents": 1,
+      "outcome": {
+        "ok": true,
+        "value": {
+          "pass": true,
+          "risk": "low"
+        }
+      }
+    }
+  },
+  "hole": {
+    "holeReachedEvents": 1,
+    "parked": true,
+    "releasedValue": {
+      "code": "(async () => { return \"verdict-42\"; })"
+    },
+    "fillResult": {
+      "ok": true
+    },
+    "openHolesBefore": [
+      "hole#1@1 Verdict"
+    ],
+    "openHolesAfter": [],
+    "filledHolesAfter": [
+      "hole#1@1000"
+    ],
+    "holeEvents": [
+      "hole-reached",
+      "hole-filled"
+    ],
+    "parkToFillMs": 0.635,
+    "note": "HoleFill payload constructed per engine-holes.ts: code = the effective script's lowering holeBodies[siteId]; specs/phases = the effective script's superset tables. The parked promise resolves with { code } in one synchronous fillHole step."
+  },
+  "memory": {
+    "heapUsedPeakBytes": 105045104,
+    "heapUsedPeakMB": 100.18,
+    "rssMB": 235.88,
+    "sampling": "process.memoryUsage().heapUsed every 5ms during both mission runs"
+  },
+  "fakeModel": {
+    "kind": "ScriptedDriver (Boundary B WorkflowDriver) — startAsk() plays the model via engine.askStats + engine.askTurnEnded; shared behavior table scripted-model.mjs",
+    "model": "scripted-fake-model-v1",
+    "networkCalls": 0,
+    "apiKeysUsed": false,
+    "latencyTableMs": "scripted-model.mjs SCRIPTED_LATENCY_MS (per actor name)"
+  }
+}

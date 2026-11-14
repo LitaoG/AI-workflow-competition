@@ -1,7 +1,7 @@
 /**
  * The three-mode PermissionGate (Issue #151). The single
  * implementation behind `permissionMode` — the loop consumes decisions, never
- * the mode itself (agent-loop.ts's `PermissionGate` seam).
+ * the mode itself (agent-loop.ts's `PermissionGate` seam, Phase 3).
  *
  * Write classification is the tool's own `readOnly` flag: a tool that does not
  * declare itself read-only is treated as a write (the safe default — an

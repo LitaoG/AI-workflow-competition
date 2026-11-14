@@ -1,7 +1,7 @@
 /**
  * ADV-1 attack fixture — hostile sandbox child ("protocol poisoning").
  *
- * TEST-GOAL 阶段4.2 攻防: this entry impersonates the sandbox child (same spawn
+ * 攻防: this entry impersonates the sandbox child (same spawn
  * contract as src/dwf/child-main.js: `node <entry> <scriptJsPath> <argsJsPath>`)
  * and is wired into the REAL parent runner via RunFacadeOptions.childEntryPath
  * (src/dwf/runner.ts:53). It emits adversarial byte streams on stdout to probe the

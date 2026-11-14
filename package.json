@@ -1,7 +1,7 @@
 {
   "name": "ai-workflow",
-  "version": "2.1.1",
-  "description": "Extensible dynamic workflow slash-command engine inspired by ZCode (\"Code, not conversation\", typed agent RPCs, deterministic environment probing, durable replay, DAG visualization, MCP integration)",
+  "version": "2.2.0",
+  "description": "Deterministic code-as-workflow engine for multi-agent orchestration (\"Code, not conversation\" — sandboxed TypeScript facades, typed agent RPCs, deterministic probing, zero-token durable replay, DAG visualization, MCP integration)",
   "type": "module",
   "main": "./dist/src/index.js",
   "types": "./dist/src/index.d.ts",
@@ -40,8 +40,9 @@
     "test:pbt": "node --test .kiro/pbt/**/*.test.ts",
     "test:e2e": "node scripts/link-self.mjs && node scripts/bootstrap-fixtures.mjs && node --experimental-strip-types tests/e2e/runner.ts",
     "test:adversarial": "node scripts/link-self.mjs && node scripts/bootstrap-fixtures.mjs && node --test --test-concurrency=1 tests/adversarial/*.test.js tests/adversarial/demo1-dag-stress.js tests/adversarial/demo1-safety-stress.js tests/adversarial/demo2-concurrency-resumption-stress.js",
+    "test:governance": "node --experimental-strip-types tests/unit/workflow-governance.test.ts",
     "coverage": "c8 --reporter=text --reporter=html npm test",
-    "gate": "npm run build && npm test && npm run test:e2e && npm run test:adversarial && npm run test:pbt",
+    "gate": "npm run build && npm test && npm run test:e2e && npm run test:adversarial && npm run test:pbt && npm run test:governance",
     "gate:review": "node --experimental-strip-types scripts/pr_review_gate.mjs"
   },
   "dependencies": {

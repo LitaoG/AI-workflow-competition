@@ -1,5 +1,48 @@
 # Changelog
 
+## 2.2.0 (2026-11-14) — affectUI visual system, progress channel, research corpus
+
+Feature sync from the upstream engine line (ported and reconciled with this repo's
+competition deliverables, which stay untouched). The DAG/Studio visualization stack
+is recast with the affectUI design language, facade runs gain a structured `[wf]`
+progress channel, and the documentation corpus grows a research + governance layer.
+Full gates on this machine (Node v26.13.0): `npm test` 744/744, e2e 118/118,
+adversarial 158/158, PBT 16/16, governance 34/34, demo.sh exit 0.
+
+### Added
+
+- **visualizer**: the affectUI-grade visual system for the DAG and Studio views —
+  new `src/visualizer/design-system.ts` design tokens, the light-palette flip with
+  number-ticker animations, studio node cards sized to their measured titles (no
+  ellipsis truncation), each node's journalled task line surfaced on its card, and
+  humanized bilingual event-stream/inspector copy (`src/visualizer/*`,
+  `src/dag/html-renderer.ts`, `src/dag/mermaid-renderer.ts`)
+- **progress**: structured `[wf]` progress lines on stdout for harness agents —
+  `workflow run --progress` mirrors node starts/completions into an agent's todo
+  list (`src/dwf/progress.ts` + `run-script.ts` + CLI wiring)
+- **docs**: research corpus `docs/research/*` (11 documents) — official-vs-AI-Workflow
+  benchmark, bilateral cross-benchmark report, dynamic-workflow whitepaper,
+  penetration & security audit, workflow gap matrix, telemetry deep-dives
+- **docs**: governance layer — `AGENTS.md`, `GOAL.md`, `QUICKSTART.md`,
+  `TEST_INFRA.md`, `docs/AI-PITFALLS.md`, `docs/absorbed-capabilities.md`;
+  ARCHITECTURE / DEVELOPER_GUIDE / INTEGRATION / docs index rewritten around a
+  five-theme navigation matrix (competition-only entries preserved)
+- **tests**: workflow-governance specification suite (`tests/unit/workflow-governance.test.ts`,
+  34 tests locking docs/CI/contamination invariants), `tests/unit/dwf/progress.test.ts`,
+  and cross-engine benchmark probes (`tests/cross-engine/*`)
+- **interop**: tracked `.claude/`, `.codex/`, `.opencode/` integration configs,
+  refreshed PR/issue templates, hardened `scripts/pr_review_gate.mjs`
+
+### Changed
+
+- **docs**: the real CLI output strings are taught everywhere (`✔ facade script
+  compiled clean (N sites)`) across SKILL.md, QUICKSTART, interop templates and
+  `workflow new` hints
+- **engine**: `src/dwf/governor.ts` mojibake byte repaired; `exported-dag.html`
+  fixture regenerated against the new renderer
+- **tests**: `win32-spawn-resolver.test.ts` moved from `tests/unit/` to
+  `tests/integration/` per the unit-isolation governance invariant (Issue #198)
+
 ## 2.1.1 (2026-11-14) — raw-findings verification round
 
 The 20 review findings that round 1 deferred (never adversarially confirmed) went

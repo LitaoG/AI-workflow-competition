@@ -26,7 +26,7 @@ body:
     id: remediation
     attributes:
       label: "3. 修复方案与防范措施 (Fix Plan & Prevention)"
-      description: "就地修改方案，以及防止同类问题再次发生的具体措施"
+      description: "就地修改方案，以及如何防止同类问题再次发生（是否需要登记到 docs/AI-PITFALLS.md）"
     validations:
       required: true
   - type: textarea
@@ -36,5 +36,6 @@ body:
       value: |
         - [ ] 复现用例已转化为自动化单测
         - [ ] 本机测试 100% 通过（pass N, fail 0）
+        - [ ] 若命中高代价/重复踩坑，已回写 docs/AI-PITFALLS.md
     validations:
       required: true

@@ -19,10 +19,6 @@ const testSuites = [
   'tests/adversarial/prober-sanitizer-stress.test.js',
   'tests/adversarial/cli-subcommands-stress.test.js',
   'tests/adversarial/mcp-server-stress.test.js',
-  'tests/adversarial/demo1-dag-stress.js',
-  'tests/adversarial/demo1-safety-stress.js',
-  'tests/adversarial/demo2-concurrency-resumption-stress.js',
-  'tests/adversarial/demo2-gate-boundary-integrity.test.js',
 ];
 
 console.log('================================================================');

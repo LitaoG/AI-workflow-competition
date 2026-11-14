@@ -4,9 +4,11 @@
 
 - [ ] 「验证」段**绝无任何占位符**（严禁出现 `{{...}}`、`PLACEHOLDER_*`、「待填」、「稍后补充」等空头承诺）
 - [ ] 已完整贴出 **TypeScript 构建检查**输出（`npm.cmd run build` 退出码 0）
-- [ ] 已完整贴出本机验证输出与**真实测试指纹**（`Ran N tests` / `pass N, fail 0`，附带真实用例数；指纹提取方法见 `docs/WORKFLOW.md` §4.1）
+- [ ] 已完整贴出 **§4.1 早筛清单**与本机测试指纹（`Ran N tests` / `pass N, fail 0`，附带真实用例数）
 - [ ] 已确认测试副产物已还原，工作区干净（已执行 `git restore tests/unit/fixtures/`，`git status --porcelain` 为空）
-- [ ] 已回看本 PR/Issue 的**全部评论**并逐条交代（已处理 / 刻意不改+理由 / 需人拍板，三态必选其一并留痕）
+- [ ] 已核对 `git diff` 中 `package-lock.json` 的变更仅来自本次依赖变更（未触及依赖时 lockfile 应零变更——extraneous 条目翻转防护，#196 S4；触及依赖须同 PR 提交 package.json 与 package-lock.json）
+- [ ] 已回看本 PR/Issue 的**全部评论**并逐条交代（已处理 / 刻意不改+理由 / 需人拍板；见 AGENTS.md §1.9）
+- [ ] 已按 **AGENTS.md §1.11 文档同步**排查：全部受影响文档已在同一次 PR 内更新，或已在正文声明「无文档影响」（无影响时附一句理由）
 
 ---
 
@@ -39,6 +41,16 @@
 ### 3.2 单元测试（`npm.cmd run test:unit`）
 ```text
 <!-- 粘贴 pass N, fail 0 输出指纹 -->
+```
+
+### 3.3 集成测试（`npm.cmd run test:integration`；触及 src/dwf、src/mcp、src/cli/commands、src/state 或 tests/integration/** 时必跑）
+```text
+<!-- 粘贴 pass N, fail 0 输出指纹；未适用时写 N/A + 一句理由 -->
+```
+
+### 3.4 治理规则锁死测试（`node --experimental-strip-types tests/unit/workflow-governance.test.ts`）
+```text
+<!-- 粘贴 governance test pass 输出 -->
 ```
 
 ---

@@ -10,10 +10,13 @@ import { resolveWindowsSpawnCommand } from '../../src/process-supervision.js';
 // process-supervision spawnSupervised, confirmed live during the demo run).
 // The resolver routes shim lookups through cmd.exe; everything else passes
 // through untouched.
+//
+// Placed in tests/integration (not tests/unit) per Issue #198: tests/unit
+// keeps pure isolation semantics and must not import src/process-supervision.js.
 test('resolveWindowsSpawnCommand: .cmd shims route through COMSPEC, misses and explicit paths pass through', () => {
   if (process.platform !== 'win32') {
     // The resolver is a win32 no-op elsewhere; the routing branch is covered
-    // on Windows machines/CI only.
+    // on Windows machines only (this repo has no remote CI).
     return;
   }
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'spawn-res-'));

@@ -1,5 +1,5 @@
 /**
- * AIMD concurrency governor (P2/#37) — the four-layer discipline verified by the?
+ * AIMD concurrency governor (P2/#37) — the four-layer discipline verified by the
  * adversarial AIMD regression suites:
  *
  *   Layer 1 — bucket key `${providerId}/${modelId}`: actors bound to a model

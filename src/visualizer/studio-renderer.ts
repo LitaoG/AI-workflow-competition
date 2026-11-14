@@ -4,7 +4,7 @@
  *
  * One HTML template, two run modes:
  * - `static` — the full snapshot is embedded (`window.__STUDIO__`); works from
- *   any `file://` URL, forever offline. Used by `workflow view`, `workflow demo`
+ *   any `file://` URL, forever offline. Used by `workflow view`
  *   and `run --ui` after the run settles.
  * - `live` — same shell, plus an SSE client on `/events` (`state` + `event`
  *   messages) and A2UI inline forms POSTing `/api/answer` // `/api/fill`, so a

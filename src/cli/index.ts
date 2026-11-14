@@ -140,6 +140,7 @@ Commands:
     .option('--live <path>', 'Write a self-refreshing HTML execution view while the run goes (facade scripts)')
     .option('--watch-graph', 'Rewrite the run dir graph.html after every event (facade scripts)')
     .option('--watch', 'Alias of --watch-graph: rewrite the run dir graph.html after every event (facade scripts)')
+    .option('--progress', 'Structured [wf] progress lines on stdout for harness agents to mirror into their todo list (facade scripts)')
     .option('--ui', 'When the run settles, serve the AI-Workflow Studio (SSE + A2UI resume) and open the browser')
     .option('--run-timeout <ms>', 'Whole-run wall clock in ms for facade runs (default 600000; env AI_WORKFLOW_RUN_TIMEOUT_MS)')
     .option('--cwd <path>', 'Workspace the workflow executes in (journal resolution + sandbox child cwd)')
@@ -173,6 +174,7 @@ Commands:
               : undefined,
           live: opts.live,
           watchGraph: opts.watchGraph || opts.watch,
+          progress: opts.progress,
           ui: opts.ui,
           runTimeoutMs: opts.runTimeout,
           cwd: opts.cwd,

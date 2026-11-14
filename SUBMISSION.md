@@ -85,13 +85,15 @@ Measured end-to-end 2026-11-03 (Git Bash on Windows, Node v26.13.0, warm npm cac
 
 ### Reproducible quality-gate fingerprints
 
-All run 2026-11-14, Node v26.13.0 (aligned with README after the 2.1.0 repair round — the
-previous entry here was stale and contradicted README):
+All run 2026-11-14, Node v26.13.0 (aligned with README for the 2.2.0 release — upstream
+feature sync: affectUI visual system, `[wf]` progress channel, research corpus):
 
 ```text
-npm test                                            → 705 tests, 705 pass, 0 fail
+npm test                                            → 744 tests, 744 pass, 0 fail
 npm run test:pbt                                    →  16 tests,  16 pass, 0 fail
 node --experimental-strip-types tests/e2e/runner.ts → 118/118 passed
+npm run test:adversarial                            → 158 tests, 158 pass, 0 fail
+npm run test:governance                             →  34 tests,  34 pass, 0 fail
 bash scripts/demo.sh                                → exit 0, all nine acts OK
 ```
 
@@ -108,7 +110,7 @@ bash scripts/demo.sh                                → exit 0, all nine acts OK
 | `scripts/` | `demo.sh` (the nine-act self-verifying demo) and install/bootstrap helpers |
 | `skills/` | `skills/ai-workflow/` — agent skill packaging |
 | `.kiro/` | Fully git-tracked Kiro governance root — see §6 |
-| `tests/` | Unit + integration, fast-check PBT, 121-case opaque-box E2E suite |
+| `tests/` | Unit + integration, fast-check PBT, 118-case opaque-box E2E suite |
 
 **The two applications** (independent facade scripts, pipelines and artifacts — zero shared demo
 logic):

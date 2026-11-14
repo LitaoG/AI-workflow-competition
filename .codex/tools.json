@@ -1,0 +1,322 @@
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "workflow_run",
+      "description": "Execute an AI-Workflow by file path with options, state persistence, and event logging",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "workflowPath": {
+            "type": "string",
+            "description": "Path to workflow TypeScript file"
+          },
+          "mock": {
+            "type": "boolean",
+            "description": "Execute in deterministic offline mock mode"
+          },
+          "runId": {
+            "type": "string",
+            "description": "Optional custom run ID"
+          },
+          "dbPath": {
+            "type": "string",
+            "description": "Optional custom SQLite database path"
+          },
+          "outDir": {
+            "type": "string",
+            "description": "Optional custom output directory"
+          }
+        },
+        "required": [
+          "workflowPath"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "workflow_probe",
+      "description": "Execute deterministic system, git, and toolchain environment probing with secret redaction",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "targetDir": {
+            "type": "string",
+            "description": "Target working directory to probe"
+          },
+          "sanitizeEnv": {
+            "type": "boolean",
+            "description": "Whether to sanitize and redact sensitive env variables"
+          }
+        }
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "workflow_inspect",
+      "description": "Inspect step checkpoints, events, and artifacts of a workflow run from SQLite store",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "description": "Workflow run ID to inspect"
+          },
+          "dbPath": {
+            "type": "string",
+            "description": "Optional custom SQLite database path"
+          },
+          "stepId": {
+            "type": "string",
+            "description": "Optional specific step ID to inspect"
+          },
+          "includeEvents": {
+            "type": "boolean",
+            "description": "Whether to include raw event stream"
+          }
+        },
+        "required": [
+          "runId"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "workflow_replay",
+      "description": "Replay or resume a workflow run from failure with zero re-token spend",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "description": "Workflow run ID to replay"
+          },
+          "resumeFromFailed": {
+            "type": "boolean",
+            "description": "Re-execute failed steps and resume execution"
+          },
+          "dbPath": {
+            "type": "string",
+            "description": "Optional custom SQLite database path"
+          },
+          "forceRecompute": {
+            "type": "boolean",
+            "description": "Force recompute of all steps"
+          }
+        },
+        "required": [
+          "runId"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "workflow_graph",
+      "description": "Generate static DAG graph visualization without execution (HTML, Mermaid, or ASCII)",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "workflowPath": {
+            "type": "string",
+            "description": "Path to workflow TypeScript file"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "html",
+              "mermaid",
+              "ascii"
+            ],
+            "description": "Visualization output format"
+          },
+          "lang": {
+            "type": "string",
+            "enum": [
+              "en",
+              "zh"
+            ],
+            "description": "Language for HTML visualizer (en/zh)"
+          }
+        },
+        "required": [
+          "workflowPath"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "workflow_script_check",
+      "description": "Compile-check a facade script (strict TS against the workflow facade, purity bans, literal rules) and return diagnostics, phases, and the site table — without executing anything",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "scriptPath": {
+            "type": "string",
+            "description": "Path to the facade script (.ts) to check"
+          },
+          "cwd": {
+            "type": "string",
+            "description": "Workspace root the script targets (default: process.cwd())"
+          }
+        },
+        "required": [
+          "scriptPath"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "workflow_script_run",
+      "description": "Run a facade script in the sandbox (deterministic journal; --resume replays completed nodes at zero provider calls). Returns runId, status, result value, and stats (asks/replayHits).",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "scriptPath": {
+            "type": "string",
+            "description": "Path to the facade script (.ts) to run"
+          },
+          "cwd": {
+            "type": "string",
+            "description": "Workspace root for world reads and world.run gates (default: process.cwd())"
+          },
+          "args": {
+            "type": "object",
+            "description": "Script input, available inside the script as `args`"
+          },
+          "resumeRunId": {
+            "type": "string",
+            "description": "Resume a prior run — completed nodes replay from the journal at zero cost"
+          },
+          "dbPath": {
+            "type": "string",
+            "description": "Journal database path (default .workflow/dwf.sqlite under cwd)"
+          },
+          "runTimeoutMs": {
+            "type": "number",
+            "description": "Whole-run wall clock; the sandbox child tree is killed on expiry (default 600000)"
+          },
+          "budgetTotal": {
+            "type": "number",
+            "description": "Output-token budget for the run (read-only inside the script)"
+          }
+        },
+        "required": [
+          "scriptPath"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "workflow_run_script",
+      "description": "Run a facade script through the sandboxed engine (journal-backed deterministic replay) and return runId, final status, per-site summaries (siteId/ordinal/status/durationMs) and stats; bounded by runTimeoutMs",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "scriptPath": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Path to the facade script (.ts) to run"
+          },
+          "args": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "Script input, available inside the script as `args`"
+          },
+          "cwd": {
+            "type": "string",
+            "description": "Workspace root for world reads and world.run gates (default: process.cwd())"
+          },
+          "dbPath": {
+            "type": "string",
+            "description": "Journal database path (default .workflow/dwf.sqlite under cwd)"
+          },
+          "runTimeoutMs": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "description": "Whole-run wall clock; the sandbox child tree is killed on expiry (default 600000)"
+          },
+          "budgetTotal": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "description": "Output-token budget for the run (read-only inside the script)"
+          },
+          "quiet": {
+            "type": "boolean",
+            "description": "When true (the default) the response omits the capped event log; the journal keeps every event"
+          }
+        },
+        "required": [
+          "scriptPath"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "workflow_inspect_run",
+      "description": "Inspect a facade-script run in the journal: the dwf_runs status row, the per-site dwf_nodes table (redacted) and an evidence-ledger summary (counts and the latest entries)",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Facade-script run ID to inspect (dwf_runs.run_id)"
+          },
+          "dbPath": {
+            "type": "string",
+            "description": "Journal database path (default .workflow/dwf.sqlite under the server cwd)"
+          }
+        },
+        "required": [
+          "runId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "workflow_get_run",
+      "description": "Fetch a facade-script run's journal short-circuit statistics — total asks, replay hits, amend hits, divergences and world.run executions (same accounting as the runner stats)",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Facade-script run ID (dwf_runs.run_id)"
+          },
+          "dbPath": {
+            "type": "string",
+            "description": "Journal database path (default .workflow/dwf.sqlite under the server cwd)"
+          }
+        },
+        "required": [
+          "runId"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    }
+  }
+]

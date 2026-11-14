@@ -24,9 +24,16 @@ cost. Control flow is your code; every side effect goes through the facade.
 2. **Check** — never skip: `workflow check <script>`. It must print
    `✔ facade script compiled clean (N sites)`. Fix diagnostics before running;
    uncompilable scripts never reach a run.
-3. **Run** — `workflow run-script <script> --args '<json>'` (use `--cwd` when
-   the script's workspace root differs from where you invoke). Parse the final
-   `Result:` JSON and the stats line (`asks: N (replayed from journal: M)`).
+3. **Run** — `workflow run <script>` (auto-detects facade scripts; `workflow
+   run-script <script>` is the explicit alias). Pass input via one of:
+   - `--set key=value` (repeatable, type-inferred) — the PowerShell-safe
+     default, no quote escaping required;
+   - `--args-file <file.json>` (file 直传, zero escaping);
+   - `--args '<json>'` (single-quoted JSON; PowerShell may swallow the quotes —
+     prefer `--set` / `--args-file` on Windows).
+   Use `--cwd <dir>` when the script's workspace root differs from where you
+   invoke. Parse the final `result:` JSON line and the stats line
+   (`asks: N (replayed from journal: M)`).
 4. **Resume on failure** — a failed run keeps every completed node. Fix the
    script and re-run with `--resume <runId>`: completed asks/world reads/gates
    replay from the journal at zero provider calls; execution continues from
@@ -64,7 +71,7 @@ if (gate.exitCode !== 0) throw new Error(`gate failed: ${gate.stderr}`);
 await artifact.markdown('report', '# Findings\n...', { title: 'Review report' });
 await artifact.file('profile', 'out/profile.html', { title: 'Profile' });
 
-// input, passed via --args '<json>'
+// input, passed via --set key=value | --args-file <file.json> | --args '<json>'
 const question = (args.question as string | undefined) ?? 'default';
 
 // top-level await + top-level return (the returned value is the run result)
@@ -94,8 +101,32 @@ See [`examples/review.facade.ts`](./examples/review.facade.ts) — scan →
 parallel typed reviews → adversarial verify → gate → report. Run it:
 
 ```bash
-workflow run-script examples/review.facade.ts --cwd <workspace> --args '{"glob":"src/**/*.ts"}'
+workflow run examples/review.facade.ts --cwd <workspace> --set glob=src/**/*.ts
 ```
+
+## Live progress in the harness (`--progress`)
+
+Run facade scripts with `--progress` and the run prints one grep-able
+`[wf]` line per journal event instead of the human chatter:
+
+```bash
+workflow run examples/review.facade.ts --cwd <workspace> --progress
+# [wf] PHASE 1 · Scan
+# [wf] AGENT + inspector
+# [wf] ASK ▶ coordinator (ask#27)
+# [wf] REPLAY ⚡ ask#27#1 (0 provider calls)
+# [wf] GATE $ npm test
+# [wf] ARTIFACT ■ postmortem (569 bytes)
+# [wf] DONE ✔ run completed
+```
+
+As the driving agent, mirror that stream into your own progress surface
+instead of making the user watch a dashboard: start with one todo item per
+`[wf] PHASE` line, tick items off as later phases appear, and paste
+`FAIL ✖` / `QUESTION ❓` / `HOLE ⌘` lines into the conversation the moment
+they print — those are the only three kinds that need a human decision.
+The HTML views (Studio / graph) remain the post-hoc deliverable; while the
+run is live, this channel is the workflow view.
 
 ## When NOT to reach for this
 

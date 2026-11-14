@@ -20,7 +20,7 @@ body:
     attributes:
       label: "2. 设计方案与受影响范围 (Design & Scope)"
       description: "具体涉及哪些模块、接口或规范文件的调整？"
-      placeholder: "涉及模块：src/dwf/...，文档：docs/WORKFLOW.md..."
+      placeholder: "涉及模块：src/engine/...，文档：docs/WORKFLOW.md..."
     validations:
       required: true
   - type: textarea
@@ -29,7 +29,7 @@ body:
       label: "3. 验收标准 (Acceptance Criteria / DoD)"
       description: "可机械验证的交付判据（必须可复核）"
       value: |
-        - [ ] 改动遵循最小改动原则，无无关代码夹带
+        - [ ] 方案符合最小改动两档制原则
         - [ ] 新建独立 Worktree 进行隔离开发
         - [ ] 本机全套验证（构建、单元测试、PBT 测试、E2E 测试）通过
         - [ ] 编写对应的自动化测试与门禁锁定

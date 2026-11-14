@@ -25,7 +25,7 @@
  * become script-reachable — with the static constructor-chain ban (compile.ts
  * 9002, GAP-02) rejecting known text shapes on top of it.
  *
- * PreSeed discipline (Issue #31):
+ * PreSeed discipline (Issue #31, aligned with the canonical engine's child-source.ts):
  * the script touches only context-native values. What crosses the boundary is:
  *   - inbound: `__argsJson` (a STRING — args are `Object.freeze(JSON.parse(...))`-ed
  *     INSIDE the realm by the BOOTSTRAP, so their prototype chain is context-native

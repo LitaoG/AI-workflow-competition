@@ -18,7 +18,7 @@ body:
     id: plan
     attributes:
       label: "2. 治理实施规划"
-      description: "涉及的规范文件（docs/WORKFLOW.md、docs/README.md 等）与锁定测试"
+      description: "涉及的规范文件（AGENTS.md、WORKFLOW.md 等）与锁定测试"
     validations:
       required: true
   - type: textarea
@@ -26,7 +26,7 @@ body:
     attributes:
       label: "3. 验收标准"
       value: |
-        - [ ] 治理规范由自动化测试用例机械锁死（在 tests/ 下新增或更新对应测试）
+        - [ ] 治理规范由测试用例机械锁死（tests/unit/workflow-governance.test.ts）
         - [ ] 权威文档 docs/README.md 索引同步更新
         - [ ] 独立 Worktree 实施并完成收尾清理
     validations:

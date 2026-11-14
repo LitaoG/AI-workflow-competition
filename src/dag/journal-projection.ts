@@ -2,7 +2,7 @@
  * Journal projection — the single-source-of-truth event projector: it folds a
  * `dwf_*` event stream (the append-only `events.jsonl` journal) into a
  * {@link DAGGraph} timeline of node states
- * (Core DAG Projection and Topo Alignment Specification §7.3, P2-3).
+  * (Core DAG Projection and Topo Alignment Specification §7.3, P2-3).
  *
  * ONE pure function serves every viewer of the "活跑与冷回放同一投影" contract,
  * so no two code paths can ever disagree about what a run looked like:

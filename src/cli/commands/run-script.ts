@@ -4,6 +4,7 @@
  */
 import * as path from 'node:path';
 import { runFacadeScript } from '../../dwf/runner.js';
+import { createProgressPrinter } from '../../dwf/progress.js';
 import { resolveLang, t } from '../i18n/index.js';
 import { serveRunUntilStopped } from './serve.js';
 
@@ -36,6 +37,11 @@ export async function executeRunScript(
      * and never fails the run (mirror semantics, see runner.ts).
      */
     watchGraph?: boolean;
+    /**
+     * `--progress`: swap the human printer for the structured `[wf]` channel
+     * (src/dwf/progress.ts) that harness agents mirror into their todo list.
+     */
+    progress?: boolean;
     lang?: string;
     quiet?: boolean;
     /**
@@ -53,6 +59,7 @@ export async function executeRunScript(
     ui?: boolean;
   },
 ): Promise<number> {
+  const progressPrinter = createProgressPrinter();
   let args: Record<string, unknown> = {};
   if (options.argsJson) {
     try {
@@ -124,6 +131,10 @@ export async function executeRunScript(
       watchGraph: options.watchGraph,
       onEvent: (e) => {
         if (options.quiet) return;
+        if (options.progress) {
+          progressPrinter(e);
+          return;
+        }
         switch (e.type) {
           case 'dwf_phase':
             console.log(`\n--- ${e.data.phase} ---`);

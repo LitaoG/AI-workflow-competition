@@ -1,5 +1,5 @@
 /**
- * Workflow synthesizer (Issue #154):
+ * Workflow synthesizer (Phase 7b, Issue #154):
  * an LLM writes the facade script for a task, and the script is only accepted
  * when it passes the SAME compile purity gate every hand-written script goes
  * through (analyzeFacadeScript — AST bans, literal rules, type check). Failed

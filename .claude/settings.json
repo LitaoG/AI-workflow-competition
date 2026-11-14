@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node bin/workflow.js:*)",
+      "Bash(workflow:*)",
+      "mcp__ai-workflow__workflow_script_check",
+      "mcp__ai-workflow__workflow_inspect_run",
+      "mcp__ai-workflow__workflow_get_run",
+      "mcp__ai-workflow__workflow_graph",
+      "mcp__ai-workflow__workflow_probe",
+      "mcp__ai-workflow__workflow_inspect"
+    ]
+  }
+}

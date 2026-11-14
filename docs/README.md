@@ -8,25 +8,62 @@
 
 ---
 
-## 一、权威文档一览表
+## 一、权威文档一览表（五大主题导航矩阵）
+
+> 全仓权威文档按 **架构设计 · 研发治理 · 逆向研究 · 安全渗透 · 扩展指南** 五大主题归组，实现专业化逻辑分类。
+> `docs/WORKFLOW.md`、`docs/AI-PITFALLS.md`、`docs/AI-EVIDENCE-STANDARD.md`、`docs/README.md` 四个治理锁死文件物理路径保持 `docs/` 顶层不动，仅在下方按主题逻辑归类（物理路径由 `tests/unit/workflow-governance.test.ts` 锁死）。
+
+### 1. 架构设计类
 
 | 领域 / 主题 | 权威文档路径 | 核心职责与涵盖范围 |
 |---|---|---|
+| **项目主入口** | `README.md` | 纯中文极简项目主页（≤150 行）：简介（代码即流程 Slogan 与徽章）、核心介绍（对话循环 vs 确定性工作流 + 单行架构示意）、60 秒快速上手、文档导航——全部细节经导航分流至各权威文档，首页严禁堆砌手册与巨图 |
+| **1分钟上手指南** | `QUICKSTART.md` | 零门槛上手：capabilities-tour 示例、统一 run 入口、--set/--args-file 传参、Studio 看板、setup 互通与命令速查 |
+| **系统架构设计（权威中文规约）** | `docs/ARCHITECTURE.md` | 总体架构图（自 README 迁入）、设计哲学、模块地图、双引擎执行模型、Facade 编译器纯度契约、VM 沙箱与进程组监管、强类型 RPC、环境探测、双层持久化与零 Token 重放、可视化与 Studio、MCP、技术溯源、威胁模型与纵深防御 |
+| **系统演进蓝图** | `GOAL.md` | 引擎演进蓝图与技术路线：核心使命与架构哲学、三大参考源技术谱系、已落地架构现状与里程碑（阶段 0–8）、后续演进方向、工程铁律 |
+
+### 2. 研发治理类
+
+| 领域 / 主题 | 权威文档路径 | 核心职责与涵盖范围 |
+|---|---|---|
+| **AI 核心纪律** | `AGENTS.md` | AI 助手入口规范、核心必守纪律、P0 红线、收尾三件事 |
 | **研发工作流程** | `docs/WORKFLOW.md` | 8 步改码全流程、Issue-First、Worktree 物理隔离、本机验证命令、PR 门禁与清理 |
-| **文档防腐索引** | `docs/README.md` | 全仓权威文档总目录、单一事实源原则、反查速查索引 |
+| **文档防腐索引** | `docs/README.md` | 全仓权威文档总目录、单一事实源原则、反查速查索引（本文件） |
+| **历史教训积累** | `docs/AI-PITFALLS.md` | 集中记录反复栽过的坑（G1）、单次高代价事故（G2）、强制门禁与规程（G3），只增不删 |
 | **证据驱动规范** | `docs/AI-EVIDENCE-STANDARD.md` | 三档主张（已验证/推断/未知）、五态测试表达、A-E 五类交付物与失败停机升级 |
-| **项目概述入口** | `README.md` | 项目愿景、动态工作流 /workflow 架构概览、快速上手指南 |
-| **系统架构设计** | `docs/ARCHITECTURE.md` | 核心分层架构、RPC 契约、DAG 调度、SQLite WAL 存储机制 |
-| **开发者指南** | `docs/DEVELOPER_GUIDE.md` | 模块开发说明、自定义 Step 与 Agent 编写、调试与排障手段 |
+| **测试基础设施** | `TEST_INFRA.md` | 测试体系架构、分层目录结构与验证命令对照、E2E 特性映射（F1–F9）与真实场景、PBT 与治理测试方法 |
+| **PR 提交模板** | `.github/PULL_REQUEST_TEMPLATE.md` | PR 提交模板、自检清单与测试输出指纹约束 |
+| **Issue 立项模板** | `.github/ISSUE_TEMPLATE/` | 新特性、缺陷、治理与重构的结构化 Issue 模板 |
+| **审查门禁脚本** | `scripts/pr_review_gate.mjs` | PR 审查意见回复与冷却期自动化检测工具 |
+| **官方 Dynamic Workflow 对标白皮书** | `docs/research/CLAUDE-CODE-DYNAMIC-WORKFLOW-WHITEPAPER.md` | 官方 2.1.316 逆向、实机黑盒、双向对标、红蓝对抗与 Date 纯度封印落地 |
+| **官方 vs AI-workflow 双轨基准报告** | `docs/research/OFFICIAL-VS-AI-WORKFLOW-BENCHMARK.md` | 4 大场景的实测/源码级证据、C 类受阻项与解除条件 |
+| **吸收能力与决策账本** | `docs/absorbed-capabilities.md` | Project Y 四级过滤（T1–T4）下每项外部能力的吸收 / 拒收决策、来源、落地模块与带日期的验证快照 |
+
+### 3. 逆向研究类
+
+| 领域 / 主题 | 权威文档路径 | 核心职责与涵盖范围 |
+|---|---|---|
+| **ZCode 官方深度逆向** | `docs/research/workflow-reverse-engineering.md` | ZCode 官方工作流机制逆向与三代演进拆解、rea 静态分析实测、差距分析与 P0→P2 融合蓝图 |
+| **Claude Code 对标白皮书** | `docs/research/CLAUDE-CODE-DYNAMIC-WORKFLOW-WHITEPAPER.md` | 官方 2.1.316 逆向、实机黑盒、双向对标、红蓝对抗与 Date 纯度封印落地 |
+| **双轨实测对比基准** | `docs/research/OFFICIAL-VS-AI-WORKFLOW-BENCHMARK.md` | 4 大场景的实测/源码级证据、C 类受阻项与解除条件 |
+
+### 4. 安全渗透类
+
+| 领域 / 主题 | 权威文档路径 | 核心职责与涵盖范围 |
+|---|---|---|
+| **红蓝渗透与安全审计报告** | `docs/research/PENETRATION-AND-SECURITY-AUDIT.md` | 四大攻防用例（沙箱逃逸 PoC、NDJSON 协议投毒、DoS 资源炸弹、凭据窃取）的攻击向量、实测记录、防线状态与加固清单 |
+
+### 5. 扩展指南类
+
+| 领域 / 主题 | 权威文档路径 | 核心职责与涵盖范围 |
+|---|---|---|
+| **开发者指南（权威中文指南）** | `docs/DEVELOPER_GUIDE.md` | 两种编写面选型、脚手架与 CLI 速查、CLI 全量命令手册 / 环境变量 / MCP 工具面与特性矩阵（自 README 迁入）、Facade 脚本规范与编译期禁忌、core 构建器、沙箱与安全测试、调试排障、测试分层与门禁 |
+| **接入集成指南** | `docs/INTEGRATION.md` | CLI 接入、MCP Server 挂载（Claude Code / ZCode / opencode / Codex CLI / Cursor）、Skill 安装、Provider 路由 |
 | **Kiro 集成与合规** | `docs/KIRO_INTEGRATION.md` | `.kiro/` 五子系统（specs / hooks / steering / MCP / PBT）与 Skeleton Crew 花名册、权限上限的完整指南 |
-| **宿主集成指南** | `docs/INTEGRATION.md` | MCP 工具（`workflow_script_check/run`）、Agent Skill（`skills/ai-workflow/`）与 CLI Provider 接入 |
 | **评委导航入口** | `SUBMISSION.md` | 1 分钟 pitch、演示视频占位、九幕一键复现、仓库地图与合规声明 |
 | **Facade 编排模式** | `docs/authoring-patterns.md` | facade 脚本编排模式目录：workflow 脚本的写作范式与可复用结构 |
 | **中文译本** | `docs/i18n/` | ARCHITECTURE / DEVELOPER_GUIDE / KIRO_INTEGRATION 三篇权威文档的中文对照版 |
 | **产品展示页** | `docs/showcase.html` | 单文件深色主题展示页：pitch、失败模式修复、架构 SVG、实拍演示输出，无构建步骤 |
-| **PR 提交模板** | `.github/PULL_REQUEST_TEMPLATE.md` | PR 提交模板、自检清单与测试输出指纹约束 |
-| **Issue 立项模板** | `.github/ISSUE_TEMPLATE/` | 新特性、缺陷、治理与重构的结构化 Issue 模板 |
-| **审查门禁脚本** | `scripts/pr_review_gate.mjs` | PR 审查意见回复与冷却期自动化检测工具 |
 
 ---
 
@@ -34,18 +71,28 @@
 
 | 当你不确定以下事项时 | 请直接查阅权威文档 |
 |---|---|
+| AI 能不能这么做、有哪些 P0 红线与不可触犯的底线 | `AGENTS.md` §二 |
 | 怎么立项、分支怎么命名、Worktree 怎么建、怎么合入 PR | `docs/WORKFLOW.md` §1, §2, §6, §7 |
 | 在 Windows PowerShell 下怎么跑构建、单测、PBT、E2E | `docs/WORKFLOW.md` §4 |
+| 以前在当前模块或命令上栽过什么坑、有什么必记防范方法 | `docs/AI-PITFALLS.md` |
 | 怎么表述测试结果、交付报告怎么分级、什么时候必须停机上报 | `docs/AI-EVIDENCE-STANDARD.md` |
 | PR 模板格式是什么、发起 PR 必须贴哪些测试指纹 | `.github/PULL_REQUEST_TEMPLATE.md` |
 | 怎么立项结构化 Issue、Issue 模板有哪些字段 | `.github/ISSUE_TEMPLATE/` |
 | 自动化评审门禁工具怎么用、参数有哪些 | `scripts/pr_review_gate.mjs` |
 | 引擎核心组件之间如何通信、RPC Schema 怎么定义 | `docs/ARCHITECTURE.md` |
 | 怎么扩展新的 Slash 命令或自定义 Agent 角色 | `docs/DEVELOPER_GUIDE.md` |
+| CLI 全量命令与选项、常用环境变量、MCP 工具目录、特性矩阵与验证锚点在哪 | `docs/DEVELOPER_GUIDE.md` §2.3–§2.5、§8 |
+| 怎么把引擎接入 CLI、MCP Server 与各类 Host（Claude Code / ZCode / opencode / Codex CLI / Cursor） | `docs/INTEGRATION.md` |
 | 怎么把引擎接入 Kiro（specs / hooks / steering / MCP / PBT） | `docs/KIRO_INTEGRATION.md` |
-| 怎么把引擎接入其他 agent 宿主（MCP / Skill / Provider） | `docs/INTEGRATION.md` |
 | 怎么编写 facade 脚本（编排模式与范式） | `docs/authoring-patterns.md` |
 | 评委从哪里开始看这个仓库 | `SUBMISSION.md` |
+| 测试怎么跑、特性与测试用例怎么映射、真实场景覆盖了什么、质量覆盖率指标是什么 | `TEST_INFRA.md` |
+| 1 秒 demo、--set/--args-file 传参、Studio 看板怎么用 | `QUICKSTART.md` |
+| ZCode 官方工作流机制怎么逆向的、三代演进与 P0→P2 融合蓝图 | `docs/research/workflow-reverse-engineering.md` |
+| 官方 Dynamic Workflow 与本仓到底差在哪、有哪些实测证据与源码行号 | `docs/research/CLAUDE-CODE-DYNAMIC-WORKFLOW-WHITEPAPER.md` |
+| 沙箱逃逸、协议投毒、DoS 资源炸弹、凭据窃取的攻防实测与防线状态 | `docs/research/PENETRATION-AND-SECURITY-AUDIT.md` |
+| 4 大双轨场景哪些真正实测了、哪些是 C 类受阻 | `docs/research/OFFICIAL-VS-AI-WORKFLOW-BENCHMARK.md` |
+| 某项外部能力为什么被吸收或拒收、来源是什么、落在哪个模块 | `docs/absorbed-capabilities.md` |
 
 ---
 
@@ -53,11 +100,11 @@
 
 1. **新增权威文档义务**：
    - 当仓库引入新的核心架构模块或规范体系时，必须在本文档第一节「权威文档一览表」与第二节「事实反查速查表」同步登记；
-   - 登记完整性由本索引自身维护：任何新增文档必须可从本索引反查到达，发现游离文档应并入既有权威文档或删除，严禁在索引之外新立文档入口。
+   - 治理门禁测试 `tests/unit/workflow-governance.test.ts` 会校验登记完整性，防止文档游离失管。
 2. **文档与代码冲突时的处置规则**：
    - 遵循**代码优先于文档**原则：以 `main` 分支代码、测试用例断言及当前导出的 Schema 为准。
    - 严禁为了迁就陈旧文档而修改原本正确的代码。
    - 发现文档漂移，应作为常规文档治理任务在同一 PR 中同步修正。
 3. **禁止随意新建单次游离文档**：
    - 单次排查或调试笔记严禁随意散落在仓库根目录或 `docs/` 下；
-   - 长期有价值的事实与教训归并入既有权威文档，一次性草稿用完即删。
+   - 长期有价值的事实归并入既有权威文档，教训归并入 `docs/AI-PITFALLS.md`，一次性草稿用完即删。

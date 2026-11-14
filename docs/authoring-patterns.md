@@ -62,7 +62,7 @@ for (let round = 1; round <= 5; round++) {
 `world.run` 命令名是编译期字面量（进审批集）；退出码是值不是异常。
 
 ### 7. Hot-Path Short-Circuit（热路径短路）
-typed 结果 + 确定性分支：confidence 低/审批拒绝 → 提前 `return`，省掉全部下游（参考 `demos/incident-triage-remediation/facade.workflow.ts` 的 triage.confidence < 0.5 分支）。
+typed 结果 + 确定性分支：confidence 低/审批拒绝 → 提前 `return`，省掉全部下游（参考任意 triage 型 facade 的 `triage.confidence < 0.5` 分支写法）。
 
 ## Family III：验证模式
 

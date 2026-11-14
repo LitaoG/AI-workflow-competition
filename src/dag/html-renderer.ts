@@ -1,4 +1,6 @@
 import { DAGGraph } from '../types.js';
+import { AUI_CSS, AUI_TICKER_JS } from '../visualizer/design-system.js';
+import { escapeHtml } from '../utils/escape-html.js';
 
 export class HTMLRenderer {
   public render(graph: DAGGraph, lang: 'en' | 'zh' = 'en'): string {
@@ -8,11 +10,15 @@ export class HTMLRenderer {
       phaseWidth: 260,
       phaseGap: 60,
       nodeWidth: 220,
-      nodeHeight: 85,
+      nodeHeight: 104,
       nodeGap: 30,
       headerHeight: 90,
       padding: 40,
     };
+
+    /** The node's ACTUAL task line: journalled prompt / gate cmd / parked question (Issue #252). */
+    const taskTextOf = (n: { inputs?: Record<string, string> }): string =>
+      n.inputs?.prompt || n.inputs?.cmd || n.inputs?.question || '';
 
     // 1. Group nodes by phase
     const phaseNodesMap = new Map<string, typeof graph.nodes>();
@@ -26,17 +32,21 @@ export class HTMLRenderer {
     }
 
     let maxNodesInAnyPhase = 1;
-    const computedPhases: Array<{ id: string; name: string; x: number; width: number }> = [];
+    const computedPhases: Array<{ id: string; name: string; x: number; width: number; height: number }> = [];
     const positionedNodes: any[] = [];
     const nodeMap = new Map<string, any>();
 
     graph.phases.forEach((phase, pIndex) => {
       const phaseX = defaultDims.padding + pIndex * (defaultDims.phaseWidth + defaultDims.phaseGap);
+      const count = (phaseNodesMap.get(phase.id) || []).length;
+      // Column rect hugs its own node stack (no more uniform full-height lanes).
+      const phaseHeight = 52 + Math.max(count, 1) * (defaultDims.nodeHeight + defaultDims.nodeGap);
       computedPhases.push({
         id: phase.id,
         name: phase.name,
         x: phaseX,
         width: defaultDims.phaseWidth,
+        height: phaseHeight,
       });
 
       const nodes = phaseNodesMap.get(phase.id) || [];
@@ -128,7 +138,7 @@ export class HTMLRenderer {
     }
 
     const totalWidth = defaultDims.padding * 2 + Math.max(1, graph.phases.length) * (defaultDims.phaseWidth + defaultDims.phaseGap);
-    const totalHeight = defaultDims.headerHeight + maxNodesInAnyPhase * (defaultDims.nodeHeight + defaultDims.nodeGap) + defaultDims.padding;
+    const totalHeight = 52 + maxNodesInAnyPhase * (defaultDims.nodeHeight + defaultDims.nodeGap) + defaultDims.padding;
 
     const nodesJson = JSON.stringify(positionedNodes);
 
@@ -137,57 +147,72 @@ export class HTMLRenderer {
 <head>
   <meta charset="UTF-8">
   <title>AI-Workflow Visualizer — ${graph.workflowName}</title>
-  <style>
-    :root {
-      --bg: #090d16;
-      --card-bg: #131b2e;
-      --border: #1e293b;
-      --text: #f1f5f9;
-      --text-muted: #94a3b8;
-      --accent: #38bdf8;
-      --completed: #10b981;
-      --running: #f59e0b;
-      --failed: #ef4444;
-      --gate-color: #8b5cf6;
+  <style>${AUI_CSS}
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--aui-sans); }
+    body { background: var(--aui-bg); color: var(--aui-ink); overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+    header {
+      position: relative; height: 56px;
+      display: flex; align-items: center; justify-content: space-between; padding: 0 20px; z-index: 10;
+      background: linear-gradient(180deg, rgba(0,0,0,.015), rgba(0,0,0,0)), var(--aui-bg-raised);
+      border-bottom: 1px solid var(--aui-border);
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace; }
-    body { background: var(--bg); color: var(--text); overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
-    header { height: 60px; background: #0f172a; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; z-index: 10; }
-    .header-left { display: flex; align-items: center; gap: 16px; }
-    .title { font-size: 16px; font-weight: 700; color: var(--accent); }
-    .metrics { font-size: 13px; color: var(--text-muted); background: #1e293b; padding: 4px 12px; border-radius: 9999px; }
-    .header-right { display: flex; align-items: center; gap: 12px; }
-    button { background: #1e293b; border: 1px solid var(--border); color: var(--text); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
-    button:hover { background: #334155; }
-    #canvas-container { flex: 1; position: relative; overflow: hidden; cursor: grab; }
+    .header-left { display: flex; align-items: center; gap: 14px; }
+    .title { font-size: 14px; font-weight: 700; letter-spacing: .2px; color: var(--aui-ink); }
+    .title .logo { color: var(--aui-blue); margin-right: 6px; }
+    .metrics {
+      font-size: 11px; font-weight: 600; color: var(--aui-muted);
+      background: var(--aui-surface); padding: 5px 12px; border-radius: 999px;
+      box-shadow: 0 0 0 1px var(--aui-border), 0 1px 2px rgba(0,0,0,.05);
+      font-variant-numeric: tabular-nums;
+    }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    button {
+      font: 600 12px/1 var(--aui-sans); color: var(--aui-ink);
+      background: linear-gradient(180deg, #33323a, #222028); border: 0;
+      padding: 7px 14px; border-radius: var(--aui-radius-sm); cursor: pointer;
+      box-shadow: 0 0 0 1px #0d0d0d, 0 2px 4px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.08);
+      transition: transform .16s var(--aui-ease), filter .16s var(--aui-ease);
+    }
+    button:hover { filter: brightness(1.12); transform: translateY(-1px); }
+    button:active { transform: translateY(0); filter: brightness(.9); }
+    #canvas-container { flex: 1; position: relative; overflow: hidden; cursor: grab; z-index: 1; }
     #canvas-container:active { cursor: grabbing; }
     svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-    .phase-column { fill: #0f172a; stroke: var(--border); stroke-dasharray: 4; rx: 8; opacity: 0.6; }
-    .phase-label { font-size: 14px; font-weight: 600; fill: var(--text-muted); text-anchor: middle; }
-    .node-card { fill: var(--card-bg); stroke: var(--border); rx: 8; cursor: pointer; transition: stroke 0.2s; }
-    .node-card:hover { stroke: var(--accent); }
-    .node-card.completed { stroke: var(--completed); }
-    .node-card.running { stroke: var(--running); stroke-width: 2; }
-    .node-card.failed { stroke: var(--failed); }
-    .node-card.gate { stroke: var(--gate-color); }
-    .node-title { font-size: 12px; font-weight: 600; fill: var(--text); }
-    .node-role { font-size: 10px; fill: var(--text-muted); }
+    .phase-column { fill: url(#aui-phase-fill); stroke: var(--aui-border); rx: 16; }
+    .phase-label { font-size: 13px; font-weight: 700; letter-spacing: .5px; fill: var(--aui-muted); text-anchor: middle; text-transform: uppercase; }
+    .node-card { fill: url(#aui-node-fill); stroke: var(--aui-border); stroke-width: 1; rx: 10; cursor: pointer; transition: stroke .2s var(--aui-ease); }
+    .node-card:hover { stroke: var(--aui-border-strong); }
+    .node-card.completed { stroke: rgba(30,138,79,.5); }
+    .node-card.running { stroke: var(--aui-blue); stroke-width: 1.6; animation: aui-pulse-blue 2s var(--aui-ease-2) infinite; }
+    .node-card.failed { stroke: rgba(196,50,10,.6); }
+    .node-card.gate { stroke: rgba(124,58,237,.5); }
+    .node-title { font-size: 12px; font-weight: 600; fill: var(--aui-ink); }
+    .node-task { font-size: 10px; fill: var(--aui-muted); }
+    .node-error { font-size: 10px; fill: var(--aui-red); font-family: var(--aui-mono); }
+    .node-role { font-size: 10px; fill: var(--aui-muted); font-family: var(--aui-mono); }
     .node-badge { font-size: 10px; font-weight: bold; }
-    .bezier-edge { fill: none; stroke: #334155; stroke-width: 2; transition: stroke 0.2s; }
-    .bezier-edge.active { stroke: var(--accent); stroke-dasharray: 6; animation: dash 1s linear infinite; }
-    .bezier-edge.completed { stroke: var(--completed); stroke-width: 2.5; }
-    .bezier-edge.failed { stroke: var(--failed); }
-    @keyframes dash { to { stroke-dashoffset: -12; } }
-    #drawer { position: fixed; top: 60px; right: -420px; width: 420px; height: calc(100vh - 60px); background: #0f172a; border-left: 1px solid var(--border); transition: right 0.25s ease; padding: 24px; overflow-y: auto; z-index: 20; }
+    .bezier-edge { fill: none; stroke: #d4d4d8; stroke-width: 1.8; transition: stroke .2s var(--aui-ease); }
+    .bezier-edge.active { stroke: var(--aui-blue); stroke-dasharray: 7 6; animation: aui-dash .9s linear infinite; }
+    .bezier-edge.completed { stroke: rgba(30,138,79,.55); stroke-width: 2.2; }
+    .bezier-edge.failed { stroke: rgba(196,50,10,.65); }
+    #drawer {
+      position: fixed; top: 56px; right: -430px; width: 430px; height: calc(100vh - 56px);
+      background: linear-gradient(180deg, #ffffff, #fafafa);
+      border-left: 1px solid var(--aui-border); box-shadow: -24px 0 60px rgba(0,0,0,.1);
+      transition: right .3s var(--aui-ease); padding: 24px; overflow-y: auto; z-index: 20;
+    }
     #drawer.open { right: 0; }
     .drawer-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    pre { background: #090d16; padding: 12px; border-radius: 6px; font-size: 11px; color: #a5b4fc; overflow-x: auto; margin-top: 8px; }
+    .drawer-header h3 { font-size: 15px; font-weight: 700; }
+    pre { background: #f7f7f8; border: 1px solid var(--aui-border); border-radius: 8px; padding: 12px; font-size: 11px; font-family: var(--aui-mono); color: #4338ca; overflow-x: auto; margin-top: 8px; }
   </style>
 </head>
 <body>
+  <div class="aui-backdrop"></div>
+  <div class="aui-grid"></div>
   <header>
     <div class="header-left">
-      <div class="title">AI-Workflow Visualizer</div>
+      <div class="title"><span class="logo">◆</span>AI-Workflow Visualizer</div>
       <div class="metrics status-bar" id="metrics-label">
         ${graph.totalPhases} ${isZh ? '个阶段' : 'phases'} · ${graph.activeSubagents} ${isZh ? '个智能体并行执行中' : 'subagents active'}
       </div>
@@ -201,25 +226,34 @@ export class HTMLRenderer {
   <div id="canvas-container">
     <svg id="svg-canvas" viewBox="0 0 ${totalWidth} ${totalHeight}">
       <defs>
+        <linearGradient id="aui-node-fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#ffffff" />
+          <stop offset="1" stop-color="#fafafa" />
+        </linearGradient>
+        <linearGradient id="aui-phase-fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="rgba(23,23,23,0.02)" />
+          <stop offset="1" stop-color="rgba(23,23,23,0.005)" />
+        </linearGradient>
         <marker id="arrow-completed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-          <path d="M 0 1 L 10 5 L 0 9 z" fill="#10b981" />
+          <path d="M 0 1 L 10 5 L 0 9 z" fill="#1e8a4f" />
         </marker>
         <marker id="arrow-active" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-          <path d="M 0 1 L 10 5 L 0 9 z" fill="#38bdf8" />
+          <path d="M 0 1 L 10 5 L 0 9 z" fill="#2a8ce0" />
         </marker>
         <marker id="arrow-pending" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-          <path d="M 0 1 L 10 5 L 0 9 z" fill="#475569" />
+          <path d="M 0 1 L 10 5 L 0 9 z" fill="#d4d4d8" />
         </marker>
         <marker id="arrow-failed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-          <path d="M 0 1 L 10 5 L 0 9 z" fill="#ef4444" />
+          <path d="M 0 1 L 10 5 L 0 9 z" fill="#c4320a" />
         </marker>
       </defs>
 
       <g id="transform-group">
         <!-- Phase Columns -->
         ${computedPhases.map((p) => `
-          <rect x="${p.x}" y="30" width="${p.width}" height="${totalHeight - 50}" class="phase-column" />
-          <text x="${p.x + p.width / 2}" y="60" class="phase-label">${p.name}</text>
+          <rect x="${p.x}" y="30" width="${p.width}" height="${p.height}" class="phase-column" />
+          <title>${p.name}</title>
+          <text x="${p.x + p.width / 2}" y="60" class="phase-label">${p.name.length > 30 ? p.name.slice(0, 29) + '…' : p.name}</text>
         `).join('')}
 
         <!-- Curved Bézier Edges -->
@@ -230,19 +264,33 @@ export class HTMLRenderer {
         `).join('')}
 
         <!-- Nodes -->
-        ${positionedNodes.map((n) => `
-          <g onclick="inspectNode('${n.id}')">
+        ${positionedNodes.map((n, i) => {
+          const task = taskTextOf(n);
+          const taskLine = task.length > 44 ? task.slice(0, 43) + '…' : task;
+          const errorLine = n.errorMessage ? (n.errorMessage.length > 44 ? n.errorMessage.slice(0, 43) + '…' : n.errorMessage) : '';
+          // Core-builder steps may carry no `name` — the id is the honest fallback
+          // (an undefined name here would crash escapeHtml's .replace, Issue #252).
+          const nodeName = n.name || n.id;
+          return `
+          <g style="animation: aui-fade-up .5s var(--aui-ease) both; animation-delay: ${i * 30}ms" onclick="inspectNode('${n.id}')">
+            <title>${escapeHtml(nodeName)}${task ? '\n' + escapeHtml(task) : ''}${n.errorMessage ? '\n✖ ' + escapeHtml(n.errorMessage) : ''}</title>
             <rect x="${n.x}" y="${n.y}" width="${n.width}" height="${n.height}"
                   class="node-card ${n.status} ${n.role === 'gate' ? 'gate' : ''}" />
-            <text x="${n.x + 14}" y="${n.y + 26}" class="node-title">${n.name}</text>
-            <text x="${n.x + 14}" y="${n.y + 46}" class="node-role">
+            <text x="${n.x + 14}" y="${n.y + 26}" class="node-title">${escapeHtml(nodeName)}</text>
+            ${n.errorMessage
+              ? `<text x="${n.x + 14}" y="${n.y + 46}" class="node-error">✖ ${escapeHtml(errorLine)}</text>`
+              : taskLine
+              ? `<text x="${n.x + 14}" y="${n.y + 46}" class="node-task">${escapeHtml(taskLine)}</text>`
+              : ''}
+            <text x="${n.x + 14}" y="${n.y + 66}" class="node-role">
               [${String(n.role).toUpperCase()}] ${n.durationMs ? '· ' + n.durationMs + 'ms' : ''}
             </text>
-            <text x="${n.x + n.width - 24}" y="${n.y + 26}" class="node-badge" fill="${n.status === 'completed' ? '#10b981' : n.status === 'running' ? '#f59e0b' : '#94a3b8'}">
-              ${n.status === 'completed' ? '✔' : n.status === 'running' ? '●' : '⏳'}
+            <text x="${n.x + n.width - 24}" y="${n.y + 26}" class="node-badge" fill="${n.status === 'completed' ? '#1e8a4f' : n.status === 'running' ? '#2a8ce0' : '#a3a3a3'}">
+              ${n.status === 'completed' ? '✔' : n.status === 'running' ? '●' : '○'}
             </text>
           </g>
-        `).join('')}
+        `;
+        }).join('')}
       </g>
     </svg>
   </div>
@@ -255,6 +303,7 @@ export class HTMLRenderer {
     <div id="drawer-content"></div>
   </div>
 
+  <script>${AUI_TICKER_JS}</script>
   <script>
     const nodes = ${nodesJson};
     let scale = 1, panX = 0, panY = 0, isDragging = false, startX, startY;
@@ -318,6 +367,7 @@ export class HTMLRenderer {
       document.getElementById('btn-lang').innerText = t().toggle;
       if (!openNodeId) document.getElementById('drawer-title').innerText = t().inspector;
       if (openNodeId) inspectNode(openNodeId, true);
+      if (window.auiScanTickers) auiScanTickers(document.getElementById('metrics-label'), 'metrics');
     }
     function toggleLang() {
       uiLang = uiLang === 'zh' ? 'en' : 'zh';

@@ -1,0 +1,596 @@
+{
+  "benchmark": "cross-engine-deliverable-4",
+  "track": "ours",
+  "engine": "AI-workflow src/dwf FacadeEngine (WT/dist build)",
+  "wtRoot": "C:\\Users\\86183\\Desktop\\AI-workflow-worktrees\\issue-67-zcode-benchmark",
+  "node": "v26.13.0",
+  "mission": "cross-benchmark-mission.facade.ts (same file as the official track)",
+  "facadeSurfaceUsed": [
+    "agent(name)",
+    ".ask (untyped)",
+    "phase(literal)",
+    "report(item)",
+    "log(text)"
+  ],
+  "compile": {
+    "coldCompileMs": 211.506,
+    "warmCompileMeanMs": 7.206,
+    "loweredAskSiteIds": [
+      "ask#3",
+      "ask#11",
+      "ask#12",
+      "ask#13",
+      "ask#14",
+      "ask#18",
+      "ask#19",
+      "ask#20",
+      "ask#21",
+      "ask#26"
+    ],
+    "loweredSiteCount": 30
+  },
+  "maxConcurrency": 4,
+  "runs": [
+    {
+      "runId": "cross-ours-run-1",
+      "wallMs": 168.833,
+      "artifact": {
+        "plan": {
+          "steps": [
+            "isolate the connection pool",
+            "probe healthz until green"
+          ],
+          "owner": "sre-oncall"
+        },
+        "findingCount": 4,
+        "challengeCount": 4,
+        "verdict": {
+          "approve": true,
+          "riskScore": 42,
+          "rejected": [
+            "deploys"
+          ],
+          "notes": "two malformed rounds healed on round 3"
+        },
+        "healRounds": 3
+      },
+      "artifactMatchesExpected": true,
+      "eventsEmitted": 56,
+      "eventCounts": {
+        "dwf_phase": 4,
+        "dwf_actor_created": 6,
+        "dwf_ask_start": 12,
+        "dwf_budget_spent": 12,
+        "dwf_ask_complete": 12,
+        "dwf_log": 6,
+        "dwf_report": 4
+      },
+      "eventTypeSequence": [
+        "dwf_phase",
+        "dwf_actor_created",
+        "dwf_ask_start",
+        "dwf_budget_spent",
+        "dwf_ask_complete",
+        "dwf_log",
+        "dwf_report",
+        "dwf_phase",
+        "dwf_actor_created",
+        "dwf_actor_created",
+        "dwf_actor_created",
+        "dwf_actor_created",
+        "dwf_ask_start",
+        "dwf_ask_start",
+        "dwf_ask_start",
+        "dwf_ask_start",
+        "dwf_budget_spent",
+        "dwf_ask_complete",
+        "dwf_budget_spent",
+        "dwf_ask_complete",
+        "dwf_budget_spent",
+        "dwf_ask_complete",
+        "dwf_budget_spent",
+        "dwf_ask_complete",
+        "dwf_log",
+        "dwf_report",
+        "dwf_phase",
+        "dwf_ask_start",
+        "dwf_ask_start",
+        "dwf_ask_start",
+        "dwf_ask_start",
+        "dwf_budget_spent",
+        "dwf_ask_complete",
+        "dwf_budget_spent",
+        "dwf_ask_complete",
+        "dwf_budget_spent",
+        "dwf_ask_complete",
+        "dwf_budget_spent",
+        "dwf_ask_complete",
+        "dwf_log",
+        "dwf_report",
+        "dwf_phase",
+        "dwf_actor_created",
+        "dwf_ask_start",
+        "dwf_budget_spent",
+        "dwf_ask_complete",
+        "dwf_log",
+        "dwf_ask_start",
+        "dwf_budget_spent",
+        "dwf_ask_complete",
+        "dwf_log",
+        "dwf_ask_start",
+        "dwf_budget_spent",
+        "dwf_ask_complete",
+        "dwf_report",
+        "dwf_log"
+      ],
+      "settleSequence": [
+        "ask:ask#3#1",
+        "ask:ask#14#1",
+        "ask:ask#12#1",
+        "ask:ask#13#1",
+        "ask:ask#11#1",
+        "ask:ask#21#1",
+        "ask:ask#19#1",
+        "ask:ask#20#1",
+        "ask:ask#18#1",
+        "ask:ask#26#1",
+        "ask:ask#26#2",
+        "ask:ask#26#3"
+      ],
+      "phasesEntered": [
+        "Plan",
+        "Research",
+        "CrossExamine",
+        "Verify"
+      ],
+      "journalNodes": 16,
+      "journalAskNodes": 12,
+      "providerCalls": 12,
+      "instanceTimings": [
+        {
+          "instance": "ask#3#1",
+          "totalMs": 29.822,
+          "occupancyMs": 26.187,
+          "queueWaitMs": 3.635,
+          "queueWaitDerived": true
+        },
+        {
+          "instance": "ask#11#1",
+          "totalMs": 45.12,
+          "occupancyMs": 44.68,
+          "queueWaitMs": 0.44,
+          "queueWaitDerived": true
+        },
+        {
+          "instance": "ask#12#1",
+          "totalMs": 29.006,
+          "occupancyMs": 28.529,
+          "queueWaitMs": 0.476,
+          "queueWaitDerived": true
+        },
+        {
+          "instance": "ask#13#1",
+          "totalMs": 44.825,
+          "occupancyMs": 44.2,
+          "queueWaitMs": 0.625,
+          "queueWaitDerived": true
+        },
+        {
+          "instance": "ask#14#1",
+          "totalMs": 28.736,
+          "occupancyMs": 28.022,
+          "queueWaitMs": 0.714,
+          "queueWaitDerived": true
+        },
+        {
+          "instance": "ask#18#1",
+          "totalMs": 47.261,
+          "occupancyMs": 46.577,
+          "queueWaitMs": 0.684,
+          "queueWaitDerived": true
+        },
+        {
+          "instance": "ask#19#1",
+          "totalMs": 31.583,
+          "occupancyMs": 31.055,
+          "queueWaitMs": 0.529,
+          "queueWaitDerived": true
+        },
+        {
+          "instance": "ask#20#1",
+          "totalMs": 46.843,
+          "occupancyMs": 46.166,
+          "queueWaitMs": 0.677,
+          "queueWaitDerived": true
+        },
+        {
+          "instance": "ask#21#1",
+          "totalMs": 31.348,
+          "occupancyMs": 30.664,
+          "queueWaitMs": 0.684,
+          "queueWaitDerived": true
+        },
+        {
+          "instance": "ask#26#1",
+          "totalMs": 15.038,
+          "occupancyMs": 14.558,
+          "queueWaitMs": 0.48,
+          "queueWaitDerived": true
+        },
+        {
+          "instance": "ask#26#2",
+          "totalMs": 15.328,
+          "occupancyMs": 15.021,
+          "queueWaitMs": 0.307,
+          "queueWaitDerived": true
+        },
+        {
+          "instance": "ask#26#3",
+          "totalMs": 14.859,
+          "occupancyMs": 14.592,
+          "queueWaitMs": 0.267,
+          "queueWaitDerived": true
+        }
+      ],
+      "maxConcurrency": 4
+    },
+    {
+      "runId": "cross-ours-run-2",
+      "wallMs": 154.248,
+      "artifact": {
+        "plan": {
+          "steps": [
+            "isolate the connection pool",
+            "probe healthz until green"
+          ],
+          "owner": "sre-oncall"
+        },
+        "findingCount": 4,
+        "challengeCount": 4,
+        "verdict": {
+          "approve": true,
+          "riskScore": 42,
+          "rejected": [
+            "deploys"
+          ],
+          "notes": "two malformed rounds healed on round 3"
+        },
+        "healRounds": 3
+      },
+      "artifactMatchesExpected": true,
+      "eventsEmitted": 56,
+      "eventCounts": {
+        "dwf_phase": 4,
+        "dwf_actor_created": 6,
+        "dwf_ask_start": 12,
+        "dwf_budget_spent": 12,
+        "dwf_ask_complete": 12,
+        "dwf_log": 6,
+        "dwf_report": 4
+      },
+      "eventTypeSequence": [
+        "dwf_phase",
+        "dwf_actor_created",
+        "dwf_ask_start",
+        "dwf_budget_spent",
+        "dwf_ask_complete",
+        "dwf_log",
+        "dwf_report",
+        "dwf_phase",
+        "dwf_actor_created",
+        "dwf_actor_created",
+        "dwf_actor_created",
+        "dwf_actor_created",
+        "dwf_ask_start",
+        "dwf_ask_start",
+        "dwf_ask_start",
+        "dwf_ask_start",
+        "dwf_budget_spent",
+        "dwf_ask_complete",
+        "dwf_budget_spent",
+        "dwf_ask_complete",
+        "dwf_budget_spent",
+        "dwf_ask_complete",
+        "dwf_budget_spent",
+        "dwf_ask_complete",
+        "dwf_log",
+        "dwf_report",
+        "dwf_phase",
+        "dwf_ask_start",
+        "dwf_ask_start",
+        "dwf_ask_start",
+        "dwf_ask_start",
+        "dwf_budget_spent",
+        "dwf_ask_complete",
+        "dwf_budget_spent",
+        "dwf_ask_complete",
+        "dwf_budget_spent",
+        "dwf_ask_complete",
+        "dwf_budget_spent",
+        "dwf_ask_complete",
+        "dwf_log",
+        "dwf_report",
+        "dwf_phase",
+        "dwf_actor_created",
+        "dwf_ask_start",
+        "dwf_budget_spent",
+        "dwf_ask_complete",
+        "dwf_log",
+        "dwf_ask_start",
+        "dwf_budget_spent",
+        "dwf_ask_complete",
+        "dwf_log",
+        "dwf_ask_start",
+        "dwf_budget_spent",
+        "dwf_ask_complete",
+        "dwf_report",
+        "dwf_log"
+      ],
+      "settleSequence": [
+        "ask:ask#3#1",
+        "ask:ask#14#1",
+        "ask:ask#12#1",
+        "ask:ask#13#1",
+        "ask:ask#11#1",
+        "ask:ask#21#1",
+        "ask:ask#19#1",
+        "ask:ask#20#1",
+        "ask:ask#18#1",
+        "ask:ask#26#1",
+        "ask:ask#26#2",
+        "ask:ask#26#3"
+      ],
+      "phasesEntered": [
+        "Plan",
+        "Research",
+        "CrossExamine",
+        "Verify"
+      ],
+      "journalNodes": 16,
+      "journalAskNodes": 12,
+      "providerCalls": 12,
+      "instanceTimings": [
+        {
+          "instance": "ask#3#1",
+          "totalMs": 14.282,
+          "occupancyMs": 13.963,
+          "queueWaitMs": 0.319,
+          "queueWaitDerived": true
+        },
+        {
+          "instance": "ask#11#1",
+          "totalMs": 46.154,
+          "occupancyMs": 45.848,
+          "queueWaitMs": 0.306,
+          "queueWaitDerived": true
+        },
+        {
+          "instance": "ask#12#1",
+          "totalMs": 30.545,
+          "occupancyMs": 30.273,
+          "queueWaitMs": 0.272,
+          "queueWaitDerived": true
+        },
+        {
+          "instance": "ask#13#1",
+          "totalMs": 45.95,
+          "occupancyMs": 45.521,
+          "queueWaitMs": 0.43,
+          "queueWaitDerived": true
+        },
+        {
+          "instance": "ask#14#1",
+          "totalMs": 30.392,
+          "occupancyMs": 30.038,
+          "queueWaitMs": 0.354,
+          "queueWaitDerived": true
+        },
+        {
+          "instance": "ask#18#1",
+          "totalMs": 46.889,
+          "occupancyMs": 46.454,
+          "queueWaitMs": 0.434,
+          "queueWaitDerived": true
+        },
+        {
+          "instance": "ask#19#1",
+          "totalMs": 31.296,
+          "occupancyMs": 30.922,
+          "queueWaitMs": 0.374,
+          "queueWaitDerived": true
+        },
+        {
+          "instance": "ask#20#1",
+          "totalMs": 46.635,
+          "occupancyMs": 46.138,
+          "queueWaitMs": 0.497,
+          "queueWaitDerived": true
+        },
+        {
+          "instance": "ask#21#1",
+          "totalMs": 31.113,
+          "occupancyMs": 30.678,
+          "queueWaitMs": 0.435,
+          "queueWaitDerived": true
+        },
+        {
+          "instance": "ask#26#1",
+          "totalMs": 15.839,
+          "occupancyMs": 15.276,
+          "queueWaitMs": 0.563,
+          "queueWaitDerived": true
+        },
+        {
+          "instance": "ask#26#2",
+          "totalMs": 15.233,
+          "occupancyMs": 14.96,
+          "queueWaitMs": 0.273,
+          "queueWaitDerived": true
+        },
+        {
+          "instance": "ask#26#3",
+          "totalMs": 15.26,
+          "occupancyMs": 14.939,
+          "queueWaitMs": 0.321,
+          "queueWaitDerived": true
+        }
+      ],
+      "maxConcurrency": 4
+    }
+  ],
+  "determinism": {
+    "settleSequenceIdentical": true,
+    "eventTypeSequenceIdentical": true,
+    "artifactIdentical": true,
+    "artifactMatchesExpectedTable": true
+  },
+  "repairNudge": {
+    "repair": {
+      "mechanism": "typed-ask schema repair inside src/agent/rpc.ts (extractJson/repairJsonString + zod safeParse; maxRetries=3 default)",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "pass": {
+            "type": "boolean"
+          },
+          "risk": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "pass",
+          "risk"
+        ],
+        "additionalProperties": false
+      },
+      "scriptedProviderReplies": [
+        "{\"wrong\": 1}",
+        "{\"pass\": \"no\", \"risk\": \"low\"}",
+        "{\"pass\":true,\"risk\":\"low\"}"
+      ],
+      "providerCalls": 3,
+      "repairRounds": 2,
+      "repairPromptOccurrencesInHistory": [
+        "Your JSON response failed runtime schema validation with the following errors:\n- Field \"pa",
+        "Your JSON response failed runtime schema validation with the following errors:\n- Field \"pa",
+        "Your JSON response failed runtime schema validation with the following errors:\n- Field \"pa"
+      ],
+      "outcome": {
+        "ok": true,
+        "value": {
+          "pass": true,
+          "risk": "low"
+        }
+      },
+      "wallMs": 1.683,
+      "note": "Each repair round injects a user message ('Your response was not valid JSON...' or '...failed runtime schema validation...') and retries within the SAME ask node — one journalled node, N provider calls."
+    },
+    "nudge": {
+      "mechanism": "none on this side",
+      "status": "N/A",
+      "note": "Our engine has no turn-ended/nudge boundary: an untyped ask settles on the provider's final text (dwf_ask_complete) and a typed ask repairs on validation failure inside rpc.ts. The official turn-ended-without-submit nudge (NUDGE_ATTEMPTS) has no corresponding mechanism here."
+    }
+  },
+  "hole": {
+    "feasible": true,
+    "park": {
+      "status": "parked",
+      "runId": "dwfrun-mw0vdv85-919abd",
+      "parkedAt": {
+        "siteId": "hole#5",
+        "name": "verdict-hole",
+        "prompt": "Decide the verdict for the cross-engine hole probe.",
+        "kind": "hole"
+      },
+      "holeOpenEvents": 1,
+      "wallMs": 10109.068
+    },
+    "fill": {
+      "status": "accepted",
+      "forkedRunId": "dwfrun-mw0ve39i-0ff94d",
+      "value": {
+        "verdict": "verdict-42"
+      },
+      "amendHitEvents": 1,
+      "holeValue": "hole value: verdict-42",
+      "wallMs": 411.455,
+      "effectiveScriptPath": "C:\\Users\\86183\\Desktop\\AI-workflow-worktrees\\issue-67-zcode-benchmark\\.workflow\\runs\\dwfrun-mw0vdv85-919abd\\script.effective.ts"
+    },
+    "note": "Our fill is NOT an engine-level payload swap (official fillHole): hole() parks in-process (dwf_hole_open) and `workflow fill` splices the body into the script, forks an amend run (new runId, lineage to the parked run) whose unchanged nodes replay from the journal at zero cost (dwf_amend_hit). Probed through the real runner pipeline with the scripted offline provider."
+  },
+  "memory": {
+    "heapUsedPeakBytes": 42510080,
+    "heapUsedPeakMB": 40.54,
+    "rssMB": 147.7,
+    "sampling": "process.memoryUsage().heapUsed every 5ms during both mission runs"
+  },
+  "crossCompare": {
+    "available": true,
+    "settleSequenceStructurallyEqual": true,
+    "normalizedOfficialSettle": [
+      "ask:A1@1",
+      "ask:A2@1",
+      "ask:A3@1",
+      "ask:A4@1",
+      "ask:A5@1",
+      "ask:A6@1",
+      "ask:A7@1",
+      "ask:A8@1",
+      "ask:A9@1",
+      "ask:A10@1",
+      "ask:A10@2",
+      "ask:A10@3"
+    ],
+    "normalizedOursSettle": [
+      "ask:A1@1",
+      "ask:A2@1",
+      "ask:A3@1",
+      "ask:A4@1",
+      "ask:A5@1",
+      "ask:A6@1",
+      "ask:A7@1",
+      "ask:A8@1",
+      "ask:A9@1",
+      "ask:A10@1",
+      "ask:A10@2",
+      "ask:A10@3"
+    ],
+    "officialSettleCount": 12,
+    "oursSettleCount": 12,
+    "wallMs": {
+      "officialRun1": 167.271,
+      "oursRun1": 168.833
+    },
+    "healRounds": {
+      "official": "engine repairRounds=2 (driver submits), script-level healRounds=3",
+      "ours": "provider repairRounds=2 (rpc repair loop), script-level healRounds=3"
+    },
+    "providerCalls": {
+      "official": "driver-modeled (no provider)",
+      "oursRun1": 12
+    },
+    "heapUsedPeakMB": {
+      "official": 100.18,
+      "ours": 40.54
+    },
+    "coldCompileMs": {
+      "official": 66.444,
+      "ours": 211.506
+    },
+    "note": "Site ids differ by numbering scheme (official numbers asks only; ours numbers every facade call) — sequences are normalized to first-appearance order A1..An/R1..Rn before compare."
+  },
+  "fakeModel": {
+    "kind": "ScriptedProvider (LLMProvider via providerRegistry) — generate() answers from the shared behavior table",
+    "model": "scripted-fake-model-v1",
+    "networkCalls": 0,
+    "apiKeysUsed": false,
+    "latencyTableMs": {
+      "planner": 12,
+      "researcher-1": 40,
+      "researcher-2": 25,
+      "researcher-3": 33,
+      "researcher-4": 18,
+      "verifier": 10
+    }
+  }
+}
