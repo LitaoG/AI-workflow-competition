@@ -89,7 +89,7 @@ test('Integration Suite: Demo 1 — Incident Triage & Automated Remediation', as
     cleanupTempDir(tempDir);
   });
 
-  const demoWorkflowPath = path.resolve(REPO_ROOT, 'demos', 'incident-triage-remediation', 'workflow.ts');
+  const demoWorkflowPath = path.resolve(REPO_ROOT, 'apps', 'incident-triage-remediation', 'workflow.ts');
 
   await t.test('TEST 1: Default P1 DB Connection Pool Exhaustion executes end-to-end in <15s with exit code 0', () => {
     const outputDir = path.join(tempDir, 'run-01-db-pool');
@@ -152,7 +152,7 @@ test('Integration Suite: Demo 1 — Incident Triage & Automated Remediation', as
 
     assert.equal(res.exitCode, 0, `Workflow failed with stderr: ${res.stderr}\nStdout: ${res.stdout}`);
     // Only this run's own exports (cwd sandboxed above) — the tracked
-    // demos/<app>/artifacts fallbacks raced with parallel suites and served
+    // apps/<app>/artifacts fallbacks raced with parallel suites and served
     // stale other-scenario content (gate round 1).
     const postMortemCandidates = [
       path.join(outputDir, 'PostMortem.md'),

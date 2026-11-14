@@ -60,23 +60,23 @@ Phase 4: Compiler & Merge Gate                            Phase 5: Release Synth
 
 ### 1. Run Complete Migration in Offline Mock Mode (<4s)
 ```bash
-node bin/workflow.js run demos/repo-migration-engine/workflow.ts --mock
+node bin/workflow.js run apps/repo-migration-engine/workflow.ts --mock
 ```
 
 ### 2. Run with Chinese Localization (`--lang zh`)
 ```bash
-node bin/workflow.js run demos/repo-migration-engine/workflow.ts --mock --lang zh
+node bin/workflow.js run apps/repo-migration-engine/workflow.ts --mock --lang zh
 ```
 
 ### 3. Walkthrough: Zero-Token Durable Resumption
 ```bash
 # Step 1: Simulate network drop after migrating 2 of 3 files
-node bin/workflow.js run demos/repo-migration-engine/workflow.ts --mock --interrupt-at 2 --output-dir .workflow/runs/run-demo-resume
+node bin/workflow.js run apps/repo-migration-engine/workflow.ts --mock --interrupt-at 2 --output-dir .workflow/runs/run-demo-resume
 
 # Step 2: Resume workflow using --resume-from-failed
 # The engine inspects checkpoints.db, skips files 1 & 2 in 0ms (zero tokens spent),
 # converts file 3, and runs compiler gates to completion!
-node bin/workflow.js run demos/repo-migration-engine/workflow.ts --mock --resume-from-failed run-demo-resume
+node bin/workflow.js run apps/repo-migration-engine/workflow.ts --mock --resume-from-failed run-demo-resume
 ```
 
 ### 4. Instant Historical Replay (<1s)

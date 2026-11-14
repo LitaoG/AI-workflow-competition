@@ -77,21 +77,21 @@ Demo 1 在 `scenarios/` 目录下内置了 3 组工业级真实故障场景定�
 
 ### 1. 在离线模拟模式下运行默认场景 (<2秒极速执行)
 ```bash
-node bin/workflow.js run demos/incident-triage-remediation/workflow.ts --mock
+node bin/workflow.js run apps/incident-triage-remediation/workflow.ts --mock
 ```
 
 ### 2. 指定不同场景运行
 ```bash
 # Windows PowerShell
-$env:SCENARIO="p1_bad_deploy_regression"; node bin/workflow.js run demos/incident-triage-remediation/workflow.ts --mock
+$env:SCENARIO="p1_bad_deploy_regression"; node bin/workflow.js run apps/incident-triage-remediation/workflow.ts --mock
 
 # Linux / macOS
-SCENARIO=p1_bad_deploy_regression node bin/workflow.js run demos/incident-triage-remediation/workflow.ts --mock
+SCENARIO=p1_bad_deploy_regression node bin/workflow.js run apps/incident-triage-remediation/workflow.ts --mock
 ```
 
 ### 3. 启用中文多语言界面 (`--lang zh`)
 ```bash
-node bin/workflow.js run demos/incident-triage-remediation/workflow.ts --mock --lang zh
+node bin/workflow.js run apps/incident-triage-remediation/workflow.ts --mock --lang zh
 ```
 
 ### 4. 运行全量自动化集成测试 (<4秒)

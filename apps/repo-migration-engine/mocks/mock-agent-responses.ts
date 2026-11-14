@@ -322,7 +322,7 @@ export const mockMigrationSummaryReport: MigrationSummaryReport = {
   pullRequestMarkdown: `# feat(migration): Automated Upgrade from AWS SDK v2 to AWS SDK v3
 
 > **Automated Pull Request synthesized by AI-Workflow**  
-> *Engine*: AI-Workflow Dynamic Workflow Engine (\`demos/repo-migration-engine\`)  
+> *Engine*: AI-Workflow Dynamic Workflow Engine (\`apps/repo-migration-engine\`)  
 > *Architecture*: "Code, not conversation" Multi-Agent Execution Pipeline  
 > *Verification*: Deterministic Shell Gates (\`tsc --noEmit\` & \`npm test\`)
 

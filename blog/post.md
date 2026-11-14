@@ -265,7 +265,7 @@ Unit tests only verify anticipated inputs. To prove that AI-Workflow possesses t
 To prove the real-world utility of AI-Workflow, we developed two distinct, production-grade demo applications included directly in the repository:
 
 ### Demo 1: Autonomous DevOps Incident Triage & Automated Remediation
-Located in `demos/incident-triage-remediation/`, this application automates the triage, root cause diagnosis, safety review, remediation execution, and post-mortem generation for cloud microservices:
+Located in `apps/incident-triage-remediation/`, this application automates the triage, root cause diagnosis, safety review, remediation execution, and post-mortem generation for cloud microservices:
 
 ```
 ┌── Phase 1: Detection & Telemetry Probing ──────────────────────────┐
@@ -311,7 +311,7 @@ Located in `demos/incident-triage-remediation/`, this application automates the 
 ---
 
 ### Demo 2: Multi-Agent Repository Migration & Breaking API Upgrade Engine
-Located in `demos/repo-migration-engine/`, this application automates the complex migration of an enterprise TypeScript repository from AWS SDK v2 to AWS SDK v3:
+Located in `apps/repo-migration-engine/`, this application automates the complex migration of an enterprise TypeScript repository from AWS SDK v2 to AWS SDK v3:
 
 ```
 Phase 1: Baseline Gate        Phase 2: Architecture        Phase 3: Parallel Fan-Out Migration & Paired Review

@@ -7,7 +7,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BIN="$ROOT/bin/workflow.js"
 DB="$ROOT/.workflow/demo-dwf.sqlite"
-TOUR="$ROOT/demos/capabilities-tour"
+TOUR="$ROOT/apps/capabilities-tour"
 mkdir -p "$ROOT/.workflow"
 trap 'rm -f "$TOUR/lineage-v2.facade.ts"' EXIT
 
@@ -21,7 +21,7 @@ act_ok() { echo "[act $1] OK  $2"; }
 act_fail() { echo "[act $1] FAIL $2" >&2; ACT_FAILS=$((ACT_FAILS + 1)); }
 
 echo "== 1/9 check: incident demo compiles (strict TS + authorization rules) =="
-if CHECK_OUT=$(node "$BIN" check demos/incident-triage-remediation/facade.workflow.ts 2>&1); then
+if CHECK_OUT=$(node "$BIN" check apps/incident-triage-remediation/facade.workflow.ts 2>&1); then
   echo "$CHECK_OUT" | head -8
   act_ok 1 "compiled clean: $(echo "$CHECK_OUT" | head -1)"
 else
@@ -30,7 +30,7 @@ fi
 
 echo ""
 echo "== 2/9 run: incident triage & remediation (mock) =="
-cd "$ROOT/demos/incident-triage-remediation"
+cd "$ROOT/apps/incident-triage-remediation"
 OUT=$(node "$BIN" run-script facade.workflow.ts --db "$DB" --args '{"scenario":"p1_db_pool_exhaustion"}' --approve-cmd node)
 echo "$OUT" | grep -E "run dwfrun|result:" | head -2
 INCIDENT_ID=$(echo "$OUT" | grep -oE 'dwfrun-[A-Za-z0-9_-]+' | tail -1)
@@ -44,7 +44,7 @@ if echo "$OUT" | grep -q "asks: 0 (replayed from journal:"; then act_ok 3 "zero-
 
 echo ""
 echo "== 4/9 run: AWS SDK v2->v3 migration (mock) =="
-cd "$ROOT/demos/repo-migration-engine"
+cd "$ROOT/apps/repo-migration-engine"
 MIG_OUT=$(node "$BIN" run-script facade.workflow.ts --db "$DB" --approve-cmd node)
 echo "$MIG_OUT" | grep -E "asks:|result:" | head -2
 if echo "$MIG_OUT" | grep -q "completed"; then act_ok 4 "migration completed"; else act_fail 4 "$MIG_OUT"; fi

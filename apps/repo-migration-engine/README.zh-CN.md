@@ -60,23 +60,23 @@
 
 ### 1. 在离线模拟模式下极速运行全量迁移 (<4秒)
 ```bash
-node bin/workflow.js run demos/repo-migration-engine/workflow.ts --mock
+node bin/workflow.js run apps/repo-migration-engine/workflow.ts --mock
 ```
 
 ### 2. 启用全中文多语言界面 (`--lang zh`)
 ```bash
-node bin/workflow.js run demos/repo-migration-engine/workflow.ts --mock --lang zh
+node bin/workflow.js run apps/repo-migration-engine/workflow.ts --mock --lang zh
 ```
 
 ### 3. 实操：零 Token 故障断点续跑验证
 ```bash
 # 步骤 1: 模拟在迁移第 2 个文件后遭遇网络中断/系统异常
-node bin/workflow.js run demos/repo-migration-engine/workflow.ts --mock --interrupt-at 2 --output-dir .workflow/runs/run-demo-resume
+node bin/workflow.js run apps/repo-migration-engine/workflow.ts --mock --interrupt-at 2 --output-dir .workflow/runs/run-demo-resume
 
 # 步骤 2: 使用 --resume-from-failed 恢复执行
 # 引擎自动读取 checkpoints.db，文件 1 和文件 2 命中缓存（0 毫秒跳过，0 Token 消耗），
 # 仅执行文件 3 及后续阶段 4 门禁与阶段 5 PR 生成，极速完成！
-node bin/workflow.js run demos/repo-migration-engine/workflow.ts --mock --resume-from-failed run-demo-resume
+node bin/workflow.js run apps/repo-migration-engine/workflow.ts --mock --resume-from-failed run-demo-resume
 ```
 
 ### 4. 毫秒级历史执行重放 (<1秒)

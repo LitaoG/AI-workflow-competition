@@ -41,14 +41,14 @@ import {
   MigrationSummaryReportSchema,
   BaselineGateResultSchema,
   PostMergeGateResultSchema,
-} from '../../demos/repo-migration-engine/schemas.ts';
+} from '../../apps/repo-migration-engine/schemas.ts';
 
-import { scanCodebase } from '../../demos/repo-migration-engine/probes/ast-probe.ts';
-import { getMockResponseForRole } from '../../demos/repo-migration-engine/mocks/mock-agent-responses.ts';
+import { scanCodebase } from '../../apps/repo-migration-engine/probes/ast-probe.ts';
+import { getMockResponseForRole } from '../../apps/repo-migration-engine/mocks/mock-agent-responses.ts';
 import { SQLiteStateStore, EventLogReader } from 'ai-workflow';
 
 const ROOT_DIR = path.resolve(process.cwd());
-const DEMO2_DIR = path.join(ROOT_DIR, 'demos', 'repo-migration-engine');
+const DEMO2_DIR = path.join(ROOT_DIR, 'apps', 'repo-migration-engine');
 const GATES_DIR = path.join(DEMO2_DIR, 'gates');
 const GATE_RUNNER = path.join(GATES_DIR, 'gate-runner.js');
 // Gate-failure injection via fixture-local marker (Issue #174): workflow-level

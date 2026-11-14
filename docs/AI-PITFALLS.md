@@ -208,7 +208,7 @@
 #### P-ENV-4 worktree 共享 node_modules 跳过 postinstall——demo fixture 离线 SDK 桩缺失，集成 baseline gate 假红
 - 复发性：G1 反复（家族第 2 次；首例=「新 worktree 缺 dist 首轮 unit 0 tests 假绿须先 build」，同为 worktree 缺生成产物家族）
 - 代价：2026-11-11（Issue #233 取证轮）：worktree 里 demo-migration 基线门禁报 `Cannot find package 'aws-sdk'`（ERR_MODULE_NOT_FOUND）→ demo-facade-migration 与 Demo 2 TEST 4 连锁两红。与 #233 主根因（transient spawn 失败被当真实 gate 失败）**无关的第二个红源**——不看穿会误诊修复方向。
-- 根因：worktree 用符号链接共享主仓 `node_modules`（省 install 时间），但 `demos/repo-migration-engine/fixtures/legacy-aws-sdk-app/node_modules` 的离线 SDK 桩由 **postinstall 钩子**（`scripts/bootstrap-fixtures.mjs`）创建——postinstall 只在真实 npm install 时执行，共享链接路径下从不触发；stub 目录受 `.gitignore` 的 `node_modules/` 规则保护不入库，fresh worktree 天然缺失。
+- 根因：worktree 用符号链接共享主仓 `node_modules`（省 install 时间），但 `apps/repo-migration-engine/fixtures/legacy-aws-sdk-app/node_modules` 的离线 SDK 桩由 **postinstall 钩子**（`scripts/bootstrap-fixtures.mjs`）创建——postinstall 只在真实 npm install 时执行，共享链接路径下从不触发；stub 目录受 `.gitignore` 的 `node_modules/` 规则保护不入库，fresh worktree 天然缺失。
 - 正确做法：① `test:integration` 前置 `node scripts/bootstrap-fixtures.mjs`（随 #233 落地，与 `test`/`test:e2e`/`test:adversarial` 既有惯例对齐；幂等、已存在即跳过绝不覆盖）；② 新 worktree 首跑门禁链前自查：先 build（dist 生成）再跑测试、确认 fixture 桩就位（bootstrap 幂等跑一次无害）。
 - 门禁：`tests/unit/workflow-governance.test.ts`（Tier 2：`test:integration` 必须前置 bootstrap-fixtures + P-ENV-4 在册）。已修 + 门禁（随 Issue #233 分支合入生效）。
 - 原位置：Issue #233、`scripts/bootstrap-fixtures.mjs`、`package.json` scripts 区。

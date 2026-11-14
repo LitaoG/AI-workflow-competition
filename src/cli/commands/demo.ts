@@ -65,7 +65,7 @@ export async function executeDemo(options?: DemoCommandOptions): Promise<number>
   const lang = resolveLang(options?.lang);
   const T = DEMO_I18N[lang];
   const root = packageRoot();
-  const scriptPath = path.join(root, 'demos', 'incident-triage-remediation', 'facade.workflow.ts');
+  const scriptPath = path.join(root, 'apps', 'incident-triage-remediation', 'facade.workflow.ts');
   if (!fs.existsSync(scriptPath)) {
     console.error(`Error: demo script not found at ${scriptPath}`);
     return 1;

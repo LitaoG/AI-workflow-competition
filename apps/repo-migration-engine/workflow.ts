@@ -529,7 +529,7 @@ export const workflow = defineWorkflow({
           `# ${summary.summaryTitle}`,
           '',
           `> **Automated Pull Request synthesized by AI-Workflow**  `,
-          `> *Engine*: AI-Workflow Dynamic Workflow Engine (\`demos/repo-migration-engine\`)  `,
+          `> *Engine*: AI-Workflow Dynamic Workflow Engine (\`apps/repo-migration-engine\`)  `,
           `> *Architecture*: "Code, not conversation" Multi-Agent Execution Pipeline  `,
           `> *Verification*: Deterministic Shell Gates (\`tsc --noEmit\` & \`npm test\`)  `,
           '',
@@ -716,7 +716,7 @@ export const workflow = defineWorkflow({
         const mermaid = visualizer.renderMermaid(graph);
 
         // Target directories for artifact persistence. Mock runs (the test
-        // harness) must not mutate the tracked demos/<app>/artifacts source
+        // harness) must not mutate the tracked apps/<app>/artifacts source
         // tree: parallel integration suites raced writes on that shared
         // directory and its stale committed content poisoned assertions
         // (gate round 1) — mock runs export to the run cwd only (P-TEST-2).

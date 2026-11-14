@@ -7,9 +7,9 @@ import { fileURLToPath } from 'node:url';
 import { runFacadeScript } from '../../src/dwf/runner.js';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const SCRIPT_SOURCE = path.join(REPO_ROOT, 'demos', 'repo-migration-engine', 'facade.workflow.ts');
+const SCRIPT_SOURCE = path.join(REPO_ROOT, 'apps', 'repo-migration-engine', 'facade.workflow.ts');
 /** Workspace root the script expects: fixtures/ lives under the demo dir. */
-const DEMO_WORKSPACE = path.join(REPO_ROOT, 'demos', 'repo-migration-engine');
+const DEMO_WORKSPACE = path.join(REPO_ROOT, 'apps', 'repo-migration-engine');
 
 function makeJournalPath(): { dbPath: string; cleanup: () => void } {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dwf-demo-migration-'));

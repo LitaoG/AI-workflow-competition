@@ -63,7 +63,7 @@ independent, production-grade applications built on it**:
 > journal-rendered human views. **Two applications** = two unrelated domains, two facade scripts,
 > zero shared demo logic.
 
-| | Demo 1 · `demos/incident-triage-remediation` | Demo 2 · `demos/repo-migration-engine` |
+| | Application 1 · `apps/incident-triage-remediation` | Application 2 · `apps/repo-migration-engine` |
 | --- | --- | --- |
 | Domain | DevOps incident response | Enterprise library migration |
 | Scenario | **P1 database connection pool exhaustion**: 100/100 DB connections, 38.5% HTTP 500 spike | **AWS SDK v2 → v3** across a multi-module codebase (S3, DynamoDB, SQS) |
@@ -71,7 +71,7 @@ independent, production-grade applications built on it**:
 | Safety | destructive commands (`DROP`, `TRUNCATE`, `rm -rf`) intercepted by deterministic gates; automated rollback on failed verification | every patch passes an independent reviewer before the compiler gate |
 | Deliverables | `PostMortem.md`, `kanban.json`, interactive `incident_dag.html` | publication-ready `PULL_REQUEST.md`, `migration_dag.html` |
 
-A third directory, [`demos/capabilities-tour`](demos/capabilities-tour), is the reusable pattern
+A third directory, [`apps/capabilities-tour`](apps/capabilities-tour), is the reusable pattern
 library — amend lineage, hole growth, human escalation, budget enforcement — that powers acts 5–8
 of the demo below. Write a new facade script in any domain and the same skeleton carries it.
 
@@ -141,8 +141,8 @@ bash scripts/demo.sh                              → exit 0, all nine acts OK
 
 Both demo applications also run standalone (offline mock mode, `--lang zh` for Chinese
 presentation) — see their READMEs:
-[`incident-triage-remediation`](demos/incident-triage-remediation/README.md) ·
-[`repo-migration-engine`](demos/repo-migration-engine/README.md).
+[`incident-triage-remediation`](apps/incident-triage-remediation/README.md) ·
+[`repo-migration-engine`](apps/repo-migration-engine/README.md).
 
 ---
 

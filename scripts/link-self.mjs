@@ -5,7 +5,7 @@
  * 背景：demo 目录下各自带有独立 package.json（@ai-workflow/demo-* 命名），
  * 其包边界会切断 Node 对根包名 'ai-workflow' 的自引用解析；demo 内声明的
  * `workspace:*` 依赖是 pnpm/yarn 语法，npm 不会安装。因此任何干净检出
- * （新 clone / worktree / CI）在 demos 作用域下 `import 'ai-workflow'` 必然
+ * （新 clone / worktree / CI）在 apps（原 demos）作用域下 `import 'ai-workflow'` 必然
  * 报 ERR_MODULE_NOT_FOUND。本脚本以幂等方式重建自链接（等价于历史上手工
  * 创建的 node_modules/ai-workflow 符号链接），使包名导入在任意 fresh install
  * 后即可解析。
@@ -27,7 +27,7 @@ const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 
 // 仅在本仓库开发环境生效：demo 目录不存在（例如 npm 发布后被下游安装）时
 // 静默退出，绝不改动下游项目的 node_modules。
-if (!existsSync(path.join(root, 'demos'))) {
+if (!existsSync(path.join(root, 'apps'))) {
   process.exit(0);
 }
 

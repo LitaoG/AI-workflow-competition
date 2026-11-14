@@ -9,12 +9,12 @@ import { runFacadeScript } from '../../src/dwf/runner.js';
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const SCENARIO_SOURCE = path.join(
   REPO_ROOT,
-  'demos',
+  'apps',
   'incident-triage-remediation',
   'scenarios',
   'p1_db_pool_exhaustion.json',
 );
-const SCRIPT_SOURCE = path.join(REPO_ROOT, 'demos', 'incident-triage-remediation', 'facade.workflow.ts');
+const SCRIPT_SOURCE = path.join(REPO_ROOT, 'apps', 'incident-triage-remediation', 'facade.workflow.ts');
 
 interface DemoWorkspace {
   dir: string;

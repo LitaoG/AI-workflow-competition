@@ -12,19 +12,19 @@
       "allowedTools": ["workflow_graph", "fs_read", "schema_validate"],
       "deniedTools": ["execute_bash*", "fs_write*", "network_fetch*"],
       "maxFileSizeBytes": 2097152,
-      "filesystemScope": ["./src", "./demos", "./.kiro"]
+      "filesystemScope": ["./src", "./apps", "./.kiro"]
     },
     "worker": {
       "allowedTools": ["workflow_run", "fs_read", "fs_write", "edit_file", "npm_test_sandbox"],
       "deniedTools": ["rm_rf*", "format*", "mkfs*", "git_force_push*"],
       "maxFileSizeBytes": 5242880,
-      "filesystemScope": ["./demos", "./tests", "./src"]
+      "filesystemScope": ["./apps", "./tests", "./src"]
     },
     "reviewer": {
       "allowedTools": ["fs_read", "diff_inspect", "workflow_inspect", "schema_validate"],
       "deniedTools": ["fs_write*", "execute_bash*", "network_fetch*"],
       "maxFileSizeBytes": 2097152,
-      "filesystemScope": ["./demos", "./tests", "./src"]
+      "filesystemScope": ["./apps", "./tests", "./src"]
     },
     "gatekeeper": {
       "allowedTools": ["execute_gate_script", "workflow_inspect", "workflow_replay"],

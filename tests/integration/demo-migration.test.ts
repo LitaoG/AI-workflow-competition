@@ -89,7 +89,7 @@ test('Integration Suite: Demo 2 — Multi-Agent Repo Migration Engine', async (t
     cleanupTempDir(tempDir);
   });
 
-  const demoWorkflowPath = path.resolve(REPO_ROOT, 'demos', 'repo-migration-engine', 'workflow.ts');
+  const demoWorkflowPath = path.resolve(REPO_ROOT, 'apps', 'repo-migration-engine', 'workflow.ts');
 
   await t.test('TEST 1: Full migration runs end-to-end in offline mock mode in <15,000ms with exit code 0', () => {
     const outputDir = path.join(tempDir, 'run-01-full');
@@ -205,7 +205,7 @@ test('Integration Suite: Demo 2 — Multi-Agent Repo Migration Engine', async (t
   });
 
   await t.test('TEST 4: Transformed code passes TypeScript compiler checks and unit test gates', () => {
-    const fixtureDir = path.resolve(REPO_ROOT, 'demos', 'repo-migration-engine', 'fixtures', 'legacy-aws-sdk-app');
+    const fixtureDir = path.resolve(REPO_ROOT, 'apps', 'repo-migration-engine', 'fixtures', 'legacy-aws-sdk-app');
     assert.ok(fs.existsSync(fixtureDir), `Fixture directory must exist at ${fixtureDir}`);
 
     // Verify fixture unit test runs cleanly

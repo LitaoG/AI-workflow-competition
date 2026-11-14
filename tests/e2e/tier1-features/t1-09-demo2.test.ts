@@ -6,7 +6,7 @@ import { createTempDir, cleanupTempDir, writeTempFile } from '../helpers/env.ts'
 import { assertExitCode, assertDurationUnder, assertValidEventLog, assertValidCheckpointsDb } from '../helpers/assertions.ts';
 import { SAMPLE_DEMO2_MIGRATION_WORKFLOW } from '../helpers/fixtures.ts';
 
-test('Tier 1 - Feature 9: Demo 2 — Repo Migration Engine (demos/repo-migration-engine)', async (t) => {
+test('Tier 1 - Feature 9: Demo 2 — Repo Migration Engine (apps/repo-migration-engine)', async (t) => {
   const tempDir = createTempDir('t1-f9-demo2-');
 
   t.after(() => {

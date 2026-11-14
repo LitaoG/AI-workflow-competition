@@ -47,8 +47,8 @@
 <div class="mode"><b>Cost drift</b> — iteration re-pays everything <span class="fix">→ the journal replays completed nodes at zero provider calls; you only pay for what changed.</span></div>
 
 <h2>One run, end to end</h2>
-<pre><span class="c">$ node bin/workflow.js run-script demos/incident-triage-remediation/facade.workflow.ts \</span>
-<span class="c">    --cwd demos/incident-triage-remediation --args '{"scenario":"p1_db_pool_exhaustion"}'</span>
+<pre><span class="c">$ node bin/workflow.js run-script apps/incident-triage-remediation/facade.workflow.ts \</span>
+<span class="c">    --cwd apps/incident-triage-remediation --args '{"scenario":"p1_db_pool_exhaustion"}'</span>
 
 --- Phase 1: Detection &amp; Telemetry Probing ---
   <span class="ok">✔</span> step-1-probe (Deterministic Telemetry &amp; Git Probing)

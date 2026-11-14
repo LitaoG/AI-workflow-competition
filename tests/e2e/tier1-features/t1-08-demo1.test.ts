@@ -6,7 +6,7 @@ import { createTempDir, cleanupTempDir, writeTempFile } from '../helpers/env.ts'
 import { assertExitCode, assertDurationUnder, assertValidEventLog, assertValidCheckpointsDb } from '../helpers/assertions.ts';
 import { SAMPLE_DEMO1_INCIDENT_WORKFLOW } from '../helpers/fixtures.ts';
 
-test('Tier 1 - Feature 8: Demo 1 — Incident Triage & Remediation (demos/incident-triage-remediation)', async (t) => {
+test('Tier 1 - Feature 8: Demo 1 — Incident Triage & Remediation (apps/incident-triage-remediation)', async (t) => {
   const tempDir = createTempDir('t1-f8-demo1-');
 
   t.after(() => {
