@@ -39,6 +39,19 @@ and a re-run replays completed work at **zero provider calls**.
 
 ---
 
+## See it — rendered from the journal, not hand-made
+
+The Studio view below is **generated from the run journal itself**: every node card, replay
+badge and event line is journalled evidence (11 nodes, ⚡ 9 replays, live event stream), not a
+mockup. The second image is the DAG canvas of the migration demo — the fan-out of worker +
+paired reviewer per file that structurally fixes agentic laziness.
+
+![AI-Workflow Studio — journal-rendered run view with zero-token replay badges](docs/assets/run-report.png)
+
+![Migration demo DAG — worker + paired-reviewer fan-out per file, light affectUI theme](docs/assets/migration-dag.png)
+
+---
+
 ## One skeleton, two applications
 
 The Skeleton Crew category asks for a **flexible, clean structural code template** — lean enough
