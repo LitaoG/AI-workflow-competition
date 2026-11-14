@@ -133,6 +133,14 @@
 - 门禁：`tests/unit/dwf/redact.test.ts`（键名形状遮蔽 / 双凭据键不丢条目 / 部分凭据键遮蔽三用例）。已修 + 门禁（随 Issue #104 分支合入生效）。
 - 原位置：Issue #104、`src/dwf/redact.ts`（redactValue 对象分支）。
 
+#### P-SEC-4 Windows `.cmd` 路由的 cmd/CRT 双解析器引号失配——args 含 `&` 即执行第二条命令
+- 复发性：G2 单次高代价（Issue #259 实测注入：`spawnSupervised('npm', ['--version','&','echo','INJECTED_MARKER'])` 的 stdout 出现 INJECTED_MARKER）
+- 代价：`world.run('npm', args)` 等所有经 `.cmd`/`.bat` shim 的 spawn（npm/npx/tsc/pnpm/yarn），参数若来自数据（分支名、文件名、PR 标题、用户填的洞、agent 产出的字符串），`&` `|` `^` `>` `<` 会被 cmd 重新解释成命令分隔/重定向——数据即第二条命令；审批面只展示 cmd + args，注入段肉眼易漏。
+- 根因：cmd.exe 判定元字符只看引号开关（不认 MSVCRT `\"` 转义），而 Node/libuv 默认按 CRT 规则加引号——单独出现的 `&` 不被引号包裹直达 cmd；job helper 的 QuoteArg（CRT 规则）还会对每个 argv 元素再次重排引号，两套解析器语义失配，任何一层单独转义都护不住。
+- 正确做法：`.cmd`/`.bat` 路由一律走 `buildCmdRouteInvocation`：每个参数在 cmd 解析层加引号（`quoteForCmd`：内嵌 `"` 加倍成 `""`、尾随反斜杠加倍），整体尾部再包一层外引号（cmd `/s` 规则会剥掉第一对）；job-helper 走 `--raw` 模式把 `GetCommandLineW` 尾部按字节透传给 CreateProcessW（Node 侧 `windowsVerbatimArguments`），无 helper 的 fallback 分支同样 verbatim。已知残差：`%VAR%` 在引号内仍被 cmd 早期展开（仅净化后 env 内变量可展开）、奇数个反斜杠紧邻内嵌引号时引号文本丢失——均为数据级损坏、非注入面。
+- 门禁：`tests/integration/process-supervision-cmd-route.test.ts`（`&` 不执行第二条命令、npm/npx 仍跑通、quoteForCmd/buildCmdRouteInvocation 形状锁死）。已修 + 门禁（随 Issue #259 分支合入生效）。
+- 原位置：Issue #259、`src/process-supervision.ts`（quoteForCmd / buildCmdRouteInvocation / spawnSupervised）、`scripts/win32-jobhelper.cs`（--raw 模式）。
+
 #### P-TEST-4 两个 worktree 的全量门禁链并行跑——负载窗口互撞出假红
 - 复发性：G1 反复（第三次；MISSION-X 期间两 worktree 同跑已复现过一例，#137/#148 收录同家族单例）
 - 代价：2026-11-07（Issue #153/#157 收口）两条全量门禁链在两个 worktree 并行执行，#153 的 unit 全集出现 3 例失败；**单独重跑 452/452 全绿**——失败与代码无关，纯属并行负载下的时间窗/资源竞争。

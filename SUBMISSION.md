@@ -85,11 +85,12 @@ Measured end-to-end 2026-11-03 (Git Bash on Windows, Node v26.13.0, warm npm cac
 
 ### Reproducible quality-gate fingerprints
 
-All run 2026-11-14, Node v26.13.0 (aligned with README for the 2.2.0 release — upstream
-feature sync: affectUI visual system, `[wf]` progress channel, research corpus):
+All run 2026-11-14, Node v26.13.0 (aligned with README for the 2.3.0 release — upstream
+engine sync: retry-signal race fix, cmd-route argument quoting, Anthropic prompt caching,
+DAG injection-surface hardening, actionStep retryPolicy):
 
 ```text
-npm test                                            → 744 tests, 744 pass, 0 fail
+npm test                                            → 764 tests, 764 pass, 0 fail
 npm run test:pbt                                    →  16 tests,  16 pass, 0 fail
 node --experimental-strip-types tests/e2e/runner.ts → 118/118 passed
 npm run test:adversarial                            → 158 tests, 158 pass, 0 fail

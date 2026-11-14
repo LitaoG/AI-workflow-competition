@@ -160,8 +160,11 @@ ask 内部结果契约: {structured, text, agentMessages, tokens, toolCalls, sta
   全败/超时同样级联取消（`child-main.ts` BOOTSTRAP、`facade-dts.ts`、`lower.ts`）。
 - `src/dwf/schema-lint.ts` + `engine.ts` 派发前调用：区分 invalid / unsatisfiable，命中即抛
   `SchemaValidationError`，不发起任何 provider 请求。
-- `AnthropicProvider` 顶层 `cache_control:{type:'ephemeral'}`（默认开启，`cacheControl:false` 可关）：
-  让持久 actor 会话的稳定前缀命中 Anthropic 自动提示缓存。
+- `AnthropicProvider` 把 **system 内容块**标记为 `cache_control:{type:'ephemeral'}`（顶层
+  `cache_control` 字段不是合法 Messages API 形状，会被 400 拒绝）；开关走
+  `AI_WORKFLOW_ANTHROPIC_CACHE=1|0`，未设置时官方端点默认开、自定义 `ANTHROPIC_BASE_URL`
+  默认关（Issue #260）。开启后持久 actor 会话的稳定前缀命中 Anthropic 提示缓存，缓存读取按
+  约 0.1x 输入价计费。
 
 ### 9.5 Issue #49 取消语义修正
 

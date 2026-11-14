@@ -58,3 +58,48 @@ test('the STUDIO_I18N table is complete and symmetric (en/zh same keys)', () => 
     assert.ok(String(STUDIO_I18N.zh[key]).length > 0, `zh.${key} non-empty`);
   }
 });
+
+// ---------------------------------------------------------------------------
+// Issue #257: the en inspector read "Type  Agent agent" / "Role  Gate gate" —
+// localizedValue compared `loc !== raw` and the en words differ from the raw
+// engine values by CASE alone, so the faint raw suffix was always appended.
+// The fix compares case-insensitively; zh must KEEP the suffix.
+//
+// The inspector renders client-side, so the behavior lock evaluates the
+// localizedValue function EXTRACTED FROM the rendered page source against the
+// real shipped dictionaries — not a hand-copied stub.
+// ---------------------------------------------------------------------------
+const TYPE_KEY: Record<string, string> = { agent: 'typeAgent', action: 'typeAction', gate: 'typeGate', probe: 'typeProbe', fanout: 'typeFanout' };
+const ROLE_KEY: Record<string, string> = { worker: 'roleWorker', inspector: 'roleInspector', reviewer: 'roleReviewer', gate: 'roleGate', coordinator: 'roleCoordinator' };
+
+function extractLocalizedValue(html: string, dict: Record<string, string>): (map: Record<string, string>, raw: string) => string {
+  const fnSrc = html.match(/function localizedValue\(map, raw\) \{[\s\S]*?\}/);
+  assert.ok(fnSrc, 'localizedValue must ship in the rendered page source');
+  assert.ok(fnSrc[0].includes('toLowerCase()'), 'the loc/raw comparison must be case-insensitive (Issue #257)');
+  assert.ok(!/loc !== raw/.test(fnSrc[0]), 'the buggy bare `loc !== raw` comparison must be gone');
+  // eslint-disable-next-line no-new-func -- deliberate: evaluates the SHIPPED source
+  return new Function('esc', 'T', `{ ${fnSrc[0]}; return localizedValue; }`)(
+    (s: string) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'),
+    dict,
+  ) as (map: Record<string, string>, raw: string) => string;
+}
+
+test('issue #257 (en): every localized type/role value renders exactly once — no "Agent agent" duplication', () => {
+  const html = renderStudioHtml(snap(), { live: false, lang: 'en' });
+  const localizedValue = extractLocalizedValue(html, STUDIO_I18N.en);
+  for (const [raw, key] of Object.entries(TYPE_KEY)) {
+    assert.equal(localizedValue(TYPE_KEY, raw), STUDIO_I18N.en[key], `type "${raw}" must render as the bare en word`);
+  }
+  for (const [raw, key] of Object.entries(ROLE_KEY)) {
+    assert.equal(localizedValue(ROLE_KEY, raw), STUDIO_I18N.en[key], `role "${raw}" must render as the bare en word`);
+  }
+  // values unknown to the map pass through untouched, with no tail
+  assert.equal(localizedValue(TYPE_KEY, 'custom'), 'custom');
+});
+
+test('issue #257 (zh): the raw engine value stays as the faint CLI-correlation suffix', () => {
+  const html = renderStudioHtml(snap(), { live: false, lang: 'zh' });
+  const localizedValue = extractLocalizedValue(html, STUDIO_I18N.zh);
+  assert.equal(localizedValue(TYPE_KEY, 'agent'), `智能体 <span class="mv-raw">agent</span>`);
+  assert.equal(localizedValue(ROLE_KEY, 'gate'), `关卡 <span class="mv-raw">gate</span>`);
+});

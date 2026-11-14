@@ -24,8 +24,10 @@ export { computeStepCheckpointHash, stableStringify } from './checkpoint-hash.js
 /**
  * Enforce StepDefinition.timeoutMs: race the step promise against the deadline.
  * The deadline also aborts the step's signal (composite, see executePhaseSteps)
- * so cooperative runners, MCP calls and gate children stop; the race is what
- * fails an UNcooperative runner instead of hanging the whole run.
+ * so cooperative runners stop issuing new work; MCP/gate paths refuse NEW
+ * calls once aborted, and in-flight work finishes per context.ts's documented
+ * semantics. The race is what fails an UNcooperative runner instead of
+ * hanging the whole run.
  */
 async function withStepTimeout<T>(promise: Promise<T>, timeoutMs: number | undefined, stepId: string): Promise<T> {
   if (timeoutMs === undefined || !Number.isFinite(timeoutMs) || timeoutMs <= 0) return promise;
@@ -116,8 +118,9 @@ export class Workflow extends EventEmitter {
 
   abort(reason?: string): void {
     this.abortController.abort(reason);
-    // Steps only ever receive the per-batch signal (createChildContext passes
-    // batch.signal verbatim), so without aborting the active batch an in-flight
+    // Steps receive their signal via createChildContext: a composite of the
+    // batch signal and the step deadline when timeoutMs is set (see
+    // executePhaseSteps), so without aborting the active batch an in-flight
     // step kept running to completion after abort().
     this.activeBatch?.abort(new WorkflowAbortedError(reason ?? `workflow "${this.name}" aborted`));
   }
@@ -399,16 +402,20 @@ export class Workflow extends EventEmitter {
             // timeoutMs was previously accepted but silently ignored — a
             // hanging step hung the whole run forever. Enforce it: the step's
             // signal is a composite of the batch signal and the deadline (so
-            // MCP calls and gate children stop at the deadline), and the
-            // promise is raced against it (so even an uncooperative runner
-            // fails the step instead of hanging the run).
+            // cooperative runners stop issuing new work; MCP/gate paths refuse
+            // NEW calls per context.ts's semantics), and the promise is raced
+            // against it (so even an uncooperative runner fails the step
+            // instead of hanging the run).
             const stepSignal =
               step.timeoutMs !== undefined && Number.isFinite(step.timeoutMs) && step.timeoutMs > 0
                 ? AbortSignal.any([batch.signal, AbortSignal.timeout(step.timeoutMs)])
                 : batch.signal;
             const stepCtx = context.createChildContext(step.id, stepSignal);
+            // The retry loop must race the SAME composite signal: racing the
+            // bare batch.signal left an orphan retry chain retrying on after
+            // the step deadline had already fired (Issue #267).
             const output = await withStepTimeout(
-              withRetry(() => step.runner(input, stepCtx), step.retryPolicy, batch.signal),
+              withRetry(() => step.runner(input, stepCtx), step.retryPolicy, stepSignal),
               step.timeoutMs,
               step.id,
             );

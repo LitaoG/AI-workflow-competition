@@ -195,3 +195,35 @@ test('Core Workflow: junk maxConcurrency values fall back to uncapped, not a zer
   const b = await wf2.run({ maxConcurrency: 0 });
   assert.equal(b.status, 'completed', 'zero cap must degrade to uncapped, not zero workers');
 });
+
+test('Issue #267: the retry loop races the step deadline — an orphan retry chain must not outlive it', async () => {
+  const wf = new Workflow({ name: 'RetryDeadlineWorkflow' });
+  wf.addPhase({ id: 'p1', name: 'Phase 1' });
+  let attempts = 0;
+  // The public actionStep() builder now carries retryPolicy (Issue #273 —
+  // previously it was silently dropped and only agentStep/raw definitions
+  // could reach the retry path). An uncooperative runner that always fails:
+  // the policy alone would allow 1 + 5 = 6 attempts, deadline or not.
+  wf.addStep(
+    actionStep({
+      id: 'doomed',
+      name: 'Doomed',
+      phaseId: 'p1',
+      timeoutMs: 150,
+      retryPolicy: { maxRetries: 5, initialDelayMs: 50, backoffFactor: 1 },
+      action: async () => {
+        attempts++;
+        throw new Error('attempt always fails');
+      },
+    })
+  );
+  // the builder must actually place the policy on the definition (#273)
+  assert.deepEqual(wf.getAllSteps()[0].retryPolicy, { maxRetries: 5, initialDelayMs: 50, backoffFactor: 1 });
+
+  await assert.rejects(() => wf.run(), (err: unknown) => err instanceof Error, 'the step must fail at its deadline');
+  // Pre-fix the chain raced the bare batch signal, so the deadline could not
+  // stop it and ALL 6 policy-allowed attempts ran. Post-fix the composite
+  // stepSignal ends the chain at the first aborted check after the deadline.
+  assert.ok(attempts < 6, `the retry chain must stop at the deadline (got ${attempts} attempts, policy allows 6)`);
+  assert.ok(attempts >= 2, 'at least the first attempt and one retry must have run');
+});

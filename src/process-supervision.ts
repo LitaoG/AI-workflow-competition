@@ -236,7 +236,8 @@ export interface JobGuardProbe {
   /**
    * Test injection point (Issue #108): overrides the compile cache directory,
    * so a cache that cannot be created can be reproduced deterministically
-   * (a regular file at the injected path makes mkdirSync throw ENOTDIR).
+   * (a regular file at the injected path makes mkdirSync fail — ENOTDIR on
+   * POSIX, ENOENT on win32/Node 22; see Issue #261).
    */
   cacheDir?: string;
 }
@@ -378,6 +379,16 @@ export interface SpawnJobGuardedOptions {
   stdio?: ('pipe' | 'ignore' | 'inherit')[];
   /** Per-process commit cap in MB (0/undefined = no cap; win32 job mode only). */
   processMemoryLimitMb?: number;
+  /**
+   * Issue #259: complete child command line (program + arguments, already
+   * quoted for the child's parse level) forwarded to the job helper's `--raw`
+   * mode. Required for `cmd /d /s /c` routes: the helper's default argv path
+   * re-quotes elements with MSVCRT rules, which cmd.exe does not honor — the
+   * verbatim line is the only shape that survives both parsers. The fallback
+   * (no-helper) branch spawns `cmd/args` with `windowsVerbatimArguments`
+   * instead.
+   */
+  rawCommandLine?: string;
 }
 
 /**
@@ -395,19 +406,29 @@ export function spawnJobGuarded(cmd: string, args: string[], opts: SpawnJobGuard
 export function spawnJobGuarded(cmd: string, args: string[], opts?: SpawnJobGuardedOptions): ChildProcess;
 export function spawnJobGuarded(cmd: string, args: string[], opts: SpawnJobGuardedOptions = {}): ChildProcess {
   const stdio = opts.stdio ?? ['ignore', 'pipe', 'pipe'];
+  const rawMode = opts.rawCommandLine !== undefined;
   const verdict = resolveJobGuard();
   if (verdict.helperPath !== undefined && fs.existsSync(verdict.helperPath)) {
-    const helperArgs = [
-      '--ppid', String(process.pid),
-      '--mem-mb', String(Math.max(0, Math.round(opts.processMemoryLimitMb ?? 0))),
-      '--', cmd, ...args,
-    ];
+    const helperArgs = rawMode
+      ? [
+          '--ppid', String(process.pid),
+          '--mem-mb', String(Math.max(0, Math.round(opts.processMemoryLimitMb ?? 0))),
+          '--raw', opts.rawCommandLine!,
+        ]
+      : [
+          '--ppid', String(process.pid),
+          '--mem-mb', String(Math.max(0, Math.round(opts.processMemoryLimitMb ?? 0))),
+          '--', cmd, ...args,
+        ];
     const helper = spawn(verdict.helperPath, helperArgs, {
       cwd: opts.cwd,
       env: opts.env,
       stdio,
       windowsHide: true,
       shell: false,
+      // Raw mode carries a pre-quoted command line; verbatim passing is the
+      // whole point (any CRT re-quoting by Node would corrupt it).
+      windowsVerbatimArguments: rawMode,
       // The helper stays attached: taskkill /T on its pid must reach it (the
       // fallback kill path in both modes).
       detached: false,
@@ -429,6 +450,13 @@ export function spawnJobGuarded(cmd: string, args: string[], opts: SpawnJobGuard
     stdio,
     windowsHide: true,
     shell: false,
+    // Issue #263: in raw mode `args` is the pre-quoted cmd tail (see
+    // buildCmdRouteInvocation). Without verbatim passing Node re-quotes that
+    // tail with MSVCRT rules — cmd.exe does not understand `\"`, so the quote
+    // toggling breaks: the `&` still splits the line AND the shim itself stops
+    // resolving (npm --version exited 1 instead of printing a version). The
+    // comment on `rawCommandLine` promised this; the code now does it.
+    windowsVerbatimArguments: rawMode,
     detached: process.platform !== 'win32',
   }) as ChildProcessWithoutNullStreams;
 }
@@ -462,6 +490,55 @@ export function resolveWindowsSpawnCommand(cmd: string, env: NodeJS.ProcessEnv):
 }
 
 /**
+ * Quote one argument for the cmd.exe parse level (Issue #259). cmd.exe decides
+ * whether a character is a metacharacter (`& | < > ^ ( )`) by quote toggling
+ * only — it does not understand the MSVCRT `\"` escape, so the CRT-style
+ * quoting Node/libuv applies cannot protect an argument like `&` once the line
+ * reaches `cmd /c`: the `&` must already sit INSIDE double quotes at the cmd
+ * parse level. Doubling embedded quotes (`""`) is understood by BOTH parsers —
+ * cmd toggles twice (net: stay quoted) and the MSVCRT of the final target
+ * decodes it as one literal quote. Backslash runs that directly precede a
+ * quote or end-of-string are doubled for the MSVCRT (paths like `C:\foo\`).
+ *
+ * Known residuals, both accepted and documented: `%VAR%` is expanded by cmd in
+ * an early phase even inside quotes (only vars present in the sanitized child
+ * env can expand), and an ODD run of backslashes directly before an embedded
+ * quote loses the quote textually (data corruption, never an injection — the
+ * cmd-level quoting stays balanced).
+ */
+export function quoteForCmd(arg: string): string {
+  return `"${arg
+    .replace(/(\\*)"/g, '$1$1""')
+    .replace(/\\+$/, (m) => m + m)}"`;
+}
+
+/**
+ * Shape the `cmd /d /s /c` invocation for a `.cmd`/`.bat` route (Issue #259).
+ * `spawnArgs` is the argv-array form for the direct (fallback) spawn, where
+ * `windowsVerbatimArguments` must be set so Node passes the pre-quoted tail
+ * through byte-faithfully; `rawChildLine` is the complete child command line
+ * for the job-helper `--raw` mode, which forwards it to CreateProcessW
+ * verbatim (the helper's CRT-style QuoteArg would re-break cmd quoting).
+ *
+ * The tail is wrapped once more in quotes because cmd.exe's `/s` rule strips
+ * the FIRST and LAST quote of the `/c` string when it starts with a quote:
+ * `/c ""npm" "--version""` → `"npm" "--version"` executed as typed. Quoting
+ * the command name itself also protects a shim whose name carries
+ * metacharacters planted in PATH.
+ */
+export function buildCmdRouteInvocation(
+  cmd: string,
+  args: readonly string[],
+  comspec: string,
+): { spawnArgs: string[]; rawChildLine: string } {
+  const tail = [cmd, ...args.map(quoteForCmd)].join(' ');
+  return {
+    spawnArgs: ['/d', '/s', '/c', `"${tail}"`],
+    rawChildLine: `${comspec} /d /s /c "${tail}"`,
+  };
+}
+
+/**
  * Spawn a supervised process: own process group on POSIX, whole-tree kill on
  * timeout or via killTree(), and a sanitized environment. On Windows the spawn
  * goes through the Job Object helper when it is available (spawnJobGuarded);
@@ -473,7 +550,15 @@ export function spawnSupervised(cmd: string, args: string[], opts: SupervisedSpa
   const env = buildSanitizedEnv(opts.envAllowlist, opts.env);
 
   const resolved = resolveWindowsSpawnCommand(cmd, env);
-  const spawnArgs = resolved === cmd ? args : ['/d', '/s', '/c', cmd, ...args];
+  // `.cmd`/`.bat` route: arguments must be quoted at the CMD parse level
+  // (Issue #259 — an unquoted `&` in any data-driven argument executed a
+  // second command). buildCmdRouteInvocation yields the verbatim shapes for
+  // both spawn branches; POSIX and real-executable routes pass args untouched.
+  const cmdRoute = isWindows && resolved !== cmd;
+  const route = cmdRoute
+    ? buildCmdRouteInvocation(cmd, args, resolved)
+    : undefined;
+  const spawnArgs = route ? route.spawnArgs : args;
 
   const child = isWindows
     ? spawnJobGuarded(resolved, spawnArgs, {
@@ -481,6 +566,7 @@ export function spawnSupervised(cmd: string, args: string[], opts: SupervisedSpa
         env,
         stdio: ['ignore', 'pipe', 'pipe'],
         processMemoryLimitMb: opts.processMemoryLimitMb,
+        rawCommandLine: route?.rawChildLine,
       })
     : spawn(resolved, spawnArgs, {
         cwd: opts.cwd,

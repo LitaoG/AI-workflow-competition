@@ -103,6 +103,7 @@ my-agent-pipeline/
 | `AI_WORKFLOW_SANDBOX_MAX_OLD_SPACE_MB` | 沙箱子进程内存上限 |
 | `AI_WORKFLOW_LANG` | 默认界面语言 |
 | `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | 显式配置时才注册 HTTP Provider，绝不自动拨号 |
+| `AI_WORKFLOW_ANTHROPIC_CACHE` | Anthropic 提示缓存开关（`1`/`0`）；未设置时官方端点默认开、自定义 `ANTHROPIC_BASE_URL` 默认关（代理可能拒绝该字段） |
 
 ### 2.5 MCP 工具面（10 个工具）
 

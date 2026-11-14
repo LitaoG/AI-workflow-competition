@@ -45,12 +45,13 @@ export interface AnthropicProviderOptions {
   /** Injectable `fetch` for offline tests; defaults to the global fetch. */
   fetchImpl?: typeof fetch;
   /**
-   * Mark the system prompt as prompt-cacheable (default false). When true, the
-   * system prompt is sent as a content block carrying
-   * `cache_control: { type: 'ephemeral' }` — the ONLY shape the Messages API
-   * accepts (a top-level `cache_control` field is rejected with HTTP 400
-   * "Extra inputs are not permitted", which is what the previous
-   * top-level-marker implementation triggered against the real API).
+   * Mark the system prompt as prompt-cacheable. When true, the system prompt is
+   * sent as a content block carrying `cache_control: { type: 'ephemeral' }` —
+   * the ONLY shape the Messages API accepts (a top-level `cache_control` field
+   * is rejected with HTTP 400 "Extra inputs are not permitted", which is what
+   * the previous top-level-marker implementation triggered against the real
+   * API). Left unset, {@link configureAnthropicFromEnv} decides from the
+   * endpoint (official API on, custom base URL off) + `AI_WORKFLOW_ANTHROPIC_CACHE`.
    */
   cacheControl?: boolean;
 }
@@ -210,10 +211,32 @@ function abortError(): Error {
 }
 
 /**
+ * Decide whether the registered provider should cache the stable prefix.
+ *
+ * Issue #260: the shape was fixed in #245 but nothing could turn it on — the
+ * option was constructor-only, so `cacheControl` stayed false in production and
+ * every actor turn re-billed the full system prefix. Caching is the single
+ * biggest cost lever for long facade sessions (cache reads bill ~0.1x input),
+ * so it defaults ON — but only against the official endpoint: a custom
+ * `ANTHROPIC_BASE_URL` is usually a proxy that may reject the field with 400,
+ * which would fail asks outright. `AI_WORKFLOW_ANTHROPIC_CACHE=1|0` overrides
+ * both ways for the rare proxy that does support it (or an official-API
+ * billing policy that forbids cache writes).
+ */
+export function resolveAnthropicCacheControl(env: NodeJS.ProcessEnv = process.env): boolean {
+  const flag = (env.AI_WORKFLOW_ANTHROPIC_CACHE ?? '').trim().toLowerCase();
+  if (flag === '1' || flag === 'true' || flag === 'on' || flag === 'yes') return true;
+  if (flag === '0' || flag === 'false' || flag === 'off' || flag === 'no') return false;
+  // Unset (or unrecognised): official API caches, custom gateways stay safe.
+  return !env.ANTHROPIC_BASE_URL?.trim();
+}
+
+/**
  * Read `ANTHROPIC_API_KEY` (plus optional `ANTHROPIC_MODEL` /
- * `ANTHROPIC_BASE_URL`) and register the `anthropic` provider in the global
- * registry. Returns the registry id, or `undefined` when the env is unset —
- * the mock default stays and nothing dials out.
+ * `ANTHROPIC_BASE_URL` / `AI_WORKFLOW_ANTHROPIC_CACHE`) and register the
+ * `anthropic` provider in the global registry. Returns the registry id, or
+ * `undefined` when the env is unset — the mock default stays and nothing dials
+ * out.
  */
 export function configureAnthropicFromEnv(env: NodeJS.ProcessEnv = process.env): string | undefined {
   const apiKey = env.ANTHROPIC_API_KEY?.trim();
@@ -223,6 +246,7 @@ export function configureAnthropicFromEnv(env: NodeJS.ProcessEnv = process.env):
     apiKey,
     model: env.ANTHROPIC_MODEL?.trim() || undefined,
     baseUrl: env.ANTHROPIC_BASE_URL?.trim() || undefined,
+    cacheControl: resolveAnthropicCacheControl(env),
   });
   providerRegistry.register(asLlmProvider(provider));
   return provider.id;

@@ -19,7 +19,7 @@ import {
   type ProviderContract,
   type ProviderErrorDetails,
 } from '../../src/agent/provider-contract.js';
-import { AnthropicProvider, configureAnthropicFromEnv } from '../../src/agent/anthropic-provider.js';
+import { AnthropicProvider, configureAnthropicFromEnv, resolveAnthropicCacheControl } from '../../src/agent/anthropic-provider.js';
 import { OpenAiProvider, configureOpenAiFromEnv } from '../../src/agent/openai-provider.js';
 import { configureHttpProvidersFromEnv } from '../../src/agent/http-providers.js';
 import { providerRegistry } from '../../src/agent/provider.js';
@@ -453,4 +453,69 @@ test('configureHttpProvidersFromEnv dispatches lazily and only on credential pre
   assert.ok(providerRegistry.list().includes('anthropic'));
   assert.ok(providerRegistry.list().includes('openai'));
   assert.equal(providerRegistry.get().id, before, 'registry default must remain whatever it was (mock)');
+});
+
+// ---------------------------------------------------------------------------
+// Issue #260: the cache switch was constructor-only, so the production path
+// never enabled it. These lock the env decision AND the wiring into the
+// registered provider (the exact gap the issue reported).
+// ---------------------------------------------------------------------------
+
+test('resolveAnthropicCacheControl defaults by endpoint and honours the explicit switch', () => {
+  assert.equal(
+    resolveAnthropicCacheControl({ ANTHROPIC_API_KEY: 'sk' }),
+    true,
+    'official API → cache on (cache reads bill ~0.1x input)',
+  );
+  assert.equal(
+    resolveAnthropicCacheControl({ ANTHROPIC_API_KEY: 'sk', ANTHROPIC_BASE_URL: 'https://proxy.example' }),
+    false,
+    'custom gateway → cache off (unknown 400 risk)',
+  );
+  assert.equal(
+    resolveAnthropicCacheControl({ ANTHROPIC_BASE_URL: 'https://proxy.example', AI_WORKFLOW_ANTHROPIC_CACHE: '1' }),
+    true,
+    'explicit on beats the gateway default',
+  );
+  assert.equal(
+    resolveAnthropicCacheControl({ AI_WORKFLOW_ANTHROPIC_CACHE: 'off' }),
+    false,
+    'explicit off beats the official default',
+  );
+  assert.equal(
+    resolveAnthropicCacheControl({ ANTHROPIC_BASE_URL: 'https://proxy.example', AI_WORKFLOW_ANTHROPIC_CACHE: 'maybe' }),
+    false,
+    'unrecognised value falls back to the endpoint policy',
+  );
+});
+
+test('configureAnthropicFromEnv wires the cache decision into the registered provider', async () => {
+  const bodies: any[] = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (_url: string | URL | Request, init?: RequestInit) => {
+    bodies.push(JSON.parse(String(init?.body)));
+    return new Response(JSON.stringify({ content: [{ type: 'text', text: 'ok' }], model: 'claude-test' }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  }) as typeof fetch;
+  const messages = [
+    { role: 'system' as const, content: 'sys' },
+    { role: 'user' as const, content: 'hi' },
+  ];
+  try {
+    configureAnthropicFromEnv({ ANTHROPIC_API_KEY: 'sk-wire' });
+    await providerRegistry.get('anthropic').generate({ messages });
+    assert.deepEqual(
+      bodies[0]!.system,
+      [{ type: 'text', text: 'sys', cache_control: { type: 'ephemeral' } }],
+      'official endpoint must ship the cache marker without any extra configuration',
+    );
+
+    configureAnthropicFromEnv({ ANTHROPIC_API_KEY: 'sk-wire', ANTHROPIC_BASE_URL: 'https://proxy.example' });
+    await providerRegistry.get('anthropic').generate({ messages });
+    assert.equal(bodies[1]!.system, 'sys', 'custom gateway must not receive the field by default');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

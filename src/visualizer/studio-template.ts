@@ -913,12 +913,15 @@ export const STUDIO_TEMPLATE = `<!doctype html>
     function mrow(k, vHtml) { rows += '<div class="mrow"><span class="mk">' + k + '</span><span class="mv">' + vHtml + '</span></div>'; }
     var tone = INSP_TONE[n.status] || 'tone-neutral';
     // Localized labels and human values (Issue #254); the raw engine value
-    // stays as a faint mono suffix for CLI correlation.
+    // stays as a faint mono suffix for CLI correlation — but only when the
+    // localization truly differs (Issue #257): the en words differ from the
+    // raw values by CASE alone ('Agent' vs 'agent'), so the comparison must
+    // be case-insensitive or every English inspector row reads "Agent agent".
     var TYPE_KEY = { agent: 'typeAgent', action: 'typeAction', gate: 'typeGate', probe: 'typeProbe', fanout: 'typeFanout' };
     var ROLE_KEY = { worker: 'roleWorker', inspector: 'roleInspector', reviewer: 'roleReviewer', gate: 'roleGate', coordinator: 'roleCoordinator' };
     function localizedValue(map, raw) {
       var loc = (raw && map[raw] && T[map[raw]]) ? T[map[raw]] : raw;
-      return esc(loc) + (loc !== raw ? ' <span class="mv-raw">' + esc(raw) + '</span>' : '');
+      return esc(loc) + (String(loc).toLowerCase() !== String(raw).toLowerCase() ? ' <span class="mv-raw">' + esc(raw) + '</span>' : '');
     }
     mrow(T.lblStatus || 'status', '<span class="aui-badge ' + tone + '"><span class="dot' + (n.status === 'running' ? ' live' : '') + '"></span>' + esc(n.status || 'pending') + '</span>');
     if (n.phaseName || n.phaseId) mrow(T.lblPhase || 'phase', esc(n.phaseName || n.phaseId));

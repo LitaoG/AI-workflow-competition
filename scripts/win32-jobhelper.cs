@@ -4,7 +4,14 @@
 // dependencies, zero install scripts, zero downloads).
 //
 // CLI:  jobhelper.exe --ppid <parent-pid> --mem-mb <n|0> -- <cmd> <args...>
+//       jobhelper.exe --ppid <parent-pid> --mem-mb <n|0> --raw <child command line>
 //
+// --raw (Issue #259): everything after the " --raw " marker is taken from
+// GetCommandLineW VERBATIM and becomes the child command line — no CRT argv
+// round-trip, no QuoteArg. Required for `cmd /d /s /c` routes: cmd.exe's
+// quote semantics (toggle-only, no `\"` escapes) cannot survive the MSVCRT
+// re-quote the default path applies, so node pre-quotes the whole line for
+// the cmd parse level and the helper must forward it byte-faithfully.
 // The helper is the DIRECT parent of the supervised command. It creates a Job
 // Object, spawns <cmd> suspended into that job, then waits on BOTH the child
 // and the parent:
@@ -113,6 +120,9 @@ namespace AiWorkflow.JobHelper
 
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern IntPtr GetStdHandle(int nStdHandle);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+        private static extern IntPtr GetCommandLineW();
 
         // ---- constants ----------------------------------------------------------
 
@@ -287,6 +297,19 @@ namespace AiWorkflow.JobHelper
             return sb.ToString();
         }
 
+        /// First token of a command line (program name) — sentinel label only.
+        private static string FirstToken(string line)
+        {
+            string s = line.TrimStart();
+            if (s.StartsWith("\"", StringComparison.Ordinal))
+            {
+                int end = s.IndexOf('"', 1);
+                return end < 0 ? s : s.Substring(1, end - 1);
+            }
+            int sp = s.IndexOf(' ');
+            return sp < 0 ? s : s.Substring(0, sp);
+        }
+
         // ---- main -------------------------------------------------------------------
 
         private static int Main(string[] args)
@@ -304,6 +327,7 @@ namespace AiWorkflow.JobHelper
             long ppid = 0;
             long memMb = 0;
             int cmdIndex = -1;
+            bool rawMode = false;
             for (int i = 0; i < args.Length; i++)
             {
                 if (args[i] == "--ppid" && i + 1 < args.Length)
@@ -321,13 +345,40 @@ namespace AiWorkflow.JobHelper
                     cmdIndex = i + 1;
                     break;
                 }
+                else if (args[i] == "--raw")
+                {
+                    rawMode = true;
+                    break;
+                }
             }
-            if (cmdIndex < 0 || cmdIndex >= args.Length)
+
+            // Issue #259 raw mode: the child command line is taken from
+            // GetCommandLineW verbatim after the " --raw " marker — the node
+            // side pre-quoted it for the child's parse level (cmd.exe routes),
+            // and any CRT argv round-trip here would corrupt that quoting.
+            string cmd;
+            string rawChildLine = null;
+            if (rawMode)
             {
-                WriteSentinel("<missing-command>", "EUSAGE");
-                return 3;
+                string full = Marshal.PtrToStringUni(GetCommandLineW());
+                int marker = full == null ? -1 : full.IndexOf(" --raw ", StringComparison.Ordinal);
+                if (marker < 0)
+                {
+                    WriteSentinel("<missing-command>", "EUSAGE");
+                    return 3;
+                }
+                rawChildLine = full.Substring(marker + 7);
+                cmd = FirstToken(rawChildLine);
             }
-            string cmd = args[cmdIndex];
+            else
+            {
+                if (cmdIndex < 0 || cmdIndex >= args.Length)
+                {
+                    WriteSentinel("<missing-command>", "EUSAGE");
+                    return 3;
+                }
+                cmd = args[cmdIndex];
+            }
 
             IntPtr job = CreateJobObjectW(IntPtr.Zero, null);
             if (!IsValidHandle(job))
@@ -413,11 +464,18 @@ namespace AiWorkflow.JobHelper
             si.lpAttributeList = attrList;
 
             var commandLine = new StringBuilder();
-            commandLine.Append(QuoteArg(cmd));
-            for (int i = cmdIndex + 1; i < args.Length; i++)
+            if (rawMode)
             {
-                commandLine.Append(' ');
-                commandLine.Append(QuoteArg(args[i]));
+                commandLine.Append(rawChildLine);
+            }
+            else
+            {
+                commandLine.Append(QuoteArg(cmd));
+                for (int i = cmdIndex + 1; i < args.Length; i++)
+                {
+                    commandLine.Append(' ');
+                    commandLine.Append(QuoteArg(args[i]));
+                }
             }
 
             PROCESS_INFORMATION pi;

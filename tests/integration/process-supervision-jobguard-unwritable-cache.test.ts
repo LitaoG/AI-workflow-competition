@@ -13,8 +13,9 @@
  * own process, so this injected-poison verdict cannot contaminate the others.
  *
  * Deterministic repro without ACL games: a regular FILE sits where the cache
- * DIRECTORY is expected, so `mkdirSync(recursive)` throws ENOTDIR on every
- * platform (verified locally on win32).
+ * DIRECTORY is expected, so `mkdirSync(recursive)` fails on every platform —
+ * with ENOTDIR on POSIX and ENOENT on win32/Node 22 (Issue #261; the errno is
+ * platform-dependent, the "unusable cache" verdict is not).
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -47,7 +48,7 @@ function cscAvailable(): boolean {
 const reachedCompileStage = cscAvailable();
 
 test('(u-1) unusable cache dir degrades to fallback-taskkill — it never throws', () => {
-  // Before the fix this query itself threw ENOTDIR out of mkdirSync.
+  // Before the fix this query itself threw out of mkdirSync.
   assert.equal(injected.mode, 'fallback-taskkill', `verdict: ${JSON.stringify(injected)}`);
 });
 
@@ -63,7 +64,17 @@ test('(u-2) the fallback reason names the cache dir and the errno code', () => {
     new RegExp(badCacheDir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
     `reason must name the cache dir: ${JSON.stringify(injected.reason)}`,
   );
-  assert.match(injected.reason ?? '', /ENOTDIR/, `reason must carry the errno code: ${JSON.stringify(injected.reason)}`);
+  assert.match(
+    injected.reason ?? '',
+    // Issue #261: the errno is PLATFORM-dependent for this exact repro. On
+    // win32 + Node 22, `mkdirSync('<regular file>/child', {recursive:true})`
+    // reports ENOENT (verified: the non-recursive form reports EINVAL), while
+    // POSIX reports ENOTDIR. The invariant is "an errno code is named", not a
+    // specific one — asserting ENOTDIR alone made the suite permanently red on
+    // the project's primary dev platform.
+    /ENOTDIR|ENOENT/,
+    `reason must carry the errno code: ${JSON.stringify(injected.reason)}`,
+  );
 });
 
 test('(u-3) the verdict is memoized — the second call does not retry the compile', () => {

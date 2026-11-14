@@ -339,7 +339,7 @@
 
         <!-- Nodes -->
         
-          <g style="animation: aui-fade-up .5s var(--aui-ease) both; animation-delay: 0ms" onclick="inspectNode('step-ok')">
+          <g style="animation: aui-fade-up .5s var(--aui-ease) both; animation-delay: 0ms" data-node-id="step-ok">
             <title>Step OK</title>
             <rect x="60" y="90" width="220" height="104"
                   class="node-card pending " />
@@ -403,6 +403,22 @@
     let scale = 1, panX = 0, panY = 0, isDragging = false, startX, startY;
     const group = document.getElementById('transform-group');
     const container = document.getElementById('canvas-container');
+
+    // Issue #269 B: node cards carry an escaped data-node-id attribute and
+    // clicks are delegated here — the old inline handler built a JS string
+    // out of the raw id, so an id containing a quote broke both the JS and
+    // the attribute. getAttribute returns the DECODED value, which compares
+    // equal to the id inside the JSON island.
+    document.querySelectorAll('[data-node-id]').forEach(el => {
+      el.addEventListener('click', () => inspectNode(el.getAttribute('data-node-id')));
+    });
+
+    // Issue #269 D: everything handed to drawer innerHTML passes through
+    // auiEsc — JSON.stringify only escapes quotes, so an <img onerror=…>
+    // payload would ride straight into an HTML-parsed string.
+    function auiEsc(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
 
     container.addEventListener('mousedown', e => {
       if (e.target.tagName === 'button' || e.target.closest('#drawer')) return;
@@ -475,14 +491,14 @@
       openNodeId = keepOpen ? openNodeId : id;
       document.getElementById('drawer-title').innerText = keepOpen ? t().inspector : node.name;
       document.getElementById('drawer-content').innerHTML = `
-        <p><strong>${t().role}:</strong> ${node.role}</p>
-        <p><strong>${t().status}:</strong> ${node.status}</p>
-        <p><strong>${t().phase}:</strong> ${node.phaseName}</p>
+        <p><strong>${t().role}:</strong> ${auiEsc(node.role)}</p>
+        <p><strong>${t().status}:</strong> ${auiEsc(node.status)}</p>
+        <p><strong>${t().phase}:</strong> ${auiEsc(node.phaseName)}</p>
         <p><strong>${t().duration}:</strong> ${node.durationMs || 0}ms</p>
         <h4 style="margin-top:16px;">${t().inputs}</h4>
-        <pre>${JSON.stringify(node.inputs || {}, null, 2)}</pre>
+        <pre>${auiEsc(JSON.stringify(node.inputs || {}, null, 2))}</pre>
         <h4 style="margin-top:16px;">${t().outputs}</h4>
-        <pre>${JSON.stringify(node.outputs || {}, null, 2)}</pre>
+        <pre>${auiEsc(JSON.stringify(node.outputs || {}, null, 2))}</pre>
       `;
       document.getElementById('drawer').classList.add('open');
     }

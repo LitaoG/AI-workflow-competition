@@ -325,6 +325,8 @@ export interface ActionStepConfig<TInput, TOutput> {
   dependsOn?: string[];
   /** Wall-clock cap for one execution of this step (enforced by Workflow.run — see withStepTimeout). */
   timeoutMs?: number;
+  /** Retry policy for one execution of this step (enforced by Workflow.run's withRetry — see #273). */
+  retryPolicy?: RetryPolicy;
 }
 
 export function actionStep<TInput, TOutput>(
@@ -338,6 +340,7 @@ export function actionStep<TInput, TOutput>(
     role: config.role ?? 'worker',
     dependsOn: config.dependsOn,
     timeoutMs: config.timeoutMs,
+    retryPolicy: config.retryPolicy,
     runner: config.action,
   };
 }
