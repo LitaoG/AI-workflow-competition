@@ -114,11 +114,11 @@ placeholder and recording recipe live in [`SUBMISSION.md`](SUBMISSION.md).
 
 ### Reproducible quality-gate fingerprints
 
-All run on this machine, 2026-11-13 (Node v26.13.0):
+All run on this machine, 2026-11-14 (Node v26.13.0), after the 2.1.0 self-review repair round:
 
 ```text
-npm test                                          → 695 tests, 695 pass, 0 fail
-node --experimental-strip-types tests/e2e/runner.ts → 121/121 passed (4 tiers)
+npm test                                          → 704 tests, 704 pass, 0 fail
+node --experimental-strip-types tests/e2e/runner.ts → 118/118 passed (4 tiers)
 npm run test:adversarial                          → 158 tests, 158 pass, 0 fail
 npm run test:pbt                                  →  16 tests,  16 pass, 0 fail
 bash scripts/demo.sh                              → exit 0, all nine acts OK
