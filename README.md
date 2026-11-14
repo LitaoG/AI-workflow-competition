@@ -181,11 +181,12 @@ Implementation, Design, Innovation, and Presentation.
    model is cited as design inspiration only; no third-party proprietary code is incorporated.
 2. **Apache-2.0 license.** The entire repository is distributed under the Apache License 2.0
    ([LICENSE](LICENSE)).
-3. **Dependency supply chain.** All dependencies are version-pinned via `package-lock.json`. At
-   submission time `npm audit` reports 5 known advisories: 4 moderate, all in dev dependencies,
-   and 1 high in the runtime dependency `zod` 3.25.76 (GHSA-mrhx-c7xc-m3w5; the official fix,
-   `zod@4.6.7`, is a breaking major-version upgrade). The zod@4 migration is scheduled for the
-   next release.
+3. **Dependency supply chain.** All dependencies are version-pinned via `package-lock.json`. The
+   one high advisory (GHSA-mrhx-c7xc-m3w5 in `zod` 3.25.76) is **fixed**: the runtime dependency
+   now pins `zod` **4.6.7** (the official fix version), migrated in a worktree and verified by a
+   journalled facade-script gate pipeline (tsc, 695 unit/integration, 121 E2E, 158 adversarial,
+   16 PBT, nine-act demo, `npm audit --omit=dev` → 0). `npm audit` now reports 4 moderate
+   advisories, all in dev dependencies.
 4. **Zero private data leakage.** All demo scenarios, telemetry and fixtures are synthetic; every
    demo and test runs offline in mock mode with zero API keys; environment probing redacts
    credentials (`AKIA…`, JWTs → `***REDACTED***`, enforced by a PBT invariant). No private keys,

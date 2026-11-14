@@ -15,7 +15,7 @@ import { toJsonSchemaCompat } from '@modelcontextprotocol/sdk/server/zod-json-sc
 
 export const RunScriptArgs = z.object({
   scriptPath: z.string().min(1).describe('Path to the facade script (.ts) to run'),
-  args: z.record(z.unknown()).optional().describe('Script input, available inside the script as `args`'),
+  args: z.record(z.string(), z.unknown()).optional().describe('Script input, available inside the script as `args`'),
   cwd: z.string().optional().describe('Workspace root for world reads and world.run gates (default: process.cwd())'),
   dbPath: z.string().optional().describe('Journal database path (default .workflow/dwf.sqlite under cwd)'),
   runTimeoutMs: z.number().int().positive().optional().describe('Whole-run wall clock; the sandbox child tree is killed on expiry (default 600000)'),
