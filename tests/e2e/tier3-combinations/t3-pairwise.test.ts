@@ -64,6 +64,22 @@ export default {
     const res = runCLI(['graph', wfPath, '--format', 'html']);
     assertExitCode(res, 0);
     assertStdoutContains(res, '<svg');
+    // Role must be rendered ON the node itself (the [ROLE] text element per
+    // node card), covering every role the fixture declares — merely embedding
+    // the workflow JSON payload would not satisfy this.
+    assertStdoutContains(res, '[INSPECTOR]');
+    assertStdoutContains(res, '[WORKER]');
+    assertStdoutContains(res, '[REVIEWER]');
+    assertStdoutContains(res, '[GATE]');
+    // Metrics bar must render the phase count COMPUTED from the workflow
+    // (html-renderer.ts:259 interpolates graph.totalPhases, which comes from
+    // this fixture's 4 phases at src/core/workflow.ts:563). Deliberately NOT
+    // asserting the `N subagents active` half: static graph building hardcodes
+    // activeSubagents to 0 (src/core/workflow.ts:560), so that substring is a
+    // structural constant and asserting it would be tautological. Red trigger:
+    // change the fixture's phase count, or make the visualizer stop
+    // interpolating the real totalPhases.
+    assertStdoutContains(res, '4 phases');
   });
 
   await t.test('T3_PAIR_04 (F1 x F5): Agent RPC driving MCP tool invocation', () => {
@@ -85,6 +101,21 @@ export default {
     const outputDir = path.join(tempDir, 'run-f1-f5');
     const res = runCLI(['run', wfPath, '--mock', '--output-dir', outputDir]);
     assertExitCode(res, 0);
+
+    // Observable effect of the callTool round-trip: the tool result must flow
+    // into the step output persisted in the per-run checkpoint db — a bare
+    // exit-0 proves nothing about the MCP invocation actually happening.
+    const checkpoints = assertValidCheckpointsDb(path.join(outputDir, 'checkpoints.db'));
+    const mcpCp = checkpoints.find(c => c.step_id === 'agent-mcp');
+    assert.ok(mcpCp, 'agent-mcp checkpoint must exist');
+    assert.strictEqual(mcpCp.status, 'completed');
+    const stepOutput = JSON.parse(String(mcpCp.output_json)) as {
+      toolResult: { status: string; tool: string; args: Record<string, unknown> };
+    };
+    assert.ok(stepOutput.toolResult, 'step output must carry the callTool result');
+    assert.strictEqual(stepOutput.toolResult.status, 'success');
+    assert.strictEqual(stepOutput.toolResult.tool, 'read_file');
+    assert.deepStrictEqual(stepOutput.toolResult.args, { path: 'sample.txt' });
   });
 
   await t.test('T3_PAIR_05 (F2 x F3): Prober snapshot recorded as initial event in events.jsonl', () => {
