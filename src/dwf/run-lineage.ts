@@ -122,8 +122,66 @@ export async function resolveRunLineage(
 
   if (options.parentRunId) {
     runId = mintRunId();
-    amendedFrom = options.parentRunId; // lineage without cache import
-    return { ok: true, resolution: { runId, amendedFrom, priorRunParent, priorSpentTokens, priorBudgetTotal, resumeTakeover } };
+    amendedFrom = options.parentRunId;
+    // Issue #35: a composition re-entry — the parent resuming (takeover) or
+    // re-running a failed composition site re-invokes this child — must not
+    // re-bill the whole subtree at full provider cost. Find the newest prior
+    // child run of the same script within the parent's run lineage and import
+    // its journal as the replay cache: the same mechanism amend uses, and
+    // safe for the same reason — re-executing the same script produces the
+    // same siteId#ordinal stream, so imported warm entries align 1:1. An
+    // edited child script hashes differently, finds no prior run, and simply
+    // runs live (the documented diverge behavior).
+    //
+    // The match is per composition CALL SITE: composeWorkflow stamps the
+    // parent-site coordinates into the child's args (workflowParentSite /
+    // workflowParentOrdinal), so two workflow() calls to the same saved
+    // workflow under one parent never cross-import each other's journals
+    // (the Issue #124 budget-composition scenario bills both sites). The
+    // parent lineage chains through the parentRunId column, which carries
+    // the amend source for an amended run and the composition parent for a
+    // composed child — walking it reaches the prior parent of an amended
+    // composition too. Rows without the site stamps (pre-#35 children) never
+    // match: they fall back to the live run instead of a blind import.
+    const lineageParents: string[] = [];
+    {
+      const seen = new Set<string>();
+      let cursor: string | null | undefined = options.parentRunId;
+      while (cursor && !seen.has(cursor)) {
+        seen.add(cursor);
+        lineageParents.push(cursor);
+        const row: DwfRunRow | null = await store.getDwfRun(cursor);
+        if (!row) break;
+        cursor = row.parentRunId ?? null;
+      }
+    }
+    const siteArgs = (options.args ?? {}) as { workflowParentSite?: string; workflowParentOrdinal?: number };
+    const expectedSite = siteArgs.workflowParentSite;
+    const expectedOrdinal = siteArgs.workflowParentOrdinal;
+    const matchesSite = (r: DwfRunRow, parent: string): boolean => {
+      if (expectedSite === undefined || expectedOrdinal === undefined) return false;
+      try {
+        const args = JSON.parse(r.argsJson ?? '{}') as { workflowParent?: string; workflowParentSite?: string; workflowParentOrdinal?: number };
+        return args.workflowParent === parent && args.workflowParentSite === expectedSite && args.workflowParentOrdinal === expectedOrdinal;
+      } catch {
+        return false;
+      }
+    };
+    const runs = await store.listDwfRuns({ limit: 1000 });
+    for (const parent of lineageParents) {
+      // listDwfRuns returns newest-first; the first candidate is the newest
+      // prior child run of this call site under this parent. `running` rows
+      // are skipped: their journals are still being written by a live host.
+      const priorChild = runs.find(
+        (r) => r.parentRunId === parent && r.scriptHash === scriptHash && r.status !== 'running' && matchesSite(r, parent),
+      );
+      if (priorChild) {
+        const priorNodes: DwfNode[] = await store.getDwfNodes(priorChild.runId);
+        importedCache = new Map(priorNodes.map((n) => [`${n.siteId}#${n.ordinal}`, n]));
+        break;
+      }
+    }
+    return { ok: true, resolution: { runId, importedCache, amendedFrom, priorRunParent, priorSpentTokens, priorBudgetTotal, resumeTakeover } };
   }
 
   if (amendRunId || rerunRunId) {

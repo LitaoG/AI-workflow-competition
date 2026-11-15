@@ -270,7 +270,12 @@ export class FacadeEngine {
     const child = await runFacadeScript({
       scriptPath: saved.scriptPath,
       cwd: this.options.workspace,
-      args: { ...this.options.args, workflowParent: this.options.runId },
+      // Issue #35: the parent-site coordinates ride in the child's args (and
+      // therefore its journal row's argsJson) — the composition re-entry cache
+      // import (run-lineage.ts) matches prior child runs per call SITE, so two
+      // workflow() calls to the same saved workflow under one parent never
+      // cross-import each other's journals.
+      args: { ...this.options.args, workflowParent: this.options.runId, workflowParentSite: siteId, workflowParentOrdinal: ordinal },
       parentRunId: this.options.runId,
       workflowDepth: (this.options.workflowDepth ?? 0) + 1,
       workflowAncestry: [...ancestry, name],

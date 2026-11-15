@@ -168,3 +168,50 @@ return out;
     project.cleanup();
   }
 });
+
+test('composition re-entry replays the child subtree at zero provider calls (Issue #35)', async () => {
+  const project = makeProject();
+  try {
+    const parentPath = path.join(project.dir, 'parent.facade.ts');
+    fs.writeFileSync(parentPath, PARENT);
+    const first = await runFacadeScript({ scriptPath: parentPath, cwd: project.dir });
+    assert.equal(first.status, 'completed', first.error);
+    // The child executed live: its ask is rebroadcast into the parent's stats.
+    assert.equal(first.stats.asks, 1);
+
+    // Resuming the parent re-invokes workflow("comp-child") (the composition
+    // op is a live host call, not a journalled parent node). The child run
+    // imports its own prior journal — same parent lineage, same script hash —
+    // and replays every node at zero provider calls (Issue #35).
+    const second = await runFacadeScript({ scriptPath: parentPath, cwd: project.dir, resumeRunId: first.runId });
+    assert.equal(second.status, 'completed', second.error);
+    assert.deepEqual(second.value, first.value);
+    assert.equal(second.stats.asks, 0, 'the re-entered child must replay from its journal, not re-bill');
+    // Imported-cache hits count as amend hits (engine semantics: the warm
+    // entry came from a PRIOR run's journal, not this run's own stream).
+    assert.ok(second.stats.amendHits >= 1, `expected imported-cache hits, got ${second.stats.amendHits}`);
+  } finally {
+    project.cleanup();
+  }
+});
+
+test('an edited child workflow runs live — no stale replay across the composition boundary (Issue #35)', async () => {
+  const project = makeProject();
+  try {
+    const parentPath = path.join(project.dir, 'parent.facade.ts');
+    fs.writeFileSync(parentPath, PARENT);
+    const first = await runFacadeScript({ scriptPath: parentPath, cwd: project.dir });
+    assert.equal(first.status, 'completed', first.error);
+
+    // Editing the child script changes its sha256: the cache-import lookup
+    // matches on the script hash and finds nothing — the child runs live
+    // again (documented diverge behavior, mirroring the amend contract).
+    const childPath = path.join(project.dir, '.workflow', 'workflows', 'comp-child.facade.ts');
+    fs.writeFileSync(childPath, CHILD + '\n// edited: diverge probe\n');
+    const second = await runFacadeScript({ scriptPath: parentPath, cwd: project.dir, resumeRunId: first.runId });
+    assert.equal(second.status, 'completed', second.error);
+    assert.equal(second.stats.asks, 1, 'the edited child must run live, not replay the stale journal');
+  } finally {
+    project.cleanup();
+  }
+});
