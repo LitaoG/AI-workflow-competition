@@ -135,10 +135,12 @@ git worktree add -b feat/issue-<id>-<short-desc> ../AI-workflow-worktrees/issue-
 
 - **路径约束**：worktree 目录路径**严禁包含空格**。
 - **目录隔离**：严禁在主仓内部嵌套创建 worktree，必须位于同级目录。
-- **依赖复用**：若需复用主仓 `node_modules`，可使用 Windows 目录联接：
-  ```cmd
-  cmd /c mklink /J ..\AI-workflow-worktrees\issue-<id>-<short-desc>\node_modules C:\Users\86183\Desktop\AI-workflow\node_modules
+- **依赖隔离（P-ENV-3 强制，2026-11-15 修订）**：每个 worktree **独立安装依赖**——进入 worktree 后执行 `npm.cmd ci`，postinstall 钩子自动落位 `ai-workflow` 自链（`scripts/link-self.mjs`）与离线 SDK 桩（`scripts/bootstrap-fixtures.mjs`）。
+  **严禁**以 Windows 目录联接/符号链接跨 worktree 共享 `node_modules`：共享区的 `node_modules/ai-workflow` 自链会把 worktree 内全部包名导入解析到**别的 checkout 的 dist**——主仓 dist 一旦落后即产生假绿指纹与 0 步假成功（P-ENV-3 第 3 次实例实证）。门禁首跑前自查：
+  ```powershell
+  node --input-type=module -e "console.log(import.meta.resolve('ai-workflow'))"
   ```
+  输出必须落在**本 worktree** 路径内，否则删除 `node_modules/ai-workflow` 后重跑 `npm.cmd ci`。
 
 ### 2.2 Worktree「用完即删」机械判据
 
