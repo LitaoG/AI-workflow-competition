@@ -247,3 +247,11 @@
 - 门禁：`tests/integration/dwf-sessions.test.ts`（waitAny 纯竞速用例即回归锁——被假红击中的正是它）。已修 + 门禁（comp Issue #17）。
 - 原位置：`src/dwf/child-bootstrap.ts`（`__sessions.waitAny`/`race`）、`src/dwf/child-main.ts`（双网审计，offenders 文案合一）。
 
+#### P-ENV-5 process.exit 丢弃 POSIX 管道未冲刷写——超限 fire-and-forget 帧静默丢失（假绿）
+- 复发性：G2 单次高代价（comp Issue #17：goal-adv 家族首次进 CI Linux 即现——315KB log round-trip 事件数组为空；Windows 管道缓冲行为处处掩盖）
+- 代价：run 报成功而 journal 丢帧——最恶劣的假绿形态：用户 log/report/产物静默消失，且消费网哨兵看不见（fire-and-forget 白名单不审计）；仅 Linux 触发。
+- 根因：child-main 终态路径 `sendToParent(done)` 后立即 `process.exit(0)`——POSIX 管道内核缓冲仅 ~64KB，超限帧的余量还挂在 libuv 队列里就被 exit 丢弃；fire-and-forget 的 log 不等回复，脚本同步返回加剧竞速。父端 pump 只收到撕裂帧（malformed 计数）或一无所获。
+- 正确做法：① 终态路径先冲刷再退场（`exitAfterFlush`：`write('', () => process.exit(code))`，零长写回调即此前全部排队的 flush 屏障）；② 子端出站队列设 16MB 预算（父端 frame-pump backlog 预算的镜像）——洪泛场景子端自举命名失败 `ChildFrameLimitExceeded` 而非 V8 OOM 死亡（Linux 无 Job Object 堆帽，OOM 竞速不可控）；③ hostile-child 类测试的父端防御断言接受全部「界内有界失败」形态（命名拒绝 / 整跑超时 / 子进程 OOM 死亡），wallMs 有界才是契约本体。
+- 门禁：`tests/adversarial/goal-adv2-control-char-injection.test.ts`（log round-trip）、`tests/adversarial/goal-adv1-ndjson-protocol.test.ts`（flood 三形态）。已修 + 门禁（comp Issue #17）。
+- 原位置：`src/dwf/child-main.ts`（sendToParent / exitAfterFlush）。
+

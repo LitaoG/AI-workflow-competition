@@ -91,7 +91,38 @@ if (!scriptJsPath) {
 }
 
 function sendToParent(frame: unknown): void {
+  // Outbound queue budget — the child-side twin of the parent's frame backlog
+  // budget (frame-pump.ts): a flooding script outpaces the pipe faster than the
+  // parent's backlog budget can see it, because the queued writes live in THIS
+  // heap and V8 OOMs before any parent-side defense fires on POSIX (no Job
+  // Object commit cap there — comp Issue #17, first Linux CI adversarial run).
+  // Fail the run by name instead of dying by OOM.
+  if (!outboundBudgetReported && process.stdout.writableLength > MAX_OUTBOUND_QUEUE_CHARS) {
+    outboundBudgetReported = true;
+    sendToParent({
+      t: 'scriptError',
+      message: `ChildFrameLimitExceeded: child outbound frame queue exceeds ${MAX_OUTBOUND_QUEUE_CHARS} chars`,
+      name: 'AgentError',
+    });
+    exitAfterFlush(1);
+    return;
+  }
   process.stdout.write(JSON.stringify(frame) + '\n');
+}
+
+const MAX_OUTBOUND_QUEUE_CHARS = 16 * 1024 * 1024;
+let outboundBudgetReported = false;
+
+/**
+ * process.exit() discards pending pipe writes: POSIX pipe buffers hold ~64KB,
+ * so a queued fire-and-forget frame larger than the buffer (a big log/report
+ * artifact) is silently torn or lost — the parent's pump never assembles it and
+ * the result vanishes from the journal while the run still reports success
+ * (comp Issue #17: the 315KB log round-trip came back empty on Linux CI;
+ * Windows pipe buffering masked it). Drain stdout, then exit.
+ */
+function exitAfterFlush(code: number): void {
+  process.stdout.write('', () => process.exit(code));
 }
 
 
@@ -204,7 +235,7 @@ async function main(): Promise<void> {
       throw err;
     }
     sendToParent({ t: 'done', value: value === undefined ? null : value });
-    process.exit(0);
+    exitAfterFlush(0);
   } catch (err) {
     const e = err as Error;
     // Boundary conversion (Tagged Error Algebra): a host error re-raised through
@@ -214,7 +245,7 @@ async function main(): Promise<void> {
     const attached = (err as TaggedError | null | undefined)?.__dwfTagged;
     const tagged = toSerializableError(isDomainError(attached) ? attached : toDomainError(err));
     sendToParent({ t: 'scriptError', message: e?.message ?? String(err), stack: e?.stack, name: e?.name, error: tagged });
-    process.exit(1);
+    exitAfterFlush(1);
   }
 }
 

@@ -22,8 +22,17 @@ changes land:
   after catching the cap error (`Promise.allSettled`), mirroring the budget-stop
   philosophy "In-flight agents will complete; their results are preserved" — without
   the drain, the cap-boundary round's still-in-flight ok replies raced the done-time
-  in-flight net and intermittently failed the newly-gated adversarial test. Both need
-  backflow to the private repo.
+  in-flight net and intermittently failed the newly-gated adversarial test.
+- **dwf (comp-side fix, first Linux CI adversarial run)**: `child-main` now drains
+  stdout before exiting — `process.exit()` discards pending POSIX pipe writes
+  (~64KB kernel buffer), so a queued fire-and-forget frame larger than the buffer
+  (a big `log()`/report artifact) was silently torn or lost while the run still
+  reported success: the 315KB control-char log round-trip came back empty on CI.
+  Windows pipe buffering masked this everywhere else. The child also gains an
+  outbound frame-queue budget (16MB, the twin of the parent's backlog budget) so a
+  flooding script fails by name (`ChildFrameLimitExceeded`) instead of dying by V8
+  OOM on Linux (no Job Object heap cap there); the flood test accepts all three
+  bounded-failure outcomes. Both fixes need backflow to the private repo.
 - **agent**: thinking-stream deltas flow through the provider contract and propagate
   live over SSE (upstream #304).
 - **agent**: `spawnSupervised` accepts a stdin payload; `promptMode` gains `stdin` in
@@ -52,8 +61,8 @@ being removed — does not hold here: this repo's demo command still exists and
 upstream README/QUICKSTART edits (this repo's judge-facing docs are independent; the
 fingerprint tables below were refreshed against the new gate counts instead).
 
-Full gates on this machine (Node v26.13.0, fresh `npm ci` worktree): npm test 800/800
-(unit 593 + integration 207), e2e 118/118, adversarial 201/201, PBT 16/16, governance
+Full gates on this machine (Node v26.13.0, fresh `npm ci` worktree): npm test 804/804
+(unit 597 + integration 207), e2e 118/118, adversarial 201/201, PBT 16/16, governance
 36/36, `scripts/demo.sh` exit 0.
 
 ## 2.4.1 (2026-11-15) — two-repo sync audit closeout, version housekeeping

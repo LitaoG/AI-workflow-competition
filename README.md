@@ -132,7 +132,7 @@ All run on this machine, 2026-11-15 (Node v26.13.0), from a **fresh build** (a s
 double-count one moved test file — the fresh-build numbers below are what a judge clone reproduces):
 
 ```text
-npm test                                          → 800 tests, 800 pass, 0 fail
+npm test                                          → 804 tests, 804 pass, 0 fail
 node --experimental-strip-types tests/e2e/runner.ts → 118/118 passed (4 tiers)
 npm run test:adversarial                          → 201 tests, 201 pass, 0 fail
 npm run test:pbt                                  →  16 tests,  16 pass, 0 fail
