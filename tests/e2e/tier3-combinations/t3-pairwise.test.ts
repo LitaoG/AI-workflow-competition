@@ -71,8 +71,15 @@ export default {
     assertStdoutContains(res, '[WORKER]');
     assertStdoutContains(res, '[REVIEWER]');
     assertStdoutContains(res, '[GATE]');
-    // Metrics bar must render the workflow's real phase count, not a stub.
-    assertStdoutContains(res, '4 phases · 0 subagents active');
+    // Metrics bar must render the phase count COMPUTED from the workflow
+    // (html-renderer.ts:259 interpolates graph.totalPhases, which comes from
+    // this fixture's 4 phases at src/core/workflow.ts:563). Deliberately NOT
+    // asserting the `N subagents active` half: static graph building hardcodes
+    // activeSubagents to 0 (src/core/workflow.ts:560), so that substring is a
+    // structural constant and asserting it would be tautological. Red trigger:
+    // change the fixture's phase count, or make the visualizer stop
+    // interpolating the real totalPhases.
+    assertStdoutContains(res, '4 phases');
   });
 
   await t.test('T3_PAIR_04 (F1 x F5): Agent RPC driving MCP tool invocation', () => {

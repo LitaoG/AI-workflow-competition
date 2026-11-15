@@ -19,9 +19,14 @@ test('Tier 4 - Scenario 3: Simulated Mid-Workflow Crash & Zero-Token Resumption 
 
   await t.test('Scenario 3: Initial failure commits failure checkpoint, then resume succeeds without re-running step 1', () => {
     const wfPath = writeTempFile(tempDir, 'failing-wf.ts', SAMPLE_FAILING_WORKFLOW);
+    // Run artifacts live in the test's temp dir (aligned with the other tier4
+    // suites) so e2e runs never accumulate per-run db/event files inside the
+    // repository's .workflow/runs/ directory. Replay therefore passes --file:
+    // the persisted definition copy lives in outputDir, not .workflow/runs/<id>/.
+    const outputDir = path.join(tempDir, 'run-failing');
 
     // Initial run fails at step 2
-    const resFail = runCLI(['run', wfPath, '--mock']);
+    const resFail = runCLI(['run', wfPath, '--mock', '--output-dir', outputDir]);
     assert.strictEqual(resFail.exitCode, 1, 'Initial run should fail with exit code 1');
 
     // runId extraction is mandatory: without the real run id neither the resume
@@ -33,15 +38,14 @@ test('Tier 4 - Scenario 3: Simulated Mid-Workflow Crash & Zero-Token Resumption 
 
     // Verify step 1 checkpoint was saved (unconditional: `run` always writes
     // the per-run checkpoints db next to the event log)
-    const runDir = path.join(process.cwd(), '.workflow', 'runs', runId);
-    const dbPath = path.join(runDir, 'checkpoints.db');
+    const dbPath = path.join(outputDir, 'checkpoints.db');
     const checkpoints = assertValidCheckpointsDb(dbPath);
     const step1 = checkpoints.find(c => c.step_id === 'step-1-inspect' || c.step_id === 'step-1-setup');
     assert.ok(step1, 'Step 1 checkpoint must be saved');
     assert.strictEqual(step1.status, 'completed');
 
     // Now resume from failed
-    const resResume = runCLI(['replay', runId, '--resume-from-failed'], {
+    const resResume = runCLI(['replay', runId, '--resume-from-failed', '--file', wfPath], {
       env: { REPAIR_STEP_2: '1' }
     });
 
