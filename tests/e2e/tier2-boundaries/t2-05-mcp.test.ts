@@ -1,7 +1,7 @@
 import test from 'node:test';
 import * as assert from 'node:assert';
 import { runCLI } from '../helpers/cli.ts';
-import { assertExitCode } from '../helpers/assertions.ts';
+import { assertExitCode, assertStderrContains } from '../helpers/assertions.ts';
 
 test('Tier 2 - Boundary: Feature 5 MCP Tool Integration', async (t) => {
   await t.test('T2_F5_01: Unknown MCP subcommand exits with non-zero exit code', () => {
@@ -11,7 +11,10 @@ test('Tier 2 - Boundary: Feature 5 MCP Tool Integration', async (t) => {
 
   await t.test('T2_F5_02: Calling unknown tool name handled gracefully without crash', () => {
     const res = runCLI(['mcp', 'call', 'non_existent_tool']);
-    assert.ok(res.exitCode === 0 || res.exitCode === 1);
+    // Real behavior (Issue #23): a controlled failure — specific non-zero exit
+    // code plus a structured error message on stderr, not a crash/stack trace.
+    assertExitCode(res, 1);
+    assertStderrContains(res, 'Unknown MCP tool');
   });
 
   await t.test('T2_F5_03: Calling MCP tool with empty parameters runs without error', () => {

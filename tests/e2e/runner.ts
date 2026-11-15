@@ -44,9 +44,14 @@ async function main() {
 
   const tiers = [
     { name: 'Tier 1 — Feature Coverage (10 Features × 5 Tests)', files: tier1Files, expected: 50 },
-    // 47, not 50: t2-10-kiro was rewritten (2026-11-14 repair round) from five
-    // cannot-fail subtests to two real executed hook-contract tests — the old
-    // expected count was inflated by tests that could never fail.
+    // 47: matches the executable case count. Historical inflation fully
+    // repaired — t2-10-kiro was rewritten (2026-11-14 repair round) from five
+    // cannot-fail subtests to two real executed hook-contract tests, and the
+    // remaining eight tautological exit-code asserts across t2-01/t2-05/
+    // t2-08/t2-09 were rewritten to real expectations with helpers/cli.ts
+    // no longer flattening exit codes (Issue #23, 2026-11-15). The count is
+    // unchanged: assertion rewrites and case renames do not alter the number
+    // of executed cases.
     { name: 'Tier 2 — Boundary & Corner Cases', files: tier2Files, expected: 47 },
     { name: 'Tier 3 — Cross-Feature Combinations (15 Pairwise Suites)', files: tier3Files, expected: 15 },
     { name: 'Tier 4 — Real-World Application Scenarios (6 Workloads)', files: tier4Files, expected: 6 },

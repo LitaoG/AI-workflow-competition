@@ -1,5 +1,4 @@
 import test from 'node:test';
-import * as assert from 'node:assert';
 import * as path from 'node:path';
 import { runCLI } from '../helpers/cli.ts';
 import { createTempDir, cleanupTempDir, writeTempFile } from '../helpers/env.ts';
@@ -12,7 +11,14 @@ test('Tier 2 - Boundary: Feature 1 Typed Agent RPCs', async (t) => {
     cleanupTempDir(tempDir);
   });
 
-  await t.test('T2_F1_01: Corrupted or unparseable JSON output from agent triggers retry up to maxRetries then structured error', () => {
+  // Renamed (Issue #23, 2026-11-15): the old name promised "corrupted JSON
+  // triggers retry up to maxRetries then structured error", but MockProvider
+  // always emits valid JSON (src/agent/mock-provider.ts) and the local
+  // execute() step path below never reaches the typed-RPC retry loop
+  // (src/agent/rpc.ts), so corrupted-JSON retry is unobservable in mock-mode
+  // CLI runs. Real behavior probed via bin/workflow.js: the arbitrary payload
+  // is returned as-is and the workflow completes with exit code 0.
+  await t.test('T2_F1_01: Step returning arbitrary unvalidated payload completes without engine-side validation or crash', () => {
     const wfContent = `
 export default {
   name: "corrupted-json-wf",
@@ -21,7 +27,7 @@ export default {
       id: "corrupted-step",
       role: "worker",
       execute: async (ctx) => {
-        // Return raw unparseable string simulation
+        // Arbitrary payload — the engine does not re-validate step output
         return { data: "not-json" };
       }
     }
@@ -30,7 +36,7 @@ export default {
     const wfPath = writeTempFile(tempDir, 'wf-t2-f1-01.ts', wfContent);
     const outputDir = path.join(tempDir, 'run-01');
     const res = runCLI(['run', wfPath, '--mock', '--output-dir', outputDir]);
-    assert.ok(res.exitCode === 0 || res.exitCode === 1);
+    assertExitCode(res, 0);
   });
 
   await t.test('T2_F1_02: Extremely large prompt payload (64KB) handled without buffer overflow', () => {
@@ -67,10 +73,15 @@ export default {
     const wfPath = writeTempFile(tempDir, 'wf-t2-f1-03.ts', wfContent);
     const outputDir = path.join(tempDir, 'run-03');
     const res = runCLI(['run', wfPath, '--mock', '--output-dir', outputDir]);
-    assert.ok(res.exitCode === 0 || res.exitCode === 1);
+    assertExitCode(res, 0);
   });
 
-  await t.test('T2_F1_04: Zod union schema failure when response matches neither union branch', () => {
+  // Renamed (Issue #23, 2026-11-15): the old name promised a "Zod union
+  // schema failure", but step output on the local execute path is not
+  // runtime-validated against any Zod schema — probed via bin/workflow.js,
+  // the non-matching branch payload passes through and the workflow
+  // completes with exit code 0.
+  await t.test('T2_F1_04: Step output shaped like a non-matching union branch is passed through without runtime schema rejection', () => {
     const wfContent = `
 export default {
   name: "union-mismatch-wf",
@@ -85,7 +96,7 @@ export default {
     const wfPath = writeTempFile(tempDir, 'wf-t2-f1-04.ts', wfContent);
     const outputDir = path.join(tempDir, 'run-04');
     const res = runCLI(['run', wfPath, '--mock', '--output-dir', outputDir]);
-    assert.ok(res.exitCode === 0 || res.exitCode === 1);
+    assertExitCode(res, 0);
   });
 
   await t.test('T2_F1_05: Workflow with zero steps completes gracefully without crash', () => {
@@ -97,6 +108,6 @@ export default {
     const wfPath = writeTempFile(tempDir, 'wf-t2-f1-05.ts', wfContent);
     const outputDir = path.join(tempDir, 'run-05');
     const res = runCLI(['run', wfPath, '--mock', '--output-dir', outputDir]);
-    assert.ok(res.exitCode === 0 || res.exitCode === 1);
+    assertExitCode(res, 0);
   });
 });
