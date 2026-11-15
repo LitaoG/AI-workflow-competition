@@ -1,7 +1,7 @@
 {
   "workflow": "repo-migration-engine",
-  "runId": "run-1794667156831-5dbgj5",
-  "timestamp": "2026-11-14T14:39:17.505Z",
+  "runId": "run-1794751080415-rpeedg",
+  "timestamp": "2026-11-15T13:58:00.770Z",
   "status": "completed",
   "metrics": {
     "totalPhases": 5,
@@ -9,8 +9,7 @@
     "filesMigrated": 3,
     "compilerPass": true,
     "testsPass": true,
-    "linesChanged": 270,
-    "tokensSaved": 14200
+    "linesChanged": 6
   },
   "columns": [
     {

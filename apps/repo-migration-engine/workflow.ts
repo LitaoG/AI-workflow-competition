@@ -524,6 +524,23 @@ export const workflow = defineWorkflow({
           }
         );
 
+        // Real per-run measurements (Issue #33): every statistic below derives
+        // from artifacts this run actually produced — "before" is the tracked
+        // fixture file on disk, "after" is the transformedCode the worker and
+        // reviewer steps of THIS run returned. No invented diff numbers.
+        const migrationPairs = [
+          { stepId: 'step-3a', file: 'src/s3-service.ts', workerStep: 'step-3a-worker-s3', reviewerStep: 'step-3a-reviewer-s3', workerRole: 'CodeTransformerWorker-S3', reviewerRole: 'CodeReviewer-S3' },
+          { stepId: 'step-3b', file: 'src/dynamo-service.ts', workerStep: 'step-3b-worker-dynamo', reviewerStep: 'step-3b-reviewer-dynamo', workerRole: 'CodeTransformerWorker-Dynamo', reviewerRole: 'CodeReviewer-Dynamo' },
+          { stepId: 'step-3c', file: 'src/sqs-service.ts', workerStep: 'step-3c-worker-sqs', reviewerStep: 'step-3c-reviewer-sqs', workerRole: 'CodeTransformerWorker-SQS', reviewerRole: 'CodeReviewer-SQS' },
+        ];
+        const measured = migrationPairs.map((p) => {
+          const legacyPath = path.join(__dirname, 'fixtures', 'legacy-aws-sdk-app', p.file);
+          const legacyLines = fs.readFileSync(legacyPath, 'utf-8').split('\n').length;
+          const transformedLines = ctx.getOutput<CodeTransformResult>(p.workerStep)!.transformedCode.split('\n').length;
+          const reviewScore = ctx.getOutput<CodeReviewResult>(p.reviewerStep)!.reviewScore;
+          return { ...p, legacyLines, transformedLines, reviewScore };
+        });
+
         // Render comprehensive Pull Request Markdown document
         const prMarkdown = [
           `# ${summary.summaryTitle}`,
@@ -553,28 +570,24 @@ export const workflow = defineWorkflow({
           '## 3. Transformed Services & Paired Review Audits',
           '| Step ID | Target File | Worker Role | Reviewer Role | Safety Audit Score | Status |',
           '| :--- | :--- | :--- | :--- | :---: | :---: |',
-          '| `step-3a-s3` | `src/s3-service.ts` | `CodeTransformerWorker-S3` | `CodeReviewer-S3` | **0.98 / 1.00** | ✔ APPROVED |',
-          '| `step-3b-ddb` | `src/dynamo-service.ts` | `CodeTransformerWorker-Dynamo` | `CodeReviewer-Dynamo` | **0.96 / 1.00** | ✔ APPROVED |',
-          '| `step-3c-sqs` | `src/sqs-service.ts` | `CodeTransformerWorker-SQS` | `CodeReviewer-SQS` | **0.97 / 1.00** | ✔ APPROVED |',
+          ...measured.map((m) => `| \`${m.stepId}\` | \`${m.file}\` | \`${m.workerRole}\` | \`${m.reviewerRole}\` | **${m.reviewScore.toFixed(2)} / 1.00** | ✔ APPROVED |`),
           '',
           '## 4. Verification & Gates',
           `- **Baseline Gate**: Unit tests passed before migration initiation.`,
           `- **Post-Merge Gate**: ${gate.output || 'tsc --noEmit && npm test passed successfully.'}`,
           `- **Durable Event Journal**: All step transitions recorded to \`.workflow/journal.jsonl\`.`,
           '',
-          '## 5. Diff Statistics',
-          '```',
-          ' package.json         | -1  +4   (Replaced aws-sdk with modular @aws-sdk packages)',
-          ' src/s3-service.ts    | -42 +48  (Upgraded to @aws-sdk/client-s3)',
-          ' src/dynamo-service.ts| -46 +54  (Upgraded to @aws-sdk/lib-dynamodb)',
-          ' src/sqs-service.ts   | -38 +40  (Upgraded to @aws-sdk/client-sqs)',
-          ' 4 files changed, +146 insertions(+), -127 deletions(-)',
-          '```',
+          '## 5. Diff Statistics (measured, not synthesized)',
+          '',
+          '| File | Legacy fixture (lines) | Transformed output (lines) |',
+          '| :--- | ---: | ---: |',
+          ...measured.map((m) => `| \`${m.file}\` | ${m.legacyLines} | ${m.transformedLines} |`),
+          '',
+          `Measured from \`fixtures/legacy-aws-sdk-app/src\` on disk vs the \`transformedCode\` each worker produced in this run. In mock mode the transformation is the documented deterministic substitution, so no git-style \`-N +M\` diff is claimed.`,
           '',
           '## 6. Durable Replay & Provenance',
           `- **Workflow Run ID**: \`${ctx.runId}\``,
-          `- **Event Journal**: All step transitions recorded to event log`,
-          `- **Tokens Saved via Checkpoint Resumption**: ~14,200 tokens`,
+          `- **Event Journal**: All step transitions recorded to event log — inspect with \`workflow view ${ctx.runId}\`.`,
           '',
           '## 7. Rollback Runbook',
           '1. Revert this pull request: `git revert -m 1 HEAD`',
@@ -599,8 +612,9 @@ export const workflow = defineWorkflow({
             filesMigrated: summary.filesMigratedCount,
             compilerPass: summary.compilerPassStatus,
             testsPass: summary.testsPassStatus,
-            linesChanged: 270,
-            tokensSaved: 14200,
+            // Measured (Issue #33): total line delta between each legacy
+            // fixture file on disk and the transformed output of this run.
+            linesChanged: measured.reduce((sum, m) => sum + Math.abs(m.transformedLines - m.legacyLines), 0),
           },
           columns: [
             {
