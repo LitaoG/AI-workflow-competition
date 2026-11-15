@@ -94,6 +94,20 @@ function sendToParent(frame: unknown): void {
   process.stdout.write(JSON.stringify(frame) + '\n');
 }
 
+/**
+ * Issue #29: `process.exit` discards stdout writes that are still queued — and
+ * pipe writes are ASYNCHRONOUS on POSIX (synchronous only on Windows/macOS
+ * files), so a done/scriptError frame written right before exit could never
+ * reach the parent on Linux CI. Measured: a 1.8MB log frame + its done frame
+ * vanished, the child exited 0, and the parent saw only the earlier phase
+ * frame ("sandbox child exited before finishing (code 0)"). End the stream and
+ * exit on its flush — queued bytes drain first, Windows semantics unchanged.
+ */
+function flushAndExit(code: number): void {
+  process.stdout.once('error', () => process.exit(code));
+  process.stdout.end(() => process.exit(code));
+}
+
 
 async function main(): Promise<void> {
   // Parent → child replies on stdin (NDJSON)
@@ -191,7 +205,7 @@ async function main(): Promise<void> {
       throw err;
     }
     sendToParent({ t: 'done', value: value === undefined ? null : value });
-    process.exit(0);
+    flushAndExit(0);
   } catch (err) {
     const e = err as Error;
     // Boundary conversion (Tagged Error Algebra): a host error re-raised through
@@ -201,7 +215,7 @@ async function main(): Promise<void> {
     const attached = (err as TaggedError | null | undefined)?.__dwfTagged;
     const tagged = toSerializableError(isDomainError(attached) ? attached : toDomainError(err));
     sendToParent({ t: 'scriptError', message: e?.message ?? String(err), stack: e?.stack, name: e?.name, error: tagged });
-    process.exit(1);
+    flushAndExit(1);
   }
 }
 
