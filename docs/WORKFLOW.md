@@ -173,7 +173,7 @@ git worktree add -b feat/issue-<id>-<short-desc> ../AI-workflow-worktrees/issue-
 
 ## 4. 本机验证门禁
 
-在提交与发起 PR 前，必须在当前 Worktree 目录依次通过以下 5 级门禁：
+在提交与发起 PR 前，必须在当前 Worktree 目录依次通过以下 8 级门禁：
 
 ```powershell
 # 1. 静态编译与强类型检查
@@ -194,8 +194,11 @@ node --experimental-strip-types tests/e2e/runner.ts
 # 6. 工作流治理不变量测试
 node --experimental-strip-types tests/unit/workflow-governance.test.ts
 
-# 7. 还原测试副产物（强制恢复干净）
-git restore tests/unit/fixtures/
+# 7. PR 审查与工作区洁净度门禁
+node --experimental-strip-types scripts/pr_review_gate.mjs --check-clean
+
+# 8. 还原测试副产物（npm test / 门禁脚本运行会重写 artifacts/ 与 tests/unit/fixtures/ 的跟踪文件，强制恢复干净）
+git restore artifacts/ tests/unit/fixtures/
 git status --porcelain
 ```
 
@@ -247,7 +250,7 @@ git push -u origin feat/issue-<issue-id>-<desc>
 
 ### 7.1 合并冷却期（15 分钟）与评审机制
 
-- **冷却期硬约束**：PR 创建后必须等待 **满 15 分钟**（硬红线 600 秒：`mergedAt - createdAt < 600s` 且无评审即违规），杜绝闪电合入；
+- **冷却期硬约束（两级判据，勿混淆）**：PR 创建后必须等待 **满 15 分钟**——机器执行的是**合入前冷却**：`scripts/pr_review_gate.mjs` 实测 `now - createdAt ≥ 900s`（`DEFAULT_COOLING_SECONDS = 900`；门禁运行于合入前，物理上测不到 `mergedAt`）；**600 秒**（`FAST_MERGE_FLOOR_SECONDS = 600`）仅为**事后审计判据**（`mergedAt - createdAt < 600s` 且无评审即违规，不参与合入前拦截）。确需提前合入时走人工豁免通道：`--ack <理由>` / `--bypass-cooling <理由>`（同一账号自我豁免，理由登记后跳过冷却检查）。两级合用，杜绝闪电合入；
 - **主动回看评论并逐条甄别**：作者在合入前必须主动调用：
   ```powershell
   gh pr view <pr_number> --comments
@@ -273,7 +276,6 @@ node --experimental-strip-types scripts/pr_review_gate.mjs <pr_number>
 ```
 脚本机械检查：
 - PR 正文是否明确关联有效 Issue（`Closes #NN`）；
-- PR 正文是否包含真实测试指纹与无未消除占位符；
 - PR 创建时间是否已过 15 分钟冷却期（支持 `--ack` / `--bypass-cooling` 授权豁免）；
 - 评论与 Review 流（含关联 Issue 评论，F5）中所有审查意见是否均已完成三态回复交代：带编号发现项须引用编号 + 三态关键词，带审查标题的评论不算回音，时间轴合并排序；
 - PR 正文是否包含真实测试指纹与无未消除占位符（指纹只认 `Ran N tests` / `pass N, fail 0` / node:test 分行摘要，N > 0；裸 "passed" 一词不算，Issue #109）。
