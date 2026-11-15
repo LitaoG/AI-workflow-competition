@@ -91,12 +91,29 @@ if (!scriptJsPath) {
 }
 
 function sendToParent(frame: unknown): void {
+  writeOutboundLine(JSON.stringify(frame));
+}
+
+const MAX_OUTBOUND_QUEUE_CHARS = 16 * 1024 * 1024;
+let outboundBudgetReported = false;
+
+/**
+ * The single outbound choke point for EVERY child→parent frame — both the
+ * host-produced done/scriptError frames (`sendToParent`) and every realm
+ * frame: the bootstrap's `__emit` calls the captured `__send` capability, so
+ * `sandbox.__send` below routes here too (Issue #58). The check MUST sit where
+ * the bytes actually enter the pipe: realm frames bypassed `sendToParent`
+ * entirely, so a flooding report/log script queued unbounded writes in THIS
+ * heap and V8 OOMed before any parent-side defense could fire on POSIX (no
+ * Job Object commit cap there — the exact scenario Issue #17's guard claimed
+ * to prevent). Fail the run by name instead of dying by OOM.
+ */
+function writeOutboundLine(line: string): void {
   // Outbound queue budget — the child-side twin of the parent's frame backlog
   // budget (frame-pump.ts): a flooding script outpaces the pipe faster than the
   // parent's backlog budget can see it, because the queued writes live in THIS
   // heap and V8 OOMs before any parent-side defense fires on POSIX (no Job
   // Object commit cap there — comp Issue #17, first Linux CI adversarial run).
-  // Fail the run by name instead of dying by OOM.
   if (!outboundBudgetReported && process.stdout.writableLength > MAX_OUTBOUND_QUEUE_CHARS) {
     outboundBudgetReported = true;
     sendToParent({
@@ -107,11 +124,8 @@ function sendToParent(frame: unknown): void {
     exitAfterFlush(1);
     return;
   }
-  process.stdout.write(JSON.stringify(frame) + '\n');
+  process.stdout.write(line + '\n');
 }
-
-const MAX_OUTBOUND_QUEUE_CHARS = 16 * 1024 * 1024;
-let outboundBudgetReported = false;
 
 /**
  * process.exit() discards pending pipe writes: POSIX pipe buffers hold ~64KB,
@@ -142,9 +156,12 @@ async function main(): Promise<void> {
   const sandbox: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
   sandbox.__argsJson = argsJson;
   sandbox.__budgetTotal = seededBudgetTotal;
-  sandbox.__send = (line: string): void => {
-    process.stdout.write(line + '\n');
-  };
+  // Issue #58: this capability is the realm's ONLY outbound channel — the
+  // bootstrap captures it as `__out` and every `__emit` frame crosses here —
+  // so it must route through the same budget choke point as the host's own
+  // frames. The realm itself has no `process` (the bootstrap sees only what
+  // this sandbox seeds), so the writableLength check cannot live there.
+  sandbox.__send = writeOutboundLine;
   sandbox.__timer = {
     start: (fn: () => void, ms: number): ReturnType<typeof setTimeout> => setTimeout(fn, ms),
     clear: (handle: ReturnType<typeof setTimeout>): void => clearTimeout(handle),
@@ -234,8 +251,15 @@ async function main(): Promise<void> {
       });
       throw err;
     }
-    sendToParent({ t: 'done', value: value === undefined ? null : value });
-    exitAfterFlush(0);
+    // Issue #58: if the outbound budget already breached mid-run, the budget
+    // scriptError frame is queued and exit(1) is scheduled — a done frame must
+    // not follow it out of the pipe (one terminal frame per run; the parent
+    // settles on the first, so double-emitting is at best noise and at worst a
+    // completed verdict racing a failed one).
+    if (!outboundBudgetReported) {
+      sendToParent({ t: 'done', value: value === undefined ? null : value });
+      exitAfterFlush(0);
+    }
   } catch (err) {
     const e = err as Error;
     // Boundary conversion (Tagged Error Algebra): a host error re-raised through

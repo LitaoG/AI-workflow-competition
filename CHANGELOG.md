@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- **dwf (child outbound frame budget covers the realm path, Issue #58)**: the
+  child's outbound frame-queue budget (16 MiB, added for Issue #17) guarded only
+  `sendToParent` — the host's own done/scriptError frames — while every realm
+  frame (`log`/`report`/calls, all bootstrap `__emit` shapes) crossed the
+  captured `__send` capability straight to `process.stdout.write`, so a
+  flooding script could still queue unbounded writes and V8-OOM the child heap
+  on POSIX (no Job Object commit cap there) before any parent-side budget saw
+  it — the exact scenario the #17 guard claims to fail by name. The
+  `writableLength` check now lives on the single outbound choke point
+  (`writeOutboundLine`) that both `sendToParent` and `sandbox.__send` route
+  through; over the limit the child emits the existing
+  `ChildFrameLimitExceeded` scriptError frame and exits 1 instead of writing
+  the flooded line, and a queued budget failure suppresses the later done frame
+  (one terminal frame per run). Locked end-to-end through the real child by
+  `tests/unit/dwf/dwf-child-outbound-budget.test.ts` (log/report flood
+  fixtures; POSIX-only — win32 skips, where probe-verified synchronous pipe
+  writes can never accumulate the queue and the flood legitimately completes);
+  doc sync: ARCHITECTURE §5.1 now lists the child-side budget.
 - **dwf (world.run output cap, Issue #56)**: `spawnCaptured` no longer silently
   discards child output past the 16 MiB per-stream cap. The over-cap verdict is
   byte-accounted (`Buffer` bytes — the MiB constants are byte-denominated;
