@@ -47,7 +47,7 @@ import { SQLiteStateStore } from '../state/sqlite-store.js';
 import { RunEventStream } from './run-events.js';
 import { ChildFramePump } from './frame-pump.js';
 import { resolveRunLineage, emptyRunStats } from './run-lineage.js';
-import { buildSandboxChildArgs, buildSandboxEnv, resolveStallMs } from './sandbox-launch.js';
+import { buildSandboxChildArgs, buildSandboxEnv, resolveSandboxMaxOldSpaceMb, resolveStallMs } from './sandbox-launch.js';
 import { describeAuthorPosition } from './author-position.js';
 import { DwfJournalStore, WorkflowEventType } from '../types.js';
 
@@ -210,8 +210,6 @@ function parsePositiveIntEnv(name: string): number | undefined {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : undefined;
 }
 
-/** Default V8 heap cap (MB) for the sandbox child — see buildSandboxChildArgs. */
-const DEFAULT_SANDBOX_MAX_OLD_SPACE_MB = 512;
 /**
  * Grace window for sibling work after a hole opens before the run parks (P1
  * semantics) — a brief settle after the child's idle signal. Currently
@@ -327,13 +325,16 @@ async function runInner(
   // tree kill reaches grandchildren; a whitelisted AND value-masked env
   // (buildSandboxEnv) so the caller's shell secrets never reach the sandbox.
   // On win32 the child runs under the Job Object helper (kernel tree-kill + a
-  // commit cap at 1.5× the V8 heap cap — non-heap RSS headroom); the fallback
-  // path keeps the exact legacy spawn options.
+  // commit cap at 1.5× the EFFECTIVE V8 heap cap — option → env → default,
+  // resolveSandboxMaxOldSpaceMb, the same resolution buildSandboxChildArgs
+  // used for the argv heap cap, so an env override scales both caps together;
+  // 1.5 is non-heap RSS headroom); the fallback path keeps the exact legacy
+  // spawn options.
   const child = spawnJobGuarded(process.execPath, childArgs, {
     cwd,
     stdio: ['pipe', 'pipe', 'pipe'],
     env: buildSandboxEnv(),
-    processMemoryLimitMb: Math.round((options.sandboxMaxOldSpaceSizeMb ?? DEFAULT_SANDBOX_MAX_OLD_SPACE_MB) * 1.5),
+    processMemoryLimitMb: Math.round(resolveSandboxMaxOldSpaceMb(options.sandboxMaxOldSpaceSizeMb) * 1.5),
   });
 
   // Stdin EPIPE guard (same settle-race family as the settled guards on
