@@ -109,18 +109,31 @@ let outboundBudgetReported = false;
  * to prevent). Fail the run by name instead of dying by OOM.
  */
 function writeOutboundLine(line: string): void {
+  // Review hard gate (Issue #58 round 1): once the budget is reported, EVERY
+  // later outbound line is DROPPED, not written unchecked. The sync flood loop
+  // never yields to the event loop, so the exitAfterFlush(1) callback cannot
+  // fire mid-loop — letting the tail through would keep growing the queue past
+  // any bound and V8-OOM before the terminal frame can drain (the exact death
+  // this defense exists to prevent, only postponed by 16 MiB). Dropping the
+  // tail stops heap growth at the breach; exit(1) lands once the already-
+  // queued frames drain, delivering the named failure.
+  if (outboundBudgetReported) return;
   // Outbound queue budget — the child-side twin of the parent's frame backlog
   // budget (frame-pump.ts): a flooding script outpaces the pipe faster than the
   // parent's backlog budget can see it, because the queued writes live in THIS
   // heap and V8 OOMs before any parent-side defense fires on POSIX (no Job
   // Object commit cap there — comp Issue #17, first Linux CI adversarial run).
-  if (!outboundBudgetReported && process.stdout.writableLength > MAX_OUTBOUND_QUEUE_CHARS) {
+  if (process.stdout.writableLength > MAX_OUTBOUND_QUEUE_CHARS) {
     outboundBudgetReported = true;
-    sendToParent({
+    // The terminal frame itself must bypass the gate closed above — routing it
+    // through sendToParent would re-enter this function and be dropped with
+    // the tail. Written directly (byte-identical to the old recursive path) so
+    // the named failure reaches the pipe.
+    process.stdout.write(JSON.stringify({
       t: 'scriptError',
       message: `ChildFrameLimitExceeded: child outbound frame queue exceeds ${MAX_OUTBOUND_QUEUE_CHARS} chars`,
       name: 'AgentError',
-    });
+    }) + '\n');
     exitAfterFlush(1);
     return;
   }

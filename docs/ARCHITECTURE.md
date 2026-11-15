@@ -218,7 +218,7 @@ flowchart TB
 
 **协议与资源防线**（`src/dwf/protocol.ts`、`runner.ts`、`engine.ts`）：
 - NDJSON 帧预算：单帧 16 MB、分帧缓冲 32 MB（`MAX_CHILD_FRAME_CHARS`/`MAX_CHILD_FRAME_BUFFER_CHARS`），泵按每事件循环 tick 512 行让出（`CHILD_FRAME_LINES_PER_TICK`）；不可解析帧计数上报（`dwf_frame_malformed`），撕裂/垃圾绝不静默丢弃；
-- 子端出站队列预算：子进程每条出站帧（宿主 done/scriptError 与 realm 全部 `__emit` 帧——bootstrap 捕获的 `__send` 能力与宿主帧共用同一 `writeOutboundLine` 出口）写入 pipe 前检查 `stdout.writableLength`，超 16 MB 即停止写帧、以 `ChildFrameLimitExceeded` scriptError 命名失败并冲刷退出，且不再补发 done 帧（一次终态帧）——洪泛脚本有名失败而非 V8 OOM（`child-main.ts`；realm 路径覆盖为 Issue #58 修复，此前 realm 帧绕过 `sendToParent` 直写 stdout，测试锁定 `tests/unit/dwf/dwf-child-outbound-budget.test.ts`）；
+- 子端出站队列预算：子进程每条出站帧（宿主 done/scriptError 与 realm 全部 `__emit` 帧——bootstrap 捕获的 `__send` 能力与宿主帧共用同一 `writeOutboundLine` 出口）写入 pipe 前检查 `stdout.writableLength`，超 16 MB 即触发硬闸：以 `ChildFrameLimitExceeded` scriptError 命名失败（该终态帧绕闸直写保证送达），其后**所有**出站帧一律丢弃（同步洪泛循环不 yield，冲刷回调拦不住循环，放行尾巴会无界积压到 V8 OOM），堆在越限点停止增长，队列排空后 exit(1)，且不再补发 done 帧（一次终态帧）——洪泛脚本有名失败而非 V8 OOM，尾巴洪泛（2000 帧 ≈1 GiB）同界（`child-main.ts`；realm 路径覆盖为 Issue #58 修复，此前 realm 帧绕过 `sendToParent` 直写 stdout，测试锁定 `tests/unit/dwf/dwf-child-outbound-budget.test.ts`）；
 - 沙箱堆上限默认 512 MB（`DEFAULT_SANDBOX_MAX_OLD_SPACE_MB`，可用环境变量覆盖）。
 
 ### 5.2 OS 层进程监管（`src/process-supervision.ts`）
