@@ -95,6 +95,13 @@ function sendToParent(frame: unknown): void {
 }
 
 const MAX_OUTBOUND_QUEUE_CHARS = 16 * 1024 * 1024;
+/**
+ * Single-frame budget, mirroring the parent pump's MAX_CHILD_FRAME_CHARS
+ * (frame-pump.ts, same strictly-greater trip): a frame over 16 MiB chars would
+ * be named-rejected by the parent anyway — terminating here keeps the failure
+ * named and stops the realm from stringifying/writing anything bigger.
+ */
+const MAX_SINGLE_FRAME_CHARS = 16 * 1024 * 1024;
 let outboundBudgetReported = false;
 
 /**
@@ -113,13 +120,20 @@ function writeOutboundLine(line: string): void {
   // the run is terminated synchronously below, so no further line should ever
   // arrive — any that does is dropped, never written unchecked.
   if (outboundBudgetReported) return;
-  // Outbound queue budget — the child-side twin of the parent's frame backlog
-  // budget (frame-pump.ts): a flooding script outpaces the pipe faster than the
-  // parent's backlog budget can see it, because the queued writes live in THIS
-  // heap and V8 OOMs before any parent-side defense fires on POSIX (no Job
-  // Object commit cap there — comp Issue #17, first Linux CI adversarial run).
-  if (process.stdout.writableLength > MAX_OUTBOUND_QUEUE_CHARS) {
+  // Outbound budgets — the child-side twins of the parent's frame budgets
+  // (frame-pump.ts): the queue budget catches a flooding script that outpaces
+  // the pipe (the queued writes live in THIS heap and V8 OOMs before any
+  // parent-side defense fires on POSIX — comp Issue #17, first Linux CI
+  // adversarial run); the single-frame budget catches one giant frame whose
+  // stringify survived the heap (round 3: the parent-side caps all sit after
+  // arrival, so without this the realm amplifies and OOMs before any gate).
+  const queueOver = process.stdout.writableLength > MAX_OUTBOUND_QUEUE_CHARS;
+  const frameOver = line.length > MAX_SINGLE_FRAME_CHARS;
+  if (queueOver || frameOver) {
     outboundBudgetReported = true;
+    const message = queueOver
+      ? `ChildFrameLimitExceeded: child outbound frame queue exceeds ${MAX_OUTBOUND_QUEUE_CHARS} chars`
+      : `ChildFrameLimitExceeded: child outbound single frame of ${line.length} chars exceeds the ${MAX_SINGLE_FRAME_CHARS}-char single-frame budget`;
     // Review round 2 (CI-proven, PR #59 gate run 43753392889 test 93): the
     // round-1 gate bounded the WRITE QUEUE but not the realm's own
     // allocations — the sync flood loop keeps materializing ~1 MB per log()
@@ -136,15 +150,31 @@ function writeOutboundLine(line: string): void {
     // in-flight stream frame; on a clean boundary it is an empty line the
     // pump skips. exitAfterFlush is deliberately NOT used — its drain waits
     // on event-loop turns the loop never yields.
+    const terminalFrame = '\n' + JSON.stringify({
+      t: 'scriptError',
+      message,
+      name: 'AgentError',
+    }) + '\n';
+    let delivered = false;
     try {
-      fs.writeSync(1, '\n' + JSON.stringify({
-        t: 'scriptError',
-        message: `ChildFrameLimitExceeded: child outbound frame queue exceeds ${MAX_OUTBOUND_QUEUE_CHARS} chars`,
-        name: 'AgentError',
-      }) + '\n');
+      delivered = fs.writeSync(1, terminalFrame) === Buffer.byteLength(terminalFrame);
     } catch {
-      // Parent gone (EPIPE) — the named frame cannot be delivered; the exit
-      // code below still reports the failure.
+      delivered = false;
+    }
+    if (!delivered) {
+      // Review round 3: fd 1 delivery can fail or land PARTIAL — libuv opens
+      // stdout non-blocking, so the write hits EAGAIN (the kernel pipe just
+      // filled: the very reason the queue reached its budget) or EPIPE (the
+      // parent is gone); a short write tears the frame. Swallowing that
+      // degrades the run to an unnamed "exited before finishing". Mirror the
+      // terminal frame to stderr: runner.ts:758 carries the child's stderr
+      // tail (last 800 chars, redacted) into the close error, so the failure
+      // stays named under any fd-1 delivery outcome.
+      try {
+        fs.writeSync(2, terminalFrame);
+      } catch {
+        // Nothing left to deliver to — the exit code below still reports it.
+      }
     }
     process.exit(1);
   }

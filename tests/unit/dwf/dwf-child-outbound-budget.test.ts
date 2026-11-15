@@ -56,15 +56,30 @@
  * because the 64/48-frame cases stay within 2× of the budget: it is the shape
  * that exposed the round-1 write-queue-only gate OOMing in the realm.
  *
- * PLATFORM SCOPE [probe-verified on win32, 2026-11-16, Node v26.13.0]: on
- * Windows, stdout pipe writes are SYNCHRONOUS (Node docs: "Pipes: synchronous
- * on Windows and Linux, asynchronous on macOS") — with a reading pump
- * writableLength stays 0 through a 32 MiB flood, and with a non-reading pipe
- * write() blocks instead of queueing; `stdio: 'overlapped'` behaves the same,
- * and a TCP socket is rejected as stdio (spawn ENOTSUP). The child queue can
- * therefore never accumulate on win32 and the flood legitimately completes
- * there — the tests are skipped on win32 and exercised by the ubuntu-latest
- * CI.
+ * Round 3 additions: the single-frame and log-source gates are
+ * transport-independent (they read the line/message length, not the queue), so
+ * their cases run on BOTH platforms — on win32 they are the only locally
+ * executable evidence for this suite. The log-source gate (child-bootstrap
+ * __host.log, checked BEFORE __call's __emit stringifies) throws synchronously
+ * into the script so a giant message cannot double in the stringify; the
+ * single-frame gate (writeOutboundLine, mirroring frame-pump's
+ * MAX_CHILD_FRAME_CHARS) catches any op whose wire frame still exceeds
+ * 16 MiB chars. The under-budget positive case (30 × 512 KiB ≈ 15.7 MiB <
+ * 16 MiB) pins that legitimate output is never killed: on POSIX the whole
+ * burst queues under the budget, on win32 it flows — both must complete.
+ *
+ * PLATFORM SCOPE [probe-verified on win32, 2026-11-16, local Node v26.13.0;
+ * engines >=22, CI runs 22.23.4 — the conclusion rests on stdout pipe write
+ * semantics, identical across these runtimes]: on Windows, stdout pipe writes
+ * are SYNCHRONOUS (Node docs: "Pipes: synchronous on Windows and Linux,
+ * asynchronous on macOS") — with a reading pump writableLength stays 0 through
+ * a 32 MiB flood, and with a non-reading pipe write() blocks instead of
+ * queueing; `stdio: 'overlapped'` behaves the same, and a TCP socket is
+ * rejected as stdio (spawn ENOTSUP). The child QUEUE can therefore never
+ * accumulate on win32 and a queue-shaped flood legitimately completes there —
+ * the three queue-shaped cases are skipped on win32 and exercised by the
+ * ubuntu-latest CI. The single-frame / log-source / under-budget cases below
+ * read lengths, not the queue, and run on both platforms.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -108,6 +123,29 @@ const LOG_TAIL_FLOOD_SCRIPT = [
   '  log("F".repeat(512 * 1024));',
   '}',
   'return { flooded: "log-tail" };',
+].join('\n');
+
+/** One giant log message: caught by the bootstrap __host.log source gate BEFORE __emit stringifies it (round 3). */
+const SINGLE_GIANT_LOG_SCRIPT = [
+  'phase("P1");',
+  'log("F".repeat(17 * 1024 * 1024));',
+  'return { flooded: "giant-log" };',
+].join('\n');
+
+/** One giant report item: stringify survives the heap, the writeOutboundLine single-frame budget terminates (round 3). */
+const SINGLE_GIANT_REPORT_SCRIPT = [
+  'phase("P1");',
+  'report({ blob: "F".repeat(17 * 1024 * 1024) });',
+  'return { flooded: "giant-report" };',
+].join('\n');
+
+/** 30 x 512 KiB ≈ 15.7 MiB < 16 MiB: legitimate output the gates must NEVER kill (round 3 positive case). */
+const UNDER_BUDGET_SCRIPT = [
+  'phase("P1");',
+  'for (let i = 0; i < 30; i++) {',
+  '  log("F".repeat(512 * 1024));',
+  '}',
+  'return { flooded: "under-budget" };',
 ].join('\n');
 
 interface RunOutcome {
@@ -192,4 +230,36 @@ test('a ~1 GiB log tail flood (2000 frames) is still a named failure: the child 
   // realm's own allocations toward a V8 OOM (the round-1 CI failure shape).
   assert.ok(r.logCount <= 33, `only pre-breach frames may reach the parent: ${r.logCount}`);
   assert.ok(r.wallMs < 45_000, `wall=${r.wallMs}ms — must fail fast, not hang or OOM`);
+});
+
+test('a single giant log message is named-rejected by the source gate before the stringify doubling (round 3; transport-independent — runs on win32 too)', { timeout: 60_000 }, async () => {
+  const r = await runFlood(SINGLE_GIANT_LOG_SCRIPT);
+  assert.equal(r.status, 'failed', `expected named failure, got ${r.status}: ${r.error ?? ''}`);
+  assert.match(r.error ?? '', /ChildFrameLimitExceeded/);
+  // The bootstrap __host.log source gate message — the frame was never
+  // stringified, so the queue/single-frame budget messages cannot appear.
+  assert.match(r.error ?? '', /log message is \d+ chars, over the 16777216-char single-frame cap/);
+  assert.equal(r.value, undefined, `no done value may be reported: ${JSON.stringify(r.value)}`);
+  assert.ok(r.wallMs < 45_000, `wall=${r.wallMs}ms — must fail fast, not hang or OOM`);
+});
+
+test('a single giant report frame is named-rejected by the child-side single-frame budget (round 3; transport-independent — runs on win32 too)', { timeout: 60_000 }, async () => {
+  const r = await runFlood(SINGLE_GIANT_REPORT_SCRIPT);
+  assert.equal(r.status, 'failed', `expected named failure, got ${r.status}: ${r.error ?? ''}`);
+  assert.match(r.error ?? '', /ChildFrameLimitExceeded/);
+  // The writeOutboundLine single-frame budget message — mirrors the parent
+  // pump's single-frame gate shape, fires before the parent sees the frame.
+  assert.match(r.error ?? '', /child outbound single frame of \d+ chars exceeds the 16777216-char single-frame budget/);
+  assert.equal(r.value, undefined, `no done value may be reported: ${JSON.stringify(r.value)}`);
+  assert.ok(r.wallMs < 45_000, `wall=${r.wallMs}ms — must fail fast, not hang or OOM`);
+});
+
+test('an under-budget log burst (30 x 512 KiB ≈ 15.7 MiB < 16 MiB) completes normally — legitimate output is never killed (round 3 positive case)', { timeout: 60_000 }, async () => {
+  const r = await runFlood(UNDER_BUDGET_SCRIPT);
+  assert.equal(r.status, 'completed', `under-budget output must complete, got ${r.status}: ${r.error ?? ''}`);
+  assert.deepEqual(r.value, { flooded: 'under-budget' });
+  // All 30 frames journaled: on POSIX they queue under the budget and drain
+  // before exitAfterFlush(0), on win32 they flow — no gate may fire here.
+  assert.equal(r.logCount, 30);
+  assert.ok(r.wallMs < 45_000, `wall=${r.wallMs}ms — must complete fast`);
 });
