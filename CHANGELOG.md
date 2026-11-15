@@ -1,5 +1,33 @@
 # Changelog
 
+## 2.4.1 (2026-11-15) — two-repo sync audit closeout, version housekeeping
+
+Housekeeping release. The upstream-sync request for this cycle resolved to a **zero-delta
+audit**: the only new private-repo commit since the v2.4.0 alignment point (`78e3b43`) is
+`755ae80` (private #282/#283) — itself a patch-port of THIS repo's v2.1.1 round-2 batch
+(`5c08923`) and the v2.4.0 Studio boot-script fix back into the private repo, so every
+engine file it touched was already byte-identical here. A full-tree blob-hash audit
+against the private repo at `78ac366` (441 tracked paths) confirmed parity: 397 paths
+byte-identical, 18 diffs are the documented per-repo divergences (this side current or
+richer: CI-restored governance locks, `apps/` layout, judge-facing docs, demo command,
+e2e 121 vs 90), and the 26 private-only paths are layout pairings (`templates/*` ↔
+`basic-workflow/` / `src/cli/scaffolding/multi-agent/`, `tests/pbt/` ↔ `.kiro/pbt/`,
+`demos/capabilities-tour/` ↔ `apps/capabilities-tour/`) or deliberate exclusions
+(`examples/goal-e2e/` removed in S1, machine-local `.zcode/`). Nothing to migrate.
+
+Also riding since v2.4.0: P-SHELL-1 records its 6th instance — a gate block masked by
+`&&` chaining let a merge proceed past the review-gate cooling window (#11/#12).
+
+The gates for this release also surfaced a third instance of the cross-worktree shared
+`node_modules` resolution skew (P-ENV-3): a junction into the main checkout pointed
+`ai-workflow` imports at the main checkout's stale v2.3.0 `dist`, producing a fake-green
+unit fingerprint and 0-step demo runs; fresh `npm ci` per worktree (postinstall self-link)
+is the supported isolation. Instance appended to `docs/AI-PITFALLS.md` P-ENV-3.
+
+Full gates on this machine (Node v26.13.0, fresh `npm ci` worktree): npm test 770/770
+(unit 563 + integration 207), e2e 118/118, adversarial 158/158, PBT 16/16, governance
+34/34.
+
 ## 2.4.0 (2026-11-15) — Antigravity primitives absorption, unawaited-promise sentry, affectUI adaptive cards
 
 Feature sync from the upstream engine line (`c7d4b77..78e3b43`, patch-ported per the
