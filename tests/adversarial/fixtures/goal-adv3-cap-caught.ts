@@ -17,14 +17,20 @@ let capped = false;
 let capName = '';
 let capMessage = '';
 for (let round = 0; round < 20 && !capped; round++) {
-  try {
-    await Promise.all(agents.map((a) => a.ask('round ' + round + ' ping')));
-    answered += agents.length;
-  } catch (err) {
-    const e = err as { name?: unknown; message?: unknown };
+  // Issue #29（Linux CI 取证）：原 Promise.all 早退拒绝 —— round 内 ask #1001 先拒绝时，
+  // 其余 63 个在途请求被结构性抛下（未观察、未 await），脚本随即 return，子进程的
+  // 「未 await 门」逮个正着。该竞态被平台时序掩盖：Windows 上 mock 回复聚成一批、
+  // 全部送达后才走到检查（恒过），Linux 上 err 先到、脚本先行（恒炸）。
+  // allSettled 观察每一个 ask —— 满足引擎的严格 await 契约，cap 检测语义不变。
+  const results = await Promise.allSettled(agents.map((a) => a.ask('round ' + round + ' ping')));
+  const rejected = results.find((r) => r.status === 'rejected');
+  if (rejected) {
+    const e = (rejected as PromiseRejectedResult).reason as { name?: unknown; message?: unknown };
     capped = true;
     capName = typeof e?.name === 'string' ? e.name : '';
-    capMessage = typeof e?.message === 'string' ? e.message : String(err);
+    capMessage = typeof e?.message === 'string' ? e.message : String(e ?? rejected.reason);
+  } else {
+    answered += agents.length;
   }
 }
 return { answered, capped, capName, capMessage };
