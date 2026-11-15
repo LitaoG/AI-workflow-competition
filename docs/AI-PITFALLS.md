@@ -186,8 +186,9 @@
 - 代价：demo 内 `import 'ai-workflow'` 经共享 `node_modules/ai-workflow` 解析到**别的 checkout 的引擎版本**——被测代码与被导入代码版本错位，测试结果不可信；bisect 每步都在错位状态下跑，结论全部报废重做。
 - 根因：worktree 用目录联接共享主仓 `node_modules`（省 install 时间），而 `scripts/link-self.mjs` 产出的自链是**物理目录项**——任一 worktree 执行 link-self 都会改写共享区的指向，且其幂等逻辑「链接已存在即跳过」使复位必须先 rmdir 再跑。
 - 正确做法：① 多 worktree 并行验证期，每个 worktree 跑门禁前先 `cmd /c rmdir node_modules\ai-workflow && node scripts/link-self.mjs` 对齐自己；② bisect 脚本**每步**重置自链；③ 验证结束后复位主仓指向；④ 终极解是各 worktree 真实 `npm install`（MISSION-Y 教训）或 link-self 支持 per-worktree 隔离。
-- 门禁：无机械门禁（待补）；本条目即防线。
+- 门禁：`tests/unit/workflow-governance.test.ts`（Tier 2，Issue #15：WORKFLOW.md 不得含 `mklink /J` 联接建议、必须含 per-worktree `npm.cmd ci` 指引、P-ENV-3 第 3 例与状态更新必须在册）。已修 + 门禁（随 Issue #15 分支合入生效）。
 - 原位置：Issue #169/#174 实施过程、`scripts/link-self.mjs`。
+- **状态更新（2026-11-15，Issue #15，只增不删）**：触发器已移除——`docs/WORKFLOW.md` §2.1 的目录联接建议已改写为「每个 worktree 独立 `npm.cmd ci`（postinstall 自链 + 离线 SDK 桩）」，正确做法④自此成为官方文档指定姿势，门禁由「待补」转正为治理反向锁死。私有仓 `docs/WORKFLOW.md` §2.1 同款联接建议**尚未修订**，待回流。
 
 #### P-GIT-2 stash 编号是全仓命名空间——跨 worktree `git stash drop stash@{0}` 误删他人 WIP
 - 复发性：G2 单次高代价

@@ -392,6 +392,25 @@ describe('Workflow & Governance Specification Suite Invariant Locks', () => {
     assert.ok(pitfallsMd.includes('P-ENV-4'), 'docs/AI-PITFALLS.md must contain P-ENV-4');
   });
 
+  test('Tier 2: WORKFLOW.md must prescribe per-worktree npm ci and forbid node_modules junction sharing (P-ENV-3, Issue #15)', () => {
+    const workflowMd = fs.readFileSync(path.join(REPO_ROOT, 'docs/WORKFLOW.md'), 'utf-8');
+
+    assert.ok(
+      !workflowMd.includes('mklink /J'),
+      'docs/WORKFLOW.md must NOT recommend node_modules junction sharing: the shared node_modules/ai-workflow ' +
+      'self-link resolves imports to another checkout dist (version skew, fake-green fingerprints — P-ENV-3)',
+    );
+    assert.ok(
+      workflowMd.includes('npm.cmd ci'),
+      'docs/WORKFLOW.md must prescribe per-worktree "npm.cmd ci" (postinstall self-link + fixture bootstrap)',
+    );
+    const pitfallsMd = fs.readFileSync(path.join(REPO_ROOT, 'docs/AI-PITFALLS.md'), 'utf-8');
+    assert.ok(
+      pitfallsMd.includes('P-ENV-3') && pitfallsMd.includes('2026-11-15，Issue #15'),
+      'docs/AI-PITFALLS.md P-ENV-3 must record the 3rd instance and its status update (trigger removed)',
+    );
+  });
+
   test('Tier 3: PR Review Gate script functionality - checkIssueLinkage', () => {
     // Valid: Closes #18
     const r1 = checkIssueLinkage('Fixes the bug.\n\nCloses #18');
