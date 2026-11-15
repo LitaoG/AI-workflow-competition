@@ -1,5 +1,4 @@
 import test from 'node:test';
-import * as assert from 'node:assert';
 import * as path from 'node:path';
 import { runCLI } from '../helpers/cli.ts';
 import { createTempDir, cleanupTempDir, writeTempFile } from '../helpers/env.ts';
@@ -30,10 +29,18 @@ export default {
     const wfPath = writeTempFile(tempDir, 'broken-gate.ts', brokenWf);
     const outputDir = path.join(tempDir, 'run-01');
     const res = runCLI(['run', wfPath, '--mock', '--output-dir', outputDir]);
-    assert.ok(res.exitCode === 0 || res.exitCode === 1);
+    // Probed via bin/workflow.js (Issue #23): a gate step returning
+    // passed:false is not treated as a run failure by the mock engine path —
+    // the workflow completes predictably with exit code 0, no crash.
+    assertExitCode(res, 0);
   });
 
-  await t.test('T2_F8_02: Dangerous destructive commands (DROP TABLE, rm -rf) blocked by safety policies', () => {
+  // Renamed (Issue #23, 2026-11-15): the old name promised the destructive
+  // command would be "blocked by safety policies", but the engine core run
+  // path has no destructive-command safety-policy layer (grep of src/
+  // confirms) — probed via bin/workflow.js, the payload passes through and
+  // the run completes with exit code 0. Real behavior asserted.
+  await t.test('T2_F8_02: Destructive command payload (DROP TABLE) passes through the mock run without crash', () => {
     const dangerousWf = `
 export default {
   name: "dangerous-remediation",
@@ -48,7 +55,7 @@ export default {
     const wfPath = writeTempFile(tempDir, 'dangerous.ts', dangerousWf);
     const outputDir = path.join(tempDir, 'run-02');
     const res = runCLI(['run', wfPath, '--mock', '--output-dir', outputDir]);
-    assert.ok(res.exitCode === 0 || res.exitCode === 1);
+    assertExitCode(res, 0);
   });
 
   await t.test('T2_F8_03: Low severity P3 incident triage produces lightweight post-mortem', () => {
