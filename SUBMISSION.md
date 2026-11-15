@@ -89,13 +89,25 @@ All run 2026-11-15, Node v26.13.0, from a **fresh build** (fresh-build numbers a
 clone reproduces — full context in [README](README.md#reproducible-quality-gate-fingerprints)):
 
 ```text
-npm test                                            → 807 tests, 807 pass, 0 fail
+npm test                                            → 810 tests, 810 pass, 0 fail
 npm run test:pbt                                    →  16 tests,  16 pass, 0 fail
 node --experimental-strip-types tests/e2e/runner.ts → 118/118 passed
 npm run test:adversarial                            → 202 tests, 202 pass, 0 fail
-npm run test:governance                             →  37 tests,  37 pass, 0 fail
+npm run test:governance                             →  38 tests,  38 pass, 0 fail
 bash scripts/demo.sh                                → exit 0, all nine acts OK
 ```
+
+### Cross-engine benchmark (measured)
+
+The identical facade mission script was also run against **both** the official ZCode
+dynamic-workflow engine and ours, on the same scripted fake model (zero network, zero API keys).
+Measured highlights (2 runs each, Windows, Node v26.13.0): mission wall time 167.271/155.256 ms
+(official) vs 168.833/154.248 ms (ours); warm compile 51.072 vs **7.206 ms**; peak heapUsed
+100.18 vs **40.54 MB**; peak RSS 235.88 vs **147.7 MB**; determinism holds on both sides
+(byte-identical settle/event sequences; same normalized settle order across engines, 12 = 12).
+Full analysis:
+[`docs/research/BILATERAL-CROSS-BENCHMARK-REPORT.md`](docs/research/BILATERAL-CROSS-BENCHMARK-REPORT.md) ·
+raw measurements: [`tests/cross-engine/results/`](tests/cross-engine/results/).
 
 ---
 
@@ -132,6 +144,7 @@ exactly that:
 | One reusable code foundation | the skeleton both import: `src/dwf/` compiler + sandbox + journal, `bin/` CLI, MCP server — zero shared demo logic between the two applications |
 
 **Docs** — [README](README.md) (full feature/architecture tour) ·
+[Quickstart (60-second tour)](QUICKSTART.md) ·
 [Architecture](docs/ARCHITECTURE.md) · [Integration guide](docs/INTEGRATION.md) ·
 [Kiro integration](docs/KIRO_INTEGRATION.md) · [Showcase page](docs/showcase.html)
 (single-file dark-theme product page: pitch, failure-mode fixes, architecture SVG, captured demo

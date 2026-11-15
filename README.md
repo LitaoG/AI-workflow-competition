@@ -132,11 +132,11 @@ All run on this machine, 2026-11-15 (Node v26.13.0), from a **fresh build** (a s
 double-count one moved test file — the fresh-build numbers below are what a judge clone reproduces):
 
 ```text
-npm test                                          → 807 tests, 807 pass, 0 fail
+npm test                                          → 810 tests, 810 pass, 0 fail
 node --experimental-strip-types tests/e2e/runner.ts → 118/118 passed (4 tiers)
 npm run test:adversarial                          → 202 tests, 202 pass, 0 fail
 npm run test:pbt                                  →  16 tests,  16 pass, 0 fail
-npm run test:governance                           →  37 tests,  37 pass, 0 fail
+npm run test:governance                           →  38 tests,  38 pass, 0 fail
 bash scripts/demo.sh                              → exit 0, all nine acts OK
 ```
 
@@ -144,6 +144,27 @@ Both demo applications also run standalone (offline mock mode, `--lang zh` for C
 presentation) — see their READMEs:
 [`incident-triage-remediation`](apps/incident-triage-remediation/README.md) ·
 [`repo-migration-engine`](apps/repo-migration-engine/README.md).
+
+### Cross-engine benchmark: same script, both engines
+
+We also ran a **bilateral cross-engine benchmark** — the identical facade mission script
+(planner → 4-way fan-out → verifier self-heal → report) executed on both our engine (`src/dwf`)
+and the official ZCode dynamic-workflow engine, on the same scripted fake model (zero network,
+zero API keys). Measured highlights (2 runs each, Windows, Node v26.13.0):
+
+| Metric | Official ZCode engine | AI-Workflow (`src/dwf`) |
+| --- | :---: | :---: |
+| Mission run wall time (run 1 / run 2) | 167.271 / 155.256 ms | 168.833 / 154.248 ms |
+| Cold compile | **66.444 ms** | 211.506 ms (honest gap, attribution open) |
+| Warm compile mean | 51.072 ms | **7.206 ms** (7.1× faster) |
+| Peak heapUsed | 100.18 MB | **40.54 MB** (−59.5%) |
+| Peak RSS | 235.88 MB | **147.7 MB** (−37.4%) |
+
+Determinism holds on both sides — settle/event-type sequences are byte-identical across the two
+runs on each engine, and the two independent schedulers converge on the same normalized settle
+order (12 = 12). Full analysis:
+[`docs/research/BILATERAL-CROSS-BENCHMARK-REPORT.md`](docs/research/BILATERAL-CROSS-BENCHMARK-REPORT.md) ·
+raw measurements: [`tests/cross-engine/results/`](tests/cross-engine/results/).
 
 ---
 
@@ -178,7 +199,7 @@ And the namesake: the **Skeleton Crew roster** (`.kiro/crew/`) — `Conductor`, 
 
 | Kiroween 2026 dimension | Where this repo scores |
 | --- | --- |
-| **Potential Impact** | The four failure modes above are endemic to every multi-agent deployment; zero-token replay turns workflow iteration economics from "re-bill everything" into "bill only the diff" |
+| **Potential Impact** | The four failure modes above are endemic to every multi-agent deployment; zero-token replay turns workflow iteration economics from "re-bill everything" into "bill only the diff" — and composed `workflow()` subtrees are covered too: re-entry imports the prior child journal per call site and replays the subtree at zero provider calls (Issue #35, fixed; only pre-#35 child runs without site stamps fall back to a live run) |
 | **Technological Implementation** | Compile-time purity bans, a real sandbox (child process + `node:vm`, process supervision), SQLite WAL journal with hash-verified replay, PBT-proven invariants |
 | **Design** | Journal-rendered interactive HTML reports, cubic-Bézier DAG canvases, live Kanban tracking — presentation generated from evidence, not hand-made |
 | **Innovation** | Amend lineage (`♻` reuse / `⑂` diverge), mid-run hole growth, human escalation with zero-cost resume, hard budget enforcement |
@@ -201,8 +222,9 @@ Implementation, Design, Innovation, and Presentation.
    one high advisory (GHSA-mrhx-c7xc-m3w5 in `zod` 3.25.76) is **fixed**: the runtime dependency
    now pins `zod` **4.6.7** (the official fix version), migrated in a worktree and verified by a
    journalled facade-script gate pipeline (tsc, 695 unit/integration, 121 E2E, 158 adversarial,
-   16 PBT, nine-act demo, `npm audit --omit=dev` → 0). `npm audit` now reports 4 moderate
-   advisories, all in dev dependencies.
+   16 PBT, nine-act demo, `npm audit --omit=dev` → 0 — these counts are the values as measured on
+   2026-11-14 during the migration; the current gate counts are the fingerprints above).
+   `npm audit` now reports 4 moderate advisories, all in dev dependencies.
 4. **Zero private data leakage.** All demo scenarios, telemetry and fixtures are synthetic; every
    demo and test runs offline in mock mode with zero API keys; environment probing redacts
    credentials (`AKIA…`, JWTs → `***REDACTED***`, enforced by a PBT invariant). No private keys,
@@ -223,6 +245,7 @@ dynamic-workflow design that inspired this engine; and to the open-source projec
 
 ---
 
-**Further reading** — [Judge navigator & pitch](SUBMISSION.md) ·
+**Further reading** — [Quickstart (60-second tour)](QUICKSTART.md) ·
+[Judge navigator & pitch](SUBMISSION.md) ·
 [Kiro integration & compliance](docs/KIRO_INTEGRATION.md) · [Architecture](docs/ARCHITECTURE.md) ·
 [Integration guide](docs/INTEGRATION.md) · [Showcase page](docs/showcase.html)

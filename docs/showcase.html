@@ -37,7 +37,7 @@
 <h1>AI<span class="accent">-</span>Workflow</h1>
 <p class="tagline">A deterministic dynamic-workflow engine — the plan lives in <b>compiled code</b>, not in one agent's context window.</p>
 <div class="badges">
-  <span>Apache-2.0</span><span>Node 22+</span><span>zero runtime deps</span><span>201 tests green</span><span>MCP native</span><span>offline demo &lt;4s</span>
+  <span>Apache-2.0</span><span>Node 22+</span><span>zero runtime deps</span><span>810+ tests green</span><span>MCP native</span><span>offline demo, no network</span>
 </div>
 
 <h2>The three agentic failure modes — structurally fixed</h2>
@@ -107,12 +107,12 @@ live event stream are generated evidence, not hand-made dashboards:</p>
 </div>
 
 <h2>Reproducible evidence</h2>
-<pre><span class="c">$ npm test</span>                <span class="ok"># tests 201 · pass 201 · fail 0</span>
-<span class="c">$ npm run test:pbt</span>        <span class="ok"># tests 5 · pass 5 · fail 0</span>
-<span class="c">$ tests/e2e/runner.ts</span>     <span class="ok"># 121/121 passed · 100%</span>
-<span class="c">$ governance test</span>         <span class="ok"># tests 17 · pass 17 · fail 0</span>
-<span class="c">$ bash scripts/demo.sh</span>    <span class="ok"># exit 0 · offline · &lt;4s</span></pre>
-<p class="dim" style="margin-top:-.5rem">Fingerprints from 2026-11-01 on the merged main line. Every number reproducible with the commands shown.</p>
+<pre><span class="c">$ npm test</span>                <span class="ok"># tests 810 · pass 810 · fail 0</span>
+<span class="c">$ npm run test:pbt</span>        <span class="ok"># tests 16 · pass 16 · fail 0</span>
+<span class="c">$ tests/e2e/runner.ts</span>     <span class="ok"># 118/118 passed · 100%</span>
+<span class="c">$ governance test</span>         <span class="ok"># tests 38 · pass 38 · fail 0</span>
+<span class="c">$ bash scripts/demo.sh</span>    <span class="ok"># exit 0 · offline · ~42s</span></pre>
+<p class="dim" style="margin-top:-.5rem">Test fingerprints from 2026-11-15 on the merged main line (fresh <code>npm ci</code> + build); demo duration measured 2026-11-03. Every number reproducible with the commands shown.</p>
 
 <h2>Try it</h2>
 <pre><span class="c"># the 60-second tour</span>
@@ -123,7 +123,7 @@ node bin/workflow.js serve &lt;runId&gt;      <span class="c"># → http://127.0
 <div class="footer">
   AI-Workflow — Apache-2.0 · <a href="https://github.com/LitaoG/AI-workflow-competition">github.com/LitaoG/AI-workflow-competition</a> ·
   judge navigator: <a href="../SUBMISSION.md">SUBMISSION.md</a> · integration: <a href="./INTEGRATION.md">docs/INTEGRATION.md</a>
-  · page generated 2026-11-01
+  · page generated 2026-11-15
 </div>
 </div>
 </body>

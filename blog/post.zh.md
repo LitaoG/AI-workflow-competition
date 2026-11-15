@@ -352,29 +352,39 @@ Phase 4: 编译与合并门禁                                   Phase 5: 发布
 
 ### 实证基准评测数据表
 
-为了客观衡量 AI-Workflow 相比传统对话式 Agent 框架的巨大优势，我们进行了跨维度基准评测：
+为了用真实、独立的基线（而非虚构对照）衡量 AI-Workflow，我们进行了一次**双向跨界引擎对标**：
+让*同一份* facade 任务脚本（planner → 4 路扇出 → verifier 自愈 → report）同时跑在我方引擎
+（`src/dwf`）与官方 ZCode dynamic-workflow 引擎上，共用同一套脚本化桩模型——零网络调用、
+零 API 密钥。下表每一个数字都逐字引自原始实测文件
+（[我方](../tests/cross-engine/results/ours-cross-benchmark.json) ·
+[官方](../tests/cross-engine/results/official-cross-benchmark.json)），完整分析见
+[`docs/research/BILATERAL-CROSS-BENCHMARK-REPORT.md`](../docs/research/BILATERAL-CROSS-BENCHMARK-REPORT.md)。
 
-#### 表 1：Token 消耗与成本效益对比
-*在相同 5 阶段代码重构任务下进行 10 轮测试的均值数据。*
+#### 表 1：跨引擎编译与运行效率对比（实测，双侧各 2 轮）
+*同一任务脚本、同一桩模型；Windows，Node v26.13.0。数据来源：上述两份 JSON（字段 `compile`、`runs[].wallMs`、`memory`、`crossCompare`）。*
 
-| 评测指标 | 传统对话式 Agent 聊天循环 | AI-Workflow 动态工作流引擎 | 性能提升幅度 |
-|---|:---:|:---:|:---:|
-| **初次执行 Prompt Tokens** | 48,250 | 9,840 | **减少 79.6%** |
-| **初次执行 Output Tokens** | 6,420 | 1,850 | **减少 71.2%** |
-| **平均交互轮次** | 14.8 轮对话 | 5 个编译型阶段 | **精简 66.2% 交互** |
-| **语法解析与模式报错数** | 3.2 次/轮 | 0 次 (自愈重试吸收) | **100% 根除外部崩溃** |
-| **离线 Mock 执行耗时** | 不支持 (必须在线) | 1.82 秒 | **确定性毫秒级响应** |
+| 评测指标 | 官方 ZCode 引擎 | AI-Workflow（`src/dwf`） | 解读 |
+|---|:---:|:---:|---|
+| **任务运行墙钟时间** | 167.271 / 155.256 ms | 168.833 / 154.248 ms | 差距 ±1% 内——任务级持平 |
+| **冷编译** | **66.444 ms** | 211.506 ms | 官方快 3.2×（根因尚未归因——如实差距） |
+| **温编译均值** | 51.072 ms | **7.206 ms** | 我方快 7.1×（跨调用编译缓存） |
+| **峰值 heapUsed** | 100.18 MB | **40.54 MB** | 降低 59.5% |
+| **峰值 RSS** | 235.88 MB | **147.7 MB** | 降低 37.4% |
+| **确定性（run 1 vs run 2）** | settle + 事件类型序列逐条一致 | settle + 事件类型序列逐条一致 | 双引擎均可确定性重放 |
+| **跨引擎结算顺序** | 12 次 ask | 12 次 ask，归一化后结构相等 | 两套独立调度器收敛到同一首生序 |
 
-#### 表 2：异常中断与零 Token 续跑基准
-*模拟在代码重构任务的第 4 步遭遇网络中断并进行恢复。*
+#### 表 2：中断续跑与自愈机制对比（实测）
+*hole 挂起-补全与 schema 修复均经各引擎真实管线探测；数据来源与表 1 相同的两份 JSON（字段 `hole`、`repairNudge`）。*
 
-| 评测对象 | 故障恢复策略 | 重放阶段 Token 消耗 | 恢复恢复耗时 | 决策发散风险 |
-|---|---|:---:|:---:|:---:|
-| **传统对话式框架** | 从第 1 步重新发起全部对话 | 54,670 tokens | 145 秒 | 极高 (概率性随机变化) |
-| **AI-Workflow 引擎** | `--resume-from-failed` 续跑 | **0 tokens (第 1-3 步)** | **0.34 秒** | **严格为 0 (快照直载)** |
+| 机制 | 官方 ZCode 引擎 | AI-Workflow（`src/dwf`） | 解读 |
+|---|---|---|---|
+| **已完成节点重放** | journal 重放 | `--resume` / `--amend`：未变节点从 SQLite journal 短路命中——**零 provider 调用** | 即演示 Act 3 打印的 `⚡ replayed from journal (0 provider calls)` |
+| **hole 挂起 → 补全** | 进程内 payload 换装，**0.635 ms**，无 journal 行 | `workflow fill` fork 出 amend 运行；未变节点从 journal 零成本重放——411.455 ms，谱系可追溯 | 两族不同定位的机制：内存瞬时补全 vs 崩溃可恢复的谱系化修订——不可直接比快慢 |
+| **Schema 修复** | 2 轮（typed-ask 提交校验）——92.899 ms | 2 轮（单个 journalled ask 节点内）——1.683 ms | 双方收敛到逐字相同的终值 `{pass: true, risk: "low"}` |
+| **turn 结束提醒（nudge）** | 1 次提醒预算（`NUDGE_ATTEMPTS=1`） | 我方暂无对应机制 | 如实差距，已在对标报告中留痕 |
 
-#### 表 3：4 层黑盒 E2E 端到端测试套件表现 (TEST_READY.md)
-*在 Node.js 22 LTS 环境中通过 `--experimental-strip-types` 运行。*
+#### 表 3：4 层黑盒 E2E 端到端测试套件表现（2026-10-31 实测）
+*在 Node.js 22 LTS 环境中通过 `--experimental-strip-types` 运行。数据出处：[初始发布提交时的 `TEST_READY.md`](https://github.com/LitaoG/AI-workflow-competition/blob/a86554b/TEST_READY.md)——该文件后来在文档清扫中移出仓库树，此处数字即其 2026-10-31 记录的实测值；测试套件此后有调整，当前门禁为 118/118（指纹见 [README](../README.md)）。*
 
 | 测试分层 | 验证范围 | 计划用例数 | 实际执行 | 通过数 | 通过率 | 累计耗时 |
 |---|---|:---:|:---:|:---:|:---:|:---:|
