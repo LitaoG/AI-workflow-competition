@@ -213,6 +213,19 @@ export const BOOTSTRAP = `"use strict";
     // lower.ts emits __host.log("log#N", message) / __host.report("report#N", item) —
     // the first parameter is the journal siteId, the second is the real payload.
     log: function (siteId, message) {
+      // Issue #58 round 3: single-frame source cap, checked BEFORE __call's
+      // __emit stringifies the frame — a giant log message would otherwise
+      // double in the stringify (source + wire copy) and V8-OOM the child heap
+      // before any budget gate sees a line. Throwing HERE (not rejecting:
+      // __call's promise executor would swallow the throw into a
+      // fire-and-forget rejection and the flood loop would continue) unwinds
+      // the script's own stack synchronously, so the loop stops and main's
+      // catch delivers the named scriptError. Mirrors the parent engine's
+      // log boundary cap (engine.ts BOUNDARY_PAYLOAD_CAP_CHARS); non-string
+      // messages and other ops remain covered by the writeOutboundLine gates.
+      if (typeof message === 'string' && message.length > 16777216) {
+        throw __tagged('AgentError', 'ChildFrameLimitExceeded: log message is ' + message.length + ' chars, over the 16777216-char single-frame cap', { errorName: 'ChildFrameLimitExceeded' });
+      }
       return __call('log', siteId, [message]);
     },
     report: function (siteId, item, artifactId) {

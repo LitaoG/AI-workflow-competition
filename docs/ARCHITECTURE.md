@@ -218,6 +218,7 @@ flowchart TB
 
 **协议与资源防线**（`src/dwf/protocol.ts`、`runner.ts`、`engine.ts`）：
 - NDJSON 帧预算：单帧 16 MB、分帧缓冲 32 MB（`MAX_CHILD_FRAME_CHARS`/`MAX_CHILD_FRAME_BUFFER_CHARS`），泵按每事件循环 tick 512 行让出（`CHILD_FRAME_LINES_PER_TICK`）；不可解析帧计数上报（`dwf_frame_malformed`），撕裂/垃圾绝不静默丢弃；
+- 子端出站预算（队列 + 单帧，`child-main.ts` `writeOutboundLine` 唯一咽喉点）：子进程每条出站帧（宿主 done/scriptError 与 realm 全部 `__emit` 帧——bootstrap 捕获的 `__send` 能力与宿主帧共用同一出口）写入 pipe 前检查 `stdout.writableLength`（>16 MB 队列预算）与**单帧行长**（>16 MB 单帧预算，镜像父端 `frame-pump.ts` `MAX_CHILD_FRAME_CHARS`），任一越限即**当场同步终止脚本**：终态 `ChildFrameLimitExceeded` scriptError 帧经 fd 1 直写落内核（前导换行兜住在途撕裂帧）后立即 exit(1)，流队列中已排队的洪泛帧随流丢弃、realm 侧同步洪泛循环当场打断；fd 1 投递失败或部分写（libuv 非阻塞写可 EAGAIN——内核管道恰好刚满，或 EPIPE）时终态帧镜像写 fd 2，`runner.ts` close 路径把 stderr 尾 800 字带进错误文本，失败在任何投递结局下都有名。仅约束写队列不够（CI 实测：2000 帧 ≈1 GiB 洪泛在 realm 的 JSON.stringify 处 V8 OOM——不 yield 的循环里写完成回调拦不住、经 `__call` promise executor 向 realm 抛错也只拒绝对应的 fire-and-forget promise），巨帧的序列化放大另由 bootstrap `__host.log` 源串预闸前置拦截（>16 MB 同步 throw 展开脚本循环，`__emit` stringify 不再发生），且不再补发 done 帧（一次终态帧）；realm 路径覆盖为 Issue #58 修复，此前 realm 帧绕过 `sendToParent` 直写 stdout，测试锁定 `tests/unit/dwf/dwf-child-outbound-budget.test.ts`（含 15.7 MB 正例：合法输出永不误杀）；
 - 沙箱堆上限默认 512 MB（`DEFAULT_SANDBOX_MAX_OLD_SPACE_MB`，可用环境变量覆盖）。
 
 ### 5.2 OS 层进程监管（`src/process-supervision.ts`）

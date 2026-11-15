@@ -2,6 +2,42 @@
 
 ## Unreleased
 
+- **dwf (child outbound frame budget covers the realm path, Issue #58)**: the
+  child's outbound frame-queue budget (16 MiB, added for Issue #17) guarded only
+  `sendToParent` — the host's own done/scriptError frames — while every realm
+  frame (`log`/`report`/calls, all bootstrap `__emit` shapes) crossed the
+  captured `__send` capability straight to `process.stdout.write`, so a
+  flooding script could still queue unbounded writes and V8-OOM the child heap
+  on POSIX (no Job Object commit cap there) before any parent-side budget saw
+  it — the exact scenario the #17 guard claims to fail by name. The
+  `writableLength` check now lives on the single outbound choke point
+  (`writeOutboundLine`) that both `sendToParent` and `sandbox.__send` route
+  through; over the budget the child terminates the script SYNCHRONOUSLY at
+  the breach: the terminal `ChildFrameLimitExceeded` scriptError frame is
+  written straight to fd 1 (it lands in the kernel and survives the immediate
+  exit; a leading newline absorbs a possibly torn in-flight stream frame), the
+  ~16 MiB of queued flood frames are discarded with the stream queue, and the
+  realm's sync flood loop cannot keep allocating. Review round 2 (CI-proven,
+  gate run 43753392889 test 93): bounding the write queue alone still OOMed a
+  2,000-frame flood inside the realm's JSON.stringify — neither write-completion
+  callbacks nor a throw through `__call`'s promise executor (which only rejects
+  the fire-and-forget log promise) can stop a loop that never yields. Review
+  round 3: the budget is now queue + SINGLE FRAME (a >16 MiB wire frame is
+  terminated by the same path — the parent-side caps all sit after arrival, so
+  without it one giant frame OOMs unnamed), `__host.log` gates the source
+  message length BEFORE `__call`'s stringify (a giant log cannot double in the
+  wire copy; the throw unwinds the script's own stack synchronously), and an
+  fd-1 delivery failure/partial write mirrors the terminal frame to stderr
+  (runner's close path carries the stderr tail into the error text), so the
+  failure stays named under any delivery outcome. The later done frame stays
+  suppressed (one terminal frame per run). Locked end-to-end through the real
+  child by `tests/unit/dwf/dwf-child-outbound-budget.test.ts` (64/48-frame
+  floods plus a 2,000-frame ≈1 GiB tail-flood case locking the breach
+  termination — POSIX-only, win32 skips where probe-verified synchronous pipe
+  writes can never accumulate the queue; the single-frame, log-source and
+  15.7 MiB under-budget positive cases are transport-independent and run on
+  both platforms); doc sync: ARCHITECTURE §5.1 now lists the child-side
+  budgets.
 - **dwf (world.run output cap, Issue #56)**: `spawnCaptured` no longer silently
   discards child output past the 16 MiB per-stream cap. The over-cap verdict is
   byte-accounted (`Buffer` bytes — the MiB constants are byte-denominated;
