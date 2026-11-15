@@ -469,9 +469,16 @@ async function runInner(
     onEvent: (e) => {
       if (e.type === 'dwf_ask_start') { asks++; inFlightAsks++; }
       if (e.type === 'dwf_ask_complete') inFlightAsks--;
-      // A cancelled ask is settled by the engine's cancelled event (no failed
-      // node is journalled), so release its in-flight slot here.
-      if (e.type === 'dwf_node_failed' && e.data.cancelled === true && e.data.kind === 'ask') {
+      // A live ask settles exactly one of: dwf_ask_complete (success path,
+      // ask-executor.ts) or dwf_node_failed (engine.ts journalled catch — both
+      // the cancelled:true AbortError branch, which journals no node, and a
+      // plain failed ask, which journals one). Release the in-flight slot for
+      // BOTH failure shapes, or a run whose script caught a failed ask never
+      // went idle again: a later hole/escalate hung to the whole-run killTimer
+      // as `failed` instead of parking, and fillHoleAndRun refuses non-parked
+      // runs. Replayed failed nodes (journal/warm-cache re-emits, tagged
+      // replayed:true) never had a dwf_ask_start — they must NOT decrement.
+      if (e.type === 'dwf_node_failed' && e.data.kind === 'ask' && e.data.replayed !== true) {
         inFlightAsks = Math.max(0, inFlightAsks - 1);
       }
       if (e.type === 'dwf_replay_hit') replayHits++;
