@@ -7,7 +7,10 @@
  *      narrowing of the search set;
  *   4. the 20MB/256KB/1MB caps are KiB/MiB-aligned — probed at the old decimal
  *      boundaries (1,000,001 bytes / 256,001 chars now fit; the binary caps
- *      still reject one byte/char over).
+ *      still reject one byte/char over);
+ *   5. world.run stdout over the 16 MiB stream cap is a named rejection and
+ *      the worldRun node journals as failed — never a silently truncated
+ *      success value (Issue #56).
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -207,6 +210,43 @@ test('D8④ caps are KiB/MiB-aligned: one byte/char over the binary caps is stil
         return true;
       },
     );
+  } finally {
+    ws.cleanup();
+  }
+});
+
+// ------------------------------------------------------------------ world.run
+
+test('D8④ world.run: stdout over the 16 MiB stream cap is a named rejection — the node journals as failed, never a truncated success', { timeout: 60_000 }, async () => {
+  const ws = makeWorkspace('dwf-caps-worldrun-');
+  try {
+    const store = createSQLiteStore(':memory:') as SQLiteStateStore & DwfJournalStore;
+    const engine = new FacadeEngine({
+      runId: 'dwfcaps-worldrun',
+      workspace: ws.dir,
+      store,
+      args: {},
+      approvedCommands: [{ name: 'node', source: 'explicit' as const }],
+      onEvent: () => {},
+    });
+    await assert.rejects(
+      () => engine.handleCall({ t: 'call', id: 1, op: 'worldRun', siteId: 'worldrun#1', payload: ['node', ['-e', 'process.stdout.write("x".repeat(17 * 1024 * 1024))'], undefined] }),
+      (err: unknown) => {
+        assert.ok(isSchemaValidationError(err as DomainError), `expected SchemaValidationError, got ${(err as Error)?.name}: ${(err as Error)?.message}`);
+        const e = err as Error & { details?: Record<string, unknown> };
+        assert.match(e.message, /16777216/, e.message);
+        assert.equal(e.details?.op, 'world.run');
+        assert.equal(e.details?.stream, 'stdout');
+        assert.equal(e.details?.cap, 16 * 1024 * 1024, 'WORLD_OUTPUT_CAP is 16 MiB');
+        assert.ok((e.details?.bytes as number) > 16 * 1024 * 1024, `the error must carry the actual size, got ${e.details?.bytes}`);
+        return true;
+      },
+    );
+    const nodes = await store.getDwfNodes('dwfcaps-worldrun');
+    const failed = nodes.find((n) => n.kind === 'worldRun' && n.status === 'failed');
+    assert.ok(failed, 'the over-cap world.run node must journal as failed, not completed');
+    assert.match(failed.errorText ?? '', /16777216/, 'the journalled error text carries the cap');
+    store.close();
   } finally {
     ws.cleanup();
   }

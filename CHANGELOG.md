@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **dwf (world.run output cap, Issue #56)**: `spawnCaptured` no longer silently
+  discards child output past the 16 MiB per-stream cap — an over-cap stream is
+  now a named `SchemaValidationError` rejection carrying the cap and the actual
+  size (`op: 'world.run'`, `stream`, `bytes`), and the worldRun node journals as
+  **failed** instead of committing a truncated value as the authoritative
+  journalled result. Exactly-at-cap output still resolves (D8④ boundary
+  convention). This makes the code match the module's own "reject, never
+  truncate" contract already stated in its header and cap comments.
 - **apps (demo integrity, Issue #40)**: the committed migration deliverable
   `apps/repo-migration-engine/artifacts/PULL_REQUEST.md` now declares at the top that it is a
   simulated demo with **no files written** (未写入任何文件), and its Diff Statistics are marked

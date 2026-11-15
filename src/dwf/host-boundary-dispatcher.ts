@@ -213,11 +213,22 @@ export class WorldBoundary {
     return new Promise<WorldRunResult>((resolve, reject) => {
       let stdout = '';
       let stderr = '';
+      // Count every received chunk even past the cap (the buffer stops growing
+      // at the cap, the counters never do): an over-cap stream must be a named
+      // rejection at settle time — reject, never truncate (the canonical
+      // world-read caps contract; same D8④ boundary convention as git.diff:
+      // exactly-at-cap still resolves, one char over rejects).
+      let stdoutChars = 0;
+      let stderrChars = 0;
       supervised.child.stdout?.on('data', (chunk: Buffer) => {
-        if (stdout.length < WORLD_OUTPUT_CAP) stdout += chunk.toString('utf8');
+        const text = chunk.toString('utf8');
+        stdoutChars += text.length;
+        if (stdout.length < WORLD_OUTPUT_CAP) stdout += text;
       });
       supervised.child.stderr?.on('data', (chunk: Buffer) => {
-        if (stderr.length < WORLD_OUTPUT_CAP) stderr += chunk.toString('utf8');
+        const text = chunk.toString('utf8');
+        stderrChars += text.length;
+        if (stderr.length < WORLD_OUTPUT_CAP) stderr += text;
       });
       void supervised.result.then((res) => {
         if (res.timedOut) {
@@ -228,6 +239,14 @@ export class WorldBoundary {
         }
         if (res.exitCode === -1 && supervised.child.exitCode === null && res.stderr.startsWith('spawn ')) {
           reject(domainError('SandboxSpawnError', res.stderr, { details: { cmd, stderr: res.stderr } }));
+          return;
+        }
+        if (stdoutChars > WORLD_OUTPUT_CAP || stderrChars > WORLD_OUTPUT_CAP) {
+          const stream = stdoutChars > WORLD_OUTPUT_CAP ? 'stdout' : 'stderr';
+          const chars = stream === 'stdout' ? stdoutChars : stderrChars;
+          reject(domainError('SchemaValidationError', `world.run "${cmd}" ${stream} output is ${chars} bytes, over the ${WORLD_OUTPUT_CAP} cap — reduce the command's output or narrow it`, {
+            details: { op: 'world.run', cmd, stream, bytes: chars, cap: WORLD_OUTPUT_CAP },
+          }));
           return;
         }
         // Irreversible redaction at the source (GOAL.md 铁律 2): the value the
