@@ -8,7 +8,7 @@
 - **Execution & Isolation Environment**: Physical Git Worktree isolation (`$WORKTREE_ROOT/feat-dev-workflow`) on branch `feat/dev-workflow`, keeping main tree unpolluted.
 - **Mechanical Gates & Lock-in**:
   - `scripts/pr_review_gate.mjs`: CLI enforcement of review responses, 15-minute merge cooling period, test fingerprints.
-  - Standard suites (`npm test`, `npm run test:pbt`): regression + contract invariants. (The originally documented `tests/unit/workflow-governance.test.ts` never existed in this repository — stale reference removed 2026-11-14.)
+  - Standard suites (`npm test`, `npm run test:pbt`): regression + contract invariants, plus the governance lock-in suite `tests/unit/workflow-governance.test.ts` (runnable via `npm run test:governance`). (Correction 2026-11-15, Issue #25: an earlier note here wrongly claimed this suite was absent from the repository — the file exists and runs.)
   - Toolchain integration: Node 22 / TypeScript / native `node:test` / `npm.cmd`.
 
 ## Feature Inventory

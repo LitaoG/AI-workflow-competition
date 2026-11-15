@@ -411,6 +411,47 @@ describe('Workflow & Governance Specification Suite Invariant Locks', () => {
     );
   });
 
+  test('Tier 2: registry completeness reverse check — every docs/ markdown must be registered in docs/README.md (Issue #25)', () => {
+    // docs/README.md §三.1 claims the governance gate verifies registry
+    // completeness ("校验登记完整性，防止文档游离失管"). The forward check
+    // (requiredFiles → exists) alone does not make that claim true: Issue #25
+    // found 7 research documents living under docs/research/ unregistered.
+    // This is the reverse direction: every markdown document under docs/ must
+    // be registered in the docs/README.md index — either by its own path
+    // token (e.g. `docs/research/X.md`) or by a deliberate directory token
+    // for its parent (e.g. `docs/i18n/`). Reasonable scope: markdown
+    // documents only — binary/static resources (docs/assets/*.png) and test
+    // fixtures/runtime artifacts are not registry objects and stay out.
+    const indexContent = fs.readFileSync(path.join(REPO_ROOT, 'docs', 'README.md'), 'utf-8');
+    const registryTokens = new Set<string>();
+    for (const m of indexContent.matchAll(/`(docs\/[A-Za-z0-9._\-/]+)`/g)) {
+      registryTokens.add(m[1]);
+    }
+
+    const unregistered: string[] = [];
+    const walk = (dir: string): void => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          walk(full);
+        } else if (entry.name.endsWith('.md')) {
+          const rel = path.relative(REPO_ROOT, full).split(path.sep).join('/');
+          const parentRel = rel.slice(0, rel.lastIndexOf('/'));
+          const registered =
+            registryTokens.has(rel) ||
+            (parentRel !== 'docs' && registryTokens.has(parentRel + '/'));
+          if (!registered) unregistered.push(rel);
+        }
+      }
+    };
+    walk(path.join(REPO_ROOT, 'docs'));
+    assert.deepStrictEqual(
+      unregistered,
+      [],
+      'Markdown documents under docs/ must be registered in docs/README.md (reverse registry check, Issue #25). Unregistered: ' + unregistered.join(', ')
+    );
+  });
+
   test('Tier 3: PR Review Gate script functionality - checkIssueLinkage', () => {
     // Valid: Closes #18
     const r1 = checkIssueLinkage('Fixes the bug.\n\nCloses #18');
