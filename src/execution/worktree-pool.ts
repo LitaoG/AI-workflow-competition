@@ -67,6 +67,16 @@ export class WorktreePool {
   private readonly baseRef: string;
   private readonly poolId = randomBytes(3).toString('hex');
   private readonly leases = new Map<string, WorktreeLease>();
+  /**
+   * Serializes base-repo mutations. Concurrent acquire/mergeIntoBase is the
+   * API's intended usage (a swarm fans out tasks), but every mutation runs
+   * `git` against the SAME workspace — and git does not retry `.git/index.lock`
+   * acquisition: a loser exits fatal immediately. Measured on Linux CI
+   * (Issue #29, unit #235): 4 concurrent worktree-add/merge calls collide at
+   * ~30% per run. The chain keeps the lease operations one-at-a-time without
+   * changing their external async signatures.
+   */
+  private baseOps: Promise<unknown> = Promise.resolve();
 
   constructor(options: PoolOptions) {
     this.workspace = path.resolve(options.workspace);
@@ -85,6 +95,16 @@ export class WorktreePool {
     return [...this.leases.values()];
   }
 
+  /** Run one base-repo mutation at the tail of the serialization chain, surviving prior failures. */
+  private serializeBase<T>(fn: () => Promise<T>): Promise<T> {
+    const run = this.baseOps.then(fn, fn);
+    this.baseOps = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
+  }
+
   /** Mint (or return the existing) worktree for one task, on its own branch at the base ref. */
   async acquire(taskKey: string): Promise<WorktreeLease> {
     const existing = this.leases.get(taskKey);
@@ -95,7 +115,10 @@ export class WorktreePool {
     fs.mkdirSync(this.poolDir, { recursive: true });
     // A branch per task (canonical parity: changes stay addressable for merge);
     // -B tolerates a re-acquire after a crash left the branch behind.
-    await this.git(`worktree add -B ${branch} ${JSON.stringify(worktreePath)} ${this.baseRef}`);
+    // Serialized: concurrent worktree adds race .git/index.lock (Issue #29).
+    await this.serializeBase(() =>
+      this.git(`worktree add -B ${branch} ${JSON.stringify(worktreePath)} ${this.baseRef}`),
+    );
     const lease: WorktreeLease = { taskKey, worktreePath, branch };
     this.leases.set(taskKey, lease);
     return lease;
@@ -123,7 +146,11 @@ export class WorktreePool {
     const lease = this.leases.get(taskKey);
     if (!lease) throw new Error(`worktree-pool: no lease for task "${taskKey}"`);
     try {
-      await this.git(`merge --no-ff -m "swarm merge: ${lease.branch}" ${lease.branch}`);
+      // Serialized: concurrent merges race .git/index.lock and a loser dies
+      // fatal before any conflict semantics exist (Issue #29).
+      await this.serializeBase(() =>
+        this.git(`merge --no-ff -m "swarm merge: ${lease.branch}" ${lease.branch}`),
+      );
     } catch (err) {
       const message = (err as { stderr?: string; message?: string }).stderr || (err as Error).message;
       // Leave the merge conflict in place for the caller to resolve or abort;
