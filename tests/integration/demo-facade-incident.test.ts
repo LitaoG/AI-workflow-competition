@@ -71,6 +71,18 @@ test('incident demo facade script: 5 phases, typed asks, gates and artifact expo
     // Four typed/untyped asks: triage, remediation plan, safety review, post-mortem record.
     assert.equal(first.stats.asks, 4);
     assert.equal(first.stats.replayHits, 0);
+    // Safety gates are real machinery (Issue #32): the policy gate rescans the
+    // plan against the destructive-command blacklist, and its interception +
+    // rollback drills must be evidenced in the report stream on every run.
+    const reportOf = (step: string) =>
+      first.reportItems.find((r) => (r as { step?: string }).step === step) as Record<string, unknown> | undefined;
+    const policyReport = reportOf('policy-gate');
+    assert.ok(policyReport, 'policy gate must report its scan');
+    assert.equal(policyReport.prohibited, 0, 'the canned plan must contain no destructive tokens');
+    assert.equal(policyReport.drill, 'intercepted', 'interception drill must evidence the gate');
+    const gatesReport = reportOf('gates');
+    assert.equal(gatesReport?.policyDrill, 'intercepted', 'gates report must carry the interception drill');
+    assert.equal(gatesReport?.rollbackDrill, 'restored', 'gates report must evidence the rollback drill');
     assert.deepEqual(first.stats.phases, [
       'Detection & Telemetry Probing',
       'Triage & Root Cause Analysis',

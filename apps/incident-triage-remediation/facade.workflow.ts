@@ -17,7 +17,12 @@
 // - Phase 1 telemetry comes from files.read of a scenario fixture instead of a
 //   live metrics endpoint.
 // - Phase 4's post-remediation healthz gate is simulated by a `node -e` exit-0
-//   check instead of a real service healthz probe.
+//   check instead of a real service healthz probe; remediation actions are
+//   deterministic, reversible marker writes under .workflow/ (gitignored).
+// - Phase 4's policy gate self-check and rollback drill exercise the real
+//   interception/rollback machinery on every run (a known-destructive
+//   reference command and a deliberately failing verification probe), so the
+//   README safety claim is evidenced offline, not just asserted.
 // ============================================================================
 
 interface Telemetry {
@@ -49,6 +54,13 @@ interface SafetyReview {
   safetyViolations: string[];
   rollbackCommand: string;
   signedOffBy: string;
+}
+
+interface RemediationPlan {
+  strategy: string;
+  /** Ordered remediation step descriptions (the policy gate scans these). */
+  steps: string[];
+  estimatedMinutes: number;
 }
 
 interface PostMortemAck {
@@ -112,7 +124,7 @@ report({ step: 'triage', incidentId: triage.incidentId, confidence: triage.confi
 // ---------------------------------------------------------------------------
 phase('Remediation Synthesis & Safety Pair Review');
 const planner = agent('planner');
-const plan = await planner.ask(
+const plan = await planner.ask<RemediationPlan>(
   `Draft a remediation plan for this incident: ${JSON.stringify(triage)}`,
 );
 log('Remediation plan drafted; routing to safety reviewer.');
@@ -136,13 +148,89 @@ const toolchainGate = await world.run('node', ['--version'], { timeoutMs: 30_000
 if (toolchainGate.exitCode !== 0) {
   throw new Error(`Toolchain gate failed: ${toolchainGate.stderr}`);
 }
-// Post-remediation healthz gate (mock-mode substitution for a live probe).
+
+// Deterministic steering-policy enforcement — "Code, not conversation": the
+// reviewer's verdict does not license destructive commands. Every planned
+// command token is rescanned against the same six-pattern blacklist as
+// workflow.ts, regardless of the safety review's score.
+const DESTRUCTIVE_PATTERNS: RegExp[] = [
+  /\bdrop\b/i,
+  /\btruncate\b/i,
+  /rm\s+-rf/i,
+  /\bmkfs\b/i,
+  /format\s+[a-z]:/i,
+  /\bdelete\s+from\b/i,
+];
+const plannedCommands = [...plan.steps, triage.recommendedAction];
+// Interception drill: the gate must reject a known-destructive reference
+// command, so interception is evidenced on every run — not only when a plan
+// actually goes rogue.
+if (!DESTRUCTIVE_PATTERNS.some((re) => re.test('DROP TABLE orders;'))) {
+  throw new Error('Policy gate self-check failed: reference destructive command was NOT intercepted');
+}
+const prohibited = plannedCommands.filter((cmd) => DESTRUCTIVE_PATTERNS.some((re) => re.test(cmd)));
+if (prohibited.length > 0) {
+  // Nothing has executed yet — fail closed before any world.run.
+  throw new Error(
+    `Safety policy violation: destructive command(s) rejected by the deterministic gate: ${prohibited.join('; ')}`,
+  );
+}
+log(`Policy gate: ${plannedCommands.length} planned commands scanned, 0 destructive — drill 'DROP TABLE orders;' intercepted ✔`);
+report({ step: 'policy-gate', scanned: plannedCommands.length, prohibited: prohibited.length, drill: 'intercepted' });
+
+// Remediation execution: deterministic, reversible actions. Every apply has a
+// paired undo, so a failed execution/verification triggers the automated
+// rollback (workflow.ts semantics) before the run fails.
+const marker = '.workflow/demo-remediation-marker';
+const applyAction = () =>
+  world.run(
+    'node',
+    ['-e', `require('fs').mkdirSync('.workflow',{recursive:true});require('fs').writeFileSync('${marker}','applied')`],
+    { timeoutMs: 30_000 },
+  );
+const undoAction = () =>
+  world.run('node', ['-e', `try{require('fs').rmSync('${marker}')}catch{}`], { timeoutMs: 30_000 });
+
+const applied = await applyAction();
+if (applied.exitCode !== 0) {
+  throw new Error(`Remediation apply gate failed: ${applied.stderr}`);
+}
+
+// Rollback drill: a deliberately failing verification probe must trigger the
+// automated rollback and restore the prior state — evidenced on every run.
+const failedProbe = await world.run('node', ['-e', 'process.exit(1)'], { timeoutMs: 30_000 });
+if (failedProbe.exitCode === 0) {
+  throw new Error('Rollback drill setup failed: the failing probe unexpectedly passed');
+}
+const rolledBack = await undoAction();
+if (rolledBack.exitCode !== 0) {
+  throw new Error(`Automated rollback failed: ${rolledBack.stderr}`);
+}
+const restored = await world.run(
+  'node',
+  ['-e', `process.exit(require('fs').existsSync('${marker}') ? 1 : 0)`],
+  { timeoutMs: 30_000 },
+);
+if (restored.exitCode !== 0) {
+  throw new Error('Rollback drill failed: prior state was not restored');
+}
+log(`Rollback drill: verification FAILED → automated rollback executed → prior state restored ✔ (prescribed: ${safety.rollbackCommand})`);
+
+// Re-apply for real, then the post-remediation healthz gate (mock-mode
+// substitution for a live probe). Verification failure rolls back the apply.
+const reapplied = await applyAction();
+if (reapplied.exitCode !== 0) {
+  await undoAction();
+  throw new Error(`Remediation apply gate failed (rolled back): ${reapplied.stderr}`);
+}
 const healthzGate = await world.run('node', ['-e', 'process.exit(0)'], { timeoutMs: 30_000 });
 if (healthzGate.exitCode !== 0) {
-  throw new Error(`Post-remediation healthz gate failed: ${healthzGate.stderr}`);
+  // Automated rollback on failed verification: undo the applied action.
+  await undoAction();
+  throw new Error(`Post-remediation healthz gate failed (rolled back): ${healthzGate.stderr}`);
 }
-log('Gates passed: toolchain + post-remediation healthz (exit 0).');
-report({ step: 'gates', toolchain: toolchainGate.exitCode, healthz: healthzGate.exitCode });
+log('Gates passed: policy ✔ toolchain ✔ apply ✔ healthz ✔ — interception & rollback drills evidenced.');
+report({ step: 'gates', toolchain: toolchainGate.exitCode, healthz: healthzGate.exitCode, policyDrill: 'intercepted', rollbackDrill: 'restored' });
 
 // ---------------------------------------------------------------------------
 // Phase 5 — Post-Mortem Synthesis & Dashboard Export
