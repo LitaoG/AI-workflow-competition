@@ -419,7 +419,16 @@ describe('Fast-Check Property-Based Testing: Extended Engine Stress Suite', () =
         fc.stringMatching(/^[A-Z0-9]{16}$/),
         fc.stringMatching(/^[a-zA-Z0-9_-]{20,40}$/),
         fc.stringMatching(/^[a-zA-Z0-9]{8,20}$/),
-        fc.stringMatching(/^[a-z0-9_]{4,15}$/),
+        // The composed key CUSTOM_<safeKey.toUpperCase()> is a BENIGN key only if
+        // it does not hit the engine's sensitive-name regex (prober sanitizer:
+        // key|token|secret|password|pwd|auth|credential|cert|signature|sigv4|...).
+        // A generated key like "0key" composes CUSTOM_0KEY — the engine correctly
+        // redacts that by design, and the property must not generate such keys
+        // (~3% of random-seed runs hit it: comp CI Issue #17, first CI seed to
+        // draw one). Filter the generator to true benign keys.
+        fc.stringMatching(/^[a-z0-9_]{4,15}$/).filter(
+          (k) => !/(?:key|token|secret|password|pwd|auth|credential|cert|signature|sigv4|aws_access_key|igccsvc_db|private)/i.test(k),
+        ),
         (awsSuffix, ghTokenSuffix, dbPass, safeKey) => {
           const awsKey = `AKIA${awsSuffix}`;
           const ghToken = `ghp_${ghTokenSuffix}`;
