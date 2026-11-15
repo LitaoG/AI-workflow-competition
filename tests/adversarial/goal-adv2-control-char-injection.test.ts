@@ -178,15 +178,24 @@ describe('ADV-2 log()/report() 通道 round-trip（GAP-01 已修复：child-main
       const scriptPath = path.join(dir, 'poison.facade.ts');
       fs.writeFileSync(scriptPath, 'phase("Poison");\nlog(String(args.payload));\nreturn 1;\n');
       const logs: string[] = [];
-      await runFacadeScript({
+      // 诊断直方图（Issue #29）：`got []` 无法区分「run 早期失败」与「帧传输丢失」——
+      // 失败消息携带 run 结果与全部事件类型计数，一次 CI 往返即可定位根因。
+      const eventTypes: Record<string, number> = {};
+      const result = await runFacadeScript({
         scriptPath,
         cwd: dir,
         dbPath: path.join(dir, 'journal.sqlite'),
         args: { payload: PAYLOAD },
         runTimeoutMs: 30_000,
-        onEvent: (e) => { if (e.type === 'dwf_log') logs.push(String((e.data as { message?: unknown }).message ?? '')); },
+        onEvent: (e) => {
+          eventTypes[e.type] = (eventTypes[e.type] ?? 0) + 1;
+          if (e.type === 'dwf_log') logs.push(String((e.data as { message?: unknown }).message ?? ''));
+        },
       });
-      assert.ok(logs.includes(PAYLOAD), `log round-trip broken: got ${JSON.stringify(logs.map((m) => m.slice(0, 20)))}`);
+      assert.ok(
+        logs.includes(PAYLOAD),
+        `log round-trip broken: got ${JSON.stringify(logs.map((m) => m.slice(0, 20)))}; run=${JSON.stringify({ status: result.status, error: result.error === undefined ? undefined : String(result.error).slice(0, 400) })}; eventTypes=${JSON.stringify(eventTypes)}`,
+      );
     } finally {
       cleanup(dir);
     }

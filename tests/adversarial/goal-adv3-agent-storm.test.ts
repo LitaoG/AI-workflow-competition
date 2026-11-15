@@ -95,7 +95,13 @@ describe('ADV3: 64-agent mock storm and the 1000-call breaker', () => {
         maxConcurrency: SEAT,
         runTimeoutMs: RUN_WALL_BUDGET_MS,
       });
-      assert.equal(result.status, 'completed');
+      // Issue #29：CI 上此处曾以 failed(子进程 EPIPE 早死) 充数 completed——
+      // 失败消息携带 run.error，一次往返即可定位子进程死因。
+      assert.equal(
+        result.status,
+        'completed',
+        `run failed: ${result.error === undefined ? '(no error text)' : String(result.error).slice(0, 400)}; stats=${JSON.stringify(result.stats)}`,
+      );
       assert.equal(result.stats.asks, 1000, 'dispatch stops exactly at the 1000-call cap');
       const value = result.value as { answered?: number; capped?: boolean; capName?: string; capMessage?: string };
       assert.ok(value && value.capped === true, `expected {capped: true}, got ${JSON.stringify(result.value)}`);

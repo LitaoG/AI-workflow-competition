@@ -18,6 +18,7 @@
  */
 
 const fs = await import('node:fs');
+const { once } = await import('node:events');
 
 const argsPath = process.argv[3];
 let scenario = 'garbage';
@@ -141,10 +142,15 @@ async function main() {
       const garbage = '\x00 junk line \r\n';
       const total = 200 * 1024 * 1024;
       let written = 0;
+      // Issue #29（Linux CI 取证）：原「每写满 16MB 才 sleep(1)」是写速率感知而非背压
+      // 感知 —— 慢消费者（2 核 CI runner）下 16MB/15B ≈ 110 万个排队 chunk，Node 流
+      // 缓冲的每 chunk 对象开销先把本 fixture 的 V8 堆撑爆（FatalProcessOutOfMemory
+      // @8.3s），抢在父端双防线之前死掉，测试断言的命名失败永不出现。改为背压感知：
+      // write()===false 时等 drain —— 洪泛以管道极限速度持续（对父端是更强的攻击模型），
+      // 自身队列恒为单 chunk，父端的让位泵 + 32MB 积压预算 + 10s 上界按设计发声。
       while (written < total) {
-        write(garbage);
+        if (!write(garbage)) await once(process.stdout, 'drain');
         written += garbage.length;
-        if ((written & 0xffffff) === 0) await sleep(1); // yield: no memory bomb
       }
       await sleep(120_000); // stay alive, silent — the timeout must still fire
       return;
