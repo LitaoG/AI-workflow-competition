@@ -889,4 +889,257 @@ not ok 2 - stdio e2e: real spawn lists all seven tools
     );
     assert.ok(scanned > 100, `conflict-marker scan must actually cover the tracked tree (scanned ${scanned}/${tracked.length} files)`);
   });
+
+  test('Tier 1: test `finally` blocks must never contain abrupt completions (Issue #36, family of upstream #312)', () => {
+    // JS spec semantics: an abrupt completion inside a `finally` block
+    // silently OVERRIDES any exception thrown by the guarded `try` body —
+    // including AssertionError. Measured live (upstream #308): a test whose
+    // body threw still reported `pass`, because the cleanup helper `return`
+    // inside the rmSync retry loop swallowed the failure. This scanner locks
+    // the surface across all tracked test sources.
+    //
+    // Precisely flagged (override semantics):
+    //   - a `return` lexically inside `finally`, outside nested function
+    //     bodies (plain nested blocks like try/catch/for do NOT shield it);
+    //   - a LABELED `break LABEL;` / `continue LABEL;` inside `finally` whose
+    //     label is not declared inside the same finally (it targets past it).
+    // Deliberately NOT flagged (bind to a loop INSIDE the finally, cannot
+    // override): unlabeled `break;` / `continue;`.
+    const scanFinallyAbrupt = (relPath: string, content: string): string[] => {
+      const hits: string[] = [];
+      type Scope = { kind: 'finally' | 'function'; bodyDepth: number; line: number; startOffset: number };
+      const stack: Scope[] = [];
+      const isIdent = (c: string) => /[A-Za-z0-9_$]/.test(c);
+      let depth = 0;
+      let line = 1;
+      let pendingFinally = false;
+      let pendingFunction = false;
+      let lastChar = ''; // last significant char outside strings/comments (regex-start heuristic)
+      let i = 0;
+      while (i < content.length) {
+        const c = content[i]!;
+        if (c === '\n') { line++; i++; continue; }
+        if (c === '/' && content[i + 1] === '/') { while (i < content.length && content[i] !== '\n') i++; continue; }
+        if (c === '/' && content[i + 1] === '*') {
+          i += 2;
+          while (i < content.length && !(content[i] === '*' && content[i + 1] === '/')) { if (content[i] === '\n') line++; i++; }
+          i += 2;
+          continue;
+        }
+        if (c === "'" || c === '"' || c === '`') {
+          const quote = c;
+          i++;
+          while (i < content.length && content[i] !== quote) { if (content[i] === '\\') i++; if (content[i] === '\n') line++; i++; }
+          i++;
+          lastChar = quote;
+          continue;
+        }
+        if (c === '/' && !/[A-Za-z0-9_$)\]]/.test(lastChar)) {
+          // Regex literal (classic heuristic: a `/` after a value char is division).
+          let j = i + 1;
+          let closed = false;
+          while (j < content.length && content[j] !== '\n') {
+            if (content[j] === '\\') { j += 2; continue; }
+            if (content[j] === '/') { closed = true; break; }
+            j++;
+          }
+          if (closed) {
+            i = j + 1;
+            while (i < content.length && /[a-z]/i.test(content[i]!)) i++;
+            lastChar = '/';
+            continue;
+          }
+        }
+        if (isIdent(c)) {
+          let j = i;
+          while (j < content.length && isIdent(content[j]!)) j++;
+          const word = content.slice(i, j);
+          if (word === 'finally') {
+            pendingFinally = true;
+          } else if (word === 'function') {
+            pendingFunction = true;
+          } else if (word === 'return') {
+            const innermost = stack[stack.length - 1];
+            if (innermost && innermost.kind === 'finally') {
+              hits.push(`${relPath}:${line} return inside finally (overrides the guarded try's exceptions)`);
+            }
+          } else if (word === 'break' || word === 'continue') {
+            let k = j;
+            while (k < content.length && /\s/.test(content[k]!)) k++;
+            if (k < content.length && isIdent(content[k]!) && content[k + 1] !== '(' && content[k + 1] !== '=') {
+              let m = k;
+              while (m < content.length && isIdent(content[m]!)) m++;
+              const label = content.slice(k, m);
+              // Only a labeled break/continue can cross the finally boundary.
+              const fin = [...stack].reverse().find((s) => s.kind === 'finally');
+              if (fin) {
+                const body = content.slice(fin.startOffset, i);
+                if (!new RegExp(`\\b${label}\\s*:`).test(body)) {
+                  hits.push(`${relPath}:${line} ${word} ${label} crosses the finally boundary (overrides the guarded try's exceptions)`);
+                }
+              }
+              j = m;
+            }
+          }
+          lastChar = content[j - 1]!;
+          i = j;
+          continue;
+        }
+        if (c === '{') {
+          depth++;
+          if (pendingFinally) {
+            stack.push({ kind: 'finally', bodyDepth: depth, line, startOffset: i + 1 });
+            pendingFinally = false;
+            pendingFunction = false;
+          } else if (pendingFunction) {
+            stack.push({ kind: 'function', bodyDepth: depth, line, startOffset: i + 1 });
+            pendingFunction = false;
+          }
+          lastChar = c;
+          i++;
+          continue;
+        }
+        if (c === '}') {
+          depth--;
+          while (stack.length && stack[stack.length - 1]!.bodyDepth === depth + 1) stack.pop();
+          lastChar = c;
+          i++;
+          continue;
+        }
+        if (c === '=' && content[i + 1] === '>') {
+          pendingFunction = true;
+          lastChar = '=';
+          i += 2;
+          continue;
+        }
+        if (/\S/.test(c)) {
+          // Any other significant token cancels a dangling `finally` keyword
+          // (the `{` must follow it); a dangling arrow/function opener is
+          // cancelled by tokens that cannot precede its block body.
+          if (pendingFinally) pendingFinally = false;
+          if (pendingFunction && (c === ';' || c === ',' || c === ')')) pendingFunction = false;
+          lastChar = c;
+        }
+        i++;
+      }
+      return hits;
+    };
+
+    // Reverse discrimination (synthetic, no filesystem pollution).
+    const violating = [
+      'test("x", () => {',
+      '  try {',
+      '    assert.equal(1, 2);',
+      '  } finally {',
+      '    fs.rmSync(dir, { recursive: true });',
+      '    return;',
+      '  }',
+      '});',
+    ].join('\n');
+    assert.ok(
+      scanFinallyAbrupt('hostile/a.test.ts', violating).some((h) => h.startsWith('hostile/a.test.ts:6')),
+      'a return inside finally must be flagged with path + line',
+    );
+    const retryPattern = [
+      '} finally {',
+      '  for (let attempt = 0; attempt < 5; attempt++) {',
+      '    try {',
+      '      fs.rmSync(dir, { recursive: true, force: true });',
+      '      return;',
+      '    } catch {',
+      '      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 150);',
+      '    }',
+      '  }',
+      '}',
+    ].join('\n');
+    assert.ok(
+      scanFinallyAbrupt('hostile/b.test.ts', retryPattern).some((h) => h.startsWith('hostile/b.test.ts:5')),
+      'the live rmSync-retry helper-return pattern must be flagged',
+    );
+    const arrowShield = [
+      '} finally {',
+      '  const cleanup = () => {',
+      '    if (bad) return;',
+      '  };',
+      '  cleanup();',
+      '}',
+    ].join('\n');
+    assert.deepStrictEqual(
+      scanFinallyAbrupt('clean/arrow.test.ts', arrowShield),
+      [],
+      'a return inside a nested function body belongs to that function — not flagged',
+    );
+    const loopBreak = [
+      '} finally {',
+      '  for (const item of items) {',
+      '    if (item.skip) continue;',
+      '    if (item.last) break;',
+      '  }',
+      '}',
+    ].join('\n');
+    assert.deepStrictEqual(
+      scanFinallyAbrupt('clean/loop.test.ts', loopBreak),
+      [],
+      'unlabeled break/continue bind to the loop inside the finally — cannot override, not flagged',
+    );
+    const labelCrossing = [
+      'outer: for (const batch of batches) {',
+      '  try {',
+      '    drain(batch);',
+      '  } finally {',
+      '    for (const c of children) {',
+      '      if (c.dead) break outer;',
+      '    }',
+      '  }',
+      '}',
+    ].join('\n');
+    assert.ok(
+      scanFinallyAbrupt('hostile/label.test.ts', labelCrossing).some((h) => h.includes('break outer crosses')),
+      'a labeled break whose label lives outside the finally must be flagged',
+    );
+    const withRegexAndString = [
+      '} finally {',
+      '  log("cleanup { done"); // comment } here',
+      '  const re = /rm\\s+-rf/i;',
+      '  rmTemp(dir);',
+      '}',
+    ].join('\n');
+    assert.deepStrictEqual(
+      scanFinallyAbrupt('clean/strings.test.ts', withRegexAndString),
+      [],
+      'braces inside strings, comments and regex literals must not corrupt the brace tracker',
+    );
+
+    // In-repo sweep: every tracked test source must be free of finally-abrupt
+    // completions. Unit/integration/adversarial suites plus the .kiro/pbt
+    // property tests (they run under `npm run test:pbt`).
+    const tracked = execSync('git ls-files -z', { cwd: REPO_ROOT, maxBuffer: 64 * 1024 * 1024 })
+      .toString('utf8')
+      .split('\0')
+      .filter(Boolean);
+    const isTestSource = (rel: string) =>
+      (rel.startsWith('tests/') || rel.startsWith('.kiro/pbt/')) && /\.(ts|js|mjs|cjs)$/.test(rel) && !rel.includes('/fixtures/');
+    const violations: string[] = [];
+    let scanned = 0;
+    for (const rel of tracked) {
+      if (!isTestSource(rel)) continue;
+      let content: string;
+      try {
+        content = fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8');
+      } catch {
+        continue;
+      }
+      scanned += 1;
+      violations.push(...scanFinallyAbrupt(rel, content));
+    }
+    assert.deepStrictEqual(
+      violations,
+      [],
+      'finally-block abrupt completions must never reach main (Issue #36): ' + violations.join(' | '),
+    );
+    assert.ok(
+      scanned > 100,
+      `finally-abrupt scan must actually cover the tracked test tree (scanned ${scanned}/${tracked.length} files)`,
+    );
+  });
 });

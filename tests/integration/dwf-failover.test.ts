@@ -33,6 +33,25 @@ class FlakyProvider implements LLMProvider {
   }
 }
 
+/**
+ * Windows-tolerant temp-dir removal: retries briefly on the EBUSY file-lock
+ * window. Deliberately a HELPER, not a `finally` body — a `return` inside
+ * `finally` is an abrupt completion that silently overrides any exception the
+ * guarded try threw (including AssertionError → swallowed failures report as
+ * pass; Issue #36, family of upstream #312). The helper's `return` only exits
+ * the helper, so test assertion failures always propagate.
+ */
+function rmTempDir(dir: string): void {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      fs.rmSync(dir, { recursive: true, force: true });
+      return;
+    } catch {
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 150);
+    }
+  }
+}
+
 test('ask failover: a dead routed provider hands the ask to the next chain entry', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dwf-failover-'));
   const dbPath = path.join(dir, '.workflow', 'dwf.sqlite');
@@ -64,14 +83,7 @@ test('ask failover: a dead routed provider hands the ask to the next chain entry
     assert.ok(r.status === 'completed' || r.status === 'failed', r.error);
   } finally {
     providerRegistry.setDefault('mock');
-    for (let attempt = 0; attempt < 5; attempt++) {
-      try {
-        fs.rmSync(dir, { recursive: true, force: true });
-        return;
-      } catch {
-        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 150);
-      }
-    }
+    rmTempDir(dir);
   }
 });
 
@@ -115,13 +127,6 @@ test('ask failover end-to-end: flaky default provider → mock chain entry compl
     }
   } finally {
     providerRegistry.setDefault('mock');
-    for (let attempt = 0; attempt < 5; attempt++) {
-      try {
-        fs.rmSync(dir, { recursive: true, force: true });
-        return;
-      } catch {
-        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 150);
-      }
-    }
+    rmTempDir(dir);
   }
 });
