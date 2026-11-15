@@ -27,6 +27,8 @@ export interface CliProviderOptions {
   cwd?: string;
   /** Wall clock for one ask; the whole process tree is killed on expiry. */
   timeoutMs?: number;
+  /** Delivery mode for the prompt: 'argv' (default) or 'stdin'. */
+  promptMode?: 'argv' | 'stdin';
 }
 
 interface CliAgentSpec {
@@ -44,6 +46,7 @@ export abstract class CliAgentProvider implements LLMProvider {
   private readonly argsPrefix: string[];
   private readonly cwd?: string;
   private readonly timeoutMs: number;
+  private readonly promptMode: 'argv' | 'stdin';
 
   constructor(spec: CliAgentSpec, options: CliProviderOptions = {}) {
     this.id = spec.id;
@@ -52,6 +55,7 @@ export abstract class CliAgentProvider implements LLMProvider {
     this.argsPrefix = options.argsPrefix ?? spec.argsPrefix;
     this.cwd = options.cwd;
     this.timeoutMs = options.timeoutMs ?? 120_000;
+    this.promptMode = options.promptMode ?? 'argv';
   }
 
   /** Flatten the RPC turn into the single prompt the CLI receives. */
@@ -64,10 +68,13 @@ export abstract class CliAgentProvider implements LLMProvider {
   async generate(request: LLMRequest): Promise<LLMResponse> {
     const startedAt = Date.now();
     const prompt = this.flatten(request);
-    const sup = spawnSupervised(this.command, [...this.argsPrefix, prompt], {
+    const useStdin = this.promptMode === 'stdin';
+    const spawnArgs = useStdin ? this.argsPrefix : [...this.argsPrefix, prompt];
+    const sup = spawnSupervised(this.command, spawnArgs, {
       cwd: this.cwd ?? process.cwd(),
       timeoutMs: this.timeoutMs,
       envAllowlist: ['NO_COLOR', 'FORCE_COLOR', 'NODE_ENV'],
+      input: useStdin ? prompt : undefined,
     });
     const result = await sup.result;
 
@@ -128,6 +135,7 @@ export function configureCliProvidersFromEnv(env: NodeJS.ProcessEnv = process.en
 
   const options: CliProviderOptions = {
     command: env.AI_WORKFLOW_CLI_COMMAND || undefined,
+    promptMode: env.AI_WORKFLOW_CLI_PROMPT_MODE?.trim().toLowerCase() === 'stdin' ? 'stdin' : undefined,
     // Validate: NaN/0/negative survived the old `?? 120_000` (nullish only)
     // and reached setTimeout, which Node coerces to 1ms — every CLI ask died
     // as 'timed out after NaNms' (2026-11-14 round 2). Junk falls back to the

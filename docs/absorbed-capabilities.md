@@ -159,21 +159,22 @@
 - **汲取来源**：
   - Google Antigravity 原生动态工作流（run-workflow Prelude 注入运行时 `antigravity_workflow_prelude.py:470-476, 1315-1329`）中的 `_tracked` 与 `_agents` 扫描器；
   - 详见权威对标白皮书 [ANTIGRAVITY-RUN-WORKFLOW-WHITEPAPER.md](research/ANTIGRAVITY-RUN-WORKFLOW-WHITEPAPER.md) §2.5 与 §4.1。
-- **原理解析**：
-  1. 在动态代码编排（Code as Workflow）中，LLM 或开发者书写异步脚本时极易遗漏 `await`（如写出裸 `agent(...).ask(...)` 或 `ctx.mcp.callTool(...)`）。标准 Node.js / V8 事件循环不会将未等待的 Promise 视为致命语法错误，悬挂的任务在微任务队列末尾漂移或直接被宿主进程退出丢弃，导致工作流在未完成真实任务的情况下报出 `dwf_done`（假绿，Fake Green）。
-  2. 新机制在 Facade 执行沙箱与子进程执行器（`src/dwf/`）内部维护在途挂起 Promise 注册表；所有异步原语实例在构造时自动登记，在 resolve/reject 时注销；
-  3. 在脚本主入口执行完毕、即将派发完成帧之前，实施强制终态审计：一旦发现任何已创建但未被 await 的 Promise 或悬挂 Agent，立即拦截退出流程，向事件流派发失败事件并抛出结构化具名错误 `WorkflowUnawaitedPromiseError`（包含未被等待的任务标签、创建代码位置与建议修复措施）；
-  4. 彻底杜绝漏写 await 导致的「未跑真任务却报成功」假绿现象。
+- **原理解析**（实现以本节为准，随 Issue #279 修正登记与实现的脱节）：
+  1. 在动态代码编排（Code as Workflow）中，LLM 或开发者书写异步脚本时极易遗漏 `await`（如写出裸 `agent(...).ask(...)`）。标准 Node.js / V8 事件循环不会将未等待的 Promise 视为致命语法错误，任务结果被静默丢弃，导致工作流在结果未被消费的情况下报出 `dwf_done`（假绿，Fake Green）；
+  2. 沙箱 realm 内（`src/dwf/child-bootstrap.ts`）为每个非 fire-and-forget 门面调用（`enterPhase`/`log`/`report`/`declareArtifact` 四个白名单算子刻意豁免——丢弃日志/上报属合法松散风格）登记消费描述符 `{siteId, op, awaited}`；脚本经 `then`/`catch`/`finally`（含 `await` 降联）消费返回 Promise 时置 `awaited=true`，**仅结算（ok 帧到达）不清除标记**；
+  3. 在脚本主入口执行完毕、即将派发完成帧之前（`src/dwf/child-main.ts` 终态审计），双网检查：先查消费网 `getUnawaited()`（抓「已结算但结果被丢弃」），再查在途网 `getPending()`（抓 done 时刻仍在等回复的调用）；任一非空即拦截 `dwf_done`，向事件流派发携带 `taggedError` 的失败事件并抛出结构化具名错误 `WorkflowUnawaitedPromiseError`（真实登记于 `src/domain/errors.ts` 闭集第十成员，details 含 `siteId`/`op`/`fixSuggestion` 修复建议）；
+  4. 杜绝漏写 await 导致的「结果被丢弃却报成功」假绿现象。
 - **与来源的刻意差异**：
-  - Antigravity 运行在 Python 解释器环境，使用弱引用（`weakref`）和 `__await__` 特殊方法扫描；本仓基于 TypeScript / Node.js 异步执行沙箱，在 `src/dwf/` 门面及 `child-main.ts` 中通过在途任务跟踪集合实现确定性校验。
+  - Antigravity 运行在 Python 解释器环境，使用弱引用（`weakref`）和 `__await__` 特殊方法扫描；本仓基于 TypeScript / Node.js 异步执行沙箱，在 realm 内以受控 Promise 子类（消费即标记）+ 宿主终态双网扫描实现确定性校验；
+  - **边界（明确未实现）**：「悬挂 Agent 审计拦截」未落地——`getActorUsage()`（创建/使用登记）仅为诊断出口，生产链路无消费者；Agent 泄漏拦截需独立立项，本文不宣称已实现（Issue #279 F2 修正）。
 - **4-Tier 评估**：T1: PASS, T2: PASS, T3: PASS, T4: PASS
   - T1：解决大模型生成动态工作流脚本时漏写 await 导致的假绿放行顽疾；
-  - T2：向内依赖架构，错误派发为领域层 Tagged Error 代数；
-  - T3：检查为确定性的集合为空断言，不经过任何 LLM 不确定性推断；
-  - T4：可通过单测构造未 await 脚本机械验证 100% 报错拦截。
-- **落地模块**：`src/dwf/`（运行时门面与 `child-main.ts`）；白皮书 [docs/research/ANTIGRAVITY-RUN-WORKFLOW-WHITEPAPER.md](research/ANTIGRAVITY-RUN-WORKFLOW-WHITEPAPER.md)。
-- **对应 Issue & PR**：Issue #274；分支 `feat/issue-274-antigravity-workflow`。
-- **验证证据**：见 [docs/research/ANTIGRAVITY-RUN-WORKFLOW-WHITEPAPER.md](research/ANTIGRAVITY-RUN-WORKFLOW-WHITEPAPER.md) §2.5 与 §5。
+  - T2：向内依赖架构，错误派发为领域层 Tagged Error 代数具名成员；
+  - T3：检查为确定性的消费标记 + 集合扫描断言，不经过任何 LLM 不确定性推断；
+  - T4：单测机械验证——未 await 脚本（含「已结算但被丢弃」形态）必须 `failed` 且错误精准命中丢弃调用（`tests/unit/dwf/unawaited-promise.test.ts`）。
+- **落地模块**：`src/dwf/child-bootstrap.ts`（消费描述符与受控 Promise 子类）、`src/dwf/child-main.ts`（终态双网审计）、`src/domain/errors.ts`（具名错误成员）；白皮书 [docs/research/ANTIGRAVITY-RUN-WORKFLOW-WHITEPAPER.md](research/ANTIGRAVITY-RUN-WORKFLOW-WHITEPAPER.md) §4.1。
+- **对应 Issue & PR**：Issue #274（初版在途哨兵）；Issue #279（消费语义修正 + 具名错误落地 + 登记校准）。
+- **验证证据**：见 [docs/research/ANTIGRAVITY-RUN-WORKFLOW-WHITEPAPER.md](research/ANTIGRAVITY-RUN-WORKFLOW-WHITEPAPER.md) §2.5 与 §5；脚本 B 对照（丢弃 + 后续 await）实测 `failed`。
 
 ---
 

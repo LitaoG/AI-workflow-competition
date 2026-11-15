@@ -440,6 +440,9 @@ async function handleRequest(
         cursor = Math.max(...fresh.map((e) => e.sequence ?? 0));
         for (const ev of fresh.slice(-300)) {
           send('event', { type: ev.type, data: ev.data, timestamp: ev.timestamp });
+          if (ev.type === 'dwf_thinking_delta') {
+            send('thinking', { type: ev.type, data: ev.data, timestamp: ev.timestamp });
+          }
         }
         send('state', await buildStudioSnapshot(store, runId, { live: true }));
       } catch {

@@ -85,6 +85,11 @@ test('mergeIntoBase brings a task branch back into the base branch', async () =>
     const pool = new WorktreePool({ workspace: repo.dir });
     const lease = await pool.acquire('merger');
     fs.writeFileSync(path.join(lease.worktreePath, 'contribution.txt'), 'merged\n');
+    // Adjudication (Issue #298): Omit explicit shell: 'bash'. Node's default platform shells
+    // (cmd.exe on Win32, /bin/sh on POSIX) natively support '&&' command chaining portably,
+    // whereas explicitly passing shell: 'bash' on Windows introduces severe non-determinism
+    // (if WSL bash.exe in System32 takes PATH precedence, it fails on Windows drive-letter cwds,
+    // and fails on bare Windows without bash).
     execSync('git add -A && git commit -m task-work', { cwd: lease.worktreePath, stdio: 'pipe' });
     await pool.mergeIntoBase('merger');
     const merged = fs.readFileSync(path.join(repo.dir, 'contribution.txt'), 'utf8');
@@ -133,6 +138,11 @@ test('concurrent tasks write different files, merge back cleanly, zero residue',
     // every task writes its own file in its own tree and lands it on the base
     await Promise.all(leases.map(async (lease, i) => {
       fs.writeFileSync(path.join(lease.worktreePath, `contribution-${i}.txt`), `from task ${i}\n`);
+      // Adjudication (Issue #298): Omit explicit shell: 'bash'. Node's default platform shells
+      // (cmd.exe on Win32, /bin/sh on POSIX) natively support '&&' command chaining portably,
+      // whereas explicitly passing shell: 'bash' on Windows introduces severe non-determinism
+      // (if WSL bash.exe in System32 takes PATH precedence, it fails on Windows drive-letter cwds,
+      // and fails on bare Windows without bash).
       execSync('git add -A && git commit -m "task work"', { cwd: lease.worktreePath, stdio: 'pipe' });
       await pool.mergeIntoBase(lease.taskKey);
     }));

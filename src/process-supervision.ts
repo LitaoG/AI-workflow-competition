@@ -40,6 +40,8 @@ export interface SupervisedSpawnOptions {
    * job helper is active (win32 only; ignored on the fallback-taskkill path).
    */
   processMemoryLimitMb?: number;
+  /** Optional standard input payload written to the child upon spawn. */
+  input?: string | Buffer;
 }
 
 export interface SupervisedResult {
@@ -560,17 +562,19 @@ export function spawnSupervised(cmd: string, args: string[], opts: SupervisedSpa
     : undefined;
   const spawnArgs = route ? route.spawnArgs : args;
 
+  const stdio = opts.input !== undefined ? (['pipe', 'pipe', 'pipe'] as const) : (['ignore', 'pipe', 'pipe'] as const);
+
   const child = isWindows
     ? spawnJobGuarded(resolved, spawnArgs, {
         cwd: opts.cwd,
         env,
-        stdio: ['ignore', 'pipe', 'pipe'],
+        stdio: stdio as any,
         processMemoryLimitMb: opts.processMemoryLimitMb,
         rawCommandLine: route?.rawChildLine,
       })
     : spawn(resolved, spawnArgs, {
         cwd: opts.cwd,
-        stdio: ['ignore', 'pipe', 'pipe'],
+        stdio: stdio as any,
         windowsHide: true,
         shell: false,
         // POSIX: detached makes the child a process-group leader, enabling the
@@ -579,6 +583,11 @@ export function spawnSupervised(cmd: string, args: string[], opts: SupervisedSpa
         detached: !isWindows,
         env,
       });
+
+  if (opts.input !== undefined && child.stdin) {
+    child.stdin.on('error', () => {});
+    child.stdin.end(opts.input);
+  }
 
   let timedOut = false;
   let stdout = '';

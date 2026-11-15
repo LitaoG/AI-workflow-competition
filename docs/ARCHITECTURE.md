@@ -39,7 +39,7 @@ AI-Workflow 采用 **ZCode 动态工作流** 的架构范式——**"代码即�
 | `domain/` | 领域词汇：错误代数、事件常量表、证据账目、结果类型 | `events.ts`（`WORKFLOW_EVENT`）、`errors.ts`、`evidence.ts` |
 | `types.ts` | 跨模块共享契约：`StateStore`、`DwfJournalStore`、`WorkflowEvent` 等 | `src/types.ts` |
 | `core/` | 核心构建器引擎：`Workflow`/`defineWorkflow`、Kahn 校验、步骤执行、重试 | `workflow.ts`、`step.ts`、`context.ts`、`error.ts` |
-| `dwf/` | Facade 脚本引擎（主推面）：编译、降级、沙箱子进程、NDJSON 协议、journal 内核 | `compile.ts`（编译编排）、`compile-rules.ts`（规则词库）、`lower.ts`、`runner.ts`（启动编排+settle 状态机）、`run-lineage.ts`、`run-events.ts`、`frame-pump.ts`、`sandbox-launch.ts`、`author-position.ts`、`fill-hole.ts`、`engine.ts`（外观+journal 主链）、`replay-pool.ts`、`ask-executor.ts`、`budget-ledger.ts`、`host-boundary-dispatcher.ts`、`artifact-ledger.ts`、`evidence-ledger.ts`、`child-main.ts`（沙箱宿主侧）、`child-bootstrap.ts`（realm 引导程序）、`governor.ts`、`redact.ts`、`schema-synth.ts`、`facade-dts.ts` |
+| `dwf/` | Facade 脚本引擎（主推面）：编译、降级、沙箱子进程、NDJSON 协议、journal 内核 | `compile.ts`（编译编排）、`ast-codemod.ts`（前置 AST 改写与自愈）、`compile-rules.ts`（规则词库）、`lower.ts`、`runner.ts`（启动编排+settle 状态机）、`run-lineage.ts`、`run-events.ts`、`frame-pump.ts`、`sandbox-launch.ts`、`author-position.ts`、`fill-hole.ts`、`engine.ts`（外观+journal 主链）、`replay-pool.ts`、`ask-executor.ts`、`budget-ledger.ts`、`host-boundary-dispatcher.ts`、`artifact-ledger.ts`、`evidence-ledger.ts`、`child-main.ts`（沙箱宿主侧）、`child-bootstrap.ts`（realm 引导程序）、`governor.ts`、`redact.ts`、`schema-synth.ts`、`facade-dts.ts` |
 | `agent/` | Provider 抽象与 RPC：mock/Bedrock/Anthropic/OpenAI/CLI/HTTP 提供方、模型路由、JSON 修复 | `rpc.ts`、`provider.ts`、`model-router.ts`、`schema.ts` |
 | `prober/` | 确定性环境探测：系统、Git、工具链、环境变量脱敏 | `index.ts`、`system.ts`、`git.ts`、`toolchain.ts`、`sanitizer.ts` |
 | `state/` | 持久化：SQLite 存储（WAL）、JSONL 事件日志、ReplayEngine | `sqlite-store.ts`、`event-log.ts`、`replay.ts` |
@@ -92,12 +92,14 @@ flowchart TB
         PROV["mock · Bedrock · Anthropic · OpenAI · CLI 代理 · HTTP"]
     end
 
-    CLI --> AST
-    CLI --> KAHN
+    CLI -- "run facade / run-script" --> AST
+    CLI -- "run builder" --> KAHN
     MCPC --> AST
     AST --> VM
-    KAHN --> VM
     VM --> FACE
+    KAHN --> CORE_RUNNER["Core In-Process Runner<br/>(宿主进程直接执行)"]
+    CORE_RUNNER --> SQLITE
+    CORE_RUNNER --> ROUTER
     FACE --> GATE
     FACE --> ROUTER
     ROUTER --> PROV
@@ -110,7 +112,7 @@ flowchart TB
     SQLITE -- "--resume / --amend 零 Token 重放" --> VM
 ```
 
-分层要点与上表模块一一对应：编译层先于一切执行（§4）；执行层运行在 `node:vm` 沙箱子进程中，受物理监管层托管（§5）；全部状态经双持久化状态层落库（§8），并以此支撑 `--resume` / `--amend` 零 Token 重放（§3.3、§8.3）；模型运行时的分层路由与 failover 见 §6.3–§6.4。
+分层要点与上表模块一一对应：编译层先于一切执行（§4）；Facade 脚本执行层运行在 `node:vm` 沙箱子进程中（受物理监管层托管），而声明式 Core 构建器工作流在宿主进程中依据 Kahn 拓扑排序直接执行；全部状态经双持久化状态层落库（§8），并以此支撑 `--resume` / `--amend` 零 Token 重放（§3.3、§8.3）；模型运行时的分层路由与 failover 见 §6.3–§6.4。
 
 ---
 
@@ -196,6 +198,11 @@ flowchart TB
 
 **站点表（site table）**：编译同时捕获 `actor`/`phase`/`hole`/`ask`/`worldRun` 等调用点为站点（`siteId`），它是重放键控（§6.5）、审批面（§5.3）与 `workflow check` 输出的共同基础。
 
+**前置 AST Codemod 与解构自愈**（`src/dwf/ast-codemod.ts`，Issue #300）：大模型动态生成脚本时常习惯性写出命名空间解构（`const { glob, read } = files`）或 Agent 方法解构（`const { ask } = agent('foo')`），直接分析会因提取中间变量而触发 9001 误用拦截，增加反思延迟与 Token 成本。编译器流水线在 `compileFacadeScript` 入口引入轻量 AST Codemod 变换：
+- 语法分析前将常见解构自动改写为符合规范的直接属性调用（`files.glob(...)`、`agent('foo').ask(...)`）并移除中间解构声明；
+- 具备严格的作用域感知与遮蔽保护（不误伤局部同名变量或对象属性），且保留原始注释与线性结构；
+- 已合规脚本无损零改动（`modified: false`），透明提升首次编译成功率。
+
 ---
 
 ## 5. VM 沙箱与进程组监管
@@ -270,7 +277,14 @@ messages.push({
 
 facade 面的 `ask<T = string>(instructions: string): Node<T>` 不接收 schema 参数——类型参数 $T$ 的 JSON Schema 在**编译期**从类型合成（§4），运行时按同一 Zod 兼容路径校验（`json-schema-zod.ts`）；无类型参数时答案是子代理的最终回复文本。`Agent` 是**持续会话**：ask #2 承接 ask #1 的上下文；忙碌期间的新 ask 按 FIFO 排队。`agent()` 的 `opts.provider` 指定注册提供方（如 `"mock"`、`"bedrock"`），`opts.tier`（`'fast' | 'deep'`，#151 双轨）分别取 `AI_WORKFLOW_FAST_PROVIDER` / `AI_WORKFLOW_DEEP_PROVIDER`，二者都未配置时回落注册表默认；无 tier 时带 schema 或大 prompt 的 ask 自动路由 deep。失败 ask 按 failover 链换道并发出 `dwf_failover`。
 
-### 6.4 三层并发治理与硬熔断
+### 6.4 统一 Provider 契约与 Thinking 流式事件（Issue #304）
+
+Provider 抽象层（`src/agent/provider-contract.ts`）定义了标准统一的模型交互契约：`chat`、`complete`、`stream`、`structured`、`checkHealth`。
+- **Thinking 流式增量**：流式通道 `stream` 扩充 `StreamChunk` 联合类型（`{ type: 'content' | 'thinking', delta: string }`），配合 `normalizeStreamChunk` 提供 100% 裸字符串向后兼容能力；
+- **深度思考与链式推理**：原生支持现代推理模型（Claude 3.7 Extended Thinking、DeepSeek-R1、OpenAI o-series）在产出答案前流式输出的思考过程（Thinking Tokens），在执行期作为 `dwf_thinking_delta` 领域事件透传；
+- **Live 广播**：在 `src/dwf/live.ts` 中打通 `/events` SSE 通道（并下发专有 `thinking` 事件）与 WebSocket `broadcastEvent`，为终端与 Studio 看板提供实时思维链可视化能力。
+
+### 6.5 三层并发治理与硬熔断
 
 - **引擎 ask 闸门**：运行级并发上限（`maxConcurrency`，默认 4；或 `AI_WORKFLOW_MAX_CONCURRENT_AGENTS`，未配置时 `resolveAskConcurrency` 取 `min(16, max(2, availableParallelism() - 2))`）；
 - **运行座位闸门**：FIFO 泊车排队；
@@ -278,7 +292,7 @@ facade 面的 `ask<T = string>(instructions: string): Node<T>` 不接收 schema 
 
 **硬熔断**：`agent()` 调用数硬上限 `AGENT_CALL_CAP = 1000`（`src/execution/swarm-dispatcher.ts` 的 `SWARM_AGENT_CAP`，与 Claude Code 对齐）；触顶即 `WorkflowAgentCapError`（可捕获，运行存活），附带官方同款反死循环文案——"用 `budget.remaining()` 判终止的循环永远不终止"。**预算**：`budgetTotal` 以 `agent()` 调用粒度执行输出 Token 预算，超支阻止**后续** `agent()` 调用（`WorkflowBudgetExceededError`），在途 ask 完成且结果保留；脚本内 `budget` 只读（`spent()`/`remaining()`/`total`），`total = null` 表示无限。
 
-### 6.5 确定性键控与 Settle-Order Gate
+### 6.6 确定性键控与 Settle-Order Gate
 
 - **NUL 分隔哈希键**：`inputHash = sha256(kind ␀ siteId ␀ input)`。头两个字段由引擎控制（kind 是封闭枚举、siteId 由编译器生成），永远是真分隔符；NUL 优于任何可打印分隔符，因为 `JSON.stringify` 绝不产出裸 0x00（转义为 `\u0000` 六字符），拼接因此**构造性单射**，不靠字段内容纪律。
 - **Settle-Order Gate**（镜像官方引擎，`engine.ts` + `replay-pool.ts` SettlePools）：池化落定值按**首个落定顺序**释放，由 `inputHash` 内容匹配 1:1 消费——而非按到达顺序。扇出到达次序漂移因此不可能错绑 journal 行。
@@ -381,6 +395,7 @@ $$C(t) = (1-t)^3 P_0 + 3(1-t)^2 t P_1 + 3(1-t) t^2 P_2 + t^3 P_3, \quad t \in [0
 - **节点检查抽屉**：点击步骤滑出抽屉，渲染 JSON 输入输出、运行时长、角色与错误堆栈；
 - **Kanban 看板**（`dag/kanban.ts`）：按产物类型分四列——`probe`（探测上下文）/ `patch`（Agent 补丁与 AST）/ `gate`（门禁与测试日志）/ `deliverable`（交付物），卡片状态 `pending`/`active`/`done`/`failed`；
 - **AI-Workflow Studio**（`visualizer/studio-renderer.ts` + `studio-server.ts`）：单文件自包含 SPA（AffectUI 风格拓扑画布、抽屉式实时事件终端与节点检查器，`file://` 离线可用；默认 Canvas-First 全屏展示工作流全貌，点击节点或切换按钮平滑展开右侧抽屉；阶段标题自适应换行，卡片采用意图摘要与状态指标多行布局，跨阶段节点以 SVG 贝塞尔带箭头导向连线贯通）。服务端在零 npm 依赖前提下手写 RFC 6455 WebSocket：`broadcastEvent` 向所有连接实时推帧；客户端 `{"op":"seek","ordinal":N}` 触发**时间旅行**——把 `events.jsonl` 前 N 条事件折叠为状态快照回放（复用同一投影器 `projectEventsToGraph`），新连接以全量折叠开场，画布直接落在"现在"；
+- **Live SSE 与 Thinking 思考流**（`src/dwf/live.ts`，Issue #304）：除 WebSocket 外，Live 引擎提供标准 `/events` Server-Sent Events 通道，将 raw journal 事件以 `event: event` 实时推流；当推理模型产生思考过程时，专有 `dwf_thinking_delta` 事件同时以 `event: thinking` 频道多路广播，支持 Studio 看板与外部终端低延迟呈现实时思维链；
 - **多格式导出**：单文件 HTML/SVG、Mermaid markdown 图、终端 ASCII 树（`workflow graph --format html|mermaid|ascii`）。
 
 ---

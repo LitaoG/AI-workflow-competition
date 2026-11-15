@@ -36,6 +36,7 @@ import {
   isAgentError,
   isMcpError,
   isJournalMismatchError,
+  isWorkflowUnawaitedPromiseError,
   type DomainError,
 } from '../../src/domain/errors.js';
 // Core compatibility shim (Issue #94): the nine legacy classes carry domain tags/details.
@@ -170,7 +171,7 @@ test('DomainError: domainError builds every tag with details and cause', () => {
   assert.equal(minimal.cause, undefined);
 });
 
-test('DomainError: exactly the nine canonical tags are declared', () => {
+test('DomainError: exactly the ten canonical tags are declared', () => {
   assert.deepEqual([...DOMAIN_ERROR_TAGS], [
     'CompileError',
     'SchemaValidationError',
@@ -181,6 +182,7 @@ test('DomainError: exactly the nine canonical tags are declared', () => {
     'AgentError',
     'McpError',
     'JournalMismatchError',
+    'WorkflowUnawaitedPromiseError',
   ]);
 });
 
@@ -195,6 +197,7 @@ test('DomainError: each tag has a type guard that narrows and rejects others', (
     domainError('AgentError', 'provider outage'),
     domainError('McpError', 'tool crashed'),
     domainError('JournalMismatchError', 'inputHash drift'),
+    domainError('WorkflowUnawaitedPromiseError', 'facade call dropped'),
   ];
 
   for (const sample of samples) {
@@ -223,6 +226,7 @@ function matchesGuard(sample: DomainError, error: DomainError): boolean {
     isAgentError,
     isMcpError,
     isJournalMismatchError,
+    isWorkflowUnawaitedPromiseError,
   ];
   const hits = guards.filter((guard) => guard(error));
   return hits.length === 1 && hits[0](sample);
@@ -320,9 +324,11 @@ test('DomainError: five failure domains attribute every tag of the closed set ex
     model: ['AgentError'],
     // 持久化/审计 — outside the five domains but members of the closed set
     'persistence-audit': ['StorageError', 'JournalMismatchError'],
+    // 门面脚本契约（done-time 哨兵审计，Issue #279）— outside the five domains
+    'facade-contract': ['WorkflowUnawaitedPromiseError'],
   } as const;
   const attributed = Object.values(FIVE_DOMAIN_TAGS).flat().sort();
-  assert.deepEqual(attributed, [...DOMAIN_ERROR_TAGS].sort(), 'attribution table must cover the nine-tag closed set with no overlap and no omission');
+  assert.deepEqual(attributed, [...DOMAIN_ERROR_TAGS].sort(), 'attribution table must cover the ten-tag closed set with no overlap and no omission');
 });
 
 // ============================================================================

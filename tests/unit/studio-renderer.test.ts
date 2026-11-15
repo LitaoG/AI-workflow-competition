@@ -96,6 +96,63 @@ test('review MEDIUM: the artifact markdown regexes reach the browser as real whi
   assert.ok(!html.includes('(#{1,3})\\\\s'), 'the broken two-backslash variant must be gone');
 });
 
+// Issue #284: extract every inline <script> body from the rendered HTML.
+// External (src=) scripts are out of scope — the gate protects the template's
+// own embedded client code, which is the only surface the build cannot see.
+function extractInlineScripts(html: string): string[] {
+  const scripts: string[] = [];
+  const tag = /<script(\s[^>]*)?>([\s\S]*?)<\/script>/g;
+  let match: RegExpExecArray | null;
+  while ((match = tag.exec(html)) !== null) {
+    if (match[1] && /\bsrc\s*=/.test(match[1])) continue;
+    scripts.push(match[2] ?? '');
+  }
+  return scripts;
+}
+
+test('issue #284: every inline <script> block compiles as valid JavaScript (client syntax gate)', () => {
+  // tsc treats STUDIO_TEMPLATE as a plain string constant and never parses the
+  // JS inside it, and there is no headless browser in the gate chain — so a
+  // SyntaxError in the embedded client code (PR #281 white-screen class) can
+  // only be caught here, by compiling every inline block exactly like V8 would.
+  for (const opts of [{ live: false }, { live: true }]) {
+    const html = renderStudioHtml(snapshot(), opts);
+    const scripts = extractInlineScripts(html);
+    assert.ok(scripts.length >= 4, `expected the template's own inline script blocks, got ${scripts.length}`);
+    for (const [index, body] of scripts.entries()) {
+      assert.doesNotThrow(
+        () => new Function(body),
+        `inline <script> #${index + 1} (live=${opts.live}) must compile — a template-literal escape bug just shipped a white screen to the client`,
+      );
+    }
+  }
+});
+
+test('issue #284 reverse discrimination: the PR #281 backslash-collapse corruption is caught', () => {
+  // Reconstruct the historical PR #281 failure shape: the author wrote `\r` /
+  // `\n` (single backslash) inside the TS template literal, so the emitted text
+  // carried REAL CR/LF where the client code needed the two-char escape —
+  // turning `[\r\n]+` regex classes and `'\n'` string literals into unterminated
+  // multiline tokens (SyntaxError in the browser, white screen). Collapsing the
+  // emitted escapes the same way must make at least one block fail to compile,
+  // proving the forward gate actually fires on this corruption class.
+  const scripts = extractInlineScripts(renderStudioHtml(snapshot()));
+  let brokenBlocks = 0;
+  for (const body of scripts) {
+    const collapsed = body.replace(/\\r/g, '\r').replace(/\\n/g, '\n');
+    if (collapsed === body) continue;
+    try {
+      new Function(collapsed);
+    } catch {
+      brokenBlocks += 1;
+    }
+  }
+  assert.ok(
+    brokenBlocks >= 1,
+    'collapsing \\r\\n escapes must break at least one inline script — otherwise the syntax gate has no reverse discrimination against the PR #281 class',
+  );
+});
+
 test('runId with HTML metacharacters is escaped in the title', () => {
   const html = renderStudioHtml(snapshot({ run: { runId: 'run-<img src=x onerror=alert(1)>', status: 'completed' } }));
   assert.ok(!html.includes('<img src=x'), 'raw HTML must not reach the title');

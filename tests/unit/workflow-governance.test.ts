@@ -2,6 +2,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { execSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -790,5 +791,61 @@ not ok 2 - stdio e2e: real spawn lists all seven tools
     };
     walk(unitDir);
     assert.deepStrictEqual(offenders, [], 'unit suite must keep pure isolation semantics (Issue #198): ' + offenders.join(' | '));
+  });
+
+  test('Tier 1: no merge-conflict markers survive in any tracked text file (upstream Issue #277, ported via comp Issue #17)', () => {
+    // Upstream Issue #277: conflict markers (`<<<<<<< HEAD` / `>>>>>>> origin/main`)
+    // survived in README for 3 days 18 hours across 25 merges while every local
+    // gate stayed green — no gate scanned plain-text files for merge corruption.
+    // The scanner below closes that blind spot at Tier 1. execSync is the
+    // P-TEST-5 sanctioned bounded sync form (it cannot outlive the call).
+    const CONFLICT_MARKER = /^<<<<<<< |^>>>>>>> /;
+    const scanConflictMarkers = (relPath: string, content: string): string[] => {
+      const hits: string[] = [];
+      content.split('\n').forEach((line, index) => {
+        if (CONFLICT_MARKER.test(line)) hits.push(`${relPath}:${index + 1} ${line.trimEnd()}`);
+      });
+      return hits;
+    };
+
+    // Reverse discrimination (in-repo, no filesystem pollution): hostile
+    // content must be caught with file path + line number. `=======` alone is
+    // deliberately NOT flagged — a bare separator is a common markdown
+    // horizontal rule; only the real GitHub marker shapes fire.
+    const hostileHits = scanConflictMarkers(
+      'hostile/README.md',
+      ['intro paragraph', '<<<<<<< HEAD', '=======', '>>>>>>> origin/main'].join('\n'),
+    );
+    assert.deepStrictEqual(
+      hostileHits,
+      ['hostile/README.md:2 <<<<<<< HEAD', 'hostile/README.md:4 >>>>>>> origin/main'],
+      'the scanner must catch injected conflict markers with path + line number',
+    );
+
+    const tracked = execSync('git ls-files -z', { cwd: REPO_ROOT, maxBuffer: 64 * 1024 * 1024 })
+      .toString('utf8')
+      .split('\0')
+      .filter(Boolean);
+    const binaryExt = /\.(png|jpe?g|gif|bmp|ico|webp|woff2?|ttf|otf|eot|zip|gz|tgz|bz2|7z|xz|pdf|exe|dll|node|wasm|bin|mp4|webm|mov|sqlite|db)$/i;
+    const violations: string[] = [];
+    let scanned = 0;
+    for (const rel of tracked) {
+      if (binaryExt.test(rel)) continue; // binary data, not text
+      if (rel.includes('/fixtures/')) continue; // fixtures are data, not prose (Issue #277 mandate)
+      let content: string;
+      try {
+        content = fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8');
+      } catch {
+        continue; // unreadable at scan time — not a conflict-marker violation
+      }
+      scanned += 1;
+      violations.push(...scanConflictMarkers(rel, content));
+    }
+    assert.deepStrictEqual(
+      violations,
+      [],
+      'merge-conflict markers must never reach main (Issue #277): ' + violations.join(' | '),
+    );
+    assert.ok(scanned > 100, `conflict-marker scan must actually cover the tracked tree (scanned ${scanned}/${tracked.length} files)`);
   });
 });

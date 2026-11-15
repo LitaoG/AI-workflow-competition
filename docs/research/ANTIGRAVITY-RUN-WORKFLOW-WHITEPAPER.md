@@ -33,7 +33,7 @@ Google Antigravity 在近期版本中正式推出原生动态工作流能力（�
 
 | 证据载体 | 物理路径 / 出处 | 核心验证内容与证据用途 |
 |---|---|---|
-| **Antigravity Prelude 注入源** | `C:/Users/86183/.gemini/antigravity/brain/bb5135db-0bfb-46bb-96db-baf6cca3e99d/scratch/antigravity_workflow_prelude.py` | 逆向完整运行时：FD 劫持、NDJSON 帧循环、未 Await 扫描、`with_budget`、`_LibraryFinder` |
+| **Antigravity Prelude 注入源** | 本机 Antigravity 安装的 brain/scratch 会话产物（`antigravity_workflow_prelude.py`，1334 行；机器本地 UUID 路径不随仓分发，见 §5.1） | 逆向完整运行时：FD 劫持、NDJSON 帧循环、未 Await 扫描、`with_budget`、`_LibraryFinder` |
 | **Antigravity Skill 规约** | `C:/Users/86183/.gemini/antigravity/builtin/skills/run-workflow/SKILL.md` | 原生 API 契约、`type_name` / `workspace` 三态、`finish` 工具契约、`trajectory()` 规约 |
 | **Claude Code 白皮书** | `docs/research/CLAUDE-CODE-DYNAMIC-WORKFLOW-WHITEPAPER.md` | 官方 `@anthropic-ai/claude-code@2.1.316` VM 沙箱、Date 纯度封印、并发门对标 |
 | **ZCode 逆向报告** | `docs/research/workflow-reverse-engineering.md` & `ZCODE-DEEP-REVERSE-v2.md` | ZCode 三代演进、AST 静态门禁、动态 DAG 拓扑调度对标 |
@@ -398,19 +398,20 @@ sys.meta_path.append(_LibraryFinder(init.get("libraries") or {}, dict(scope)))
 
 ### 4.1 核心吸收项：未 Await 挂起 Promise / Agent 自动审计防御（CAP-007）
 
-- **决策结论**：**吸收（Absorbed）**
-- **解决痛点（T1）**：大模型生成 Facade 脚本时，经常漏写 `await agent(...).ask(...)` 或 `await ctx.mcp.callTool(...)`，导致任务静默未跑却显示步骤成功（假绿）。
-- **工程落地（T2/T3）**：
-  - 在 `src/dwf/`（如 `child-main.ts` 或 Facade 运行时门面）中维护 `pendingPromises: Set<Promise<any>>`；
-  - 门面 API（`agent().ask`、`mcp.callTool`、`gate` 等）派发 Promise 时自动存入 Set；在 `then`/`finally` 回调中移出；
-  - 在用户导出函数 `run()` 执行完毕、即将发送 `dwf_done` 帧之前，执行 `assert(pendingPromises.size === 0)` 门禁；若集合非空，拦截正常退出，抛出 `Tagged Error: WorkflowUnawaitedPromiseError`。
-- **机械验证（T4）**：编写针对漏写 `await` 脚本的单测，断言工作流必须失败且错误信息精准命中悬挂任务。
+- **决策结论**：**吸收（Absorbed；消费语义随 Issue #279 校准为与来源一致）**
+- **解决痛点（T1）**：大模型生成 Facade 脚本时，经常漏写 `await agent(...).ask(...)`，导致任务结果被静默丢弃却显示步骤成功（假绿）——含「调用已结算但返回值被彻底丢弃」的漏拦形态。
+- **工程落地（T2/T3，以代码为准）**：
+  - 沙箱 realm 内（`src/dwf/child-bootstrap.ts`）为每个非 fire-and-forget 门面调用登记消费描述符 `{siteId, op, awaited}`（`enterPhase`/`log`/`report`/`declareArtifact` 四算子刻意豁免）；
+  - 返回的是受控 Promise 子类：脚本经 `then`/`catch`/`finally`（`await` 降联即 `then`）消费时置 `awaited=true`——对应来源在 `__await__` 中置 `_awaited=True` 的语义；仅结算不清除标记；
+  - 用户导出函数执行完毕、即将发送 `dwf_done` 帧之前（`src/dwf/child-main.ts`），双网审计：先查消费网 `getUnawaited()`（抓丢弃），再查在途网 `getPending()`（抓 done 时刻仍在等回复）；任一非空即拦截，抛出 `Tagged Error: WorkflowUnawaitedPromiseError`（闭集真实成员，details 含 siteId/op/fixSuggestion）。
+- **机械验证（T4）**：未 await 脚本与「已结算但被丢弃」脚本（对照 A/B）单测断言工作流必须 `failed` 且错误精准命中丢弃调用（`tests/unit/dwf/unawaited-promise.test.ts`）。
+- **明确边界**：悬挂 Agent 拦截未实现（`getActorUsage` 仅为诊断出口）；详见 `docs/absorbed-capabilities.md` CAP-007 条目。
 
-### 4.2 核心吸收项：RPC 管道物理级防投毒与输出隔离（CAP-008）
+### 4.2 未吸收：RPC 管道物理级防投毒与输出隔离（CAP-008）
 
-- **决策结论**：**吸收（Absorbed，设计收敛）**
-- **解决痛点（T1）**：彻底解决 D4 缺口（NDJSON 协议投毒与 console.log 乱码穿透）。
-- **工程落地（T2/T3）**：
+- **决策结论**：**未吸收（设计收敛，待立项）**——Issue #279 F3 修正：本节此前误标「已吸收」，实际 `src/dwf/runner.ts` 的子进程 stdio 仍为三管道（NDJSON 控制帧与日志共用 stdout），fd 3 专用 RPC 通道从未落地，`docs/absorbed-capabilities.md` 亦无 CAP-008 条目。读者请勿按已落地理解。
+- **解决痛点（T1）**：D4 缺口（NDJSON 协议投毒与 console.log 乱码穿透）尚以缓解措施覆盖，物理级隔离未实现。
+- **若立项的工程路径（T2/T3）**：
   - 在 Node.js 派生 `child-main.ts` 时，利用 `stdio: ['pipe', 'pipe', 'pipe', 'pipe']` 开启第 4 个描述符（fd 3）作为专用 RPC 通道；
   - 子进程内部将 RPC 写入流绑定至 `fs.createWriteStream(null, { fd: 3 })`；
   - 子进程的标准输出 `stdout` 仅用于承载日志并直接重定向至宿主的日志流，不再承载任何控制帧。彻底终结 NDJSON 协议投毒。
@@ -437,13 +438,16 @@ sys.meta_path.append(_LibraryFinder(init.get("libraries") or {}, dict(scope)))
 
 ### 5.1 Antigravity Prelude 源码核查
 
-```powershell
-# 验证 FD 劫持代码段 (455-464 行)
-Get-Content -Path "C:\Users\86183\.gemini\antigravity\brain\bb5135db-0bfb-46bb-96db-baf6cca3e99d\scratch\antigravity_workflow_prelude.py" | Select-Object -Skip 454 -First 10
+被逆向的 Prelude 注入源（`antigravity_workflow_prelude.py`，共 1334 行）是本机 Antigravity 安装的 brain/scratch 会话产物（UUID 临时目录），**不随本仓分发、第三方无法按路径复现**（Issue #279 F6 修正：本节此前给出机器本地绝对路径复现命令，第三方不可达）。第三方复核以本文内已摘录的源码片段为锚：
 
-# 验证未 Await 挂起 Promise / Agent 终态审计代码段 (1315-1329 行)
-Get-Content -Path "C:\Users\86183\.gemini\antigravity\brain\bb5135db-0bfb-46bb-96db-baf6cca3e99d\scratch\antigravity_workflow_prelude.py" | Select-Object -Skip 1314 -First 16
-```
+| 核查点 | 来源行锚（已核verify） | 本文摘录位置 |
+|---|---|---|
+| FD 劫持代码段 | `antigravity_workflow_prelude.py:455-464` | §2.x 摘录代码块（「antigravity_workflow_prelude.py:455-464」标注块） |
+| `_tracked`/`_agents` 在途注册表 | `:470-476` | §2.5 |
+| `__await__` 置 `_awaited=True` 的消费语义 | `:556,559,990-991` | §2.5 消费标记说明 |
+| 未 Await 终态审计扫描（`if not p._awaited`） | `:1315-1329` | §2.x 摘录代码块（「antigravity_workflow_prelude.py:1315-1329」标注块） |
+
+上述行锚已由逆向会话核对存在；如需独立获取源文件，请在自行安装的 Antigravity 环境的对应会话 brain/scratch 目录检索同名文件（行号以 1334 行版本为基准，版本漂移时以语义锚点定位）。本仓的吸收实现见 `src/dwf/child-bootstrap.ts` / `src/dwf/child-main.ts` 与 `docs/absorbed-capabilities.md` CAP-007。
 
 ### 5.2 治理与防腐验证
 

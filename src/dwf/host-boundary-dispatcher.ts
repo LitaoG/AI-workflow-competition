@@ -241,12 +241,25 @@ export class WorldBoundary {
 
   /** Resolve a workspace-relative path, refusing anything that escapes it. */
   resolveInsideWorkspace(rel: string, what: string): string {
+    const canonicalWorkspace = fs.existsSync(this.workspace) ? fs.realpathSync(this.workspace) : path.resolve(this.workspace);
     const workspace = path.resolve(this.workspace);
     const abs = path.resolve(workspace, rel.replace(/\\/g, '/'));
     if (abs !== workspace && !abs.startsWith(workspace + path.sep)) {
       throw domainError('SchemaValidationError', `${what} "${rel}" escapes the workspace`, {
         details: { what, path: rel },
       });
+    }
+    if (fs.existsSync(abs)) {
+      const real = fs.realpathSync(abs);
+      const isInside = process.platform === 'win32'
+        ? (real.toLowerCase() === canonicalWorkspace.toLowerCase() || real.toLowerCase().startsWith((canonicalWorkspace + path.sep).toLowerCase()))
+        : (real === canonicalWorkspace || real.startsWith(canonicalWorkspace + path.sep));
+      if (!isInside) {
+        throw domainError('SchemaValidationError', `${what} "${rel}" symlink escapes the workspace`, {
+          details: { what, path: rel, realPath: real },
+        });
+      }
+      return real;
     }
     return abs;
   }

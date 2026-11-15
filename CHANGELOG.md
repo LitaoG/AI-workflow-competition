@@ -1,5 +1,45 @@
 # Changelog
 
+## 2.5.0 (2026-11-15) — upstream batch: AST codemod self-healing, thinking-stream SSE, supervised stdin, symlink hardening
+
+Feature/fix sync from the upstream engine line (`78ac366..18eb37e`, patch-ported per the
+established two-repo recipe; competition deliverables untouched). Twelve substantive
+changes land:
+
+- **dwf**: compiler pre-pass AST codemod (`src/dwf/ast-codemod.ts`) auto-heals forgotten
+  destructuring in facade scripts (upstream #300).
+- **agent**: thinking-stream deltas flow through the provider contract and propagate
+  live over SSE (upstream #304).
+- **agent**: `spawnSupervised` accepts a stdin payload; `promptMode` gains `stdin` in
+  cli-providers (upstream #291).
+- **security**: WorldBoundary rejects symlink path traversal escaping the workspace
+  root (upstream #289).
+- **dwf**: the unawaited-promise sentry tracks *consumption*, not just in-flight state —
+  "settled but discarded" results now also fail loudly with
+  `WorkflowUnawaitedPromiseError` instead of reporting fake success (upstream #279).
+- **studio**: every inline client `<script>` in rendered output is compile-gated through
+  a `new Function` assertion (upstream #284; closes this repo's v2.4.0 boot-script
+  white-screen lesson at the gate level).
+- **governance**: Tier-1 repo-wide merge-conflict-marker scan with reverse
+  discrimination (upstream #277; governance 35 → 36).
+- **tests**: the 13-file goal-adv adversarial family joins the adversarial gate and the
+  ADV2 world.run side-channel approval is restored (upstream #287; adversarial 158 → 201).
+- **execution**: `shell: 'bash'` removal in worktree-pool adjudicated and locked
+  (upstream #298; recorded as P-SHELL-2).
+- **docs**: ARCHITECTURE Mermaid diagram and dual-engine execution-flow corrections
+  (upstream #293); pitfalls P-GIT-3 / P-BUILD-2 / P-SHELL-2 recorded; P-ENV-3 closes
+  cross-repo (the private §2.1 revision landed, both junction-sharing triggers removed).
+
+Deliberately not ported: upstream #285 (its premise — the `workflow.js demo` subcommand
+being removed — does not hold here: this repo's demo command still exists and
+`scripts/demo.sh` exercises it; QUICKSTART already points at `apps/` paths) and the
+upstream README/QUICKSTART edits (this repo's judge-facing docs are independent; the
+fingerprint tables below were refreshed against the new gate counts instead).
+
+Full gates on this machine (Node v26.13.0, fresh `npm ci` worktree): npm test 800/800
+(unit 593 + integration 207), e2e 118/118, adversarial 201/201, PBT 16/16, governance
+36/36, `scripts/demo.sh` exit 0.
+
 ## 2.4.1 (2026-11-15) — two-repo sync audit closeout, version housekeeping
 
 Housekeeping release. The upstream-sync request for this cycle resolved to a **zero-delta

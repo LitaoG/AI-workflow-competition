@@ -37,6 +37,8 @@ import { createHash } from 'node:crypto';
 import { FACADE_DTS } from './facade-dts.js';
 import { FacadeAnalysis, FacadeDiagnostic, FacadeSite } from './diagnostics.js';
 import { synthesizeSchema } from './schema-synth.js';
+import { codemodFacadeScript } from './ast-codemod.js';
+import { lowerFacadeScript, LowerResult } from './lower.js';
 import {
   BANNED_IDENTIFIERS,
   FACADE_FUNCTION_IDENTIFIERS,
@@ -649,3 +651,40 @@ export function analyzeFacadeScript(source: string): FacadeAnalysis {
   };
 }
 
+export interface CompileFacadeResult {
+  /** The effective author source (either original or AST-desugared). */
+  code: string;
+  /** Whether the source was modified by the AST codemod pre-pass. */
+  modified: boolean;
+  /** Result of static authorization rules and type check. */
+  analysis: FacadeAnalysis;
+  /** Lowered JS executable if analysis succeeded. */
+  lowered?: LowerResult;
+}
+
+/**
+ * Compile a dynamic workflow facade script.
+ *
+ * Pipeline (Issue #300):
+ *  1. Pre-pass AST Codemod (codemodFacadeScript): auto-desugars common LLM
+ *     destructuring patterns (e.g. `const { glob } = files`, `const { ask } = agent('foo')`)
+ *     into direct canonical calls, preserving comments and linear structure.
+ *  2. If modified, passes the transformed source for subsequent AST analysis and lowering.
+ *  3. Static Analysis (analyzeFacadeScript): Channel 1 TS type check + Channel 2 AST rules.
+ *  4. Lowering (lowerFacadeScript): rewrites facade calls to __host.* boundary calls and emits JS.
+ */
+export function compileFacadeScript(source: string): CompileFacadeResult {
+  const codemod = codemodFacadeScript(source);
+  const effectiveSource = codemod.modified ? codemod.code : source;
+  const analysis = analyzeFacadeScript(effectiveSource);
+  let lowered: LowerResult | undefined;
+  if (analysis.ok) {
+    lowered = lowerFacadeScript(effectiveSource);
+  }
+  return {
+    code: effectiveSource,
+    modified: codemod.modified,
+    analysis,
+    lowered,
+  };
+}

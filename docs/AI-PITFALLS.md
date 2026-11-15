@@ -69,6 +69,14 @@
 - 门禁：`tests/unit/workflow-governance.test.ts`（断言主仓 worktree 隔离规则）。
 - 原位置：`AGENTS.md` §1.8、`docs/WORKFLOW.md` §2。
 
+#### P-GIT-3 合并冲突标记静默存活进 main——全门禁对纯文本合并腐蚀失明
+- 复发性：G2 单次高代价（Issue #277 实测：README 残留行首 `<<<<<<< HEAD` / `>>>>>>> origin/main` 冲突标记存活 3 天 18 小时、跨越 25 笔合入才被清除；期间构建/单测/集成/PBT/E2E/governance 全绿）
+- 代价：README 与受控文档是外部集成方与企业客户的第一窗口，冲突标记残留直接呈现「工程管控失控」观感；且证明门禁链对纯文本合并腐蚀完全失明——同类腐蚀（文档、代码注释、模板）可无感进主干。
+- 根因：全部既有门禁（tsc、node:test 全家族、治理锁）都不扫描受控文本文件的合并标记形态；`git merge` 的冲突遗留只靠人眼。
+- 正确做法：治理门禁以 `git ls-files` 遍历受控文本文件（排除二进制扩展与 `/fixtures/`），对行首 `<<<<<<< ` 与 `>>>>>>> ` 两个真实 GitHub 冲突标记形态严格断言零残留；扫描器必须具备反向判别力（注入标记即报路径+行号）。裸 `=======` 不拦（markdown 水平线同形态，防误伤）。
+- 门禁：`tests/unit/workflow-governance.test.ts`（Tier 1「no merge-conflict markers survive in any tracked text file」+ 反向判别用例）。已修 + 门禁（随上游 Issue #277 分支合入生效，经 comp Issue #17 同步移植）。
+- 原位置：Issue #277、`docs/WORKFLOW.md` §4。
+
 #### P-TEST-1 Node.js ExperimentalWarning SQLite 告警与假绿拦截
 - 复发性：G1 反复
 - 代价：运行含有 SQLite 持久化测试时，stderr 打印 `(node:XXXXX) ExperimentalWarning: SQLite is an experimental feature`。若仅基于 stderr 是否为空判定测试成败，会产生误报；反之若仅看进程返回码，当测试中存在未捕获异常但被静默捕获时会出现「假绿」。
@@ -188,7 +196,7 @@
 - 正确做法：① 多 worktree 并行验证期，每个 worktree 跑门禁前先 `cmd /c rmdir node_modules\ai-workflow && node scripts/link-self.mjs` 对齐自己；② bisect 脚本**每步**重置自链；③ 验证结束后复位主仓指向；④ 终极解是各 worktree 真实 `npm install`（MISSION-Y 教训）或 link-self 支持 per-worktree 隔离。
 - 门禁：`tests/unit/workflow-governance.test.ts`（Tier 2，Issue #15：WORKFLOW.md 不得含 `mklink /J` 联接建议、必须含 per-worktree `npm.cmd ci` 指引、P-ENV-3 第 3 例与状态更新必须在册）。已修 + 门禁（随 Issue #15 分支合入生效）。
 - 原位置：Issue #169/#174 实施过程、`scripts/link-self.mjs`。
-- **状态更新（2026-11-15，Issue #15，只增不删）**：触发器已移除——`docs/WORKFLOW.md` §2.1 的目录联接建议已改写为「每个 worktree 独立 `npm.cmd ci`（postinstall 自链 + 离线 SDK 桩）」，正确做法④自此成为官方文档指定姿势，门禁由「待补」转正为治理反向锁死。私有仓 `docs/WORKFLOW.md` §2.1 同款联接建议**尚未修订**，待回流。
+- **状态更新（2026-11-15，Issue #15，只增不删）**：触发器已移除——`docs/WORKFLOW.md` §2.1 的目录联接建议已改写为「每个 worktree 独立 `npm.cmd ci`（postinstall 自链 + 离线 SDK 桩）」，正确做法④自此成为官方文档指定姿势，门禁由「待补」转正为治理反向锁死。私有仓同款修订已合入（私有 Issue #301 / PR #302，merge 606f990），两仓触发器均已移除。
 
 #### P-GIT-2 stash 编号是全仓命名空间——跨 worktree `git stash drop stash@{0}` 误删他人 WIP
 - 复发性：G2 单次高代价
@@ -207,6 +215,14 @@
 - 原位置：Issue #203、`AGENTS.md` §1.8、`docs/WORKFLOW.md` §7.3、`README.md`「自动化门禁（本机为唯一验证链）」。
 - **状态更新（2026-11-14，Issue #7，只增不删）**：用户重新拍板恢复远端 CI——比赛仓库为 **public 仓库**，GitHub Actions 对 public 仓库免费（runner 分钟数只对私有仓计费），本条目的额度前提不复存在。现行为：本机门禁链仍是合入放行第一判据（本条「CI 重复本机门禁」的告诫仍然有效——CI 是公开信号与 Linux 跨平台验证面，**不替代本机门禁**）；治理锁死已由「ci.yml 不得存在」改写为「ci.yml 必须存在且镜像本机门禁链」；「引用 CI 绿/红属虚假证据」的告诫自本更新起仅在私有仓语境下成立。
 
+#### P-BUILD-2 TS 模板字面量内嵌客户端脚本的转义塌缩——白屏直达浏览器且全门禁盲区
+- 复发性：G2 单次高代价（上游 PR #281 AffectUI Studio 重构实测：`\s` 被塌缩成 `s`、`[\r\n]` 被塌缩成真实 CR/LF，渲染出的客户端 `<script>` 携带 SyntaxError，浏览器整页白屏；期间 build/unit/integration/e2e 全绿放行，直到迁移修复才暴露。比赛仓独立实例：v2.4.0 同步期 studio-template.ts 同根因白屏，已修复并实测）
+- 代价：Studio 是核心可视化控制台与商业演示门户，白屏直接瘫痪 DAG 渲染/抽屉/日志面板；且全门禁绿灯给出假信心，缺陷潜伏至合入后。
+- 根因：`STUDIO_TEMPLATE` 对 tsc 只是普通字符串常量，模板内部 `<script>` 的 JS 语法从不被解析；既有 renderer 测试只做字符串包含断言；门禁链无无头浏览器，客户端脚本从未真正执行过。
+- 正确做法：① TS 模板字面量内书写客户端正则/字符串转义必须双反斜杠（`\\s`、`\\r\\n`），严禁单反斜杠（会被 TS 按转义序列塌缩）；② 语法正确性必须机械锁死——渲染产物中全部内联 `<script>` 块逐块过 `new Function` 编译断言，任何 SyntaxError 立即阻断并指认块序号。
+- 门禁：`tests/unit/studio-renderer.test.ts`（static+live 渲染的全内联脚本编译断言 + 塌缩形态反向判别用例）。已修 + 门禁（随上游 Issue #284 分支合入生效，经 comp Issue #17 同步移植）。
+- 原位置：上游 Issue #284、PR #281 事故复盘、`src/visualizer/studio-template.ts`。
+
 #### P-ENV-4 worktree 共享 node_modules 跳过 postinstall——demo fixture 离线 SDK 桩缺失，集成 baseline gate 假红
 - 复发性：G1 反复（家族第 2 次；首例=「新 worktree 缺 dist 首轮 unit 0 tests 假绿须先 build」，同为 worktree 缺生成产物家族）
 - 代价：2026-11-11（Issue #233 取证轮）：worktree 里 demo-migration 基线门禁报 `Cannot find package 'aws-sdk'`（ERR_MODULE_NOT_FOUND）→ demo-facade-migration 与 Demo 2 TEST 4 连锁两红。与 #233 主根因（transient spawn 失败被当真实 gate 失败）**无关的第二个红源**——不看穿会误诊修复方向。
@@ -214,4 +230,12 @@
 - 正确做法：① `test:integration` 前置 `node scripts/bootstrap-fixtures.mjs`（随 #233 落地，与 `test`/`test:e2e`/`test:adversarial` 既有惯例对齐；幂等、已存在即跳过绝不覆盖）；② 新 worktree 首跑门禁链前自查：先 build（dist 生成）再跑测试、确认 fixture 桩就位（bootstrap 幂等跑一次无害）。
 - 门禁：`tests/unit/workflow-governance.test.ts`（Tier 2：`test:integration` 必须前置 bootstrap-fixtures + P-ENV-4 在册）。已修 + 门禁（随 Issue #233 分支合入生效）。
 - 原位置：Issue #233、`scripts/bootstrap-fixtures.mjs`、`package.json` scripts 区。
+
+#### P-SHELL-2 子进程显式传 shell:'bash' 导致 Windows WSL bash 路径冲突与非确定性失败
+- 复发性：G1 反复 / G3 已成强制（上游 Issue #274 踩坑、Issue #279 审计发现、Issue #298 独立裁决锁死）
+- 代价：在 Windows 宿主下运行单元测试或脚本时，若系统安装了 WSL，`execSync`/`spawn` 解析到的 `bash` 优先命中 `C:\Windows\System32\bash.exe`，导致 Windows 盘符路径（如 `C:\...`）无法识别报错挂死；而在裸 Windows（无 bash）环境下直接抛出 `ENOENT`，唯独在 Git Bash / MSYS2 终端中可能碰巧通过，造成严重的宿主环境非确定性与「别人机器上红、自己机器上绿」的审查争议。
+- 根因：Node.js `child_process`（`exec`/`execSync`）默认平台 shell 在 Win32 下为 `cmd.exe`、POSIX 下为 `/bin/sh`，两者皆原生且跨平台支持 `&&` 命令串联。显式传入 `shell: 'bash'` 会打破 Node 的平台自适应机制：Windows 下 PATH 搜索策略不确定，System32 目录优先级通常高于用户安装的 Git/MSYS bash，WSL bash 无法处理 Windows 原生工作目录（CWD）。
+- 正确做法：执行简单命令或命令链（如 `git add -A && git commit -m ...`）时，**禁止显式传入 `shell: 'bash'`**，直接依赖 Node 默认平台 shell；若确需特定 shell 语法，必须通过跨平台库或根据 `process.platform === 'win32'` 显式分流，严禁硬编码未校验的 `bash`。
+- 门禁：`tests/unit/execution/worktree-pool.test.ts`（注释裁决留痕与测试断言）。已修 + 门禁（随上游 Issue #298 分支合入生效，经 comp Issue #17 同步移植）。
+- 原位置：上游 Issue #298 / #279 / #274、`tests/unit/execution/worktree-pool.test.ts`。
 
