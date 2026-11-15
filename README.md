@@ -132,7 +132,7 @@ All run on this machine, 2026-11-15 (Node v26.13.0), from a **fresh build** (a s
 double-count one moved test file — the fresh-build numbers below are what a judge clone reproduces):
 
 ```text
-npm test                                          → 808 tests, 808 pass, 0 fail
+npm test                                          → 810 tests, 810 pass, 0 fail
 node --experimental-strip-types tests/e2e/runner.ts → 118/118 passed (4 tiers)
 npm run test:adversarial                          → 202 tests, 202 pass, 0 fail
 npm run test:pbt                                  →  16 tests,  16 pass, 0 fail
@@ -198,7 +198,7 @@ And the namesake: the **Skeleton Crew roster** (`.kiro/crew/`) — `Conductor`, 
 
 | Kiroween 2026 dimension | Where this repo scores |
 | --- | --- |
-| **Potential Impact** | The four failure modes above are endemic to every multi-agent deployment; zero-token replay turns workflow iteration economics from "re-bill everything" into "bill only the diff" (one caveat: composed `workflow()` subtrees do not yet get zero-token resume — cache import is scheduled for a later release) |
+| **Potential Impact** | The four failure modes above are endemic to every multi-agent deployment; zero-token replay turns workflow iteration economics from "re-bill everything" into "bill only the diff" — and composed `workflow()` subtrees are covered too: re-entry imports the prior child journal per call site and replays the subtree at zero provider calls (Issue #35, fixed; only pre-#35 child runs without site stamps fall back to a live run) |
 | **Technological Implementation** | Compile-time purity bans, a real sandbox (child process + `node:vm`, process supervision), SQLite WAL journal with hash-verified replay, PBT-proven invariants |
 | **Design** | Journal-rendered interactive HTML reports, cubic-Bézier DAG canvases, live Kanban tracking — presentation generated from evidence, not hand-made |
 | **Innovation** | Amend lineage (`♻` reuse / `⑂` diverge), mid-run hole growth, human escalation with zero-cost resume, hard budget enforcement |
