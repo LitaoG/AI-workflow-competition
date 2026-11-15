@@ -7,7 +7,12 @@
  *      narrowing of the search set;
  *   4. the 20MB/256KB/1MB caps are KiB/MiB-aligned — probed at the old decimal
  *      boundaries (1,000,001 bytes / 256,001 chars now fit; the binary caps
- *      still reject one byte/char over).
+ *      still reject one byte/char over);
+ *   5. world.run stdout over the 16 MiB stream cap is a named rejection and
+ *      the worldRun node journals as failed — never a silently truncated
+ *      success value (Issue #56); the cap is byte-accounted (not UTF-16 code
+ *      units), injectable per WorldBoundary, and its breach kills the child
+ *      tree instead of letting a rejected world.run keep mutating the world.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -16,6 +21,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { FacadeEngine } from '../../../src/dwf/engine.js';
+import { WorldBoundary } from '../../../src/dwf/host-boundary-dispatcher.js';
 import { isSchemaValidationError } from '../../../src/domain/errors.js';
 import type { DomainError } from '../../../src/domain/errors.js';
 import { createSQLiteStore } from '../../../src/state/store.js';
@@ -207,6 +213,92 @@ test('D8④ caps are KiB/MiB-aligned: one byte/char over the binary caps is stil
         return true;
       },
     );
+  } finally {
+    ws.cleanup();
+  }
+});
+
+// ------------------------------------------------------------------ world.run
+
+test('D8④ world.run: the output cap is byte-accounted and injectable — 4 KiB cap: 4096 bytes resolve verbatim, 4097 bytes is a named rejection', { timeout: 60_000 }, async () => {
+  const ws = makeWorkspace('dwf-caps-worldrun-cap-');
+  try {
+    const boundary = new WorldBoundary(ws.dir, 4096);
+    const ok = await boundary.spawnCaptured('node', ['-e', 'process.stdout.write("x".repeat(4096))'], 30_000);
+    assert.equal(ok.exitCode, 0, 'exactly-at-cap output must still resolve (boundary open, D8④ convention)');
+    assert.equal(ok.stdout, 'x'.repeat(4096), 'exactly-at-cap output must arrive verbatim — never truncated');
+    await assert.rejects(
+      () => boundary.spawnCaptured('node', ['-e', 'process.stdout.write("x".repeat(4097))'], 30_000),
+      (err: unknown) => {
+        assert.ok(isSchemaValidationError(err as DomainError), `expected SchemaValidationError, got ${(err as Error)?.name}: ${(err as Error)?.message}`);
+        const e = err as Error & { details?: Record<string, unknown> };
+        assert.match(e.message, /4096/, e.message);
+        assert.equal(e.details?.op, 'world.run');
+        assert.equal(e.details?.stream, 'stdout');
+        assert.equal(e.details?.cap, 4096);
+        assert.equal(e.details?.bytes, 4097, 'the verdict counts real Buffer bytes, not UTF-16 code units');
+        return true;
+      },
+    );
+  } finally {
+    ws.cleanup();
+  }
+});
+
+test('D8④ world.run: breaching the cap kills the child tree — a rejected world.run must not keep mutating the workspace until the timeout', { timeout: 60_000 }, async () => {
+  const ws = makeWorkspace('dwf-caps-worldrun-kill-');
+  try {
+    const boundary = new WorldBoundary(ws.dir, 4096);
+    const startedAt = Date.now();
+    await assert.rejects(
+      () => boundary.spawnCaptured('node', ['-e', 'setInterval(() => process.stdout.write("x".repeat(1024)), 10)'], 10_000),
+      (err: unknown) => {
+        assert.ok(isSchemaValidationError(err as DomainError), `expected the cap rejection, got ${(err as Error)?.name}: ${(err as Error)?.message}`);
+        const e = err as Error & { details?: Record<string, unknown> };
+        assert.equal(e.details?.cap, 4096);
+        assert.ok((e.details?.bytes as number) > 4096, `the error must carry the actual byte size, got ${e.details?.bytes}`);
+        return true;
+      },
+    );
+    const elapsed = Date.now() - startedAt;
+    // Discriminates kill-on-overflow from reject-at-settle-only: without the
+    // kill, this never-exiting child would only settle at the 10s timeout.
+    assert.ok(elapsed < 5000, `the over-cap child must be killed promptly (took ${elapsed}ms; a no-kill implementation would wait out the 10s timeout)`);
+  } finally {
+    ws.cleanup();
+  }
+});
+
+test('D8④ world.run: stdout over the 16 MiB stream cap is a named rejection — the node journals as failed, never a truncated success', { timeout: 60_000 }, async () => {
+  const ws = makeWorkspace('dwf-caps-worldrun-');
+  try {
+    const store = createSQLiteStore(':memory:') as SQLiteStateStore & DwfJournalStore;
+    const engine = new FacadeEngine({
+      runId: 'dwfcaps-worldrun',
+      workspace: ws.dir,
+      store,
+      args: {},
+      approvedCommands: [{ name: 'node', source: 'explicit' as const }],
+      onEvent: () => {},
+    });
+    await assert.rejects(
+      () => engine.handleCall({ t: 'call', id: 1, op: 'worldRun', siteId: 'worldrun#1', payload: ['node', ['-e', 'process.stdout.write("x".repeat(17 * 1024 * 1024))'], undefined] }),
+      (err: unknown) => {
+        assert.ok(isSchemaValidationError(err as DomainError), `expected SchemaValidationError, got ${(err as Error)?.name}: ${(err as Error)?.message}`);
+        const e = err as Error & { details?: Record<string, unknown> };
+        assert.match(e.message, /16777216/, e.message);
+        assert.equal(e.details?.op, 'world.run');
+        assert.equal(e.details?.stream, 'stdout');
+        assert.equal(e.details?.cap, 16 * 1024 * 1024, 'WORLD_OUTPUT_CAP is 16 MiB (bytes)');
+        assert.ok((e.details?.bytes as number) > 16 * 1024 * 1024, `the error must carry the actual byte size, got ${e.details?.bytes}`);
+        return true;
+      },
+    );
+    const nodes = await store.getDwfNodes('dwfcaps-worldrun');
+    const failed = nodes.find((n) => n.kind === 'worldRun' && n.status === 'failed');
+    assert.ok(failed, 'the over-cap world.run node must journal as failed, not completed');
+    assert.match(failed.errorText ?? '', /16777216/, 'the journalled error text carries the cap');
+    store.close();
   } finally {
     ws.cleanup();
   }
