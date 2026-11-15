@@ -29,32 +29,32 @@ This automated migration converts legacy monolithic `aws-sdk` v2 clients to modu
 ## 3. Transformed Services & Paired Review Audits
 | Step ID | Target File | Worker Role | Reviewer Role | Safety Audit Score | Status |
 | :--- | :--- | :--- | :--- | :---: | :---: |
-| `step-3a-s3` | `src/s3-service.ts` | `CodeTransformerWorker-S3` | `CodeReviewer-S3` | **0.98 / 1.00** | ✔ APPROVED |
-| `step-3b-ddb` | `src/dynamo-service.ts` | `CodeTransformerWorker-Dynamo` | `CodeReviewer-Dynamo` | **0.96 / 1.00** | ✔ APPROVED |
-| `step-3c-sqs` | `src/sqs-service.ts` | `CodeTransformerWorker-SQS` | `CodeReviewer-SQS` | **0.97 / 1.00** | ✔ APPROVED |
+| `step-3a` | `src/s3-service.ts` | `CodeTransformerWorker-S3` | `CodeReviewer-S3` | **0.98 / 1.00** | ✔ APPROVED |
+| `step-3b` | `src/dynamo-service.ts` | `CodeTransformerWorker-Dynamo` | `CodeReviewer-Dynamo` | **0.96 / 1.00** | ✔ APPROVED |
+| `step-3c` | `src/sqs-service.ts` | `CodeTransformerWorker-SQS` | `CodeReviewer-SQS` | **0.97 / 1.00** | ✔ APPROVED |
 
 ## 4. Verification & Gates
 - **Baseline Gate**: Unit tests passed before migration initiation.
-- **Post-Merge Gate**: [GateRunner] Mode: post-merge | Target: C:\Users\86183\Desktop\AI-workflow-worktrees\issue-5-apps-rename-kiro\apps\repo-migration-engine\fixtures\legacy-aws-sdk-app | Mock: true
+- **Post-Merge Gate**: [GateRunner] Mode: post-merge | Target: C:\Users\86183\Desktop\AI-workflow-worktrees\issue-33-real-diff-stats\apps\repo-migration-engine\fixtures\legacy-aws-sdk-app | Mock: true
 [GateRunner] ✔ Post-Merge Compilation & Test Gate PASSED:
   - TypeScript Compiler: 0 syntax errors, 0 type diagnostics (tsc --noEmit passed)
   - AWS SDK v3 Unit Tests: 3 suites passed, 15 tests passed, 0 failures
   - Regression Check: All legacy API call sites upgraded with full behavioral parity
 - **Durable Event Journal**: All step transitions recorded to `.workflow/journal.jsonl`.
 
-## 5. Diff Statistics
-```
- package.json         | -1  +4   (Replaced aws-sdk with modular @aws-sdk packages)
- src/s3-service.ts    | -42 +48  (Upgraded to @aws-sdk/client-s3)
- src/dynamo-service.ts| -46 +54  (Upgraded to @aws-sdk/lib-dynamodb)
- src/sqs-service.ts   | -38 +40  (Upgraded to @aws-sdk/client-sqs)
- 4 files changed, +146 insertions(+), -127 deletions(-)
-```
+## 5. Diff Statistics (measured, not synthesized)
+
+| File | Legacy fixture (lines) | Transformed output (lines) |
+| :--- | ---: | ---: |
+| `src/s3-service.ts` | 47 | 47 |
+| `src/dynamo-service.ts` | 43 | 47 |
+| `src/sqs-service.ts` | 44 | 42 |
+
+Measured from `fixtures/legacy-aws-sdk-app/src` on disk vs the `transformedCode` each worker produced in this run. In mock mode the transformation is the documented deterministic substitution, so no git-style `-N +M` diff is claimed.
 
 ## 6. Durable Replay & Provenance
-- **Workflow Run ID**: `run-1794667156831-5dbgj5`
-- **Event Journal**: All step transitions recorded to event log
-- **Tokens Saved via Checkpoint Resumption**: ~14,200 tokens
+- **Workflow Run ID**: `run-1794751080415-rpeedg`
+- **Event Journal**: All step transitions recorded to event log — inspect with `workflow view run-1794751080415-rpeedg`.
 
 ## 7. Rollback Runbook
 1. Revert this pull request: `git revert -m 1 HEAD`
@@ -62,4 +62,4 @@ This automated migration converts legacy monolithic `aws-sdk` v2 clients to modu
 3. Re-run baseline verification: `npm test`
 
 ---
-*Generated autonomously by AI-Workflow on 2026-11-14T14:39:17.505Z*
+*Generated autonomously by AI-Workflow on 2026-11-15T13:58:00.770Z*
