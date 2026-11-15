@@ -3,12 +3,20 @@
 ## Unreleased
 
 - **dwf (world.run output cap, Issue #56)**: `spawnCaptured` no longer silently
-  discards child output past the 16 MiB per-stream cap — an over-cap stream is
-  now a named `SchemaValidationError` rejection carrying the cap and the actual
-  size (`op: 'world.run'`, `stream`, `bytes`), and the worldRun node journals as
-  **failed** instead of committing a truncated value as the authoritative
-  journalled result. Exactly-at-cap output still resolves (D8④ boundary
-  convention). This makes the code match the module's own "reject, never
+  discards child output past the 16 MiB per-stream cap. The over-cap verdict is
+  byte-accounted (`Buffer` bytes — the MiB constants are byte-denominated;
+  `String.length` counts UTF-16 code units, so 16 Mi chars of CJK output is
+  ~48 MiB of real bytes) and arrives as a named `SchemaValidationError`
+  rejection carrying the cap and the actual size (`op: 'world.run'`, `stream`,
+  `bytes`, `cap`); the worldRun node journals as **failed** instead of
+  committing a truncated value as the authoritative journalled result. The
+  first over-cap chunk also kills the child tree immediately (one-shot) — a
+  rejected world.run must not keep mutating the workspace until the timeout
+  fires. Exactly-at-cap output still resolves (D8④ boundary convention), and
+  the cap is injectable per `WorldBoundary` (second constructor arg, default
+  `WORLD_OUTPUT_CAP`) so tests can pin the boundary at 4 KiB. Reuses the
+  read-side `SchemaValidationError` precedent — the ten-tag closed set is
+  untouched. This makes the code match the module's own "reject, never
   truncate" contract already stated in its header and cap comments.
 - **apps (demo integrity, Issue #40)**: the committed migration deliverable
   `apps/repo-migration-engine/artifacts/PULL_REQUEST.md` now declares at the top that it is a

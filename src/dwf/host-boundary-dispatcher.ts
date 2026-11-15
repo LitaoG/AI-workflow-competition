@@ -24,7 +24,12 @@ const GIT_DIFF_CAP = 512 * 1024; // 512 KiB — git.diff rejects over this
 const WORLD_DEFAULT_TIMEOUT_MS = 300_000;
 
 export class WorldBoundary {
-  constructor(private readonly workspace: string) {}
+  /**
+   * @param worldOutputCapBytes the per-stream spawn output cap in BYTES
+   *   (WORLD_OUTPUT_CAP by default); injectable so tests can pin the exact
+   *   boundary at a small scale instead of pumping 16 MiB through the pipes.
+   */
+  constructor(private readonly workspace: string, private readonly worldOutputCapBytes: number = WORLD_OUTPUT_CAP) {}
 
   /** Dispatch one `worldRead` op (files.* / git.*). */
   async read(readOp: string, args: unknown[], siteId: string): Promise<unknown> {
@@ -205,6 +210,7 @@ export class WorldBoundary {
    */
   spawnCaptured(cmd: string, args: string[], timeoutMs?: number): Promise<WorldRunResult> {
     const timeout = timeoutMs ?? WORLD_DEFAULT_TIMEOUT_MS;
+    const cap = this.worldOutputCapBytes;
     const supervised = spawnSupervised(cmd, args, {
       cwd: this.workspace,
       timeoutMs: timeout,
@@ -213,24 +219,48 @@ export class WorldBoundary {
     return new Promise<WorldRunResult>((resolve, reject) => {
       let stdout = '';
       let stderr = '';
-      // Count every received chunk even past the cap (the buffer stops growing
-      // at the cap, the counters never do): an over-cap stream must be a named
-      // rejection at settle time — reject, never truncate (the canonical
-      // world-read caps contract; same D8④ boundary convention as git.diff:
-      // exactly-at-cap still resolves, one char over rejects).
-      let stdoutChars = 0;
-      let stderrChars = 0;
+      // Byte accounting per the caps contract: the MiB constants are
+      // byte-denominated, so the over-cap verdict counts Buffer bytes —
+      // String.length counts UTF-16 code units, and 16 Mi chars of CJK output
+      // is ~48 MiB of real bytes (Issue #56 review). Verdict semantics:
+      // reject, never truncate, with the D8④ boundary convention —
+      // exactly-at-cap still resolves, one byte over rejects. On the FIRST
+      // over-cap chunk the tree is killed immediately (one-shot flag;
+      // killTree itself is idempotent): a rejected world.run must not keep
+      // mutating the workspace until the timeout fires — that would be a
+      // bigger blast radius than the silent truncation ever had.
+      let stdoutBytes = 0;
+      let stderrBytes = 0;
+      let stdoutOver = false;
+      let stderrOver = false;
       supervised.child.stdout?.on('data', (chunk: Buffer) => {
-        const text = chunk.toString('utf8');
-        stdoutChars += text.length;
-        if (stdout.length < WORLD_OUTPUT_CAP) stdout += text;
+        stdoutBytes += chunk.length;
+        if (stdoutBytes > cap && !stdoutOver) {
+          stdoutOver = true;
+          void supervised.killTree();
+        }
+        if (!stdoutOver && stdoutBytes <= cap) stdout += chunk.toString('utf8');
       });
       supervised.child.stderr?.on('data', (chunk: Buffer) => {
-        const text = chunk.toString('utf8');
-        stderrChars += text.length;
-        if (stderr.length < WORLD_OUTPUT_CAP) stderr += text;
+        stderrBytes += chunk.length;
+        if (stderrBytes > cap && !stderrOver) {
+          stderrOver = true;
+          void supervised.killTree();
+        }
+        if (!stderrOver && stderrBytes <= cap) stderr += chunk.toString('utf8');
       });
       void supervised.result.then((res) => {
+        // The cap verdict takes attribution precedence over the timeout: the
+        // tree was killed for the breach, and the error carries the cap and
+        // the real byte size (fail by name).
+        if (stdoutOver || stderrOver) {
+          const stream = stdoutOver ? 'stdout' : 'stderr';
+          const bytes = stream === 'stdout' ? stdoutBytes : stderrBytes;
+          reject(domainError('SchemaValidationError', `world.run "${cmd}" ${stream} output is ${bytes} bytes, over the ${cap} cap — reduce the command's output or narrow it`, {
+            details: { op: 'world.run', cmd, stream, bytes, cap },
+          }));
+          return;
+        }
         if (res.timedOut) {
           reject(domainError('SandboxTimeout', `world.run "${cmd}" timed out after ${timeout}ms (process tree killed)`, {
             details: { cmd, timeoutMs: timeout },
@@ -239,14 +269,6 @@ export class WorldBoundary {
         }
         if (res.exitCode === -1 && supervised.child.exitCode === null && res.stderr.startsWith('spawn ')) {
           reject(domainError('SandboxSpawnError', res.stderr, { details: { cmd, stderr: res.stderr } }));
-          return;
-        }
-        if (stdoutChars > WORLD_OUTPUT_CAP || stderrChars > WORLD_OUTPUT_CAP) {
-          const stream = stdoutChars > WORLD_OUTPUT_CAP ? 'stdout' : 'stderr';
-          const chars = stream === 'stdout' ? stdoutChars : stderrChars;
-          reject(domainError('SchemaValidationError', `world.run "${cmd}" ${stream} output is ${chars} bytes, over the ${WORLD_OUTPUT_CAP} cap — reduce the command's output or narrow it`, {
-            details: { op: 'world.run', cmd, stream, bytes: chars, cap: WORLD_OUTPUT_CAP },
-          }));
           return;
         }
         // Irreversible redaction at the source (GOAL.md 铁律 2): the value the
