@@ -1,5 +1,4 @@
 import test from 'node:test';
-import * as assert from 'node:assert';
 import * as path from 'node:path';
 import { runCLI } from '../helpers/cli.ts';
 import { createTempDir, cleanupTempDir, writeTempFile } from '../helpers/env.ts';
@@ -46,7 +45,10 @@ export default {
     const wfPath = writeTempFile(tempDir, 'broken-build.ts', brokenBuildWf);
     const outputDir = path.join(tempDir, 'run-02');
     const res = runCLI(['run', wfPath, '--mock', '--output-dir', outputDir]);
-    assert.ok(res.exitCode === 0 || res.exitCode === 1);
+    // Probed via bin/workflow.js (Issue #23): buildPassed:false from a gate
+    // step is not interpreted as a run failure by the mock engine path — the
+    // workflow completes predictably with exit code 0, no crash.
+    assertExitCode(res, 0);
   });
 
   await t.test('T2_F9_03: Partial fan-out worker failure isolates error without cascading corruption', () => {

@@ -19,6 +19,21 @@ const testSuites = [
   'tests/adversarial/prober-sanitizer-stress.test.js',
   'tests/adversarial/cli-subcommands-stress.test.js',
   'tests/adversarial/mcp-server-stress.test.js',
+  // TypeScript adversarial regression suites (goal-adv*, node:test standalone
+  // files) — executed with --experimental-strip-types (see runSuite below).
+  'tests/adversarial/goal-adv1-constructor-escape.test.ts',
+  'tests/adversarial/goal-adv1-deep-type.test.ts',
+  'tests/adversarial/goal-adv1-env-read.test.ts',
+  'tests/adversarial/goal-adv1-ndjson-protocol.test.ts',
+  'tests/adversarial/goal-adv2-control-char-injection.test.ts',
+  'tests/adversarial/goal-adv2-crossrealm-function.test.ts',
+  'tests/adversarial/goal-adv2-glob-bomb.test.ts',
+  'tests/adversarial/goal-adv2-worldrun-sidechannel.test.ts',
+  'tests/adversarial/goal-adv3-agent-storm.test.ts',
+  'tests/adversarial/goal-adv3-files-grep.test.ts',
+  'tests/adversarial/goal-adv3-oversize-frames.test.ts',
+  'tests/adversarial/goal-adv3-proto-pollution.test.ts',
+  'tests/adversarial/goal-adv4-microtask-escape.test.ts',
 ];
 
 console.log('================================================================');
@@ -29,7 +44,9 @@ console.log('================================================================\n'
 async function runSuite(suitePath) {
   const start = Date.now();
   return new Promise((resolve) => {
-    const child = spawn(process.execPath, ['--test', suitePath], {
+    // --experimental-strip-types enables the .ts goal-adv suites; it is a no-op
+    // for the plain .js suites (and default-enabled on Node >= 23.6).
+    const child = spawn(process.execPath, ['--test', '--experimental-strip-types', suitePath], {
       cwd: process.cwd(),
       stdio: ['ignore', 'pipe', 'pipe'],
     });

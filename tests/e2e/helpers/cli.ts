@@ -98,8 +98,11 @@ export function runCLI(args: string[], options: CLIOptions = {}): CLIResult {
   const durationMs = Date.now() - startTime;
   const stdout = proc.stdout ? proc.stdout.trim() : '';
   const stderr = proc.stderr ? proc.stderr.trim() : '';
-  const rawExitCode = proc.status ?? (proc.error ? 1 : 0);
-  const exitCode = rawExitCode > 0 ? 1 : 0;
+  // Preserve the real OS exit code (Issue #23): flattening every non-zero
+  // code down to 1 made `exitCode === 0 || exitCode === 1` assertions
+  // mathematically tautological (they could never fail) and erased the
+  // distinction between a controlled failure and other codes.
+  const exitCode = proc.status ?? (proc.error ? 1 : 0);
 
   return {
     exitCode,

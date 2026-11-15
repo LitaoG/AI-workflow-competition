@@ -7,7 +7,7 @@ import { buildSanitizedEnv } from '../process-supervision.js';
 import { sanitizeEnv } from '../prober/index.js';
 
 /** Default V8 heap cap (MB) for the sandbox child — see buildSandboxChildArgs. */
-const DEFAULT_SANDBOX_MAX_OLD_SPACE_MB = 512;
+export const DEFAULT_SANDBOX_MAX_OLD_SPACE_MB = 512;
 
 //** Default stall window (90000ms); 0 disables the clock. */
 export const DEFAULT_STALL_MS = 90_000;
@@ -34,6 +34,21 @@ function parsePositiveInt(raw: string | undefined): number | undefined {
 }
 
 /**
+ * The effective sandbox V8 heap cap (MB): the explicit runner option wins, then
+ * the `AI_WORKFLOW_SANDBOX_MAX_OLD_SPACE_MB` environment variable, then the 512
+ * MB default. Single resolution point shared by buildSandboxChildArgs (the argv
+ * heap cap) and the runner's Job Object commit cap (1.5× this value — Issue #18:
+ * the commit cap used to compute from the option/default only, so an env
+ * override shrank the heap cap while the kernel commit cap stayed at the 512 MB
+ * baseline, breaking the 1.5× contract and killing the runaway child by Job
+ * Object force-kill instead of its own OOM). Sharing this resolver keeps the
+ * two caps locked to the same effective heap cap.
+ */
+export function resolveSandboxMaxOldSpaceMb(explicit: number | undefined): number {
+  return explicit ?? parsePositiveInt(process.env.AI_WORKFLOW_SANDBOX_MAX_OLD_SPACE_MB) ?? DEFAULT_SANDBOX_MAX_OLD_SPACE_MB;
+}
+
+/**
  * The sandbox child's node argv — `--max-old-space-size=<cap>` FIRST (node
  * options must precede the entry path), then the child entry, the lowered
  * script path and the run-args JSON file path (G4: args live on disk, never
@@ -54,7 +69,7 @@ export function buildSandboxChildArgs(
   maxOldSpaceSizeMb?: number,
   budgetTotal?: number,
 ): string[] {
-  const cap = maxOldSpaceSizeMb ?? parsePositiveInt(process.env.AI_WORKFLOW_SANDBOX_MAX_OLD_SPACE_MB) ?? DEFAULT_SANDBOX_MAX_OLD_SPACE_MB;
+  const cap = resolveSandboxMaxOldSpaceMb(maxOldSpaceSizeMb);
   return [
     `--max-old-space-size=${cap}`,
     childEntry,

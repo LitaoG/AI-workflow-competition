@@ -39,7 +39,7 @@
     "test:integration": "node scripts/bootstrap-fixtures.mjs && node --test --test-concurrency=1 dist/tests/integration/**/*.test.js",
     "test:pbt": "node --test .kiro/pbt/**/*.test.ts",
     "test:e2e": "node scripts/link-self.mjs && node scripts/bootstrap-fixtures.mjs && node --experimental-strip-types tests/e2e/runner.ts",
-    "test:adversarial": "node scripts/link-self.mjs && node scripts/bootstrap-fixtures.mjs && node --test --test-concurrency=1 tests/adversarial/*.test.js tests/adversarial/demo1-dag-stress.js tests/adversarial/demo1-safety-stress.js tests/adversarial/demo2-concurrency-resumption-stress.js tests/adversarial/goal-adv*.test.ts",
+    "test:adversarial": "node scripts/link-self.mjs && node scripts/bootstrap-fixtures.mjs && node --test --experimental-strip-types --test-concurrency=1 tests/adversarial/*.test.js tests/adversarial/*.test.ts tests/adversarial/demo1-dag-stress.js tests/adversarial/demo1-safety-stress.js tests/adversarial/demo2-concurrency-resumption-stress.js",
     "test:governance": "node --experimental-strip-types tests/unit/workflow-governance.test.ts",
     "coverage": "c8 --reporter=text --reporter=html npm test",
     "gate": "npm run build && npm test && npm run test:e2e && npm run test:adversarial && npm run test:pbt && npm run test:governance",

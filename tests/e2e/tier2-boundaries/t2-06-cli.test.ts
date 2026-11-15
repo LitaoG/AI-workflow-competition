@@ -16,9 +16,13 @@ test('Tier 2 - Boundary: Feature 6 Slash Command CLI', async (t) => {
     assertStderrContains(res, 'file required');
   });
 
-  await t.test('T2_F6_03: Invoking run with non-existent file path exits with code 1', () => {
+  // Renamed (Issue #23, 2026-11-15): the CLI's real contract for a missing
+  // workflow file is exit code 2 (src/cli/commands/run.ts:108 returns 2).
+  // The old "exits with code 1" assert only passed because helpers/cli.ts
+  // flattened every non-zero code down to 1.
+  await t.test('T2_F6_03: Invoking run with non-existent file path exits with code 2', () => {
     const res = runCLI(['run', 'totally-bogus-file-does-not-exist.ts']);
-    assert.strictEqual(res.exitCode, 1);
+    assert.strictEqual(res.exitCode, 2);
     assertStderrContains(res, 'File not found');
   });
 
