@@ -64,9 +64,9 @@ being removed — does not hold here: this repo's demo command still exists and
 upstream README/QUICKSTART edits (this repo's judge-facing docs are independent; the
 fingerprint tables below were refreshed against the new gate counts instead).
 
-Full gates on this machine (Node v26.13.0, fresh `npm ci` worktree): npm test 804/804
-(unit 597 + integration 207), e2e 118/118, adversarial 201/201, PBT 16/16, governance
-36/36, `scripts/demo.sh` exit 0.
+Full gates on this machine (Node v26.13.0, fresh `npm ci` worktree): npm test 805/805
+(unit 598 + integration 207), e2e 118/118, adversarial 201/201, PBT 16/16, governance
+37/37, `scripts/demo.sh` exit 0.
 
 ## 2.4.1 (2026-11-15) — two-repo sync audit closeout, version housekeeping
 

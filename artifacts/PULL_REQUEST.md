@@ -35,7 +35,7 @@ This automated migration converts legacy monolithic `aws-sdk` v2 clients to modu
 
 ## 4. Verification & Gates
 - **Baseline Gate**: Unit tests passed before migration initiation.
-- **Post-Merge Gate**: [GateRunner] Mode: post-merge | Target: C:\Users\86183\Desktop\AI-workflow-worktrees\issue-5-apps-rename-kiro\apps\repo-migration-engine\fixtures\legacy-aws-sdk-app | Mock: true
+- **Post-Merge Gate**: [GateRunner] Mode: post-merge | Target: C:\Users\86183\Desktop\AI-workflow-worktrees\issue-17-sync-backlog-v250\apps\repo-migration-engine\fixtures\legacy-aws-sdk-app | Mock: true
 [GateRunner] ✔ Post-Merge Compilation & Test Gate PASSED:
   - TypeScript Compiler: 0 syntax errors, 0 type diagnostics (tsc --noEmit passed)
   - AWS SDK v3 Unit Tests: 3 suites passed, 15 tests passed, 0 failures
@@ -52,7 +52,7 @@ This automated migration converts legacy monolithic `aws-sdk` v2 clients to modu
 ```
 
 ## 6. Durable Replay & Provenance
-- **Workflow Run ID**: `run-1794667156831-5dbgj5`
+- **Workflow Run ID**: `run-1794733647231-qgpe6x`
 - **Event Journal**: All step transitions recorded to event log
 - **Tokens Saved via Checkpoint Resumption**: ~14,200 tokens
 
@@ -62,4 +62,4 @@ This automated migration converts legacy monolithic `aws-sdk` v2 clients to modu
 3. Re-run baseline verification: `npm test`
 
 ---
-*Generated autonomously by AI-Workflow on 2026-11-14T14:39:17.505Z*
+*Generated autonomously by AI-Workflow on 2026-11-15T09:07:27.695Z*
