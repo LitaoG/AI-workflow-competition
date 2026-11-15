@@ -3,6 +3,8 @@
 > **AWS Kiroween 2026 黑客松（Skeleton Crew 赛道）官方集成指南**  
 > *Git 追踪配置 · 形式化规格 · 生命周期钩子 · 转向指导规则 · MCP 协议 · PBT 不变量证明 · Skeleton Crew 花名册*
 
+> **[历史存档]** 本篇为 2026-11-03 黑客松版本的中文原文存档，不再随主文档演进；现行权威内容以 `docs/KIRO_INTEGRATION.md` 为准（Issue #60 登记）。
+
 ---
 
 ## 1. 概述与赛道契合

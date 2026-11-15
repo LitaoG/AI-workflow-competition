@@ -149,7 +149,8 @@
 - 门禁：`tests/integration/process-supervision-cmd-route.test.ts`（`&` 不执行第二条命令、npm/npx 仍跑通、quoteForCmd/buildCmdRouteInvocation 形状锁死）。已修 + 门禁（随 Issue #259 分支合入生效）。
 - 原位置：Issue #259、`src/process-supervision.ts`（quoteForCmd / buildCmdRouteInvocation / spawnSupervised）、`scripts/win32-jobhelper.cs`（--raw 模式）。
 
-#### P-TEST-4 两个 worktree 的全量门禁链并行跑——负载窗口互撞出假红
+#### P-TEST-8 两个 worktree 的全量门禁链并行跑——负载窗口互撞出假红
+- 编号溯源（2026-11-16，Issue #60）：原编号 P-TEST-4，因与上方「适配器只在 mock 模式下被测试」条目撞号，重编为 P-TEST-8（原拟改编 P-TEST-7 已被 finally-return 条目占用）。
 - 复发性：G1 反复（第三次；MISSION-X 期间两 worktree 同跑已复现过一例，#137/#148 收录同家族单例）
 - 代价：2026-11-07（Issue #153/#157 收口）两条全量门禁链在两个 worktree 并行执行，#153 的 unit 全集出现 3 例失败；**单独重跑 452/452 全绿**——失败与代码无关，纯属并行负载下的时间窗/资源竞争。
 - 根因：unit 全集含墙钟敏感用例（ stall/SLA/adversarial 家族），并行链把宿主压入负载窗口，时间窗断言失准。
@@ -159,7 +160,7 @@
 
 #### P-TEST-5 node --test 每文件子进程隔离 × 测试遗留 sandbox/jobhelper 子进程树——全量 unit 套件挂死
 - 复发性：G2 单次高代价（PR#197 实施期三轮报挂死、第四轮 bisect 确证；该 PR 已撤回未合入，但隐患仓库级常驻——未来任何在 unit 套件 spawn 真实子进程树的测试都会复发）
-- 代价：`npm.cmd run test:unit` 全量运行时 runner 级测试文件之后进程树排空挂死（并行挂/串行卡/隔离绿），全量 unit 门禁不可依赖；配合并行负载还会产生时间窗假红（见 P-TEST-4 并行条目）。
+- 代价：`npm.cmd run test:unit` 全量运行时 runner 级测试文件之后进程树排空挂死（并行挂/串行卡/隔离绿），全量 unit 门禁不可依赖；配合并行负载还会产生时间窗假红（见 P-TEST-8）。
 - 根因：node --test 默认每文件一个子进程；文件进程退出时 node 等待其整棵子进程树排空。unit 测试若遗留 sandbox（child-main）或 jobhelper 子进程树存活，文件进程永不退出，runner 无限等待。`--test-isolation=none` 可绕过但引入跨文件模块级 memo 串扰假红（jobGuardMemo 实证），不可作为门禁默认。
 - 正确做法：**unit 套件保持纯隔离语义**——runner 级（带真实子进程树）用例一律落 `tests/integration/`（串行，#113 先例）；unit 内只允许有界同步形式（`spawnSync`/`execSync`，调用即返回不可能存活过调用点）。机械门禁：`tests/unit` 禁用 `spawn(`/`execFile(`/`fork(`/`spawnSupervised`/`spawnJobGuarded`/`adoptPidIntoJobGuard` 及 `src/process-supervision.js` 导入。
 - 门禁：`tests/unit/workflow-governance.test.ts`（Tier 3「unit suite keeps pure isolation semantics」锁死）。已修 + 门禁（随 Issue #198 分支合入生效）。
@@ -207,6 +208,7 @@
 - 原位置：Issue #174 实施过程（改动丢失重做）。
 
 #### P-CI-1 远端 CI（GitHub Actions）已整体移除——引用「CI 绿/红」或执行 `gh pr checks` 属虚假证据
+- 语境标注（2026-11-16，Issue #60，只增不删）：2026-11-14 起 public 仓 CI 已恢复为放行判据之一（见下方「状态更新」与 `docs/WORKFLOW.md` §7.3）；本条标题与正文描述适用于**历史/私有仓语境**，public 仓库语境下如实引用 CI 状态不再是虚假证据。
 - 复发性：G3 已成强制（2026-11-09 用户拍板移除 CI，治理测试反向锁死）
 - 代价：GitHub Actions 个人额度频繁耗尽（账单红灯常态化，衍生 #195 全量补跑负担）；CI 的门禁命令与本机门禁链完全重复（本机为超集），远端额度成本高于其增量价值。若在 CI 移除后仍等待/引用 CI 状态，会产生虚假证据与假阻塞。
 - 根因：远端 CI 与本机门禁链职责重叠，而额度约束使远端执行不可持续。
@@ -262,4 +264,12 @@
 - 正确做法：清理逻辑提为具名 helper（`rmTempDir(dir)`），helper 内的 `return` 只退出 helper 自身，测试断言异常必然传播；每修一处做一次注入式杀伤力验证（try 体内临时 throw，确认测试真实转红再撤针）；无标签 break/continue 绑定 finally 内层循环、不构成覆盖，无需改写。
 - 门禁：`tests/unit/workflow-governance.test.ts`（Tier 1「test finally blocks must never contain abrupt completions」：字符级状态机扫描器跨字符串/注释/正则追踪 finally 作用域，`return` 与跨块标签 break/continue 即报路径+行号，6 组反向判别用例锁死语义边界——嵌套函数体豁免、无标签 break/continue 豁免）。已修 + 门禁（比赛仓 Issue #36）。
 - 原位置：私有仓 Issue #312、`tests/integration/dwf-live.test.ts` / `dwf-failover.test.ts`（rmTempDir helper）。
+
+#### P-TEST-9 测试运行重写 `artifacts/` 与 `tests/unit/fixtures/` 跟踪文件——门禁链跑完工作区必脏
+- 复发性：G1 反复（工作区卫生两连事故同根因，Issue #60 收录并文档化配方）
+- 代价：`npm.cmd test`（postinstall/bootstrap-fixtures 重生成离线 SDK 桩）与演示/迁移类集成测试（如 `tests/integration/demo-migration.test.ts` 重写 `artifacts/` 看板与 DAG 产物）跑完后，`git status --porcelain` 非空——`git add -A` 会把运行副产物混入提交；`pr_review_gate.mjs --check-clean` 洁净度门禁假红，阻塞收尾。
+- 根因：套件内部分用例与 fixture 自举脚本以**仓库内受跟踪文件**为输出目标（`artifacts/`、`tests/unit/fixtures/`），运行即重写；这些文件必须保留在库中（不能 .gitignore 一劳永逸），因此每次门禁链运行后都需显式还原。
+- 正确做法：**门禁链跑完、提交与发起 PR 前，无条件执行还原配方**：`git restore artifacts/ tests/unit/fixtures/`，随后 `git status --porcelain` 核对为空；配方已写入 `docs/WORKFLOW.md` §4 门禁清单第 8 级（与既有「还原测试副产物」步骤合并，范围扩展至 `artifacts/`）。
+- 门禁：`scripts/pr_review_gate.mjs --check-clean`（工作区洁净度机械检查）；还原时机为宿主级纪律。
+- 原位置：Issue #60（配方文档化）、AGENTS.md §四 第 8 步（既有纪律，本次澄清范围含 `artifacts/`）。
 

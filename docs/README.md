@@ -70,7 +70,7 @@
 | **Kiro 集成与合规** | `docs/KIRO_INTEGRATION.md` | `.kiro/` 五子系统（specs / hooks / steering / MCP / PBT）与 Skeleton Crew 花名册、权限上限的完整指南 |
 | **评委导航入口** | `SUBMISSION.md` | 1 分钟 pitch、演示视频占位、九幕一键复现、仓库地图与合规声明 |
 | **Facade 编排模式** | `docs/authoring-patterns.md` | facade 脚本编排模式目录：workflow 脚本的写作范式与可复用结构 |
-| **中文译本** | `docs/i18n/` | ARCHITECTURE / DEVELOPER_GUIDE / KIRO_INTEGRATION 三篇权威文档的中文对照版 |
+| **中文译本（历史存档）** | `docs/i18n/` | ARCHITECTURE / DEVELOPER_GUIDE / KIRO_INTEGRATION 三篇的 **2026-11-03 黑客松版本中文原文——历史存档，不再演进**；现行权威内容以各篇主文档（`docs/ARCHITECTURE.md` / `docs/DEVELOPER_GUIDE.md` / `docs/KIRO_INTEGRATION.md`）为准 |
 | **产品展示页** | `docs/showcase.html` | 单文件深色主题展示页：pitch、失败模式修复、架构 SVG、实拍演示输出，无构建步骤 |
 
 ---
