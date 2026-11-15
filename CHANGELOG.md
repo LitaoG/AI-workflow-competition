@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- **apps (demo integrity, Issue #40)**: the committed migration deliverable
+  `apps/repo-migration-engine/artifacts/PULL_REQUEST.md` now declares at the top that it is a
+  simulated demo with **no files written** (未写入任何文件), and its Diff Statistics are marked
+  模拟统计（非实际 diff）; the migration README carries the same disclosure. Doc sync: the
+  incident-app READMEs (en/zh) now describe the facade edition's real policy gate + reversible
+  apply/undo rollback (wired by #39), and the stale act-1 site count / quality-gate
+  fingerprints in README & SUBMISSION were refreshed to fresh-build measurements.
+
 ## 2.5.0 (2026-11-15) — upstream batch: AST codemod self-healing, thinking-stream SSE, supervised stdin, symlink hardening
 
 Feature/fix sync from the upstream engine line (`78ac366..18eb37e`, patch-ported per the

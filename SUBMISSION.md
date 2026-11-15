@@ -73,7 +73,7 @@ Measured end-to-end 2026-11-03 (Git Bash on Windows, Node v26.13.0, warm npm cac
 
 | Act | Capability | Evidence line |
 | --- | --- | --- |
-| 1 | strict compile + phase graph | `✔ facade script compiled clean (28 sites)` |
+| 1 | strict compile + phase graph | `✔ facade script compiled clean (35 sites)` |
 | 2 | sandbox run (incident demo) | `✔ run dwfrun-… completed` |
 | 3 | **zero-token replay** | `⚡ replayed from journal: … (0 provider calls)` |
 | 4 | migration demo | `asks: 8 (replayed from journal: 0)` → `result: {"migrated":3,…,"gates":"passed"}` |
@@ -89,10 +89,10 @@ All run 2026-11-15, Node v26.13.0, from a **fresh build** (fresh-build numbers a
 clone reproduces — full context in [README](README.md#reproducible-quality-gate-fingerprints)):
 
 ```text
-npm test                                            → 805 tests, 805 pass, 0 fail
+npm test                                            → 807 tests, 807 pass, 0 fail
 npm run test:pbt                                    →  16 tests,  16 pass, 0 fail
 node --experimental-strip-types tests/e2e/runner.ts → 118/118 passed
-npm run test:adversarial                            → 201 tests, 201 pass, 0 fail
+npm run test:adversarial                            → 202 tests, 202 pass, 0 fail
 npm run test:governance                             →  37 tests,  37 pass, 0 fail
 bash scripts/demo.sh                                → exit 0, all nine acts OK
 ```
