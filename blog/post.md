@@ -355,29 +355,40 @@ Phase 4: Compiler & Merge Gate                            Phase 5: Release Synth
 
 ### Empirical Benchmark Tables
 
-To evaluate the efficiency of AI-Workflow against traditional conversational agent loops, we conducted rigorous benchmarking across token consumption, failure recovery latency, and E2E test pass rates.
+To evaluate AI-Workflow against a real, independent baseline — not a strawman — we ran a
+**bilateral cross-engine benchmark**: the *identical* facade mission script (planner → 4-way
+fan-out → verifier self-heal → report) executed on both our engine (`src/dwf`) and the official
+ZCode dynamic-workflow engine, driven by the same scripted fake model with zero network calls
+and zero API keys. Every number below is quoted verbatim from the raw measurement files
+([ours](../tests/cross-engine/results/ours-cross-benchmark.json) ·
+[official](../tests/cross-engine/results/official-cross-benchmark.json)), analyzed in
+[`docs/research/BILATERAL-CROSS-BENCHMARK-REPORT.md`](../docs/research/BILATERAL-CROSS-BENCHMARK-REPORT.md).
 
-#### Table 1: Token Usage & Cost Efficiency Comparison
-*Comparison of a 5-phase migration task executed across 10 trials.*
+#### Table 1: Cross-Engine Compile & Runtime Efficiency (measured, 2 runs each)
+*Same mission script, same fake model; Windows, Node v26.13.0. Sources: the two JSONs above (fields `compile`, `runs[].wallMs`, `memory`, `crossCompare`).*
 
-| Metric | Traditional Conversational Agent Loop | AI-Workflow Dynamic Workflow | Efficiency Gain / Improvement |
-|---|:---:|:---:|:---:|
-| **Initial Run Prompt Tokens** | 48,250 | 9,840 | **79.6% Reduction** |
-| **Initial Run Output Tokens** | 6,420 | 1,850 | **71.2% Reduction** |
-| **Average Turns to Completion** | 14.8 turns | 5 compiled phases | **66.2% Fewer Transitions** |
-| **Syntax / Parsing Errors** | 3.2 per run | 0 (Schema Self-Healing) | **100% Elimination** |
-| **Execution Latency (Mock Mode)** | N/A (Online only) | 1.82 seconds | **Deterministic Speed** |
+| Metric | Official ZCode engine | AI-Workflow (`src/dwf`) | Reading |
+|---|:---:|:---:|---|
+| **Mission run wall time** | 167.271 / 155.256 ms | 168.833 / 154.248 ms | within ±1% — task-level parity |
+| **Cold compile** | **66.444 ms** | 211.506 ms | official 3.2× faster (root cause not yet attributed — honest gap) |
+| **Warm compile mean** | 51.072 ms | **7.206 ms** | ours 7.1× faster (cross-call compile cache) |
+| **Peak heapUsed** | 100.18 MB | **40.54 MB** | −59.5% |
+| **Peak RSS** | 235.88 MB | **147.7 MB** | −37.4% |
+| **Determinism (run 1 vs run 2)** | settle + event-type sequences identical | settle + event-type sequences identical | both engines replay deterministically |
+| **Cross-engine settle order** | 12 asks | 12 asks, structurally equal after normalization | two independent schedulers converge on the same order |
 
-#### Table 2: Crash Resumption & Zero-Token Replay Benchmark
-*Simulating a transient network failure at step 4 of 5 during repository migration.*
+#### Table 2: Crash Resumption & Self-Heal Mechanisms (measured)
+*Park-then-fill and schema-repair probed through each engine's real pipeline; sources: the same two JSONs as Table 1 (fields `hole`, `repairNudge`).*
 
-| System Under Test | Recovery Strategy | Replay Token Consumption | Resumption Latency | Risk of Decision Divergence |
-|---|---|:---:|:---:|:---:|
-| **Conversational Framework** | Full Restart from Step 1 | 54,670 tokens | 145 seconds | High (Probabilistic) |
-| **AI-Workflow Engine** | `--resume-from-failed` | **0 tokens (Steps 1-3)** | **0.34 seconds** | **Zero (Cached Snapshots)** |
+| Mechanism | Official ZCode engine | AI-Workflow (`src/dwf`) | Reading |
+|---|---|---|---|
+| **Replay of completed nodes** | journal replay | `--resume` / `--amend`: unchanged nodes short-circuit from the SQLite journal — **zero provider calls** | the mechanism the demo's Act 3 prints as `⚡ replayed from journal (0 provider calls)` |
+| **Hole park → fill** | in-process payload swap, **0.635 ms**, no journal row | `workflow fill` forks an amend run; unchanged nodes replay from the journal — 411.455 ms, lineage preserved | two different mechanism families: instant in-memory vs crash-recoverable lineage — not directly comparable |
+| **Schema repair** | 2 rounds via typed-ask submit validation — 92.899 ms | 2 rounds inside one journalled ask node — 1.683 ms | both converge to the identical final value `{pass: true, risk: "low"}` |
+| **Turn-ended nudge** | 1 reminder budget (`NUDGE_ATTEMPTS=1`) | none on this side | honest gap, recorded in the bilateral report |
 
-#### Table 3: Opaque-Box E2E Test Suite Results (TEST_READY.md)
-*Complete test execution conducted on Node.js 22 LTS with `--experimental-strip-types`.*
+#### Table 3: Opaque-Box E2E Test Suite Results (measured 2026-10-31)
+*Complete test execution conducted on Node.js 22 LTS with `--experimental-strip-types`. Source: [`TEST_READY.md` as of the initial-release commit](https://github.com/LitaoG/AI-workflow-competition/blob/a86554b/TEST_READY.md) — the file was later removed from the tree during a docs purge, so these are its recorded 2026-10-31 measurements; the suite has since changed and the current gate reports 118/118 (fingerprints in [README](../README.md)).*
 
 | Verification Tier | Focus Area | Executed Tests | Passed Tests | Failed Tests | Pass Rate | Execution Duration |
 |---|---|:---:|:---:|:---:|:---:|:---:|
