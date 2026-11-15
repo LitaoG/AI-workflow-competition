@@ -1,9 +1,42 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { normalizeSlashArgs } from '../../src/cli/slash-parser.js';
 import { runCLI } from '../../src/cli/index.js';
+
+/**
+ * Write the shared mock workflow into a caller-owned temp dir. The workflow
+ * imports the engine through an absolute file URL so the file stays valid no
+ * matter which temp directory it lands in (a fixed relative specifier would
+ * resolve against the file's own location). Nothing is written into the
+ * controlled tests/unit/fixtures/ (Issue #54, root cause of P-TEST-2).
+ */
+function writeMockWorkflow(dir: string): string {
+  const distIndexUrl = pathToFileURL(path.join(process.cwd(), 'dist', 'src', 'index.js')).href;
+  const tmpWfPath = path.join(dir, 'mock-run-workflow.ts');
+  fs.writeFileSync(
+    tmpWfPath,
+    `
+import { Workflow, actionStep } from '${distIndexUrl}';
+
+const wf = new Workflow({ name: 'CLIRunTestWorkflow' });
+wf.addPhase({ id: 'p1', name: 'Phase 1' });
+wf.addStep(
+  actionStep({
+    id: 'step-ok',
+    name: 'Step OK',
+    phaseId: 'p1',
+    action: async () => ({ success: true }),
+  })
+);
+export default wf;
+`
+  );
+  return tmpWfPath;
+}
 
 test('CLI Normalizer: strips slash prefix from /workflow command', () => {
   const input = ['node', 'bin/workflow.js', '/workflow', 'run', 'test.ts'];
@@ -20,27 +53,10 @@ test('CLI Normalizer: strips slash prefix from /workflow command', () => {
   assert.deepEqual(normalizeSlashArgs(slashCommand), ['node', 'bin/workflow.js', 'probe']);
 });
 
-test('CLI Run: executes workflow with --mock flag and exits with code 0', async () => {
-  const tmpWfPath = path.resolve(process.cwd(), 'tests', 'unit', 'fixtures', 'mock-run-workflow.ts');
-  fs.mkdirSync(path.dirname(tmpWfPath), { recursive: true });
-  fs.writeFileSync(
-    tmpWfPath,
-    `
-import { Workflow, actionStep } from '../../../dist/src/index.js';
-
-const wf = new Workflow({ name: 'CLIRunTestWorkflow' });
-wf.addPhase({ id: 'p1', name: 'Phase 1' });
-wf.addStep(
-  actionStep({
-    id: 'step-ok',
-    name: 'Step OK',
-    phaseId: 'p1',
-    action: async () => ({ success: true }),
-  })
-);
-export default wf;
-`
-  );
+test('CLI Run: executes workflow with --mock flag and exits with code 0', async (t) => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-run-'));
+  t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
+  const tmpWfPath = writeMockWorkflow(tmpDir);
 
   const exitCode = await runCLI(['node', 'bin/workflow.js', 'run', tmpWfPath, '--mock']);
   assert.equal(exitCode, 0);
@@ -56,9 +72,11 @@ test('CLI Run: --watch alias parses like --watch-graph (an unregistered option w
   assert.equal(exitCode, 2);
 });
 
-test('CLI Graph: exports standalone HTML to specified path', async () => {
-  const tmpWfPath = path.resolve(process.cwd(), 'tests', 'unit', 'fixtures', 'mock-run-workflow.ts');
-  const tmpOutHtml = path.resolve(process.cwd(), 'tests', 'unit', 'fixtures', 'exported-dag.html');
+test('CLI Graph: exports standalone HTML to specified path', async (t) => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-graph-'));
+  t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
+  const tmpWfPath = writeMockWorkflow(tmpDir);
+  const tmpOutHtml = path.join(tmpDir, 'exported-dag.html');
 
   const exitCode = await runCLI([
     'node',
@@ -103,11 +121,10 @@ test('CLI List: displays table of runs from SQLite database', async () => {
   assert.equal(exitCode, 0);
 });
 
-test('CLI Init: scaffolds basic starter template into target directory', async () => {
-  const targetDir = path.resolve(process.cwd(), 'tests', 'unit', 'fixtures', 'test-scaffold-basic');
-  if (fs.existsSync(targetDir)) {
-    fs.rmSync(targetDir, { recursive: true, force: true });
-  }
+test('CLI Init: scaffolds basic starter template into target directory', async (t) => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-init-'));
+  t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
+  const targetDir = path.join(tmpDir, 'test-scaffold-basic');
 
   const exitCode = await runCLI(['node', 'bin/workflow.js', 'init', 'basic', '--dir', targetDir]);
   assert.equal(exitCode, 0);

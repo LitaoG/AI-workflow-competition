@@ -54,6 +54,13 @@
   read-side `SchemaValidationError` precedent — the ten-tag closed set is
   untouched. This makes the code match the module's own "reject, never
   truncate" contract already stated in its header and cap comments.
+- **tests (hygiene, Issue #54)**: adversarial `concurrency-stress` tmp dirs now self-clean via
+  `t.after` (`run-*-parallel-*` / `run-failure-concurrent-*` residue was invisible to `git status`
+  through the `*.db` / `events.jsonl` ignores); `cli.test.ts` writes its mock workflow, exported
+  DAG HTML and scaffold into per-test temp dirs instead of the controlled `tests/unit/fixtures/`
+  (removes the P-TEST-2 `git restore` ritual's root cause); dead `tests/adversarial/runner.js`
+  (zero references; its TAP "PASS (0/0)" counting was the unfixed half of the fake-green pattern
+  already guarded in the e2e runner) is deleted — `test:adversarial` is glob-based and unaffected.
 - **apps (demo integrity, Issue #40)**: the committed migration deliverable
   `apps/repo-migration-engine/artifacts/PULL_REQUEST.md` now declares at the top that it is a
   simulated demo with **no files written** (未写入任何文件), and its Diff Statistics are marked

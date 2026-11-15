@@ -8,9 +8,10 @@ import { SQLiteStateStore } from '../../dist/src/state/sqlite-store.js';
 import { EventLogWriter, EventLogReader } from '../../dist/src/state/event-log.js';
 import { StepExecutionError } from '../../dist/src/core/error.js';
 
-test('Concurrency Stress: 20 parallel independent steps via Promise.all with random latencies', async () => {
+test('Concurrency Stress: 20 parallel independent steps via Promise.all with random latencies', async (t) => {
   const tmpDir = path.resolve(process.cwd(), 'tests', 'adversarial', 'fixtures', `run-20-parallel-${Date.now()}`);
   fs.mkdirSync(tmpDir, { recursive: true });
+  t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
 
   const dbPath = path.join(tmpDir, 'concurrency.db');
   const store = new SQLiteStateStore(dbPath);
@@ -132,9 +133,10 @@ test('Concurrency Stress: 20 parallel independent steps via Promise.all with ran
   store.close();
 });
 
-test('Concurrency Stress: 50 parallel steps high-load test with WAL mode and zero dropped events', async () => {
+test('Concurrency Stress: 50 parallel steps high-load test with WAL mode and zero dropped events', async (t) => {
   const tmpDir = path.resolve(process.cwd(), 'tests', 'adversarial', 'fixtures', `run-50-parallel-${Date.now()}`);
   fs.mkdirSync(tmpDir, { recursive: true });
+  t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
 
   const dbPath = path.join(tmpDir, 'concurrency-50.db');
   const store = new SQLiteStateStore(dbPath);
@@ -248,9 +250,10 @@ test('Concurrency Stress: Concurrent shared-object mutation safety across parall
   }
 });
 
-test('Concurrency Stress: Failure in 1 of 20 parallel steps is recorded without corrupting concurrent steps', async () => {
+test('Concurrency Stress: Failure in 1 of 20 parallel steps is recorded without corrupting concurrent steps', async (t) => {
   const tmpDir = path.resolve(process.cwd(), 'tests', 'adversarial', 'fixtures', `run-failure-concurrent-${Date.now()}`);
   fs.mkdirSync(tmpDir, { recursive: true });
+  t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
 
   const dbPath = path.join(tmpDir, 'failure-test.db');
   const store = new SQLiteStateStore(dbPath);
