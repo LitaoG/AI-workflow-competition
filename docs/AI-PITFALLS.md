@@ -239,3 +239,11 @@
 - 门禁：`tests/unit/execution/worktree-pool.test.ts`（注释裁决留痕与测试断言）。已修 + 门禁（随上游 Issue #298 分支合入生效，经 comp Issue #17 同步移植）。
 - 原位置：上游 Issue #298 / #279 / #274、`tests/unit/execution/worktree-pool.test.ts`。
 
+#### P-TEST-6 引擎原语所有权与哨兵双网的语义耦合——waitAny 败者被在途网拦截成时序 flake
+- 复发性：G2 单次高代价（comp Issue #17：v2.5.0 同步批次 CI（Linux）integration 首跑红灯阻塞合入；本地全链亦可间歇复现，单文件复跑恒绿——强误导）
+- 代价：假红阻塞发布合入；根因定位连续两轮假说被证伪（Node/V8 版本差异、Linux 平台差异，探针实测均不成立）。
+- 根因：done-time 哨兵双网（消费网 `getUnawaited` + 在途网 `getPending`）**共用同一条 "never awaited" 报错文案**——看报错无法区分是哪张网拦截；`sessions.waitAny` 的契约是纯竞速不取消，胜者结算脚本即完成，败者合法地仍在途，其回帧是否与胜者同批被 readline 派发取决于管道调度——在途网把它当「未消费调用」拦截。
+- 正确做法：引擎原语对交给它的 turn **声明所有权**——`waitAny` 入口对每个 turn 标记 `desc.awaited=true`（消费网豁免）并置 pending entry `cancelled=true`（在途网豁免；不发 cancelCall 通知帧、不触 journal，两 turn 仍按实际运行记账）；`race` 同款前置标记。镜像 `sessions.cancel` 的 sanctioned-abandonment 先例。**脚本级同族形态**：`Promise.all` 首个失败即弃兄弟——cap 边界轮的在途 ok 兄弟同样会被在途网拦截（goal-adv3-cap-caught 假红），脚本在 catch 后必须 `await Promise.allSettled(同轮asks)` 排干在途兄弟（对齐 budget-stop 哲学「In-flight agents will complete」）。**单文件复跑恒绿的 flake，必须用全链负载窗口复现或直读拦截网语义，严禁停在「平台/版本差异」假说上。**
+- 门禁：`tests/integration/dwf-sessions.test.ts`（waitAny 纯竞速用例即回归锁——被假红击中的正是它）。已修 + 门禁（comp Issue #17）。
+- 原位置：`src/dwf/child-bootstrap.ts`（`__sessions.waitAny`/`race`）、`src/dwf/child-main.ts`（双网审计，offenders 文案合一）。
+

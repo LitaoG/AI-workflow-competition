@@ -8,6 +8,22 @@ changes land:
 
 - **dwf**: compiler pre-pass AST codemod (`src/dwf/ast-codemod.ts`) auto-heals forgotten
   destructuring in facade scripts (upstream #300).
+- **dwf (comp-side fix, found by this repo's Linux CI)**: `sessions.waitAny` no longer
+  lets the done-time unawaited-promise sentinel (upstream #279) flag its own losers.
+  waitAny's contract is pure racing without cancellation — a loser may legitimately
+  still be in flight when the winner settles and the script finishes, and which reply
+  wins the pipe-scheduling race decides pass/fail (first surfaced as an intermittent
+  GitHub Actions integration failure; single-file reruns always passed, which made
+  the first two root-cause hypotheses — Node/V8 version, Linux platform — both wrong).
+  waitAny now marks every turn it owns as consumed and abandons its in-flight entries
+  (mirroring the sanctioned-abandonment exemption in `sessions.cancel`); `sessions.race`
+  marks its turns upfront the same way. The script-level twin got the same treatment:
+  the `goal-adv3-cap-caught` fixture now drains its in-flight Promise.all siblings
+  after catching the cap error (`Promise.allSettled`), mirroring the budget-stop
+  philosophy "In-flight agents will complete; their results are preserved" — without
+  the drain, the cap-boundary round's still-in-flight ok replies raced the done-time
+  in-flight net and intermittently failed the newly-gated adversarial test. Both need
+  backflow to the private repo.
 - **agent**: thinking-stream deltas flow through the provider contract and propagate
   live over SSE (upstream #304).
 - **agent**: `spawnSupervised` accepts a stdin payload; `promptMode` gains `stdin` in

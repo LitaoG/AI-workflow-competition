@@ -400,6 +400,33 @@ export const BOOTSTRAP = `"use strict";
    */
   globalThis.__sessions = {
     waitAny: function (turns, opts) {
+      // Issue #279 consumption sentinel: waitAny owns every turn it races — the
+      // contract is pure racing with NO cancellation, so at done-time a loser
+      // may legitimately still be awaiting its reply (the winner settled first
+      // and the script moved on). Both sentinel nets must exempt those turns:
+      // ① consumption net — mark every turn consumed (mirrors the
+      //   sanctioned-abandonment exemption in __cancelTurn); the winner's value
+      //   reaches the script through the any-result, losers' results are
+      //   discarded by design.
+      // ② in-flight net — flag the pending entries abandoned so a loser whose
+      //   reply has not arrived yet is not flagged as an unawaited call. The
+      //   reply, when it arrives later, still resolves into the void without
+      //   touching the journal (no cancelCall notify is emitted — waitAny does
+      //   not abort anything; both turns are journalled as ran).
+      // Which reply wins the race is pipe-scheduling dependent, so without
+      // this exemption every waitAny script is a timing flake (first surfaced
+      // by this repo's Linux CI; upstream has no CI to see it).
+      for (var w = 0; w < turns.length; w++) {
+        var wTurn = turns[w];
+        if (wTurn && wTurn.__dwfDesc) {
+          wTurn.__dwfDesc.awaited = true;
+          var wCallId = __cancellable.get(wTurn);
+          if (wCallId !== undefined) {
+            var wEntry = __pending.get(wCallId);
+            if (wEntry) wEntry.cancelled = true;
+          }
+        }
+      }
       const anyTurn = Promise.any(turns);
       if (!opts?.timeoutMs) return anyTurn;
       let timeoutHandle;
@@ -427,6 +454,11 @@ export const BOOTSTRAP = `"use strict";
         if (turn === null || (typeof turn !== 'object' && typeof turn !== 'function') || typeof turn.then !== 'function') {
           throw new TypeError('sessions.race() expects promises — pass raw agent(...).ask(...) turns so losers can be cancelled');
         }
+        // Same ownership marking as waitAny: race owns every turn it
+        // speculatively starts (losers cancelled, winner delivered through the
+        // result), so the consumption mark must not depend on Promise.any's
+        // internal reaction path (Issue #279 sentinel, comp CI Linux finding).
+        if (turn.__dwfDesc) turn.__dwfDesc.awaited = true;
       }
       var cancelAll = function () {
         for (var j = 0; j < turns.length; j++) __cancelTurn(turns[j]);
