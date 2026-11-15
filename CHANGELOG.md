@@ -32,7 +32,10 @@ changes land:
   outbound frame-queue budget (16MB, the twin of the parent's backlog budget) so a
   flooding script fails by name (`ChildFrameLimitExceeded`) instead of dying by V8
   OOM on Linux (no Job Object heap cap there); the flood test accepts all three
-  bounded-failure outcomes. Both fixes need backflow to the private repo.
+  bounded-failure outcomes. Concurrent `WorktreePool.mergeIntoBase` calls now
+  serialize per pool — git allows one merge per worktree, and on a slow runner two
+  swarm merges genuinely overlap into MERGE_HEAD collisions (second CI occurrence
+  of the family). All need backflow to the private repo.
 - **agent**: thinking-stream deltas flow through the provider contract and propagate
   live over SSE (upstream #304).
 - **agent**: `spawnSupervised` accepts a stdin payload; `promptMode` gains `stdin` in
