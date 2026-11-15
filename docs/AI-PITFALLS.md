@@ -182,7 +182,7 @@
 - 原位置：mission-b PR 正文留痕、Issue #108/#177 实施过程、Issue #196 S3（第 4/5 次补记）。
 
 #### P-ENV-3 跨 worktree 共享 node_modules 里的 `ai-workflow` 自链被任一 worktree 全局重指向
-- 复发性：G1 反复（2026-11-08 夜批两次：污染两轮 git bisect 探针——假 good/假 bad 交错、结论一度作废；另一次干净房验证 3/8 假红）
+- 复发性：G1 反复（2026-11-08 夜批两次：污染两轮 git bisect 探针——假 good/假 bad 交错、结论一度作废；另一次干净房验证 3/8 假红；第 3 次（2026-11-15，Issue #13）：release worktree 按 `docs/WORKFLOW.md` §2.1 目录联接共享主仓 `node_modules`——主仓 `node_modules/ai-workflow` 自链指向主仓根，而主仓 dist 停在 v2.3.0（v2.4.0 合入后从未重建）且 apps 源码已随 v2.4.0 更新——worktree 内 unit 563 「全绿」实为对着主仓陈旧 dist 测的假绿指纹，集成 demo 套件假红（v2.4.1 引擎 × 主仓陈旧 `defineWorkflow` 形状错位：5 个 phase 全空跑、`total_steps=0`、0.01s 假成功）——按本条正确做法④改真实 `npm ci`（postinstall 自链接回 worktree 根）后全门禁真绿 [已验证：207/207]；**`WORKFLOW.md` §2.1 的联接建议与 link-self 组合即本坑触发器**）
 - 代价：demo 内 `import 'ai-workflow'` 经共享 `node_modules/ai-workflow` 解析到**别的 checkout 的引擎版本**——被测代码与被导入代码版本错位，测试结果不可信；bisect 每步都在错位状态下跑，结论全部报废重做。
 - 根因：worktree 用目录联接共享主仓 `node_modules`（省 install 时间），而 `scripts/link-self.mjs` 产出的自链是**物理目录项**——任一 worktree 执行 link-self 都会改写共享区的指向，且其幂等逻辑「链接已存在即跳过」使复位必须先 rmdir 再跑。
 - 正确做法：① 多 worktree 并行验证期，每个 worktree 跑门禁前先 `cmd /c rmdir node_modules\ai-workflow && node scripts/link-self.mjs` 对齐自己；② bisect 脚本**每步**重置自链；③ 验证结束后复位主仓指向；④ 终极解是各 worktree 真实 `npm install`（MISSION-Y 教训）或 link-self 支持 per-worktree 隔离。
