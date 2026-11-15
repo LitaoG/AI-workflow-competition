@@ -158,6 +158,7 @@ zero API keys). Measured highlights (2 runs each, Windows, Node v26.13.0):
 | Cold compile | **66.444 ms** | 211.506 ms (honest gap, attribution open) |
 | Warm compile mean | 51.072 ms | **7.206 ms** (7.1× faster) |
 | Peak heapUsed | 100.18 MB | **40.54 MB** (−59.5%) |
+| Peak RSS | 235.88 MB | **147.7 MB** (−37.4%) |
 
 Determinism holds on both sides — settle/event-type sequences are byte-identical across the two
 runs on each engine, and the two independent schedulers converge on the same normalized settle

@@ -103,8 +103,9 @@ The identical facade mission script was also run against **both** the official Z
 dynamic-workflow engine and ours, on the same scripted fake model (zero network, zero API keys).
 Measured highlights (2 runs each, Windows, Node v26.13.0): mission wall time 167.271/155.256 ms
 (official) vs 168.833/154.248 ms (ours); warm compile 51.072 vs **7.206 ms**; peak heapUsed
-100.18 vs **40.54 MB**; determinism holds on both sides (byte-identical settle/event sequences;
-same normalized settle order across engines, 12 = 12). Full analysis:
+100.18 vs **40.54 MB**; peak RSS 235.88 vs **147.7 MB**; determinism holds on both sides
+(byte-identical settle/event sequences; same normalized settle order across engines, 12 = 12).
+Full analysis:
 [`docs/research/BILATERAL-CROSS-BENCHMARK-REPORT.md`](docs/research/BILATERAL-CROSS-BENCHMARK-REPORT.md) ·
 raw measurements: [`tests/cross-engine/results/`](tests/cross-engine/results/).
 
