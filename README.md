@@ -69,7 +69,7 @@ independent, production-grade applications built on it**:
 | Domain | DevOps incident response | Enterprise library migration |
 | Scenario | **P1 database connection pool exhaustion**: 100/100 DB connections, 38.5% HTTP 500 spike | **AWS SDK v2 → v3** across a multi-module codebase (S3, DynamoDB, SQS) |
 | Pipeline (5 phases) | deterministic probe → typed triage ask → planner + independent safety reviewer → deterministic recovery gate → post-mortem report | baseline test gate → AST/deprecation scan → parallel worker+reviewer fan-out per file → `tsc --noEmit && npm test` merge gate → PR synthesis |
-| Safety | destructive commands (`DROP`, `TRUNCATE`, `rm -rf`) intercepted by deterministic gates; automated rollback on failed verification | every patch passes an independent reviewer before the compiler gate |
+| Safety | destructive commands (`DROP`, `TRUNCATE`, `rm -rf`) intercepted by a deterministic blacklist; automated rollback when the verification gate fails | every patch passes an independent reviewer before the compiler gate |
 | Deliverables | `PostMortem.md`, `kanban.json`, interactive `incident_dag.html` | publication-ready `PULL_REQUEST.md`, `migration_dag.html` |
 
 A third directory, [`apps/capabilities-tour`](apps/capabilities-tour), is the reusable pattern
@@ -107,7 +107,7 @@ Every act prints the evidence line for the capability it demos:
 
 | Act | Capability | Evidence line |
 | --- | --- | --- |
-| 1 | strict compile + phase graph | `✔ facade script compiled clean (28 sites)` |
+| 1 | strict compile + phase graph | `✔ facade script compiled clean (35 sites)` |
 | 2 | sandbox run (incident demo) | `✔ run dwfrun-… completed` |
 | 3 | **zero-token replay** | `⚡ replayed from journal: … (0 provider calls)` |
 | 4 | migration demo | `asks: 8 (replayed from journal: 0)` → `result: {"migrated":3,…,"gates":"passed"}` |
@@ -132,9 +132,9 @@ All run on this machine, 2026-11-15 (Node v26.13.0), from a **fresh build** (a s
 double-count one moved test file — the fresh-build numbers below are what a judge clone reproduces):
 
 ```text
-npm test                                          → 805 tests, 805 pass, 0 fail
+npm test                                          → 807 tests, 807 pass, 0 fail
 node --experimental-strip-types tests/e2e/runner.ts → 118/118 passed (4 tiers)
-npm run test:adversarial                          → 201 tests, 201 pass, 0 fail
+npm run test:adversarial                          → 202 tests, 202 pass, 0 fail
 npm run test:pbt                                  →  16 tests,  16 pass, 0 fail
 npm run test:governance                           →  37 tests,  37 pass, 0 fail
 bash scripts/demo.sh                              → exit 0, all nine acts OK

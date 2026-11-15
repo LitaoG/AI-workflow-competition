@@ -94,7 +94,17 @@ node --experimental-strip-types tests/integration/demo-migration.test.ts
 ## 📦 Generated Artifacts & Deliverables
 
 Every workflow run generates verifiable artifacts in `artifacts/`:
-1. **`artifacts/PULL_REQUEST.md`**: Publication-ready pull request with unified diff, breaking changes table, and rollback runbook.
+1. **`artifacts/PULL_REQUEST.md`**: Publication-ready pull request summary with breaking changes table and rollback runbook.
 2. **`artifacts/migration_dag.html`**: Standalone SVG timeline DAG with Bézier curved lines, checkmarks, pan/zoom, and node inspector.
 3. **`artifacts/kanban.json`**: 5-column live Kanban dashboard tracking deprecation scans, plans, patches, gates, and deliverables.
 4. **`checkpoints.db` & `events.jsonl`**: Durable persistence backing instant zero-token resumption.
+
+> **⚠️ Disclosure (demo integrity) · 模拟迁移演示：未写入任何文件**
+> The migration transform in this demo is **code synthesis only**: the facade edition
+> (`facade.workflow.ts`) writes **no files at all**, and the `workflow.ts` edition emits only
+> its own deliverable reports — no fixture or repository source file is ever migrated on disk.
+> The committed `artifacts/PULL_REQUEST.md` is a **simulated sample**: its "API
+> Transformations"/"Breaking Changes" tables describe the journalled ask payloads, and its
+> Diff Statistics section is 模拟统计（非实际 diff） — simulated statistics, **not** an actual
+> diff. The only real executions are the baseline/post-merge gate runs of the fixture's own
+> unit tests (mock-mode `GateRunner` output quoted in that file).

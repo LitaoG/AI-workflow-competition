@@ -117,3 +117,10 @@ node --experimental-strip-types tests/integration/demo-incident.test.ts
 - **双智能体配对审计**: 策划智能体生成的运维指令必须通过安全审查智能体核验。
 - **确定性正则黑名单**: 针对 `DROP`、`TRUNCATE`、`rm -rf` 等破坏性指令，代码级门禁直接抛出 `GateFailureError` 中断执行。
 - **自动回滚闭环**: 若阶段 4 健康检查失败，系统立即自动执行预制的 `rollbackCommand`。
+
+> 上述两条守卫在 facade 脚本版（`facade.workflow.ts`，即 `scripts/demo.sh` 与 `workflow demo`
+> 实跑的版本）中同等生效：安全评审通过后，以纯代码按确定性黑名单（`DROP`、`TRUNCATE`、
+> `rm -rf`、`mkfs`、`format C:`、`DELETE FROM`）复筛模型产出的每条命令（计划步骤与推荐动作），
+> 命中即在任何执行前中断，且内置拦截自检（参考 `DROP TABLE` 样本每次运行必被拦截 ✔）；
+> 修复动作以可逆的 apply/undo 落地——每次运行都有回滚演练（验证探针失败 → 自动 undo →
+> 先前状态恢复 ✔），阶段 4 验证门真实失败时同样先自动回滚、随后运行才失败。

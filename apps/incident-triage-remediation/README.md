@@ -114,3 +114,14 @@ Safety policies are enforced at multiple levels:
 - **Semantic Paired Review**: `SafetyReviewerAgent` audits all planned commands before execution.
 - **Deterministic Steering Gates**: Proposed commands matching destructive patterns (`DROP`, `TRUNCATE`, `rm -rf`, `DELETE without WHERE`) are automatically intercepted and rejected with a `GateFailureError`.
 - **Automated Rollback**: If the Phase 4 verification gate fails, `action.rollbackCommand` executes immediately, restoring previous system state.
+
+> Both deterministic guardrails are enforced equally in the facade-script edition
+> (`facade.workflow.ts` — the one `scripts/demo.sh` and `workflow demo` actually run): after
+> the safety review approves, every model-contributed command (the plan's steps and the
+> recommended action) is re-screened in pure code against the destructive blacklist
+> (`DROP`, `TRUNCATE`, `rm -rf`, `mkfs`, `format C:`, `DELETE FROM`) — a hit aborts the run
+> before anything executes, and an interception self-check (a reference `DROP TABLE`
+> command) is evidenced on every run. The remediation applies reversible actions whose
+> `undo` runs automatically — a rollback drill (failing probe → undo → prior state
+> restored) is evidenced on every run, and a genuinely failed Phase 4 verification gate
+> triggers the same rollback before the run fails.

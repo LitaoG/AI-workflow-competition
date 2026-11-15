@@ -349,7 +349,7 @@ Phase 4: Compiler & Merge Gate                            Phase 5: Release Synth
    - Worker B converts `AWS.DynamoDB` to `@aws-sdk/lib-dynamodb`.
    - Worker C converts `AWS.SQS` to `@aws-sdk/client-sqs`.
 4. Phase 4 runs a deterministic compiler gate (`npx tsc --noEmit`).
-5. Phase 5 synthesizes a comprehensive `artifacts/PULL_REQUEST.md` with unified diffs and rollback runbooks.
+5. Phase 5 synthesizes a comprehensive `artifacts/PULL_REQUEST.md` with the migration payload (simulated — no files are written; the diff statistics are simulated, not an actual diff) and rollback runbooks.
 
 ---
 
