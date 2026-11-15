@@ -47,6 +47,13 @@
 | **Claude Code 对标白皮书** | `docs/research/CLAUDE-CODE-DYNAMIC-WORKFLOW-WHITEPAPER.md` | 官方 2.1.316 逆向、实机黑盒、双向对标、红蓝对抗与 Date 纯度封印落地 |
 | **Antigravity 原生动态工作流白皮书** | `docs/research/ANTIGRAVITY-RUN-WORKFLOW-WHITEPAPER.md` | Antigravity 架构逆向、FD 劫持隔离、未 Await 挂起 Promise 审计防御与四大谱系对标 |
 | **双轨实测对比基准** | `docs/research/OFFICIAL-VS-AI-WORKFLOW-BENCHMARK.md` | 4 大场景的实测/源码级证据、C 类受阻项与解除条件 |
+| **ZCode 深度逆向机制报告 v2** | `docs/research/ZCODE-DEEP-REVERSE-v2.md` | MISSION-B 阶段一交付：dynamic-workflow 全家族（runtime/adapters/bootstrap/shared）源码级 REA 证据驱动逆向，AIMD 治理等官方语义机制出处 |
+| **官方 Workflow 一手遥测 Ground Truth** | `docs/research/OFFICIAL-WORKFLOW-TELEMETRY.md` | MISSION-B Phase-2 交付：官方 Workflow 真实执行的本机遥测白皮书，数值逐字取自探针 stdout 并逐条标注证据档位 |
+| **ZCode×本仓七维基准对比报告** | `docs/research/ZCODE-BENCHMARK-REPORT.md` | TEST-GOAL 4.1 交付：ZCODE 官方引擎 × 本仓引擎七维基准对比与证据分级（缺口状态唯一登记处为同目录 WORKFLOW-GAP-MATRIX） |
+| **双向跨界对标报告** | `docs/research/BILATERAL-CROSS-BENCHMARK-REPORT.md` | MISSION-B（Issue #67）阶段五交付：官方引擎与我方引擎同任务、同脚本、同桩模型的四维双向对标 |
+| **工作流差距矩阵总账** | `docs/research/WORKFLOW-GAP-MATRIX.md` | TEST-GOAL 4.1 总交付：六大不变量实测、官方内核逆向切片、PoC 攻防与 GAP 补强修复状态的统一可复核矩阵（D#/R#/GAP-# 状态唯一登记处） |
+| **Claude Code 二进制逆向证据** | `docs/research/claude-code-binary-reverse.md` | Claude Code 2.1.316 win32-x64 平台二进制（Bun 编译）npm pack + 定向标记扫描的首轮逆向证据 |
+| **Claude Code 引擎完整逆向** | `docs/research/claude-code-workflow-internals.md` | Claude Code 2.1.316 workflow 模块整段 dump + 逐函数精读的深度提取逆向（配套首轮二进制证据） |
 
 ### 4. 安全渗透类
 
@@ -94,6 +101,13 @@
 | Google Antigravity 动态工作流架构、FD 劫持隔离、未 Await 泄漏审计与四大谱系对标 | `docs/research/ANTIGRAVITY-RUN-WORKFLOW-WHITEPAPER.md` |
 | 沙箱逃逸、协议投毒、DoS 资源炸弹、凭据窃取的攻防实测与防线状态 | `docs/research/PENETRATION-AND-SECURITY-AUDIT.md` |
 | 4 大双轨场景哪些真正实测了、哪些是 C 类受阻 | `docs/research/OFFICIAL-VS-AI-WORKFLOW-BENCHMARK.md` |
+| ZCode dynamic-workflow 全家族源码级逆向细节、AIMD 等官方语义机制的出处 | `docs/research/ZCODE-DEEP-REVERSE-v2.md` |
+| 官方 Workflow 真实执行的一手遥测数据与证据档位标注 | `docs/research/OFFICIAL-WORKFLOW-TELEMETRY.md` |
+| ZCODE 官方引擎与本仓引擎的七维基准对比结论与证据分级 | `docs/research/ZCODE-BENCHMARK-REPORT.md` |
+| 官方与我方引擎同任务、同脚本、同桩模型的四维双向对标结果 | `docs/research/BILATERAL-CROSS-BENCHMARK-REPORT.md` |
+| 六大不变量实测、PoC 攻防与 GAP/D#/R# 条目的修复状态唯一登记处 | `docs/research/WORKFLOW-GAP-MATRIX.md` |
+| Claude Code 平台二进制定向标记扫描的首轮逆向证据 | `docs/research/claude-code-binary-reverse.md` |
+| Claude Code workflow 引擎整段 dump 逐函数精读的完整逆向 | `docs/research/claude-code-workflow-internals.md` |
 | 某项外部能力为什么被吸收或拒收、来源是什么、落在哪个模块 | `docs/absorbed-capabilities.md` |
 
 ---
