@@ -134,7 +134,7 @@ double-count one moved test file — the fresh-build numbers below are what a ju
 ```text
 npm test                                          → 770 tests, 770 pass, 0 fail
 node --experimental-strip-types tests/e2e/runner.ts → 118/118 passed (4 tiers)
-npm run test:adversarial                          → 158 tests, 158 pass, 0 fail
+npm run test:adversarial                          → 201 tests, 201 pass, 0 fail
 npm run test:pbt                                  →  16 tests,  16 pass, 0 fail
 npm run test:governance                           →  34 tests,  34 pass, 0 fail
 bash scripts/demo.sh                              → exit 0, all nine acts OK

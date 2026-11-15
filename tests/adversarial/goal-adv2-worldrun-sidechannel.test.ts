@@ -32,7 +32,7 @@ describe('ADV2: world.run env side channel', () => {
     try {
       const res = spawnSync(
         process.execPath,
-        [path.join(repoRoot, 'bin', 'workflow.js'), 'run-script', fixture, '--db', dbPath],
+        [path.join(repoRoot, 'bin', 'workflow.js'), 'run-script', fixture, '--db', dbPath, '--approve-cmd', 'node'],
         {
           cwd: repoRoot,
           env: { ...process.env, GOAL_POC_TOKEN: DECOY },
