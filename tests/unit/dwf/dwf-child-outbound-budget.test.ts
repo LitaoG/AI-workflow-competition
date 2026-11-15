@@ -12,13 +12,18 @@
  *
  * The fix sinks the check to the single outbound choke point
  * (`writeOutboundLine` in child-main.ts) that both `sendToParent` and
- * `sandbox.__send` route through. Over the limit the child writes the existing
- * ChildFrameLimitExceeded scriptError frame past the closed gate (so the named
- * failure reaches the pipe), DROPS every subsequent outbound line — review
- * round 1: the sync flood loop never yields, so an unchecked tail would keep
- * growing the queue past any bound and V8-OOM before the terminal frame can
- * drain; dropping it stops heap growth at the breach — suppresses the later
- * done frame (one terminal frame per run), and exits 1 once the queue drains.
+ * `sandbox.__send` route through. Over the limit the child TERMINATES the
+ * script synchronously at the breach: the terminal ChildFrameLimitExceeded
+ * scriptError frame is written straight to fd 1 — it lands in the kernel and
+ * survives the immediate exit that discards the stream queue with its ~16 MiB
+ * of queued flood frames (a leading newline absorbs a possibly torn in-flight
+ * stream frame) — and the realm's sync flood loop cannot keep allocating.
+ * Review round 2 (CI-proven, gate run 43753392889 test 93): bounding the
+ * write queue alone still OOMed a 2,000-frame flood inside the realm's
+ * JSON.stringify, because neither write-completion callbacks nor a throw
+ * through __call's promise executor (which would only reject the
+ * fire-and-forget log promise) can stop a loop that never yields. The later
+ * done frame stays suppressed — one terminal frame per run.
  *
  * The flood cases below drive the REAL child (no childEntryPath override —
  * the default resolves to the compiled child-main.js beside the runner) with
@@ -43,10 +48,13 @@
  * frame 32) → the parent can never see more than 32 logs; bound 33 keeps a
  * +1 margin. A report frame line is 921,612 (item JSON) + ~74 (shell) chars →
  * at most 18 fit (18 × 921,760 = 16,591,680 < MAX; 19 × = 17,513,440 > MAX);
- * bound 19. The 2,000-frame tail-flood case (≈1 GiB nominal) exists precisely
- * because the 64/48-frame cases stay within 2× of the budget: before the hard
- * gate, the post-breach tail still queued unchecked and only the parent's
- * killTree race hid it.
+ * bound 19. With the breach terminating the child synchronously, how many
+ * pre-breach frames had fully reached the parent is pipe-timing (the queued
+ * tail is discarded with the stream), so only the upper bound is asserted —
+ * 0 pre-breach frames is legitimate (the terminal frame alone decides the
+ * verdict). The 2,000-frame tail-flood case (≈1 GiB nominal) exists precisely
+ * because the 64/48-frame cases stay within 2× of the budget: it is the shape
+ * that exposed the round-1 write-queue-only gate OOMing in the realm.
  *
  * PLATFORM SCOPE [probe-verified on win32, 2026-11-16, Node v26.13.0]: on
  * Windows, stdout pipe writes are SYNCHRONOUS (Node docs: "Pipes: synchronous
@@ -155,8 +163,11 @@ test('a sync log flood past the 16 MiB child queue budget fails the run by name 
   // The value must never complete: the budget scriptError suppresses the done frame.
   assert.equal(r.value, undefined, `no done value may be reported: ${JSON.stringify(r.value)}`);
   // Bounded by the queue arithmetic (≤32 pre-breach frames), NOT by the
-  // parent's killTree racing the child's tail.
-  assert.ok(r.logCount >= 1 && r.logCount <= 33, `frames flowed before the breach and the flood tail never reached the parent: ${r.logCount}`);
+  // parent's killTree racing the child's tail. No lower bound: with the
+  // breach terminating the child synchronously, how many pre-breach frames
+  // fully reached the parent is pipe-timing — the terminal frame alone
+  // decides the verdict.
+  assert.ok(r.logCount <= 33, `the flood tail can never reach the parent: ${r.logCount}`);
   assert.ok(r.wallMs < 45_000, `wall=${r.wallMs}ms — must fail fast, not hang or OOM`);
 });
 
@@ -166,19 +177,19 @@ test('a sync report flood past the 16 MiB child queue budget fails the run by na
   assert.match(r.error ?? '', /ChildFrameLimitExceeded/);
   assert.match(r.error ?? '', /child outbound frame queue exceeds 16777216 chars/);
   assert.equal(r.value, undefined, `no done value may be reported: ${JSON.stringify(r.value)}`);
-  assert.ok(r.reportCount >= 1 && r.reportCount <= 19, `reports flowed before the breach and the flood tail never reached the parent: ${r.reportCount}`);
+  assert.ok(r.reportCount <= 19, `the flood tail can never reach the parent: ${r.reportCount}`);
   assert.ok(r.wallMs < 45_000, `wall=${r.wallMs}ms — must fail fast, not hang or OOM`);
 });
 
-test('a ~1 GiB log tail flood (2000 frames) is still a named failure: the post-breach tail is dropped, not queued (review round 1 hard gate)', { timeout: 60_000, skip: WIN32_SKIP }, async () => {
+test('a ~1 GiB log tail flood (2000 frames) is still a named failure: the child terminates at the breach instead of OOMing (review round 2)', { timeout: 60_000, skip: WIN32_SKIP }, async () => {
   const r = await runFlood(LOG_TAIL_FLOOD_SCRIPT);
   assert.equal(r.status, 'failed', `expected named failure, got ${r.status}: ${r.error ?? ''}`);
   assert.match(r.error ?? '', /ChildFrameLimitExceeded/);
   assert.match(r.error ?? '', /child outbound frame queue exceeds 16777216 chars/);
   assert.equal(r.value, undefined, `no done value may be reported: ${JSON.stringify(r.value)}`);
-  // The tail (~1,967 frames ≈ 1 GiB) must be DROPPED at the gate: the parent
-  // still sees only the ≤32 pre-breach frames — the heap stops growing at the
-  // breach instead of racing the drain toward a V8 OOM.
-  assert.ok(r.logCount >= 1 && r.logCount <= 33, `only pre-breach frames may reach the parent, tail must be dropped: ${r.logCount}`);
+  // The tail (~1,967 frames ≈ 1 GiB) can never reach the parent; the child
+  // dies at the breach with the named frame on fd 1 instead of racing the
+  // realm's own allocations toward a V8 OOM (the round-1 CI failure shape).
+  assert.ok(r.logCount <= 33, `only pre-breach frames may reach the parent: ${r.logCount}`);
   assert.ok(r.wallMs < 45_000, `wall=${r.wallMs}ms — must fail fast, not hang or OOM`);
 });

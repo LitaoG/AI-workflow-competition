@@ -109,14 +109,9 @@ let outboundBudgetReported = false;
  * to prevent). Fail the run by name instead of dying by OOM.
  */
 function writeOutboundLine(line: string): void {
-  // Review hard gate (Issue #58 round 1): once the budget is reported, EVERY
-  // later outbound line is DROPPED, not written unchecked. The sync flood loop
-  // never yields to the event loop, so the exitAfterFlush(1) callback cannot
-  // fire mid-loop — letting the tail through would keep growing the queue past
-  // any bound and V8-OOM before the terminal frame can drain (the exact death
-  // this defense exists to prevent, only postponed by 16 MiB). Dropping the
-  // tail stops heap growth at the breach; exit(1) lands once the already-
-  // queued frames drain, delivering the named failure.
+  // Hard-gate backstop (Issue #58 review round 1): once the budget is reported
+  // the run is terminated synchronously below, so no further line should ever
+  // arrive — any that does is dropped, never written unchecked.
   if (outboundBudgetReported) return;
   // Outbound queue budget — the child-side twin of the parent's frame backlog
   // budget (frame-pump.ts): a flooding script outpaces the pipe faster than the
@@ -125,17 +120,33 @@ function writeOutboundLine(line: string): void {
   // Object commit cap there — comp Issue #17, first Linux CI adversarial run).
   if (process.stdout.writableLength > MAX_OUTBOUND_QUEUE_CHARS) {
     outboundBudgetReported = true;
-    // The terminal frame itself must bypass the gate closed above — routing it
-    // through sendToParent would re-enter this function and be dropped with
-    // the tail. Written directly (byte-identical to the old recursive path) so
-    // the named failure reaches the pipe.
-    process.stdout.write(JSON.stringify({
-      t: 'scriptError',
-      message: `ChildFrameLimitExceeded: child outbound frame queue exceeds ${MAX_OUTBOUND_QUEUE_CHARS} chars`,
-      name: 'AgentError',
-    }) + '\n');
-    exitAfterFlush(1);
-    return;
+    // Review round 2 (CI-proven, PR #59 gate run 43753392889 test 93): the
+    // round-1 gate bounded the WRITE QUEUE but not the realm's own
+    // allocations — the sync flood loop keeps materializing ~1 MB per log()
+    // (source string + __emit's JSON.stringify) without yielding, and
+    // exitAfterFlush's callback cannot fire mid-loop, so the heap still OOMed
+    // (JsonStringifier) before the terminal frame could drain. Throwing back
+    // into the realm cannot stop the loop either: __emit runs inside __call's
+    // promise executor, so the throw only rejects the fire-and-forget log
+    // promise. Terminate HERE, synchronously. The terminal frame must reach
+    // the parent, so it is written straight to fd 1: it lands in the kernel
+    // immediately and survives the exit that discards the stream queue with
+    // its ~16 MiB of queued flood frames (those are the bytes this defense
+    // exists to stop). The leading newline terminates a possibly torn
+    // in-flight stream frame; on a clean boundary it is an empty line the
+    // pump skips. exitAfterFlush is deliberately NOT used — its drain waits
+    // on event-loop turns the loop never yields.
+    try {
+      fs.writeSync(1, '\n' + JSON.stringify({
+        t: 'scriptError',
+        message: `ChildFrameLimitExceeded: child outbound frame queue exceeds ${MAX_OUTBOUND_QUEUE_CHARS} chars`,
+        name: 'AgentError',
+      }) + '\n');
+    } catch {
+      // Parent gone (EPIPE) — the named frame cannot be delivered; the exit
+      // code below still reports the failure.
+    }
+    process.exit(1);
   }
   process.stdout.write(line + '\n');
 }
@@ -264,11 +275,12 @@ async function main(): Promise<void> {
       });
       throw err;
     }
-    // Issue #58: if the outbound budget already breached mid-run, the budget
-    // scriptError frame is queued and exit(1) is scheduled — a done frame must
-    // not follow it out of the pipe (one terminal frame per run; the parent
-    // settles on the first, so double-emitting is at best noise and at worst a
-    // completed verdict racing a failed one).
+    // Issue #58: if the outbound budget breached mid-run, the run terminated
+    // synchronously at the breach point and control never reaches here — this
+    // guard is the backstop that keeps a done frame from ever following a
+    // budget scriptError out of the pipe (one terminal frame per run; the
+    // parent settles on the first, so double-emitting is at best noise and at
+    // worst a completed verdict racing a failed one).
     if (!outboundBudgetReported) {
       sendToParent({ t: 'done', value: value === undefined ? null : value });
       exitAfterFlush(0);
