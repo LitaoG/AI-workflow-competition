@@ -199,6 +199,8 @@ git restore tests/unit/fixtures/
 git status --porcelain
 ```
 
+> 其中第 6 级治理门禁包含「冲突标记全仓扫描」（上游 Issue #277，经 comp Issue #17 同步移植）：对 `git ls-files` 全部受控文本文件断言不得残留行首 `<<<<<<< ` / `>>>>>>> ` 合并冲突标记（排除二进制与 fixtures），防止合并腐蚀静默进入 main。
+
 ### 4.1 提取真实测试指纹
 
 PR 正文中必须包含真实的测试输出指纹（严禁占位符）：

@@ -40,6 +40,8 @@ export type AgentError = DomainErrorBase & { readonly tag: 'AgentError' };
 export type McpError = DomainErrorBase & { readonly tag: 'McpError' };
 /** A journalled node's `inputHash` no longer matches its replay inputs. */
 export type JournalMismatchError = DomainErrorBase & { readonly tag: 'JournalMismatchError' };
+/** A facade script finished while one or more facade calls' results were never consumed (never awaited / `.then`-ed) — the done-time sentinel audit blocks the run (CAP-007; Issue #279). */
+export type WorkflowUnawaitedPromiseError = DomainErrorBase & { readonly tag: 'WorkflowUnawaitedPromiseError' };
 
 /** The closed set of tagged errors every boundary must speak. */
 export type DomainError =
@@ -51,7 +53,8 @@ export type DomainError =
   | ProberError
   | AgentError
   | McpError
-  | JournalMismatchError;
+  | JournalMismatchError
+  | WorkflowUnawaitedPromiseError;
 
 /** The discriminant literal of a {@link DomainError}. */
 export type DomainErrorTag = DomainError['tag'];
@@ -67,6 +70,7 @@ export const DOMAIN_ERROR_TAGS: readonly DomainErrorTag[] = [
   'AgentError',
   'McpError',
   'JournalMismatchError',
+  'WorkflowUnawaitedPromiseError',
 ];
 
 /** Optional extras accepted by the {@link domainError} factory. */
@@ -163,6 +167,11 @@ export function isMcpError(error: DomainError): error is McpError {
 /** Type guard: narrows to the `JournalMismatchError` member. */
 export function isJournalMismatchError(error: DomainError): error is JournalMismatchError {
   return error.tag === 'JournalMismatchError';
+}
+
+/** Type guard: narrows to the `WorkflowUnawaitedPromiseError` member. */
+export function isWorkflowUnawaitedPromiseError(error: DomainError): error is WorkflowUnawaitedPromiseError {
+  return error.tag === 'WorkflowUnawaitedPromiseError';
 }
 
 /**

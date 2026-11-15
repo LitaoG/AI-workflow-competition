@@ -110,16 +110,52 @@ export const BOOTSTRAP = `"use strict";
 
   function __call(op, siteId, payload) {
     var id = ++__nextId;
-    var promise = new Promise(function (resolve, reject) {
+    // Issue #279 (CAP-007, aligned with the source's _awaited semantics): the
+    // sentinel must catch calls whose result is DROPPED, not merely calls still
+    // in flight at done-time. Every call outside the fire-and-forget whitelist
+    // registers a descriptor; consuming the returned promise via then/catch/
+    // finally (await included) flips awaited. Settlement alone never does —
+    // an ok frame arriving while nobody consumes the promise leaves the
+    // descriptor unawaited, and the final audit fails the run.
+    var tracked = op !== 'enterPhase' && op !== 'log' && op !== 'report' && op !== 'declareArtifact';
+    var desc = tracked ? { siteId: siteId, op: op, awaited: false } : null;
+    if (tracked) __trackedCalls.push(desc);
+    var promise = new __AwaitTrackedPromise(function (resolve, reject) {
       __pending.set(id, { resolve: resolve, reject: reject, siteId: siteId, op: op });
       __emit({ t: 'call', id: id, op: op, siteId: siteId, payload: payload });
     });
+    promise.__dwfDesc = desc;
     if (op === 'ask') __cancellable.set(promise, id);
     var cleanup = function () {
       __cancellable.delete(promise);
     };
-    promise.then(cleanup, cleanup);
+    // Internal bookkeeping runs through the native prototype method so the
+    // script-facing consumption mark stays exclusive to real script consumption.
+    Promise.prototype.then.call(promise, cleanup, cleanup);
     return promise;
+  }
+
+  /** Consumption descriptors for the unawaited-call sentinel (Issue #279). */
+  var __trackedCalls = [];
+  /**
+   * Tracked promise: marks its descriptor the moment the script consumes it
+   * (await lowers to a .then call, so both spellings mark). Derived
+   * promises from species construction carry no descriptor — the original
+   * call's mark already happened by then, so the guard only avoids noise.
+   */
+  class __AwaitTrackedPromise extends Promise {
+    then(onFulfilled, onRejected) {
+      if (this.__dwfDesc) this.__dwfDesc.awaited = true;
+      return super.then(onFulfilled, onRejected);
+    }
+    catch(onRejected) {
+      if (this.__dwfDesc) this.__dwfDesc.awaited = true;
+      return super.catch(onRejected);
+    }
+    finally(onFinally) {
+      if (this.__dwfDesc) this.__dwfDesc.awaited = true;
+      return super.finally(onFinally);
+    }
   }
 
   /** Route one pending ask turn's abort to the parent by its child call id. */
@@ -128,6 +164,12 @@ export const BOOTSTRAP = `"use strict";
     if (callId !== undefined) {
       var entry = __pending.get(callId);
       if (entry) entry.cancelled = true;
+      // A cancelled turn is a sanctioned abandonment — sessions.cancel exists
+      // precisely to discard the loser of a race, and its result is never
+      // consumed by design. Exempt it from the unawaited-consumption sentinel
+      // here, or every cancel-then-race script would fail the done-time audit
+      // (Issue #279: cancellation is not the dropped-result failure class).
+      if (turn && turn.__dwfDesc) turn.__dwfDesc.awaited = true;
       __emit({ t: 'notify', op: 'cancelCall', cancelId: callId });
     }
     // already-settled turns are a no-op: cancellation only applies to pending work
@@ -358,6 +400,33 @@ export const BOOTSTRAP = `"use strict";
    */
   globalThis.__sessions = {
     waitAny: function (turns, opts) {
+      // Issue #279 consumption sentinel: waitAny owns every turn it races — the
+      // contract is pure racing with NO cancellation, so at done-time a loser
+      // may legitimately still be awaiting its reply (the winner settled first
+      // and the script moved on). Both sentinel nets must exempt those turns:
+      // ① consumption net — mark every turn consumed (mirrors the
+      //   sanctioned-abandonment exemption in __cancelTurn); the winner's value
+      //   reaches the script through the any-result, losers' results are
+      //   discarded by design.
+      // ② in-flight net — flag the pending entries abandoned so a loser whose
+      //   reply has not arrived yet is not flagged as an unawaited call. The
+      //   reply, when it arrives later, still resolves into the void without
+      //   touching the journal (no cancelCall notify is emitted — waitAny does
+      //   not abort anything; both turns are journalled as ran).
+      // Which reply wins the race is pipe-scheduling dependent, so without
+      // this exemption every waitAny script is a timing flake (first surfaced
+      // by this repo's Linux CI; upstream has no CI to see it).
+      for (var w = 0; w < turns.length; w++) {
+        var wTurn = turns[w];
+        if (wTurn && wTurn.__dwfDesc) {
+          wTurn.__dwfDesc.awaited = true;
+          var wCallId = __cancellable.get(wTurn);
+          if (wCallId !== undefined) {
+            var wEntry = __pending.get(wCallId);
+            if (wEntry) wEntry.cancelled = true;
+          }
+        }
+      }
       const anyTurn = Promise.any(turns);
       if (!opts?.timeoutMs) return anyTurn;
       let timeoutHandle;
@@ -385,6 +454,11 @@ export const BOOTSTRAP = `"use strict";
         if (turn === null || (typeof turn !== 'object' && typeof turn !== 'function') || typeof turn.then !== 'function') {
           throw new TypeError('sessions.race() expects promises — pass raw agent(...).ask(...) turns so losers can be cancelled');
         }
+        // Same ownership marking as waitAny: race owns every turn it
+        // speculatively starts (losers cancelled, winner delivered through the
+        // result), so the consumption mark must not depend on Promise.any's
+        // internal reaction path (Issue #279 sentinel, comp CI Linux finding).
+        if (turn.__dwfDesc) turn.__dwfDesc.awaited = true;
       }
       var cancelAll = function () {
         for (var j = 0; j < turns.length; j++) __cancelTurn(turns[j]);
@@ -621,17 +695,11 @@ export const BOOTSTRAP = `"use strict";
   // （独立评审第 1 轮边界面收紧）。返回 'abort' 交外层 exit(2)；childIdle 的发射
   // 条件与原宿主侧实现逐字一致（每条已解析行处理后：pending 清空且仍有 parked hole）。
   var __deliver = function (line) {
-    if (line === '__sentinel_get_pending__' || line === '__get_pending__') {
-      return __deliver.getPending();
-    }
     let frame;
     try {
       frame = JSON.parse(line);
     } catch {
       return ''; // ignore malformed lines; the protocol is ours on both ends
-    }
-    if (frame && (frame.t === '__get_pending__' || frame.op === 'getPending')) {
-      return __deliver.getPending();
     }
     if (frame.t === 'ok' && typeof frame.id === 'number') {
       const waiter = __pending.get(frame.id);
@@ -674,6 +742,17 @@ export const BOOTSTRAP = `"use strict";
       if (!val.cancelled && (all || (val.op !== 'enterPhase' && val.op !== 'log' && val.op !== 'report' && val.op !== 'declareArtifact'))) {
         list.push({ siteId: val.siteId, op: val.op });
       }
+    });
+    return list;
+  };
+  // Issue #279: the consumption-side sentinel list — every non-fire-and-forget
+  // call whose promise was never consumed via then/catch/finally (await
+  // included), regardless of whether the host already settled it. This is the
+  // "dropped result" half the in-flight-only getPending list cannot see.
+  __deliver.getUnawaited = function () {
+    var list = [];
+    __trackedCalls.forEach(function (desc) {
+      if (!desc.awaited) list.push({ siteId: desc.siteId, op: desc.op });
     });
     return list;
   };

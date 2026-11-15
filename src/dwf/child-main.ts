@@ -91,7 +91,38 @@ if (!scriptJsPath) {
 }
 
 function sendToParent(frame: unknown): void {
+  // Outbound queue budget — the child-side twin of the parent's frame backlog
+  // budget (frame-pump.ts): a flooding script outpaces the pipe faster than the
+  // parent's backlog budget can see it, because the queued writes live in THIS
+  // heap and V8 OOMs before any parent-side defense fires on POSIX (no Job
+  // Object commit cap there — comp Issue #17, first Linux CI adversarial run).
+  // Fail the run by name instead of dying by OOM.
+  if (!outboundBudgetReported && process.stdout.writableLength > MAX_OUTBOUND_QUEUE_CHARS) {
+    outboundBudgetReported = true;
+    sendToParent({
+      t: 'scriptError',
+      message: `ChildFrameLimitExceeded: child outbound frame queue exceeds ${MAX_OUTBOUND_QUEUE_CHARS} chars`,
+      name: 'AgentError',
+    });
+    exitAfterFlush(1);
+    return;
+  }
   process.stdout.write(JSON.stringify(frame) + '\n');
+}
+
+const MAX_OUTBOUND_QUEUE_CHARS = 16 * 1024 * 1024;
+let outboundBudgetReported = false;
+
+/**
+ * process.exit() discards pending pipe writes: POSIX pipe buffers hold ~64KB,
+ * so a queued fire-and-forget frame larger than the buffer (a big log/report
+ * artifact) is silently torn or lost — the parent's pump never assembles it and
+ * the result vanishes from the journal while the run still reports success
+ * (comp Issue #17: the 315KB log round-trip came back empty on Linux CI;
+ * Windows pipe buffering masked it). Drain stdout, then exit.
+ */
+function exitAfterFlush(code: number): void {
+  process.stdout.write('', () => process.exit(code));
 }
 
 
@@ -147,6 +178,7 @@ async function main(): Promise<void> {
   interface DeliverFunction {
     (line: string): string;
     getPending?: () => Array<{ siteId?: string; op: string }>;
+    getUnawaited?: () => Array<{ siteId?: string; op: string }>;
     getActorUsage?: () => { created: string[]; used: string[] };
   }
   const deliver = vm.runInContext(BOOTSTRAP, context, { filename: 'workflow-bootstrap.js' }) as DeliverFunction;
@@ -178,20 +210,32 @@ async function main(): Promise<void> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const runner = (vm.runInContext('__workflowScript__()', context) as any) as Promise<unknown>;
     const value = await runner;
+    // Done-time sentinel audit (Issue #279, CAP-007). Two complementary nets:
+    //   1. consumption net — `getUnawaited()` lists every non-fire-and-forget
+    //      call whose promise was never consumed via then/catch/finally (await
+    //      included), whether or not the host already settled it. This is the
+    //      half the old in-flight-only check lost: an ok frame arriving while
+    //      the script dropped the promise used to erase the call from
+    //      `__pending` and the run reported `completed` over a discarded result.
+    //   2. in-flight net — `getPending()` still catches calls awaiting a reply
+    //      at done-time (e.g. consumed only via a callback that has not fired).
+    const unawaitedCalls = typeof deliver.getUnawaited === 'function' ? deliver.getUnawaited() : [];
     const pendingCalls = typeof deliver.getPending === 'function' ? deliver.getPending() : [];
-    if (pendingCalls.length > 0) {
-      const first = pendingCalls[0]!;
+    const offenders = unawaitedCalls.length > 0 ? unawaitedCalls : pendingCalls;
+    if (offenders.length > 0) {
+      const first = offenders[0]!;
       const siteDesc = first.siteId ?? 'unknown';
-      const msg = `workflow execution failed: unawaited facade call (site ${siteDesc}, op ${first.op}) was never awaited`;
+      const fixSuggestion = 'add `await` (or .then/.catch/.finally) at the call site so the result is consumed';
+      const msg = `workflow execution failed: unawaited facade call (site ${siteDesc}, op ${first.op}) was never awaited — ${fixSuggestion}`;
       const err = new Error(msg);
-      err.name = 'AgentError';
-      (err as TaggedError).__dwfTagged = domainError('AgentError', msg, {
-        details: { siteId: first.siteId, op: first.op },
+      err.name = 'WorkflowUnawaitedPromiseError';
+      (err as TaggedError).__dwfTagged = domainError('WorkflowUnawaitedPromiseError', msg, {
+        details: { siteId: first.siteId, op: first.op, fixSuggestion },
       });
       throw err;
     }
     sendToParent({ t: 'done', value: value === undefined ? null : value });
-    process.exit(0);
+    exitAfterFlush(0);
   } catch (err) {
     const e = err as Error;
     // Boundary conversion (Tagged Error Algebra): a host error re-raised through
@@ -201,7 +245,7 @@ async function main(): Promise<void> {
     const attached = (err as TaggedError | null | undefined)?.__dwfTagged;
     const tagged = toSerializableError(isDomainError(attached) ? attached : toDomainError(err));
     sendToParent({ t: 'scriptError', message: e?.message ?? String(err), stack: e?.stack, name: e?.name, error: tagged });
-    process.exit(1);
+    exitAfterFlush(1);
   }
 }
 
