@@ -26,7 +26,7 @@
  * usage), the loop counts the pipeline's estimate instead and says so in
  * `estimatedCalls`; failed calls are counted but add no tokens.
  */
-import type { ChatOptions, ProviderContract } from '../agent/provider-contract.js';
+import { normalizeStreamChunk, type ChatOptions, type ProviderContract } from '../agent/provider-contract.js';
 import { backoffSleep, classifyFailure, type FailureCategory } from '../agent/attempt-classifier.js';
 import { extractJson, repairJsonString } from '../agent/schema.js';
 import type { DomainError } from '../domain/errors.js';
@@ -155,7 +155,7 @@ export type EngineEvent =
   | { type: 'TURN_START'; turn: number }
   | ({ type: 'COMPACTION'; turn: number } & CompactionEvent)
   | { type: 'MODEL_REQUEST_START'; turn: number; estimatedTokens: number; budgetTokens: number; messageCount: number }
-  | { type: 'STREAM_CHUNK'; turn: number; chunk: string }
+  | { type: 'STREAM_CHUNK'; turn: number; chunk: string; chunkType?: 'content' | 'thinking' }
   | { type: 'MODEL_RESPONSE'; turn: number; content: string; usage?: TokenUsage }
   | {
       type: 'MODEL_ERROR';
@@ -320,9 +320,14 @@ export async function* queryLoop(
     let reported: TokenUsage | undefined;
     try {
       if (engine.provider.stream) {
-        for await (const chunk of engine.provider.stream(request, chatOptions)) {
-          content += chunk;
-          yield { type: 'STREAM_CHUNK', turn, chunk };
+        for await (const rawChunk of engine.provider.stream(request, chatOptions)) {
+          const chunk = normalizeStreamChunk(rawChunk);
+          if (chunk.type === 'thinking') {
+            yield { type: 'STREAM_CHUNK', turn, chunk: chunk.delta, chunkType: 'thinking' };
+          } else {
+            content += chunk.delta;
+            yield { type: 'STREAM_CHUNK', turn, chunk: chunk.delta, chunkType: 'content' };
+          }
         }
       } else {
         const result = await engine.provider.chat(request, chatOptions);

@@ -55,6 +55,32 @@ export type ChatOptions = {
 };
 
 /**
+ * A single streaming token/delta chunk emitted by a model backend.
+ */
+export type StreamChunk = {
+  /**
+   * The kind of stream chunk:
+   *  - `content`: standard generated assistant text or JSON fragments.
+   *  - `thinking`: reasoning / chain-of-thought tokens (e.g. Claude 3.7 Extended Thinking, DeepSeek-R1, OpenAI o-series).
+   */
+  type: 'content' | 'thinking';
+  /** The text delta. */
+  delta: string;
+};
+
+/**
+ * Normalize a stream chunk into the standard {@link StreamChunk} structure.
+ * Bare strings from legacy or simple streaming providers are wrapped as `{ type: 'content', delta: chunk }`,
+ * preserving 100% backward compatibility.
+ */
+export function normalizeStreamChunk(chunk: string | StreamChunk): StreamChunk {
+  if (typeof chunk === 'string') {
+    return { type: 'content', delta: chunk };
+  }
+  return chunk;
+}
+
+/**
  * One completed model turn. Structurally identical to the legacy `LLMResponse`.
  *
  * `content` is the FULL assistant text exactly as the model produced it: the
@@ -139,10 +165,10 @@ export interface ProviderContract {
   /** Single-prompt convenience returning just the completion text. */
   complete(prompt: string, options?: ChatOptions): Promise<string>;
   /**
-   * Optional token-level streaming: yields content deltas as they arrive.
+   * Optional token-level streaming: yields content or thinking deltas as they arrive.
    * Providers without native streaming simply omit this channel.
    */
-  stream?(messages: readonly LLMMessage[], options?: ChatOptions): AsyncIterable<string>;
+  stream?(messages: readonly LLMMessage[], options?: ChatOptions): AsyncIterable<string | StreamChunk>;
   /**
    * Optional provider-native structured output: the provider constrains
    * decoding to the given JSON Schema (e.g. OpenAI `response_format`). The

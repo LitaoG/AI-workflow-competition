@@ -34,12 +34,13 @@ export { extractJson, repairJsonString, formatZodErrors, schemaToJsonSchema } fr
 export { providerRegistry } from './agent/provider.js';
 export { MockProvider } from './agent/mock-provider.js';
 export { BedrockProvider } from './agent/bedrock-provider.js';
-export { AgentProviderError, asContract, asLlmProvider, redactServerText } from './agent/provider-contract.js';
+export { AgentProviderError, asContract, asLlmProvider, normalizeStreamChunk, redactServerText } from './agent/provider-contract.js';
 export type {
   ChatOptions,
   ChatResult,
   ProviderContract,
   ProviderErrorDetails,
+  StreamChunk,
   StructuredOutputSpec,
 } from './agent/provider-contract.js';
 export { AnthropicProvider, configureAnthropicFromEnv } from './agent/anthropic-provider.js';

@@ -171,7 +171,12 @@ describe('ADV-1 防线: 持续输出洪泛不再打破超时上界 [已修复]',
   test('flood 场景在 runTimeoutMs=10s 下必须在界内失败（洪泛让位 + 帧预算双防线）', async () => {
     const r = await runHostile('flood', 10_000);
     assert.equal(r.status, 'failed');
-    assert.match(r.error ?? '', /whole-run timeout \(10000ms\)|ChildFrameLimitExceeded/);
+    // POSIX 补充形态（comp Issue #17，首次 Linux CI）：hostile child 自身无视
+    // 背压（这正是它的敌意所在），在无 Job Object 堆帽的 Linux 上其写队列可能
+    // 先于父端预算/超时把 V8 堆耗尽——子进程 OOM 死亡（code null + V8 栈）同样
+    // 是「界内有界失败」：wallMs 断言才是本测试要证明的契约（事件循环未被饿死、
+    // 失败有界）。三形态任一即证明防线成立。
+    assert.match(r.error ?? '', /whole-run timeout \(10000ms\)|ChildFrameLimitExceeded|sandbox child exited before finishing/);
     assert.ok(r.wallMs <= 18_000, `bound broken: wall=${r.wallMs}ms (bound=10000ms)`);
   });
 });

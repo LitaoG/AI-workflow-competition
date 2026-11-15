@@ -141,8 +141,27 @@ export class WorktreePool {
     return { taskKey, removed: false, dirty: true, worktreePath: lease.worktreePath, branch: lease.branch, status };
   }
 
+  /**
+   * Merge serialization: git allows one merge at a time per worktree. The pool's
+   * whole point is concurrent tasks, so concurrent mergeIntoBase calls into the
+   * same base workspace must queue — on a slow runner two merges genuinely
+   * overlap and the second hits the first's unresolved MERGE_HEAD
+   * ("You have not concluded your merge"), a pure scheduling race, not a
+   * conflict (comp CI Issue #17, second occurrence of the family — the first
+   * was recorded after the v2.4.1 merge).
+   */
+  private mergeChain: Promise<void> = Promise.resolve();
+
   /** Merge a lease's branch back into the base branch, from the main workspace. */
-  async mergeIntoBase(taskKey: string): Promise<void> {
+  mergeIntoBase(taskKey: string): Promise<void> {
+    const run = this.mergeChain.then(() => this.mergeIntoBaseOnce(taskKey));
+    // Keep the chain alive even when a merge rejects (conflicts are the
+    // caller's to resolve — the next queued merge must still run).
+    this.mergeChain = run.then(() => undefined, () => undefined);
+    return run;
+  }
+
+  private async mergeIntoBaseOnce(taskKey: string): Promise<void> {
     const lease = this.leases.get(taskKey);
     if (!lease) throw new Error(`worktree-pool: no lease for task "${taskKey}"`);
     try {

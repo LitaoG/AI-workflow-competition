@@ -55,6 +55,8 @@ export const WORKFLOW_EVENT = {
   DWF_ACTOR_CREATED: 'dwf_actor_created',
   /** A facade `agent(name).ask(...)` started. */
   DWF_ASK_START: 'dwf_ask_start',
+  /** Thinking/reasoning stream delta emitted during model inference. */
+  DWF_THINKING_DELTA: 'dwf_thinking_delta',
   /** A facade `agent(name).ask(...)` completed. */
   DWF_ASK_COMPLETE: 'dwf_ask_complete',
   /** A journalled node was served from the replay cache. */

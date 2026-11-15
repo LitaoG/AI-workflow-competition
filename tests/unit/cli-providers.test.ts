@@ -108,3 +108,69 @@ test('end-to-end: facade-style ask through a CLI provider with a schema', async 
     providerRegistry.setDefault('mock');
   }
 });
+
+test('promptMode: "stdin" delivers prompt via stdin and handles large context (>32KB) without argv limitation', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fake-cli-stdin-'));
+  const scriptPath = path.join(dir, 'fake-cli-stdin.mjs');
+  fs.writeFileSync(
+    scriptPath,
+    [
+      'import * as fs from "node:fs";',
+      'const stdin = fs.readFileSync(0, "utf8");',
+      'const argvPrompt = process.argv[2] ?? "";',
+      'console.log(JSON.stringify({ stdinLen: stdin.length, hasArgv: argvPrompt.length > 0, echo: stdin.slice(0, 30) }));',
+    ].join('\n'),
+  );
+
+  try {
+    const provider = new CodexCliProvider({
+      command: process.execPath,
+      argsPrefix: [scriptPath],
+      promptMode: 'stdin',
+      timeoutMs: 30_000,
+    });
+
+    // 1. Normal prompt verification
+    const resNormal = await provider.generate({
+      messages: [
+        { role: 'system', content: 'System instruction' },
+        { role: 'user', content: 'User question' },
+      ],
+    });
+    const parsedNormal = JSON.parse(resNormal.content) as { stdinLen: number; hasArgv: boolean; echo: string };
+    assert.equal(parsedNormal.hasArgv, false, 'prompt should not be passed via argv in stdin mode');
+    assert.ok(parsedNormal.stdinLen > 0);
+    assert.ok(parsedNormal.echo.includes('System instruction'));
+
+    // 2. Large context (>32KB, e.g. 40KB) that exceeds Windows argv/command line limits
+    const largeMessage = 'A'.repeat(40_000);
+    const resLarge = await provider.generate({
+      messages: [{ role: 'user', content: largeMessage }],
+    });
+    const parsedLarge = JSON.parse(resLarge.content) as { stdinLen: number; hasArgv: boolean; echo: string };
+    assert.equal(parsedLarge.hasArgv, false, 'large prompt must not touch argv');
+    assert.equal(parsedLarge.stdinLen, 40_000, 'all 40KB must be faithfully transmitted through stdin');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('configureCliProvidersFromEnv respects AI_WORKFLOW_CLI_PROMPT_MODE=stdin', () => {
+  const selected = configureCliProvidersFromEnv({
+    AI_WORKFLOW_PROVIDER: 'gemini',
+    AI_WORKFLOW_CLI_PROMPT_MODE: 'stdin',
+  });
+  assert.equal(selected, 'gemini-cli');
+  const provider = providerRegistry.get() as any;
+  assert.equal(provider.promptMode, 'stdin');
+
+  // Case-insensitive / whitespace-tolerant check
+  configureCliProvidersFromEnv({
+    AI_WORKFLOW_PROVIDER: 'codex',
+    AI_WORKFLOW_CLI_PROMPT_MODE: ' STDIN ',
+  });
+  const codexProvider = providerRegistry.get() as any;
+  assert.equal(codexProvider.promptMode, 'stdin');
+
+  providerRegistry.setDefault('mock');
+});
