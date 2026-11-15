@@ -1,5 +1,4 @@
 import * as fs from 'node:fs';
-import * as path from 'node:path';
 import * as assert from 'node:assert';
 import { DatabaseSync } from 'node:sqlite';
 import type { CLIResult } from './cli.ts';
@@ -70,21 +69,13 @@ export function assertValidEventLog(eventsPath: string): Array<Record<string, un
 }
 
 export function assertValidCheckpointsDb(dbPath: string): Array<Record<string, unknown>> {
-  let resolvedPath = dbPath;
-  if (!fs.existsSync(resolvedPath)) {
-    // Check fallback locations: local runs.db or global .workflow/runs.db
-    const siblingRunsDb = path.join(path.dirname(dbPath), 'runs.db');
-    const globalRunsDb = path.join(process.cwd(), '.workflow', 'runs.db');
-
-    if (fs.existsSync(siblingRunsDb)) {
-      resolvedPath = siblingRunsDb;
-    } else if (fs.existsSync(globalRunsDb)) {
-      resolvedPath = globalRunsDb;
-    }
-  }
-
-  assertFileExists(resolvedPath, 'checkpoints database must exist');
-  const db = new DatabaseSync(resolvedPath);
+  // Per-run db only, no fallback: every caller passes `<runDir>/checkpoints.db`,
+  // which `workflow run` always creates (src/cli/commands/run.ts:116-122). The
+  // former sibling/global runs.db fallback let a missing per-run db "pass"
+  // against thousands of unrelated rows in the shared global db — a silently
+  // vacuous assertion.
+  assertFileExists(dbPath, 'checkpoints database must exist');
+  const db = new DatabaseSync(dbPath);
   const rows = db.prepare('SELECT * FROM checkpoints').all() as Array<Record<string, unknown>>;
   db.close();
 

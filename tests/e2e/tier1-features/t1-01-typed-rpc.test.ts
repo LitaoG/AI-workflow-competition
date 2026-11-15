@@ -3,7 +3,12 @@ import * as assert from 'node:assert';
 import * as path from 'node:path';
 import { runCLI } from '../helpers/cli.ts';
 import { createTempDir, cleanupTempDir, writeTempFile } from '../helpers/env.ts';
-import { assertExitCode, assertValidEventLog, assertValidCheckpointsDb } from '../helpers/assertions.ts';
+import {
+  assertExitCode,
+  assertValidEventLog,
+  assertValidCheckpointsDb,
+  assertStderrContains
+} from '../helpers/assertions.ts';
 import { SAMPLE_MULTI_AGENT_WORKFLOW } from '../helpers/fixtures.ts';
 
 test('Tier 1 - Feature 1: Typed Agent RPCs (agent.ask<T>)', async (t) => {
@@ -34,6 +39,47 @@ test('Tier 1 - Feature 1: Typed Agent RPCs (agent.ask<T>)', async (t) => {
     const triageCp = checkpoints.find(c => c.step_id === 'step-triage' || c.step_id === 'step-1-inspect');
     assert.ok(triageCp, 'Triage/inspect checkpoint should exist');
     assert.strictEqual(triageCp.status, 'completed');
+    // The RPC's returned value must be the schema-conforming mock response
+    // itself: every required field of the step-triage schema (severity P1|P2|P3
+    // enum, suspect, rootCause) must land verbatim in the persisted step
+    // output — a dropped or reshaped return value goes red here.
+    const stepOutput = JSON.parse(String(triageCp.output_json)) as Record<string, unknown>;
+    assert.strictEqual(stepOutput.severity, 'P1');
+    assert.strictEqual(stepOutput.suspect, 'db_connection_pool');
+    assert.strictEqual(stepOutput.rootCause, 'Database max connection pool exhausted');
+
+    // Schema validation must genuinely execute, not just pass data through: a
+    // structural validator (the documented PromptSchema contract — any object
+    // with a parse() function satisfies it, src/agent/rpc.ts:9-10) that rejects
+    // a schema-violating mockResponse must fail the run. If the RPC skipped
+    // validation entirely, this run would exit 0 and the assertion below would
+    // go red.
+    const violatingWf = writeTempFile(tempDir, 'wf-t1-f1-02-violating.ts', `
+export default {
+  name: "schema-violation-rpc",
+  steps: [
+    {
+      id: "step-triage",
+      role: "inspector",
+      execute: async (ctx) => {
+        return await ctx.agent("inspector").ask("Analyze", {
+          schema: {
+            parse: (value) => {
+              if (!["P1", "P2", "P3"].includes(value.severity)) {
+                throw new Error("schema violation: severity must be P1|P2|P3");
+              }
+              return value;
+            }
+          },
+          mockResponse: { severity: 123 }
+        });
+      }
+    }
+  ]
+};`);
+    const violatingRes = runCLI(['run', violatingWf, '--mock', '--output-dir', path.join(tempDir, 'run-02-violating')]);
+    assert.strictEqual(violatingRes.exitCode, 1, 'A schema-violating mock response must fail the run');
+    assertStderrContains(violatingRes, 'schema violation: severity must be P1|P2|P3');
   });
 
   await t.test('T1_F1_03: Agent RPC respects role configuration (inspector, worker, reviewer)', () => {
