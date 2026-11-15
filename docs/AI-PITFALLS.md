@@ -255,3 +255,11 @@
 - 门禁：`tests/adversarial/goal-adv2-control-char-injection.test.ts`（log round-trip）、`tests/adversarial/goal-adv1-ndjson-protocol.test.ts`（flood 三形态）。已修 + 门禁（comp Issue #17）。
 - 原位置：`src/dwf/child-main.ts`（sendToParent / exitAfterFlush）。
 
+#### P-TEST-7 测试 finally 块内的 `return` 吞掉断言异常——JS abrupt-completion 语义导致假绿
+- 复发性：G2 单次高代价（比赛仓 Issue #36 实测 3 处：`tests/integration/dwf-live.test.ts` 与 `dwf-failover.test.ts` 的清理重试循环；同族上游实证见私有仓 Issue #312/#308——测试体内真实 throw，node:test 仍报 pass，施工现场三次复现）
+- 代价：finally 内 `return`（及跨块 break/continue）按 JS 规范属于 abrupt completion，会静默覆盖并丢弃 try 块抛出的任何异常（含 AssertionError）——被波及文件的任何断言失败都可能无声吞成 pass，等同这些文件整体失去门禁能力；假绿坏代码合入 main 的基建级通道。
+- 根因：清理模式把「重试删除临时目录」的 helper 逻辑直接内联写在 `finally { for { try { rmSync(); return; } catch {...} } }`——rmSync 成功时 `return` 使 finally 块以 return 完成并覆盖 try 的异常完成；普通嵌套块（try/catch/for）不隔离 return，只有嵌套**函数体**才隔离。
+- 正确做法：清理逻辑提为具名 helper（`rmTempDir(dir)`），helper 内的 `return` 只退出 helper 自身，测试断言异常必然传播；每修一处做一次注入式杀伤力验证（try 体内临时 throw，确认测试真实转红再撤针）；无标签 break/continue 绑定 finally 内层循环、不构成覆盖，无需改写。
+- 门禁：`tests/unit/workflow-governance.test.ts`（Tier 1「test finally blocks must never contain abrupt completions」：字符级状态机扫描器跨字符串/注释/正则追踪 finally 作用域，`return` 与跨块标签 break/continue 即报路径+行号，6 组反向判别用例锁死语义边界——嵌套函数体豁免、无标签 break/continue 豁免）。已修 + 门禁（比赛仓 Issue #36）。
+- 原位置：私有仓 Issue #312、`tests/integration/dwf-live.test.ts` / `dwf-failover.test.ts`（rmTempDir helper）。
+
