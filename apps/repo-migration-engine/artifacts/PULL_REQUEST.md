@@ -48,7 +48,7 @@ This automated migration converts legacy monolithic `aws-sdk` v2 clients to modu
 ## 4. Verification & Gates
 The gate executions quoted below are the **real** mock-mode runs of the fixture's own unit tests (`GateRunner --mock`); the summary line inside the gate output is the gate runner's canned mock-mode verdict, not a claim about this repository.
 - **Baseline Gate**: Unit tests passed before migration initiation.
-- **Post-Merge Gate**: [GateRunner] Mode: post-merge | Target: C:\Users\86183\Desktop\AI-workflow-worktrees\issue-5-apps-rename-kiro\apps\repo-migration-engine\fixtures\legacy-aws-sdk-app | Mock: true
+- **Post-Merge Gate**: [GateRunner] Mode: post-merge | Target: <workspace-worktrees>\issue-5-apps-rename-kiro\apps\repo-migration-engine\fixtures\legacy-aws-sdk-app | Mock: true
 [GateRunner] ✔ Post-Merge Compilation & Test Gate PASSED:
   - TypeScript Compiler: 0 syntax errors, 0 type diagnostics (tsc --noEmit passed)
   - AWS SDK v3 Unit Tests: 3 suites passed, 15 tests passed, 0 failures
