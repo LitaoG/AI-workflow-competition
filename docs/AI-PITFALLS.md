@@ -273,3 +273,11 @@
 - 门禁：`scripts/pr_review_gate.mjs --check-clean`（工作区洁净度机械检查）；还原时机为宿主级纪律。
 - 原位置：Issue #60（配方文档化）、AGENTS.md §四 第 8 步（既有纪律，本次澄清范围含 `artifacts/`）。
 
+#### P-TEST-10 mockResponse 快路径对纯 JSON-Schema 形状零校验——违规桩值伪装成 completed 步骤
+- 复发性：G2 单次高代价（评审复查发现，Issue #53；e2e fixtures 多处传纯 JSON-Schema 形状，洞面覆盖全部 mock 演示路径）
+- 代价：`ctx.agent(name).ask(prompt, { schema: <纯 JSON-Schema 对象>, mockResponse })` 的 canned 值不经任何校验直接返回——缺必填字段、enum 越界、类型错误统统步骤 completed、运行 exit 0，违规数据还落盘 checkpoint；「看起来像校验」的 schema 形状给了假契约的安全感。
+- 根因：`src/agent/rpc.ts` mockResponse 快路径只认 `typeof schema.parse === 'function'`（zod/结构化校验器），纯 JSON-Schema 形状对象无 parse 即直通；生产路径（provider 返回值）走 safeParse 不受影响，仅 mock 快路径存在该洞。
+- 正确做法：mock 快路径与生产路径同受契约约束——纯 JSON-Schema 形状经 `zodFromJsonSchema`（与 dwf 编译期同一转换器，已向内搬迁至 `src/agent/json-schema-zod.ts`）safeParse，违规抛 `SchemaValidationError`；无 JSON-Schema 标记的对象保持直通语义，zod 分支不变。
+- 门禁：`tests/unit/agent-mock-json-schema.test.ts`（缺必填/enum 越界/类型/嵌套违规必红 + 合规直通/无标记对象/zod 分支零回归）；T1_F1_02（#52）为 e2e 层回归锚点。
+- 原位置：Issue #53（发现与根因）、`src/agent/rpc.ts` mockResponse 快路径。
+

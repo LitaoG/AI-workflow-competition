@@ -356,7 +356,7 @@ const TriageSchema = z.object({
 });
 ```
 
-**确定性测试**：mock 模式下经 `mockResponse` 注入固定响应，单测毫秒级完成且不花钱：
+**确定性测试**：mock 模式下经 `mockResponse` 注入固定响应，单测毫秒级完成且不花钱。注入值与生产路径同受 schema 契约约束——zod/结构化校验器走 `parse`，纯 JSON-Schema 形状也会经 `zodFromJsonSchema` 校验，违规抛 `SchemaValidationError`（Issue #53），桩值无法再伪装成 completed：
 
 ```typescript
 const result = await ctx.agent('TriageAgent').ask(prompt, TriageSchema, {
