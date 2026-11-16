@@ -38,8 +38,18 @@ export function assertValidEventLog(eventsPath: string): Array<Record<string, un
   assert.ok(content.length > 0, 'events.jsonl must not be empty');
 
   const lines = content.split('\n').filter(Boolean);
-  const events = lines.map((line) => {
-    const ev = JSON.parse(line);
+  const events = lines.map((line, idx) => {
+    // 诊断插桩（P-TEST-3；CI run 43742013353 教训）：T1_F3_01 在 CI 失败时断言
+    // 细节随 TAP 摘要一起丢失。下面每条断言都带行号与原文摘录，让下一次红自带
+    // 根因，不再需要人肉去 CI 里考古。
+    let ev: Record<string, unknown>;
+    try {
+      ev = JSON.parse(line) as Record<string, unknown>;
+    } catch (err) {
+      assert.fail(
+        `events.jsonl line ${idx + 1} is not valid JSON: ${err instanceof Error ? err.message : String(err)}; raw: ${line.slice(0, 160)}`
+      );
+    }
     // Harmonize eventId and id aliases
     const id = ev.id ?? ev.eventId;
     ev.id = id;
@@ -54,16 +64,20 @@ export function assertValidEventLog(eventsPath: string): Array<Record<string, un
   });
 
   let prevSeq = 0;
-  for (const ev of events) {
-    assert.ok(ev.eventId, 'Event must have eventId');
-    assert.ok(ev.runId, 'Event must have runId');
+  events.forEach((ev, idx) => {
+    const excerpt = JSON.stringify(ev).slice(0, 160);
+    assert.ok(ev.eventId, `events.jsonl line ${idx + 1}: event must have eventId; raw: ${excerpt}`);
+    assert.ok(ev.runId, `events.jsonl line ${idx + 1}: event must have runId; raw: ${excerpt}`);
     if (typeof ev.sequence === 'number') {
-      assert.ok(ev.sequence > prevSeq, `Monotonic sequence invariant violated: ${ev.sequence} <= ${prevSeq}`);
+      assert.ok(
+        ev.sequence > prevSeq,
+        `events.jsonl line ${idx + 1}: monotonic sequence invariant violated: ${ev.sequence} <= ${prevSeq} (previous numeric sequence at line ${idx}); raw: ${excerpt}`
+      );
       prevSeq = ev.sequence;
     }
-    assert.ok(ev.timestamp, 'Event must have timestamp');
-    assert.ok(ev.type, 'Event must have type');
-  }
+    assert.ok(ev.timestamp, `events.jsonl line ${idx + 1}: event must have timestamp; raw: ${excerpt}`);
+    assert.ok(ev.type, `events.jsonl line ${idx + 1}: event must have type; raw: ${excerpt}`);
+  });
 
   return events;
 }
