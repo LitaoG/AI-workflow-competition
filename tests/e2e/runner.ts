@@ -12,6 +12,28 @@ import { spawnSync } from 'node:child_process';
  * Total: 121 tests
  */
 
+/**
+ * 失败即失证（P-TEST-3；CI run 43742013353 教训）：从 TAP 原文里抠出每个
+ * `not ok` 前后的原文块（含 node:test 的失败 YAML 详情——期望值/实际值/
+ * error message）。没有它，CI 上只剩用例名，断言证据随摘要一起蒸发。
+ */
+function tapFailureContext(tap: string, maxChars = 4000): string {
+  const lines = tap.split('\n');
+  const marks: number[] = [];
+  lines.forEach((l, i) => {
+    if (/^\s*not ok\s+\d+\s+-\s+/.test(l)) marks.push(i);
+  });
+  if (marks.length === 0) return '';
+  const chunks: string[] = [];
+  for (const m of marks) {
+    const start = Math.max(0, m - 2);
+    const end = Math.min(lines.length, m + 22);
+    chunks.push(lines.slice(start, end).join('\n'));
+  }
+  const joined = chunks.join('\n    ---\n');
+  return joined.length > maxChars ? `${joined.slice(0, maxChars)}\n    …(truncated)` : joined;
+}
+
 async function main() {
   const rootDir = path.resolve(import.meta.dirname || process.cwd(), '..', '..');
   const e2eDir = path.join(rootDir, 'tests', 'e2e');
@@ -138,10 +160,17 @@ async function main() {
       const lastSubtest = (stdout.match(/^\s*# Subtest: (.+)$/gm) || []).pop();
       if (lastSubtest) console.error(`    last subtest: ${lastSubtest.trim()}`);
       for (const name of notOkNames) console.error(`    ✖ ${name}`);
+      const tapCtx = tapFailureContext(stdout);
+      if (tapCtx) console.error(`    TAP failure context:\n${tapCtx}`);
       if (stderr) console.error(stderr);
     } else if (actualFail > 0) {
       console.error(`  ✖ FAIL (${actualFail} failed, ${actualPass} passed, ${tierDuration}ms)`);
+      // 诊断插桩（P-TEST-3；CI run 43742013353 教训）：只回显用例名会把断言
+      // 证据丢在 CI 里——补每个 not ok 前后的 TAP 原文（含 node:test 的失败
+      // YAML 详情），让下一次红自带根因，不再需要人肉考古。
       for (const name of notOkNames) console.error(`    ✖ ${name}`);
+      const tapCtx = tapFailureContext(stdout);
+      if (tapCtx) console.error(`    TAP failure context:\n${tapCtx}`);
       if (stderr) console.error(stderr);
     } else {
       console.log(`  ✔ PASS (${actualPass}/${actualCount} passed, ${tierDuration}ms)`);

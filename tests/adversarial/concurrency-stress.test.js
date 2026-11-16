@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import { Workflow } from '../../dist/src/core/workflow.js';
 import { actionStep } from '../../dist/src/core/step.js';
@@ -8,12 +9,19 @@ import { SQLiteStateStore } from '../../dist/src/state/sqlite-store.js';
 import { EventLogWriter, EventLogReader } from '../../dist/src/state/event-log.js';
 import { StepExecutionError } from '../../dist/src/core/error.js';
 
-test('Concurrency Stress: 20 parallel independent steps via Promise.all with random latencies', async () => {
-  const tmpDir = path.resolve(process.cwd(), 'tests', 'adversarial', 'fixtures', `run-20-parallel-${Date.now()}`);
+test('Concurrency Stress: 20 parallel independent steps via Promise.all with random latencies', async (t) => {
+  const tmpDir = path.join(os.tmpdir(), `aiwf-stress-20p-${Date.now()}-${process.pid}`);
   fs.mkdirSync(tmpDir, { recursive: true });
 
   const dbPath = path.join(tmpDir, 'concurrency.db');
   const store = new SQLiteStateStore(dbPath);
+  // 清理必须兜住失败路径（监督席 PR#55 评审②③）：断言一抛 SQLite 句柄未关，
+  // Windows 下 rmSync 必 EPERM——先关库再删目录，各自吞错；目录进 os.tmpdir()
+  // 后 --check-clean 与残渣彻底解耦，不再依赖还原配方兜底。
+  t.after(() => {
+    try { store.close(); } catch { /* already closed */ }
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
   const eventLogWriter = new EventLogWriter(tmpDir);
 
   const wf = new Workflow({ name: 'Parallel20Workflow' });
@@ -129,15 +137,19 @@ test('Concurrency Stress: 20 parallel independent steps via Promise.all with ran
     assert.ok(completedSteps.has(sid), `Step ${sid} must be in completedSteps`);
   }
 
-  store.close();
 });
 
-test('Concurrency Stress: 50 parallel steps high-load test with WAL mode and zero dropped events', async () => {
-  const tmpDir = path.resolve(process.cwd(), 'tests', 'adversarial', 'fixtures', `run-50-parallel-${Date.now()}`);
+test('Concurrency Stress: 50 parallel steps high-load test with WAL mode and zero dropped events', async (t) => {
+  const tmpDir = path.join(os.tmpdir(), `aiwf-stress-50p-${Date.now()}-${process.pid}`);
   fs.mkdirSync(tmpDir, { recursive: true });
 
   const dbPath = path.join(tmpDir, 'concurrency-50.db');
   const store = new SQLiteStateStore(dbPath);
+  // 同上：失败路径兜底（先关库再删目录），目录进 os.tmpdir()。
+  t.after(() => {
+    try { store.close(); } catch { /* already closed */ }
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
   const eventLogWriter = new EventLogWriter(tmpDir);
 
   const wf = new Workflow({ name: 'Parallel50Workflow' });
@@ -187,7 +199,6 @@ test('Concurrency Stress: 50 parallel steps high-load test with WAL mode and zer
     assert.equal(events[idx].sequence, idx + 1);
   }
 
-  store.close();
 });
 
 test('Concurrency Stress: Concurrent shared-object mutation safety across parallel steps', async () => {
@@ -248,12 +259,17 @@ test('Concurrency Stress: Concurrent shared-object mutation safety across parall
   }
 });
 
-test('Concurrency Stress: Failure in 1 of 20 parallel steps is recorded without corrupting concurrent steps', async () => {
-  const tmpDir = path.resolve(process.cwd(), 'tests', 'adversarial', 'fixtures', `run-failure-concurrent-${Date.now()}`);
+test('Concurrency Stress: Failure in 1 of 20 parallel steps is recorded without corrupting concurrent steps', async (t) => {
+  const tmpDir = path.join(os.tmpdir(), `aiwf-stress-failc-${Date.now()}-${process.pid}`);
   fs.mkdirSync(tmpDir, { recursive: true });
 
   const dbPath = path.join(tmpDir, 'failure-test.db');
   const store = new SQLiteStateStore(dbPath);
+  // 同上：失败路径兜底（先关库再删目录），目录进 os.tmpdir()。
+  t.after(() => {
+    try { store.close(); } catch { /* already closed */ }
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
   const eventLogWriter = new EventLogWriter(tmpDir);
 
   const wf = new Workflow({ name: 'FailureInParallelWorkflow' });
@@ -309,5 +325,4 @@ test('Concurrency Stress: Failure in 1 of 20 parallel steps is recorded without 
   const failEvt = events.find((e) => e.type === 'step_failed' && e.stepId === `step-p-${FAILING_STEP}`);
   assert.ok(failEvt, 'Must have recorded step_failed event for step 13');
 
-  store.close();
 });
