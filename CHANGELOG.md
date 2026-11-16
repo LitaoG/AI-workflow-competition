@@ -10,7 +10,7 @@
   43899305221, both intermittent with main green on rerun). All six `ADD COLUMN` migration
   sites now tolerate exactly that error (the losing ALTER's end state is identical to the
   winner's); every other failure still propagates. Locked by
-  `tests/unit/sqlite-migration-race.test.ts` — four concurrent opener subprocesses against
+  `tests/integration/sqlite-migration-race.test.ts` — four concurrent opener subprocesses against
   a pre-migration db, all must exit 0 with every column present exactly once.
 - **agent (mock schema validation, Issue #53)**: the mockResponse fast path returned plain
   JSON-Schema-shaped canned values UNVALIDATED (the branch only honored schemas with a
