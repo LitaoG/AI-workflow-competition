@@ -1,7 +1,7 @@
 # ZCODE 深度逆向机制报告 v2（ZCODE-DEEP-REVERSE-v2）
 
 > **文档属性**：MISSION-B 阶段一交付物（Deliverable 1）——REA（Reverse Engineer Anything）证据驱动源码级逆向。
-> **逆向对象**：`C:\Users\86183\Desktop\AI-workflow-research\ZCode\apps\zcode-cli\packages\`（dynamic-workflow / dynamic-workflow-runtime / adapters / bootstrap / shared）。
+> **逆向对象**：`<workspace>-research\ZCode\apps\zcode-cli\packages\`（dynamic-workflow / dynamic-workflow-runtime / adapters / bootstrap / shared）。
 > **执行环境**：Windows 10 x64 ｜ Node `v26.13.0` ｜ 逆向日期 2026-11-03。
 > **证据纪律**：全部行号出自本轮实际精读；标注 `[已验证]` 的结论均经主代理或探针复现；`[推断]` 给出推断链；`[未知]` 如实标注。
 > **主代理抽查复核记录**：对四份子报告共抽 14 项关键主张逐条复核（AIMD 五参、REPAIR/NUDGE、`types:[]`、`__host`、HOLE_PROMPT=4000、SETTLE_EVENT_TYPES、FACADE_SITING_CODE=9001、运行期禁令、WORLD_READ_REGISTRY、appendEvent 单语句、孤儿收敛、WAL pragma、dwf_run DDL、checkpoint 零命中），**14/14 全部命中**。另对我方 `src/dwf/` 侧 4 项主张（takeFromPool 内容哈希、governor AIMD 默认参、`worldread#` 命名、sha256 哈希）复核 **4/4 命中**。

@@ -4,7 +4,7 @@
 >
 > - **生成时间**：2026-11-01（本会话）
 > - **生成者**：文档·差距矩阵 子代理（dynamic workflow，TEST-GOAL 4.1 汇总节点）
-> - **所在 worktree**：`C:/Users/86183/Desktop/AI-workflow-worktrees/issue-28-goal-e2e-pentest`（分支 `feat/issue-28-goal-e2e-pentest`，HEAD `30eb54f`）
+> - **所在 worktree**：`<workspace-worktrees>/issue-28-goal-e2e-pentest`（分支 `feat/issue-28-goal-e2e-pentest`，HEAD `30eb54f`）
 > - **上游输入**：TEST-GOAL 4.1 各执行节点（不变量分诊、逆向对照、PoC 攻防、GAP-01..06 施工子代理）的实测汇报；本矩阵做结构化与状态映射，§五 保留施工汇报要点全文。凡标注「上游实测」者为执行子代理本会话实测、本汇总节点未复跑；本节点亲手执行的复核见 §〇。
 > - **证据纪律**：按 `docs/AI-EVIDENCE-STANDARD.md` 三档标注 `[已验证]` / `[推断]` / `[未知]`；严禁把 mock/探针输出说成真实模型调用（本文涉及的全部引擎运行均为 mock / 离线探针路径）。
 > - **状态总注记**：GAP-01..06 的全部代码修复当前停留在本 worktree 工作树，**均未 git commit**（按任务约束留给收口层统一提交）。因此本矩阵中「已修复 / 已闭合」一律指「**已修复·待提交**」；主仓 `main` 现状不变。
@@ -95,7 +95,7 @@
   - 修复后 v5 诊断实例：`v5-constructor-chain.ts:7:17 purity-ban(9002): "constructor" property access is banned — constructor-chain access can rebuild Function from nothing; facade primitives only.`；
   - CLI check × 5 inv1 变体（v1-process-exit / v2-eval / v3-date-now / v4-math-random / v5-constructor-chain）全部 exit 1；4 个 demos facade（gate/budget/growth/lineage.facade.ts）全部 exit 0 无回归；全仓 grep 确认仅 `tests/adversarial/` 下应拒样本受影响，无正当脚本受累；
   - **本节点实测**：`node --experimental-strip-types --test tests/adversarial/goal-poc1-constructor-escape.test.ts` → **tests 3 / pass 3 / fail 0 / skipped 0**（§〇 #10）；
-  - 变体脚本存于 `C:/Users/86183/.zcode/workflow-drafts/goal-mission/inv1/`（按任务指令在仓库外；2026-11-01 修订轮核实目录在位，五文件 v1-process-exit.ts / v2-eval.ts / v3-date-now.ts / v4-math-random.ts / v5-constructor-chain.ts 逐一存在——**仓库外路径意味着第三方不可直接复跑本条主证据链**，入库建议见 §七 #7）；journal `inv1.db`、`inv1-v5.db` 保留于 worktree `.workflow/`（存在性本节点已核实）；
+  - 变体脚本存于 `<local-machine>/.zcode/workflow-drafts/goal-mission/inv1/`（按任务指令在仓库外；2026-11-01 修订轮核实目录在位，五文件 v1-process-exit.ts / v2-eval.ts / v3-date-now.ts / v4-math-random.ts / v5-constructor-chain.ts 逐一存在——**仓库外路径意味着第三方不可直接复跑本条主证据链**，入库建议见 §七 #7）；journal `inv1.db`、`inv1-v5.db` 保留于 worktree `.workflow/`（存在性本节点已核实）；
   - 披露：上游 ask 原文指定的 `node --experimental-strip-types <测试文件>` 直跑方式在本仓对单元测试因 pre-existing 结构性原因不可用（测试 import `../../../src/dwf/compile.js` 仅能经编译 dist 解析，直跑 ERR_MODULE_NOT_FOUND，GAP-02 改前已验证）；GAP-02 改用 `node --test dist/...`（`npm run test:unit` 同款机制）。对抗测试目录不受此限（本节点 #10 即 strip-types 直跑成功）。
 
 ### 2.2 不变量2·Schema 自愈（pass）
@@ -364,7 +364,7 @@
 4. **中间产物清理（§1.5，随本 issue 收尾/PR 合入执行）**：`.scratch-gap01/`（gap01-logreport.facade.ts）、`.workflow/triage-fix-1.db`、`scratch-gap06/`、`.scratch-inv6/`、`.workflow/inv6.db`、`.workflow/inv6b.db`、`scratch-inv5/`、`scratch-pentest/`（ndjson 复现材料，如需留证先归档再删）、`.workflow/ndjson-inv.db`、`.workflow/inv1.db`、`.workflow/inv1-v5.db`；已删：scratch-gap04/、triage-fix-4.db、scratch-gap05/、.scratch-gap03/ 与 GAP-03 自建 journal，以及 `scratch-audit-41/`（PENETRATION 文档任务用后即删）与 `.scratch-b41doc/`（BENCHMARK 文档任务用后即删）——二者经 2026-11-01 修订轮 `git status --porcelain` 复核均无残留。其余 untracked（`examples/`、`demos/repo-migration-engine/fixtures/legacy-aws-sdk-app/package-lock.json` 等）属其他并行任务，不在本矩阵清理范围。
 5. **全量门禁（D10）**：本阶段各 GAP 仅跑最小相关集；`tsc -p` 全量、`npm.cmd run test:unit`、`test:pbt`、e2e runner、governance 由收口层在独占窗口执行，PR 附真实构建与测试输出指纹（P0 红线 4，严禁占位符）。
 6. **fixtures**：GAP-03 / GAP-06 会话内已 `git restore tests/unit/fixtures/` 还原；本矩阵任务为纯文档写入，未运行引擎写库（除 #10 对抗测试读取既有 fixture、写 `.workflow/escape-poc1-test.db` 测试自身 db）。
-7. **inv1 变体入库建议（2026-11-01 修订新增）**：不变量1 的 5 个变体脚本仅存于仓库外 `C:/Users/86183/.zcode/workflow-drafts/goal-mission/inv1/`（存在性与文件名已核实），第三方无法直接复跑 §2.1 主证据链（5 变体 CLI check 全 exit 1）；建议收口层将其入库为 `tests/adversarial/fixtures/inv1-v1..v5.ts`（或在对抗测试内联），入库前该条证据仅限本机复核。
+7. **inv1 变体入库建议（2026-11-01 修订新增）**：不变量1 的 5 个变体脚本仅存于仓库外 `<local-machine>/.zcode/workflow-drafts/goal-mission/inv1/`（存在性与文件名已核实），第三方无法直接复跑 §2.1 主证据链（5 变体 CLI check 全 exit 1）；建议收口层将其入库为 `tests/adversarial/fixtures/inv1-v1..v5.ts`（或在对抗测试内联），入库前该条证据仅限本机复核。
 
 ---
 
@@ -372,7 +372,7 @@
 
 | 类别 | 路径 | 本节点核实 |
 |---|---|---|
-| 不变量1 变体脚本（仓库外，按任务指令存放） | `C:/Users/86183/.zcode/workflow-drafts/goal-mission/inv1/`（v1-process-exit / v2-eval / v3-date-now / v4-math-random / v5-constructor-chain） | 存在性与文件名已核实（2026-11-01 修订轮）；**仓库外，第三方不可直接复跑**——入库建议见 §七 #7 |
+| 不变量1 变体脚本（仓库外，按任务指令存放） | `<local-machine>/.zcode/workflow-drafts/goal-mission/inv1/`（v1-process-exit / v2-eval / v3-date-now / v4-math-random / v5-constructor-chain） | 存在性与文件名已核实（2026-11-01 修订轮）；**仓库外，第三方不可直接复跑**——入库建议见 §七 #7 |
 | 跨 realm 逃逸探针 | `xrealm2.facade.ts`——临时探针（§3.2/§四 引用），未入库、审计后已删（2026-11-01 修订轮 `find . -maxdepth 2 -name "xrealm2*"` 零命中）；复现：将 §3.2 所引单行脚本存为 facade 文件后 `node bin/workflow.js run-script xrealm2.facade.ts --args '{"a":1}'` | 已删（本行 2026-11-01 修订补记） |
 | 不变量1 journal | `.workflow/inv1.db`、`.workflow/inv1-v5.db` | ✅ 存在 |
 | 不变量2/5 分诊 journal | `.workflow/inv2-schemaheal.db`、`.workflow/inv5-baseline.db`、`.workflow/inv5-replay.db`、`.workflow/inv5-view-resume.html` | ✅ 存在 |

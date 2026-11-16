@@ -1,3 +1,14 @@
+## Unreleased
+
+- **compliance (private-path scrub, Issue #48)**: 15 tracked files carried machine-local
+  absolute paths (`C:\Users\<user>\…`) while README's compliance section claims zero private data
+  leakage — all scrubbed to context placeholders (`<workspace>`, `<official-zcode-clone>`,
+  `<runId>`); the root cause is fixed where the paths were born (`gate-runner.js` now prints
+  the gate target relative to the repo root, so regenerated demo artifacts stay clean);
+  cross-engine scripts resolve the official checkout from `OFFICIAL_DWF` (fail-fast, no
+  hard-coded author path) with reproduction steps in `tests/cross-engine/README.md`; and a
+  Tier 1 governance scanner bans drive-letter user profiles / `/Users/<name>/` / `/home/<name>/`
+  shapes in every tracked text file (red-proven by injection).
 # Changelog
 
 ## 2.6.0 (2026-11-17) — R2 closeout: engine hardening, demo integrity, governance batch

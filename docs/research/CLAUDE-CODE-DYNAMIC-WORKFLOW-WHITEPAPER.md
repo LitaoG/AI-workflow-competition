@@ -30,7 +30,7 @@
 
 | 来源 | 位置 | 用途 |
 |---|---|---|
-| 官方解包模块 | `C:/Users/86183/Desktop/AI-workflow-research/claude-code-pkg/workflow-module-pretty.js` | 逐函数逆向、常量与错误文案 |
+| 官方解包模块 | `<workspace>-research/claude-code-pkg/workflow-module-pretty.js` | 逐函数逆向、常量与错误文案 |
 | 官方二进制标记 | 同目录 `markers-report.txt` | 环境变量、Ultrareview 云边界 |
 | 官方运行时 | 本会话 Workflow 工具（真实执行） | 黑盒语义实测 |
 | 本仓源码 | `src/dwf/*.ts`、`src/agent/*.ts`、`src/mcp/*.ts` | 对标与修复 |

@@ -6,7 +6,7 @@
 > 与任务指令给出的官方套件指纹；探针拿不到的指标一律标 `[未知]`。
 >
 > - 撰写会话：2026-11-03；撰写者：遥测白皮书撰写员（workflow 子代理）
-> - 工作区：`C:/Users/86183/Desktop/AI-workflow-worktrees/issue-67-zcode-benchmark`（下称 WT）
+> - 工作区：`<workspace-worktrees>/issue-67-zcode-benchmark`（下称 WT）
 > - 探针脚本：`tests/cross-engine/official-telemetry-probe.mjs`（WT 内，源码注释明示 "No repo files
 >   are modified"，official-telemetry-probe.mjs:2-3 `[已验证·源码]`）
 > - 本文是本次任务**唯一**新建的文件；探针 stdout JSON 存于仓库外临时目录，本文转写其逐字数值后
@@ -21,7 +21,7 @@
 | Node | `v26.13.0` | `node --version` 及探针 JSON `node` 字段一致 `[已验证]` |
 | 官方包 | `@zcode/dynamic-workflow` `0.1.0` | 官方包 `package.json` `[已验证]` |
 | 官方包编译器 | `typescript` `5.9.3` | 官方包 `node_modules/typescript/package.json` `[已验证]` |
-| 官方包根 | `C:/Users/86183/Desktop/AI-workflow-research/ZCode/apps/zcode-cli/packages/dynamic-workflow`（dist 已构建，探针 JSON `pkgRoot` 字段逐字一致 `[已验证]`） | 探针 JSON |
+| 官方包根 | `<official-zcode-clone>/apps/zcode-cli/packages/dynamic-workflow`（dist 已构建，探针 JSON `pkgRoot` 字段逐字一致 `[已验证]`） | 探针 JSON |
 | 驱动方式 | in-process `import(dist/index.js)`，内存桩 driver，无子进程/无真实 IPC | 探针源码 official-telemetry-probe.mjs:26 `[已验证·源码]` |
 
 **执行命令**（在 WT 目录下，各跑一次，先预热后正式）：

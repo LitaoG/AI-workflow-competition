@@ -1,7 +1,7 @@
 # 双向跨界对标报告（BILATERAL-CROSS-BENCHMARK-REPORT）
 
 > **文档属性**：MISSION-B（Issue #67）阶段五交付物——官方引擎（ZCode `@zcode/dynamic-workflow` 0.1.0）与我方引擎（AI-workflow `src/dwf`）的**同任务、同脚本、同桩模型**四维对标。
-> **工作区**：`C:/Users/86183/Desktop/AI-workflow-worktrees/issue-67-zcode-benchmark`（下称 WT，分支 `feat/issue-67-zcode-benchmark`）。
+> **工作区**：`<workspace-worktrees>/issue-67-zcode-benchmark`（下称 WT，分支 `feat/issue-67-zcode-benchmark`）。
 > **输入材料**（本文全部数据的来源，未引入任何外部数字）：
 > ① `WT/docs/research/OFFICIAL-WORKFLOW-TELEMETRY.md`（阶段二 Ground Truth，下称「遥测」）；
 > ② `WT/tests/cross-engine/results/official-cross-benchmark.json` 与 `ours-cross-benchmark.json`（阶段四实测，下称「官方 JSON」「我方 JSON」）；

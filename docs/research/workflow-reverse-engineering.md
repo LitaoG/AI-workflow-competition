@@ -2,7 +2,7 @@
 
 > 生成日期：2026-11-01
 > 研究方法：官方开源源码精读（无需逆向）+ rea 静态分析实测 + Claude Code 官方文档 + 两个开源复刻项目对照
-> 所有研究材料已克隆到 `C:\Users\86183\Desktop\AI-workflow-research\`
+> 所有研究材料已克隆到 `<workspace>-research\`
 > 修订记录（2026-11-02）：依据 `docs/research/WORKFLOW-GAP-MATRIX.md` §3.1 / §七 R1 的切片 1 实测，修正三处已被证伪的结论——2.3-⑤ settle-order 门为**首生结算次序**（非「按启动顺序重放」）；2.3-⑦ 血缘指针落在 **dwf_run 列 + stopped 结算同笔**（非 run-launched 事件）；2.4-2 journal 重放为**位置优先+哈希防御，池化仅在 world 导入队列**（非三元组无条件共用）。各处内注官方源码 path:line 证据，其余内容未动。
 
 ---
@@ -21,7 +21,7 @@
 | 仓库/资源 | 位置 | 许可 | 用途 |
 | --- | --- | --- | --- |
 | ZCode 官方源码 | `AI-workflow-research/ZCode/` | Apache-2.0 | 第 2 章逆向对象（**无需逆向，直接读码**） |
-| ZCode 桌面端安装 | `C:\Users\86183\AppData\Local\Programs\ZCode\resources\app.asar` (374 MB) + `resources\glm\packages\bundled-skills\skills\dynamic-workflows\SKILL.md`（1623 行 authoring 契约） | — | rea 实测对象；SKILL.md 是面向模型侧的完整 API 契约 |
+| ZCode 桌面端安装 | `<local-machine>\AppData\Local\Programs\ZCode\resources\app.asar` (374 MB) + `resources\glm\packages\bundled-skills\skills\dynamic-workflows\SKILL.md`（1623 行 authoring 契约） | — | rea 实测对象；SKILL.md 是面向模型侧的完整 API 契约 |
 | morluto/rea | `AI-workflow-research/rea/`（6980 文件） | MIT | 第 3 章逆向方法论 |
 | six-ddc/codex-dynamic-workflows | `AI-workflow-research/codex-dynamic-workflows/` | 开源 | Claude DSL 的完整独立 TS 引擎实现 |
 | scasella/claude-dynamic-workflows-codex | `AI-workflow-research/claude-dynamic-workflows-codex/` | MIT | sessionful workers / race / fleet / 实时执行图 |
@@ -187,7 +187,7 @@ rea inspect-analysis-view view.json
 ### 3.2 本次实测（真实结果）
 
 ```bash
-npx -y rea-agents@latest analyze "C:\Users\86183\AppData\Local\Programs\ZCode\resources\app.asar" --json
+npx -y rea-agents@latest analyze "<local-machine>\AppData\Local\Programs\ZCode\resources\app.asar" --json
 ```
 
 **第一次运行即抓到一个真实发现**——rea 的完整性校验拒绝了分析并返回结构化错误（`rea-zcode-asar-evidence.json` 首次内容）：
@@ -402,7 +402,7 @@ npx -y rea-agents@latest analyze /absolute/path/to/package --json > evidence.jso
 | 并发三层 | `…/bootstrap/src/app/{workflow-seat-gate,workflow-concurrency-governor,workflow-default-concurrency}.ts` |
 | SQLite journal | `apps/zcode-cli/packages/adapters/src/storage/session-store/repositories/dwf-journal*.ts` |
 | 官方引擎文档 | `apps/zcode-cli/packages/dynamic-workflow/docs/*.md`（authoring/launch/execution-engine/analysis/presentation/concurrency） |
-| 面向模型的 authoring 契约 | 本机 `C:\Users\86183\AppData\Local\Programs\ZCode\resources\glm\packages\bundled-skills\skills\dynamic-workflows\SKILL.md`（1623 行，含完整 facade 类型段 §16） |
+| 面向模型的 authoring 契约 | 本机 `<local-machine>\AppData\Local\Programs\ZCode\resources\glm\packages\bundled-skills\skills\dynamic-workflows\SKILL.md`（1623 行，含完整 facade 类型段 §16） |
 | Claude 官方文档 | https://code.claude.com/docs/en/workflows |
 | 独立开源引擎 | `AI-workflow-research/codex-dynamic-workflows/src/{runtime,controller,journal,task-manager,workflow-tool}.ts` |
 | Sessionful 扩展 | `AI-workflow-research/claude-dynamic-workflows-codex/{SKILL.md,references/authoring.md,references/fleet-protocol.md}` |

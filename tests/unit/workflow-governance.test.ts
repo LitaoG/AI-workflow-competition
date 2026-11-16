@@ -890,6 +890,72 @@ not ok 2 - stdio e2e: real spawn lists all seven tools
     assert.ok(scanned > 100, `conflict-marker scan must actually cover the tracked tree (scanned ${scanned}/${tracked.length} files)`);
   });
 
+  test('Tier 1: no machine-local user paths survive in any tracked text file (Issue #48)', () => {
+    // Issue #48: 15 tracked files carried `C:\Users\<user>\…` absolute paths while
+    // README's compliance section claims zero private data leakage — the claim was
+    // contradicted by the repo's own artifacts (the same self-contradiction shape as
+    // the fingerprint drift, Issue #27). This scanner closes the blind spot at
+    // Tier 1: drive-letter user profiles, /Users/<name>/ and /home/<name>/ shapes
+    // are banned in every tracked text file. execSync is the P-TEST-5 sanctioned
+    // bounded sync form.
+    // The patterns are assembled from char codes so this test's own source never
+    // contains a matchable literal (the same self-flag avoidance the conflict
+    // marker scan uses with ^ anchors).
+    const BS = String.fromCharCode(92);
+    const FS = String.fromCharCode(47);
+    const sep = '[' + BS + BS + FS + ']+';
+    const LOCAL_PATH = new RegExp(
+      '(^|[^A-Za-z0-9])('
+        + '[A-Za-z]:' + sep + 'Users' + sep + '[^' + BS + FS + ':*?"<>|\\s]+'
+        + '|' + FS + 'home' + FS + '[A-Za-z0-9._-]+' + FS
+        + '|' + FS + 'Users' + FS + '[A-Za-z0-9._-]+' + FS
+        + ')',
+    );
+    const scanLocalPaths = (relPath: string, content: string): string[] => {
+      const hits: string[] = [];
+      content.split('\n').forEach((line, index) => {
+        if (LOCAL_PATH.test(line)) hits.push(`${relPath}:${index + 1} ${line.trimEnd().slice(0, 160)}`);
+      });
+      return hits;
+    };
+
+    // Reverse discrimination: hostile content must be caught with path + line.
+    const hostileContent = [
+      'clean line',
+      'see C:' + BS + 'Users' + BS + 'alice' + BS + 'Desktop' + BS + 'notes.md for context',
+      FS + 'home' + FS + 'bob' + FS + 'secret',
+      FS + 'Users' + FS + 'carol' + FS + 'x',
+    ].join('\n');
+    const hostileHits = scanLocalPaths('hostile/README.md', hostileContent);
+    assert.equal(hostileHits.length, 3, 'the scanner must catch injected local paths with path + line number: ' + hostileHits.join(' | '));
+
+    const tracked = execSync('git ls-files -z', { cwd: REPO_ROOT, maxBuffer: 64 * 1024 * 1024 })
+      .toString('utf8')
+      .split('\0')
+      .filter(Boolean);
+    const binaryExt = /\.(png|jpe?g|gif|bmp|ico|webp|woff2?|ttf|otf|eot|zip|gz|tgz|bz2|7z|xz|pdf|exe|dll|node|wasm|bin|mp4|webm|mov|sqlite|db)$/i;
+    const violations: string[] = [];
+    let scannedLocal = 0;
+    for (const rel of tracked) {
+      if (binaryExt.test(rel)) continue; // binary data, not text
+      if (rel.includes('/fixtures/')) continue; // fixtures are data, not prose (Issue #277 mandate)
+      let content: string;
+      try {
+        content = fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8');
+      } catch {
+        continue; // unreadable at scan time — not a local-path violation
+      }
+      scannedLocal += 1;
+      violations.push(...scanLocalPaths(rel, content));
+    }
+    assert.deepStrictEqual(
+      violations,
+      [],
+      'machine-local user paths must never reach main (Issue #48): ' + violations.join(' | '),
+    );
+    assert.ok(scannedLocal > 100, `local-path scan must actually cover the tracked tree (scanned ${scannedLocal} files)`);
+  });
+
   test('Tier 1: test `finally` blocks must never contain abrupt completions (Issue #36, family of upstream #312)', () => {
     // JS spec semantics: an abrupt completion inside a `finally` block
     // silently OVERRIDES any exception thrown by the guarded `try` body —
