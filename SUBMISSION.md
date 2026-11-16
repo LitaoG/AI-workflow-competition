@@ -85,7 +85,7 @@ Measured end-to-end 2026-11-03 (Git Bash on Windows, Node v26.13.0, warm npm cac
 
 ### Reproducible quality-gate fingerprints
 
-All run 2026-11-15, Node v26.13.0, from a **fresh build** (fresh-build numbers are what a judge
+All run 2026-11-17 on the v2.6.0 release tree (main @ `ed226954`), Node v26.13.0, from a **fresh build** (fresh-build numbers are what a judge
 clone reproduces — full context in [README](README.md#reproducible-quality-gate-fingerprints)):
 
 ```text
