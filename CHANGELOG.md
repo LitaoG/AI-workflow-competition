@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **state (SQLite migration race, Issue #72)**: schema migrations on the shared global
+  `.workflow/runs.db` were not idempotent across concurrent openers — `node --test` runs
+  test files in parallel workers, two openers both saw a migration column missing in
+  PRAGMA, raced their ALTERs, and the loser died with `duplicate column name: …` (two CI
+  e2e reds on 2026-11-16: `actor_name` on run 43895214141, `persona_json` on run
+  43899305221, both intermittent with main green on rerun). All six `ADD COLUMN` migration
+  sites now tolerate exactly that error (the losing ALTER's end state is identical to the
+  winner's); every other failure still propagates. Locked by
+  `tests/unit/sqlite-migration-race.test.ts` — four concurrent opener subprocesses against
+  a pre-migration db, all must exit 0 with every column present exactly once.
 - **agent (mock schema validation, Issue #53)**: the mockResponse fast path returned plain
   JSON-Schema-shaped canned values UNVALIDATED (the branch only honored schemas with a
   `parse` method) — a structurally violating response (missing required field, enum
