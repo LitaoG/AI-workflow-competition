@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **agent (mock schema validation, Issue #53)**: the mockResponse fast path returned plain
+  JSON-Schema-shaped canned values UNVALIDATED (the branch only honored schemas with a
+  `parse` method) — a structurally violating response (missing required field, enum
+  violation, wrong type) masqueraded as a completed step with exit 0 and journaled the bad
+  data. Plain shapes now run through the same JSON-Schema→zod converter the dwf compile
+  path uses (`zodFromJsonSchema`, moved inward to `src/agent/json-schema-zod.ts` with a
+  dwf-side re-export shim — the 依赖向内 layering rule forbids agent→dwf imports);
+  violations throw the production `SchemaValidationError`. Objects without JSON-Schema
+  markers keep their pass-through semantics; zod branches are unchanged. Locked by
+  `tests/unit/agent-mock-json-schema.test.ts` (7 cases) and pitfall P-TEST-10.
 - **dwf (child outbound frame budget covers the realm path, Issue #58)**: the
   child's outbound frame-queue budget (16 MiB, added for Issue #17) guarded only
   `sendToParent` — the host's own done/scriptError frames — while every realm

@@ -48,6 +48,7 @@ import { z } from 'zod';
 import { AgentRPCClient, AgentCallOptions, LLMMessage, LLMResponse } from '../types.js';
 import { providerRegistry } from './provider.js';
 import { extractJson, repairJsonString, formatZodErrors } from './schema.js';
+import { isJsonSchemaShape, zodFromJsonSchema } from './json-schema-zod.js';
 import { SchemaValidationError } from './schema-validation-error.js';
 import { classifyFailure, backoffSleep } from './attempt-classifier.js';
 
@@ -94,6 +95,25 @@ export function agent(name: string, defaults?: { signal?: AbortSignal }): AgentR
       if (options?.mockResponse !== undefined) {
         if (schema && typeof schema.parse === 'function') {
           return schema.parse(options.mockResponse);
+        }
+        // Issue #53: a plain JSON-Schema shape (no parse method) used to fall
+        // through UNVALIDATED — a structurally-violating canned response
+        // (missing required field, enum violation, wrong type) masqueraded as a
+        // completed step with exit 0. The mock path now enforces the same
+        // output contract as production through the same JSON-Schema→zod
+        // converter the dwf compile path uses; violations throw
+        // SchemaValidationError like a failed live turn would.
+        if (schema && isJsonSchemaShape(schema)) {
+          const parsed = zodFromJsonSchema(schema).safeParse(options.mockResponse);
+          if (!parsed.success) {
+            throw new SchemaValidationError(
+              name,
+              JSON.stringify(options.mockResponse).slice(0, 2000),
+              parsed.error.issues,
+              0,
+            );
+          }
+          return parsed.data as T;
         }
         return options.mockResponse as T;
       }
