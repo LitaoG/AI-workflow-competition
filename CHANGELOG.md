@@ -22,6 +22,23 @@
   violations throw the production `SchemaValidationError`. Objects without JSON-Schema
   markers keep their pass-through semantics; zod branches are unchanged. Locked by
   `tests/unit/agent-mock-json-schema.test.ts` (7 cases) and pitfall P-TEST-10.
+- **docs (governance review-echo batch, Issues #69/#47/#49/#50)**: the supervisor review of
+  PR #61 flagged three unaddressed hard findings, all fixed here. ① The 8-gate chain no
+  longer defeats itself — artifact restore (`git restore tests/ artifacts/`) now runs at
+  step 7 and `--check-clean` at step 8 in both `AGENTS.md` §四 and `docs/WORKFLOW.md` §4
+  (check-clean physically cannot pass before the restore it depends on); the restore scope
+  is unified verbatim across AGENTS/WORKFLOW/AI-PITFALLS and covers the adversarial
+  cli-stress tracked templates discovered in PR #55. ② P-TEST-9's attribution is narrowed
+  to the empirically provable sources (adversarial cli-stress templates + the manual demo
+  chain; the demo-migration test never writes tracked dirs under mock — supervisor-verified
+  against PR #61's original claim). ③ `npm test` gains `--test-concurrency=1`, matching
+  `test:integration`/`test:adversarial` so cross-command fingerprint comparison is sound.
+  Also: the four judge-facing 404 repo links (blog ×2, video script, storyboard) now point
+  at the real repository (#47); `docs/KIRO_INTEGRATION.md`'s hook table and `lifecycle.json`
+  example mirror the shipped `.kiro/hooks/lifecycle.json` verbatim — the phantom
+  `pre-commit.js` is gone, the real `Stop` hook is `stop-workflow-gate.js` (#49); and
+  `QUICKSTART.md` drops the Windows-only `npm.cmd install` premise and re-tags its fences
+  `shell` so every command runs verbatim on macOS/Linux (#50).
 - **dwf (child outbound frame budget covers the realm path, Issue #58)**: the
   child's outbound frame-queue budget (16 MiB, added for Issue #17) guarded only
   `sendToParent` — the host's own done/scriptError frames — while every realm

@@ -34,7 +34,7 @@
     "build": "tsc",
     "postinstall": "node scripts/link-self.mjs && node scripts/bootstrap-fixtures.mjs",
     "start": "node bin/workflow.js",
-    "test": "node scripts/link-self.mjs && node scripts/bootstrap-fixtures.mjs && node --test dist/tests/unit/**/*.test.js dist/tests/integration/**/*.test.js",
+    "test": "node scripts/link-self.mjs && node scripts/bootstrap-fixtures.mjs && node --test --test-concurrency=1 dist/tests/unit/**/*.test.js dist/tests/integration/**/*.test.js",
     "test:unit": "node --test dist/tests/unit/**/*.test.js",
     "test:integration": "node scripts/bootstrap-fixtures.mjs && node --test --test-concurrency=1 dist/tests/integration/**/*.test.js",
     "test:pbt": "node --test .kiro/pbt/**/*.test.ts",

@@ -183,7 +183,7 @@
 - 原位置：Issue #121、Issue #122、`src/dwf/redact.ts`（SENSITIVE_KV_PAIR、replaceCredentialShapes）。
 
 #### P-SHELL-1 门禁/构建调用的管道掩码退出码——`\| tail` 后接 `&&`，失败静默放行
-- 复发性：G1 反复（≥6 次：mission-b 留痕一次；2026-11-08 夜批再犯两次——#108 构建链 `npm.cmd run build 2>&1 | tail -1 && echo BUILD_OK` 使 tsc exit 2 被掩、带错继续跑出 dist 测试，#177 合入链 `gate 2>&1 | tail -3 && gh pr merge` 使审查门禁拦截被掩、merge 照跑；同日 11-08 夜批审计（#196 看板 S3）再补记第 4/5 次——#184/#185 合入实施过程自曝管道掩码复发，整改当批已兑现 [已验证：#186=928s / #187=2311s / #188=927s，均 >600s 硬红线]；第 6 次（2026-11-15，Issue #11）：PR #10 合入链 `gate…; echo EXIT=$? && gh pr merge 10 --merge --delete-branch`——gate 以「冷却 843s < 900s 规范，差 57 秒」退出 1，`&&` 链使 merge 照跑，PR 于创建后 14m07s 合入（847s > 600s 硬红线，差 15 分钟规范 53 秒；无内容风险：本机全量门禁 + CI Linux 全绿 + 零待答复评审，唯一缺口即 53 秒冷却））
+- 复发性：G1 反复（≥6 次：mission-b 留痕一次；2026-11-08 夜批再犯两次——#108 构建链 `npm.cmd run build 2>&1 | tail -1 && echo BUILD_OK` 使 tsc exit 2 被掩、带错继续跑出 dist 测试，#177 合入链 `gate 2>&1 | tail -3 && gh pr merge` 使审查门禁拦截被掩、merge 照跑；同日 11-08 夜批审计（#196 看板 S3）再补记第 4/5 次——#184/#185 合入实施过程自曝管道掩码复发，整改当批已兑现 [已验证：#186=928s / #187=2311s / #188=927s，均 >600s 硬红线]；第 6 次（2026-11-15，Issue #11）：PR #10 合入链 `gate…; echo EXIT=$? && gh pr merge 10 --merge --delete-branch`——gate 以「冷却 843s < 900s 规范，差 57 秒」退出 1，`&&` 链使 merge 照跑，PR 于创建后 14m07s 合入（847s > 600s 硬红线，差 15 分钟规范 53 秒；无内容风险：本机全量门禁 + CI Linux 全绿 + 零待答复评审，唯一缺口即 53 秒冷却））；第 7 次（2026-11-16，R2 收官批）：PR #70 合入链 `(gate…) ; echo GATE_EXIT=$? ; gh pr merge 70`——冷却门禁拦截（578s<900s）后 merge 因未用 && 链照跑，PR 于创建后 578s 合入（无内容风险：CI run 43893760131 全绿 + 独立复核 approved + 全量门禁 sha 绑定 8bb7756；违纪点纯程序性，已 PR 留痕披露，整改当批兑现：本批后所有合入链 gate 与 merge 严格 && 链接）
 - 代价：带类型错误的构建产出残缺 dist 继续测试；审查门禁的硬拦截（指纹/冷却/not-ok 行名）形同虚设——假绿放行通道。
 - 根因：bash 管道的退出码是**最后一个命令**（tail/echo）的退出码，与管道左侧门禁的真实退出码无关；`&&` 链只看管道返回值。
 - 正确做法：门禁调用**禁止管道后接 `&&`**。要么裸跑命令看 `$?`，要么 `set -o pipefail`，要么把输出落盘后单独 grep 摘要（`cmd > log 2>&1; echo "EXIT=$?"; grep … log`）——退出码必须来自门禁本身。
@@ -265,13 +265,13 @@
 - 门禁：`tests/unit/workflow-governance.test.ts`（Tier 1「test finally blocks must never contain abrupt completions」：字符级状态机扫描器跨字符串/注释/正则追踪 finally 作用域，`return` 与跨块标签 break/continue 即报路径+行号，6 组反向判别用例锁死语义边界——嵌套函数体豁免、无标签 break/continue 豁免）。已修 + 门禁（比赛仓 Issue #36）。
 - 原位置：私有仓 Issue #312、`tests/integration/dwf-live.test.ts` / `dwf-failover.test.ts`（rmTempDir helper）。
 
-#### P-TEST-9 测试运行重写 `artifacts/` 与 `tests/unit/fixtures/` 跟踪文件——门禁链跑完工作区必脏
-- 复发性：G1 反复（工作区卫生两连事故同根因，Issue #60 收录并文档化配方）
-- 代价：`npm.cmd test`（postinstall/bootstrap-fixtures 重生成离线 SDK 桩）与演示/迁移类集成测试（如 `tests/integration/demo-migration.test.ts` 重写 `artifacts/` 看板与 DAG 产物）跑完后，`git status --porcelain` 非空——`git add -A` 会把运行副产物混入提交；`pr_review_gate.mjs --check-clean` 洁净度门禁假红，阻塞收尾。
-- 根因：套件内部分用例与 fixture 自举脚本以**仓库内受跟踪文件**为输出目标（`artifacts/`、`tests/unit/fixtures/`），运行即重写；这些文件必须保留在库中（不能 .gitignore 一劳永逸），因此每次门禁链运行后都需显式还原。
-- 正确做法：**门禁链跑完、提交与发起 PR 前，无条件执行还原配方**：`git restore artifacts/ tests/unit/fixtures/`，随后 `git status --porcelain` 核对为空；配方已写入 `docs/WORKFLOW.md` §4 门禁清单第 8 级（与既有「还原测试副产物」步骤合并，范围扩展至 `artifacts/`）。
+#### P-TEST-9 测试/演示运行重写受跟踪文件——门禁链跑完工作区必脏
+- 复发性：G1 反复（churn 两连事故 494ab86 / 2efaa6a+74e13a0 同根因，Issue #60 收录配方；PR #61 合入后监督席证伪其归因，Issue #69② 按实证收窄）
+- 代价：门禁链或演示跑完后 `git status --porcelain` 非空——`git add -A` 会把运行副产物混入提交；`pr_review_gate.mjs --check-clean` 洁净度门禁假红，阻塞收尾。
+- 根因（实证口径，2026-11-16 收窄）：① `tests/adversarial/fixtures/cli-stress/init-cli/*` 的**被跟踪模板**被对抗套件运行重写（PR #61 初版把 `artifacts/` 归因到 `tests/integration/demo-migration.test.ts` 系误报——该测试自述 mock 下从不写跟踪目录，`git grep -nE "artifacts/" -- tests/ scripts/` 仅注释命中，监督席逐行证伪）；② 手工演示链（`bash scripts/demo.sh` 等，不在门禁链内）重写 `artifacts/` 看板与 DAG 产物；③ 历史脏源 `tests/unit/cli.test.ts`（写 `tests/unit/fixtures/`）与 adversarial stress 临时目录已由 PR #55 根因修复（改写 `os.tmpdir()`）。
+- 正确做法：**门禁链跑完、提交与发起 PR 前，无条件执行还原配方**：`git restore tests/ artifacts/`，随后 `git status --porcelain` 核对为空；配方写入 `docs/WORKFLOW.md` §4 第 7 级与 AGENTS.md §四 第 7 步，**必须先于 `--check-clean`（第 8 级/第 8 步）执行——顺序倒置会使第 7 级必红、洁净门永远轮不到（Issue #69①）**。
 - 门禁：`scripts/pr_review_gate.mjs --check-clean`（工作区洁净度机械检查）；还原时机为宿主级纪律。
-- 原位置：Issue #60（配方文档化）、AGENTS.md §四 第 8 步（既有纪律，本次澄清范围含 `artifacts/`）。
+- 原位置：Issue #60（配方文档化）、Issue #69②（归因收窄与顺序修正）、AGENTS.md §四 第 7/8 步。
 
 #### P-TEST-10 mockResponse 快路径对纯 JSON-Schema 形状零校验——违规桩值伪装成 completed 步骤
 - 复发性：G2 单次高代价（评审复查发现，Issue #53；e2e fixtures 多处传纯 JSON-Schema 形状，洞面覆盖全部 mock 演示路径）

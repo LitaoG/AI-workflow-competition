@@ -154,7 +154,7 @@
       * **Category**: Skeleton Crew (AWS Kiroween 2026)
     - Feature Summary Badges:
       * `Apache 2.0 License` | `Node.js 22 LTS` | `Kiro Native` | `Full Bilingual EN/ZH`
-    - Repository Link: `https://github.com/1842043669/AI-workflow`
+    - Repository Link: `https://github.com/LitaoG/AI-workflow-competition`
     - Visual switch toggles between English and Chinese UI dashboards.
 - **On-Screen Lower-Third Banner**:
   - "Code, Not Conversation: Software Engineering Rigor for Autonomous Multi-Agent Workflows."

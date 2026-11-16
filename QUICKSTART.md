@@ -8,9 +8,9 @@
 ## 0. 前置（10 秒）
 
 - Node.js ≥ 22
-- 本仓库根目录下依赖已装好（`npm.cmd install` 一次性）
+- 本仓库根目录下依赖已装好（`npm install` 一次性；Windows 用户等价形式 `npm.cmd install`）
 
-```powershell
+```shell
 node bin/workflow.js doctor   # 环境自检：runtime/compiler/journal/sandbox 全绿即就绪
 ```
 
@@ -18,7 +18,7 @@ node bin/workflow.js doctor   # 环境自检：runtime/compiler/journal/sandbox 
 
 ## 1. 先看 1 秒 Demo（无需写任何代码）
 
-```powershell
+```shell
 node bin/workflow.js demo
 ```
 
@@ -32,7 +32,7 @@ node bin/workflow.js demo
 
 **统一入口**：`workflow run` 自动识别 facade 脚本（沙箱引擎）与 builder 定义，无需选错命令。
 
-```powershell
+```shell
 # 方式一：Key-Value 传参（PowerShell 安全，推荐）— 跑内置 capabilities-tour 示例
 node bin/workflow.js run apps/capabilities-tour/lineage.facade.ts
 
@@ -50,7 +50,7 @@ node bin/workflow.js run my.flow.ts --set key=value --ui
 
 ## 3. 写自己的工作流（30 秒）
 
-```powershell
+```shell
 # 交互式脚手架：选一个模板（code-review / incident-triage / repo-migration / multi-agent）
 node bin/workflow.js new my-flow
 ```
@@ -74,7 +74,7 @@ return { ok: true };                              // 顶层 return = 运行结�
 
 ## 4. 标准循环：check → run → resume
 
-```powershell
+```shell
 node bin/workflow.js check my-flow.facade.ts        # 必须打印 ✔ facade script compiled clean（未编译通过的脚本绝不进 run）
 node bin/workflow.js run my-flow.facade.ts          # 失败了？已完成节点全部记入 journal
 node bin/workflow.js run my-flow.facade.ts --resume <runId>   # 修复后重跑：零成本重放，从断点继续
@@ -88,7 +88,7 @@ node bin/workflow.js run my-flow.facade.ts --resume <runId>   # 修复后重跑�
 
 ## 5. 接入你的 AI 助手（一条命令）
 
-```powershell
+```shell
 node bin/workflow.js setup --target all    # 生成 Claude Code + OpenCode + Codex + ZCode 配置
 ```
 

@@ -407,7 +407,7 @@ Phase 4: 编译与合并门禁                                   Phase 5: 发布
 ### 项目开源与联系方式
 AI-Workflow 现已基于 **Apache License 2.0** 协议完全开源。我们诚邀全球开发者、DevOps 专家与智能体研究人员克隆体验并共建工作流生态：
 
-- **开源代码仓库**：[https://github.com/1842043669/AI-workflow](https://github.com/1842043669/AI-workflow)
+- **开源代码仓库**：[https://github.com/LitaoG/AI-workflow-competition](https://github.com/LitaoG/AI-workflow-competition)
 - **Devpost 提交者**：龚立涛 (Litao Gong) — [1842043669](https://devpost.com/1842043669)
 - **联系邮箱**：[1842043669@qq.com](mailto:1842043669@qq.com)
 
