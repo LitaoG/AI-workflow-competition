@@ -163,16 +163,16 @@ export class SQLiteStateStore implements StateStore {
     // row") and are treated as crash takeovers, never as permanent locks.
     const dwfRunCols = (this.db.prepare('PRAGMA table_info(dwf_runs)').all() as Array<{ name: string }>).map((c) => c.name);
     if (!dwfRunCols.includes('runner_pid')) {
-      this.db.exec('ALTER TABLE dwf_runs ADD COLUMN runner_pid INTEGER');
+      this.addColumnToleratingRace('dwf_runs', 'runner_pid', 'INTEGER');
     }
     if (!dwfRunCols.includes('output_tokens_spent')) {
-      this.db.exec('ALTER TABLE dwf_runs ADD COLUMN output_tokens_spent INTEGER');
+      this.addColumnToleratingRace('dwf_runs', 'output_tokens_spent', 'INTEGER');
     }
     // Issue #118: the budget cap belongs to the RUN, not to one CLI invocation
     // — persisted at launch and restored by every continuation door
     // (answer/resume/amend/rerun/MCP script_run).
     if (!dwfRunCols.includes('budget_total')) {
-      this.db.exec('ALTER TABLE dwf_runs ADD COLUMN budget_total INTEGER');
+      this.addColumnToleratingRace('dwf_runs', 'budget_total', 'INTEGER');
     }
     // Issue #39: per-actor named-cache identity columns on ask rows. The pragma
     // guard keeps old journals readable in place (missing columns read back
@@ -180,10 +180,31 @@ export class SQLiteStateStore implements StateStore {
     const dwfNodeCols = (this.db.prepare('PRAGMA table_info(dwf_nodes)').all() as Array<{ name: string }>).map((c) => c.name);
     for (const [name, ddl] of [['actor_name', 'TEXT'], ['actor_seq', 'INTEGER'], ['content_hash', 'TEXT'], ['persona_json', 'TEXT']] as const) {
       if (!dwfNodeCols.includes(name)) {
-        this.db.exec(`ALTER TABLE dwf_nodes ADD COLUMN ${name} ${ddl}`);
+        this.addColumnToleratingRace('dwf_nodes', name, ddl);
       }
     }
     this.migrateCheckpointsAddInputHash();
+  }
+
+  /**
+   * Issue #72: the PRAGMA existence guard only serializes migrations within one
+   * process. `node --test` runs test files in parallel workers, and several of
+   * them open the shared global `.workflow/runs.db` at once — two openers both
+   * see the column missing in PRAGMA, then race their ALTERs, and the loser
+   * dies with `duplicate column name: …` (observed twice on CI, 2026-11-16:
+   * `actor_name` on run 43895214141, `persona_json` on run 43899305221 — both
+   * e2e tier-1 reds, both intermittent, main green on rerun). SQLite ALTERs are
+   * transactional, so the losing statement's end state is identical to the
+   * winner's: tolerate exactly that error and let store initialization finish.
+   * Any other failure (SQLITE_BUSY, corruption) still propagates.
+   */
+  private addColumnToleratingRace(table: string, column: string, ddl: string): void {
+    try {
+      this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (!/duplicate column name/i.test(message)) throw err;
+    }
   }
 
   /**
@@ -208,7 +229,7 @@ export class SQLiteStateStore implements StateStore {
   private migrateCheckpointsAddInputHash(): void {
     const columns = this.db.prepare('PRAGMA table_info(checkpoints)').all() as Array<{ name: string }>;
     if (columns.some((c) => c.name === 'input_hash')) return;
-    this.db.exec('ALTER TABLE checkpoints ADD COLUMN input_hash TEXT');
+    this.addColumnToleratingRace('checkpoints', 'input_hash', 'TEXT');
   }
 
   public upsertRun(run: {
