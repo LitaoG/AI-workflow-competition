@@ -128,11 +128,11 @@ placeholder and recording recipe live in [`SUBMISSION.md`](SUBMISSION.md).
 
 ### Reproducible quality-gate fingerprints
 
-All run on this machine, 2026-11-15 (Node v26.13.0), from a **fresh build** (a stale `dist/` can
+All run on this machine, 2026-11-17 (Node v26.13.0), from a **fresh build** of the v2.6.0 release tree (main @ `ed226954` + this release's four files; tree identity to the PR head mechanically verified) (a stale `dist/` can
 double-count one moved test file — the fresh-build numbers below are what a judge clone reproduces):
 
 ```text
-npm test                                          → 810 tests, 810 pass, 0 fail
+npm test                                          → 827 tests, 824 pass, 3 skipped, 0 fail
 node --experimental-strip-types tests/e2e/runner.ts → 118/118 passed (4 tiers)
 npm run test:adversarial                          → 202 tests, 202 pass, 0 fail
 npm run test:pbt                                  →  16 tests,  16 pass, 0 fail

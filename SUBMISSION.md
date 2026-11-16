@@ -85,11 +85,11 @@ Measured end-to-end 2026-11-03 (Git Bash on Windows, Node v26.13.0, warm npm cac
 
 ### Reproducible quality-gate fingerprints
 
-All run 2026-11-15, Node v26.13.0, from a **fresh build** (fresh-build numbers are what a judge
+All run 2026-11-17 on the v2.6.0 release tree (main @ `ed226954`), Node v26.13.0, from a **fresh build** (fresh-build numbers are what a judge
 clone reproduces — full context in [README](README.md#reproducible-quality-gate-fingerprints)):
 
 ```text
-npm test                                            → 810 tests, 810 pass, 0 fail
+npm test                                            → 827 tests, 824 pass, 3 skipped, 0 fail
 npm run test:pbt                                    →  16 tests,  16 pass, 0 fail
 node --experimental-strip-types tests/e2e/runner.ts → 118/118 passed
 npm run test:adversarial                            → 202 tests, 202 pass, 0 fail

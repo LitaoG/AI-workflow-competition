@@ -1,7 +1,26 @@
 # Changelog
 
-## Unreleased
+## 2.6.0 (2026-11-17) — R2 closeout: engine hardening, demo integrity, governance batch
 
+- **dwf (park deadlock, Issue #31)**: a failed (non-cancelled) ask leaked the runner
+  `inFlightAsks` slot — success-only `dwf_ask_complete` plus a `dwf_node_failed` decrement
+  guarded on `cancelled:true` meant `engineIdle()` never went true, the park fallback never
+  armed, and any run that caught a failed ask then opened a hole/escalation hung to the
+  whole-run killTimer as `failed` with the fill door refusing. The counter now settles
+  symmetrically; locked by `tests/adversarial/issue-31-park-after-failed-ask.test.ts`.
+- **dwf (composition cache, Issue #35/#44)**: `workflow()` composition re-entry imports the
+  prior child journal per call site (site-precise matching) — resuming a composed run
+  replays the whole subtree at zero token cost instead of re-billing it, so the zero-token
+  claim now holds for composition.
+- **apps (safety gate wiring, Issue #32)**: the destructive-command policy gate
+  (six-pattern blacklist) and reversible apply/undo rollback are wired into the shipped
+  facade incident demo — the README intercept+rollback claim is now true of the code path
+  judges actually run.
+- **apps (real diff statistics, Issue #33)**: the committed migration deliverable replaced
+  fabricated Diff Statistics with real per-run measurements from the demo run.
+- **tests (e2e assertion hardening, Issue #51)**: the Zero-Token Resumption scenario now
+  asserts the actual zero-token replay proof, checkpoint assertions lost their global-db
+  fallback, and tier1/tier3 name-vs-assertion mismatches got real assertions.
 - **state (SQLite migration race, Issue #72)**: schema migrations on the shared global
   `.workflow/runs.db` were not idempotent across concurrent openers — `node --test` runs
   test files in parallel workers, two openers both saw a migration column missing in
