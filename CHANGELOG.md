@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.6.0 (2026-11-17) — R2 closeout: engine hardening, demo integrity, governance batch
 
 - **state (SQLite migration race, Issue #72)**: schema migrations on the shared global
   `.workflow/runs.db` were not idempotent across concurrent openers — `node --test` runs

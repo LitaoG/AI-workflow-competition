@@ -89,7 +89,7 @@ All run 2026-11-15, Node v26.13.0, from a **fresh build** (fresh-build numbers a
 clone reproduces — full context in [README](README.md#reproducible-quality-gate-fingerprints)):
 
 ```text
-npm test                                            → 810 tests, 810 pass, 0 fail
+npm test                                            → 827 tests, 824 pass, 3 skipped, 0 fail
 npm run test:pbt                                    →  16 tests,  16 pass, 0 fail
 node --experimental-strip-types tests/e2e/runner.ts → 118/118 passed
 npm run test:adversarial                            → 202 tests, 202 pass, 0 fail
