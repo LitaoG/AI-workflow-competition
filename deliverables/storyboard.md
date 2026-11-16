@@ -185,7 +185,7 @@
   |  +-------------------------------------------------------------------+  |
   |  | Author: Litao Gong (龚立涛)     Devpost ID: 1842043669            |  |
   |  | Email: 1842043669@qq.com        License: Apache License 2.0       |  |
-  |  | GitHub: https://github.com/1842043669/AI-workflow                 |  |
+  |  | GitHub: https://github.com/LitaoG/AI-workflow-competition             |  |
   |  +-------------------------------------------------------------------+  |
   |                                                                         |
   |  [Node.js 22 LTS] [TypeScript 5] [Kiro Compliant] [Bilingual EN/ZH]     |

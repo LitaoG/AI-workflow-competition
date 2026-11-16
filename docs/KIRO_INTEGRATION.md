@@ -78,9 +78,14 @@ Kiro provides native lifecycle event triggers that automate verification gates a
 | `AgentSpawn` | Deterministic environment probing | `pre-workflow-gate` | Probes OS, Git, and sanitized env; injects into turn context |
 | `PreToolUse` | Intercept dangerous tool executions | `pre-step-gate` | Intercepts `rm -rf`, raw disk writes, or unsanitized tokens (**exit code 2 blocks**) |
 | `PostToolUse` | Append-only event stream audit | `post-step-audit` | Audits state transitions and flushes to `events.jsonl` |
-| `Stop` | Enforce completion gates | `pre-commit` | Blocks session exit until all verification gates pass |
+| `Stop` | Enforce completion gates | `stop-workflow-gate` | Blocks session exit until all verification gates pass |
 
 ### `lifecycle.json` Configuration
+
+The block below mirrors the shipped `.kiro/hooks/lifecycle.json` verbatim (Issue #49:
+the example previously referenced a non-existent `pre-commit.js` — the real `Stop`
+hook is `stop-workflow-gate.js`):
+
 ```json
 {
   "version": "v1",
@@ -88,14 +93,14 @@ Kiro provides native lifecycle event triggers that automate verification gates a
     {
       "name": "deterministic-env-probe",
       "event": "AgentSpawn",
-      "command": "node bin/workflow.js probe --strict",
+      "command": "node .kiro/hooks/pre-workflow-gate.js",
       "timeout": 30,
       "enabled": true
     },
     {
-      "name": "enforce-destructive-command-gate",
+      "name": "enforce-tool-gate",
       "event": "PreToolUse",
-      "matcher": "execute_bash*|run_command*",
+      "matcher": "execute_bash*",
       "command": "node .kiro/hooks/pre-step-gate.js",
       "timeout": 15,
       "enabled": true
@@ -109,10 +114,10 @@ Kiro provides native lifecycle event triggers that automate verification gates a
       "enabled": true
     },
     {
-      "name": "pre-commit-verification",
+      "name": "workflow-completion-gate",
       "event": "Stop",
-      "command": "node .kiro/hooks/pre-commit.js",
-      "timeout": 60,
+      "command": "node .kiro/hooks/stop-workflow-gate.js",
+      "timeout": 30,
       "enabled": true
     }
   ]

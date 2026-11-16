@@ -229,13 +229,12 @@
    ```powershell
    node --experimental-strip-types tests/unit/workflow-governance.test.ts
    ```
-7. **PR 审查与工作区洁净度门禁**：
+7. **测试副产物隔离还原（必须先于第 8 步：对抗门会重写 `tests/adversarial/fixtures/` 下的被跟踪模板，手工演示链会重写 `artifacts/`——先还原才能验洁净；Issue #69①）**：
+   ```powershell
+   git restore tests/ artifacts/
+   ```
+8. **PR 审查与工作区洁净度门禁（第 7 步还原完成后方可真正通过）**：
    ```powershell
    node --experimental-strip-types scripts/pr_review_gate.mjs --check-clean
-   ```
-8. **测试副产物隔离还原**：
-   测试完成后，若测试运行时向 `tests/unit/fixtures/` 输出了运行数据，必须执行：
-   ```powershell
-   git restore tests/unit/fixtures/
    ```
    确保 `git status --porcelain` 彻底恢复干净。

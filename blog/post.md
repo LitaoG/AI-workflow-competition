@@ -411,7 +411,7 @@ By combining **compiled DAG workflows**, **typed RPC interfaces**, **determinist
 ### Acknowledgements & Open Source Availability
 AI-Workflow is 100% open-source under the **Apache License 2.0**. We invite developers, DevOps engineers, and agentic AI researchers to clone the repository, run the test suite, and author their own dynamic workflows:
 
-- **Repository**: [https://github.com/1842043669/AI-workflow](https://github.com/1842043669/AI-workflow)
+- **Repository**: [https://github.com/LitaoG/AI-workflow-competition](https://github.com/LitaoG/AI-workflow-competition)
 - **Devpost Submitter**: Litao Gong (龚立涛) — [1842043669](https://devpost.com/1842043669)
 - **Email Contact**: [1842043669@qq.com](mailto:1842043669@qq.com)
 

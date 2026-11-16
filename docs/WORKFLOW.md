@@ -194,12 +194,12 @@ node --experimental-strip-types tests/e2e/runner.ts
 # 6. 工作流治理不变量测试
 node --experimental-strip-types tests/unit/workflow-governance.test.ts
 
-# 7. PR 审查与工作区洁净度门禁
-node --experimental-strip-types scripts/pr_review_gate.mjs --check-clean
-
-# 8. 还原测试副产物（npm test / 门禁脚本运行会重写 artifacts/ 与 tests/unit/fixtures/ 的跟踪文件，强制恢复干净）
-git restore artifacts/ tests/unit/fixtures/
+# 7. 还原测试副产物（必须先于第 8 级：对抗门会重写 tests/adversarial/fixtures/ 下的被跟踪模板，手工演示链会重写 artifacts/——先还原才能验洁净）
+git restore tests/ artifacts/
 git status --porcelain
+
+# 8. PR 审查与工作区洁净度门禁（第 7 级还原完成后方可真正通过；顺序不可倒置——Issue #69①）
+node --experimental-strip-types scripts/pr_review_gate.mjs --check-clean
 ```
 
 > 其中第 6 级治理门禁包含「冲突标记全仓扫描」（上游 Issue #277，经 comp Issue #17 同步移植）：对 `git ls-files` 全部受控文本文件断言不得残留行首 `<<<<<<< ` / `>>>>>>> ` 合并冲突标记（排除二进制与 fixtures），防止合并腐蚀静默进入 main。
