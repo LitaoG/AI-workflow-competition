@@ -34,7 +34,7 @@ Google Antigravity 在近期版本中正式推出原生动态工作流能力（�
 | 证据载体 | 物理路径 / 出处 | 核心验证内容与证据用途 |
 |---|---|---|
 | **Antigravity Prelude 注入源** | 本机 Antigravity 安装的 brain/scratch 会话产物（`antigravity_workflow_prelude.py`，1334 行；机器本地 UUID 路径不随仓分发，见 §5.1） | 逆向完整运行时：FD 劫持、NDJSON 帧循环、未 Await 扫描、`with_budget`、`_LibraryFinder` |
-| **Antigravity Skill 规约** | `C:/Users/86183/.gemini/antigravity/builtin/skills/run-workflow/SKILL.md` | 原生 API 契约、`type_name` / `workspace` 三态、`finish` 工具契约、`trajectory()` 规约 |
+| **Antigravity Skill 规约** | `<local-machine>/.gemini/antigravity/builtin/skills/run-workflow/SKILL.md` | 原生 API 契约、`type_name` / `workspace` 三态、`finish` 工具契约、`trajectory()` 规约 |
 | **Claude Code 白皮书** | `docs/research/CLAUDE-CODE-DYNAMIC-WORKFLOW-WHITEPAPER.md` | 官方 `@anthropic-ai/claude-code@2.1.316` VM 沙箱、Date 纯度封印、并发门对标 |
 | **ZCode 逆向报告** | `docs/research/workflow-reverse-engineering.md` & `ZCODE-DEEP-REVERSE-v2.md` | ZCode 三代演进、AST 静态门禁、动态 DAG 拓扑调度对标 |
 | **AI-workflow 引擎源码** | `src/dwf/`、`src/core/`、`src/process-supervision.ts`、`src/state/` | 现有 Facade 架构、Job Object 监管、SQLite WAL 事件账本对标 |

@@ -16,12 +16,12 @@
 | 项 | 值 |
 |---|---|
 | 被审计系统 | AI-workflow 动态工作流引擎（facade 脚本 编译→降级→VM 沙箱→引擎→journal 全链路） |
-| worktree | `C:/Users/86183/Desktop/AI-workflow-worktrees/issue-28-goal-e2e-pentest`（分支 `feat/issue-28-goal-e2e-pentest`） |
+| worktree | `<workspace-worktrees>/issue-28-goal-e2e-pentest`（分支 `feat/issue-28-goal-e2e-pentest`） |
 | 审计时 HEAD | `30eb54f`（Merge pull request #27 from LitaoG/fix/mcp-serve-lifetime） |
 | Node 版本 | v22.23.2（实测） |
 | 引擎 CLI | `node bin/workflow.js <命令>`（check / run-script，离线无真实 provider） |
-| 主仓约束 | 主仓 `C:/Users/86183/Desktop/AI-workflow` 全程只读未动（审计全程仅读 worktree 与官方研究快照） |
-| 官方对照源码 | `C:/Users/86183/Desktop/AI-workflow-research/ZCode`（apps/zcode-cli/packages/...，只读快照） |
+| 主仓约束 | 主仓 `<workspace>` 全程只读未动（审计全程仅读 worktree 与官方研究快照） |
+| 官方对照源码 | `<official-zcode-clone>`（apps/zcode-cli/packages/...，只读快照） |
 
 ### 0.2 方法学与证据纪律
 
@@ -109,7 +109,7 @@
 
 ### 2.3 官方对比
 
-官方源码：`C:/Users/86183/Desktop/AI-workflow-research/ZCode/apps/zcode-cli/packages/dynamic-workflow-runtime/src/child-source.ts`。
+官方源码：`<official-zcode-clone>/apps/zcode-cli/packages/dynamic-workflow-runtime/src/child-source.ts`。
 
 1. **跨 realm 收敛契约**（头注释 21-24 行）明确「防原型泄漏/prototype pollution：脚本触及的一切都在 context 内构造，跨界值仅一个 `__send(string)` 外层函数」——args 在 context 内 JSON.parse 构造（`child-source.ts:202-206`，`var __args = Object.freeze(JSON.parse(__argsJson))`），context-native，原型链不掺外层 intrinsics。我方 child-main 把主机域 args 对象直接放进 sandbox，正是 PoC2b/2c/3/3c/4 的破口 → **此轴我方【落后】**。（撰写时抽查官方源码逐行核实，见 §8。）
 2. **realm 硬化**：官方 `createContext(sandbox,{name:"workflow-sandbox"})`（`child-source.ts:332`）**无 codeGeneration 限制**，且经 `runInContext` 字符串编译 lowered 体（`child-source.ts:339`，头注释 26-28 自认 eval/Function 可用、仅 `import()` 抛 `ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`）→ 官方对 PoC1 直接构造器链向量**无运行时屏障**；我方 `child-main.ts:296-300`（当前行号）`codeGeneration:{strings:false,wasm:false}` 实测拦截（EvalError）→ **此轴我方【领先】**。
@@ -205,7 +205,7 @@ node --experimental-strip-types --test tests/adversarial/goal-poc1-ndjson-protoc
 
 ### 3.3 官方对比
 
-官方源码 `C:/Users/86183/Desktop/AI-workflow-research/ZCode` 防线（path:line，撰写时已抽查 core/transport/telemetry 等承重点）：
+官方源码 `<official-zcode-clone>` 防线（path:line，撰写时已抽查 core/transport/telemetry 等承重点）：
 
 1. **帧长/消息硬上限+先计量后解析**：`packages/shared/src/zcode-protocol-v4/core.ts:65`（`maxFrameBytes: 1024*1024` 物理帧 1MB）、`packages/shared/src/web-remote-control-rpc-transport.ts:10-16`（`maxMessageBytes: 16MB`、`maxFragments: 64`、`assemblyTimeoutMs: 30s`）、`web-remote-control-rpc-transport.ts:229-235`（`parseWebRemoteControlRpcRelayEnvelopeJson` 在 JSON.parse **之前**按 utf8 字节数硬闸拒绝 `remote.rpcFrame.envelopeTooLarge` terminal fault）、`:50-58`（isCanonicalBase64 先字符串长度硬闸再 decode，防分配放大）、`:627-635`（messageTooLarge/fragmentLimitExceeded/envelopeTooLarge 命名拒绝）；
 2. **schema 校验**：`packages/server/src/entry-stdio.ts:122-128`（hello-ack 经 zod safeParse，格式错误显式拒绝）；
@@ -372,7 +372,7 @@ tests/adversarial/goal-poc3-agent-storm.test.ts            # 回归
 
 ### 5.3 官方对比
 
-官方源码 `C:/Users/86183/Desktop/AI-workflow-research/ZCode` 对应防线：
+官方源码 `<official-zcode-clone>` 对应防线：
 
 1. **环境变量隔离**——`packages/shared/src/runtimeEnv.ts:222-235` sanitizeZCodeRuntimeEnv 对继承 env 做已知会话凭据键的**拒绝式剔除**（ZCODE_CUA_PERMISSION_BROKER_TOKEN、ZCODE_OFFICIAL_ENDPOINT_TOKEN 等黑名单），`packages/services/src/zcode-agent/zcodeAgentProcessManager.ts:390/:449` spawn 时仅传极小 env（{ELECTRON_RUN_AS_NODE:'1'}）。我方 `src/process-supervision.ts:62-89` buildSanitizedEnv 是平台基座+显式 allowlist 的**白名单制**、`src/dwf/runner.ts:521-523` 再叠 value-masking、`src/dwf/engine.ts:798` 对 world.run 孙进程再加一层 allowlist——对未知键（如 GOAL_POC_TOKEN）官方黑名单拦不住、我方白名单直接丢弃，结论：**[推断] 就已审计面 env 隔离我方领先**——官方黑名单之外是否另有 allowlist 层未逐一审计（[推断]，未审面），故不作无条件断言。
 2. **自由文本凭据形状规则**——`packages/shared/src/telemetryRedaction.ts:47-65` redactTelemetryText 含 `sk|rk|pk-[A-Za-z0-9_-]{12,}`→{secret}（`:61`）、ghp_（`:62`）、AKIA（`:63`）、AIza（`:64`）等按值形状脱敏（撰写时逐行核实）；我方 `src/dwf/redact.ts:38-39` CREDENTIAL_TOKEN_SHAPES 审计时缺 sk- 家族、sanitizer.ts:4 SENSITIVE_VALUE_REGEX 亦无（sk-decoy-123 太短两边都拦不住，但真实 sk-proj- 长键官方按形状拦、我方漏），结论：**值形状规则我方落后**（官方仅覆盖遥测通道，非子进程输出边界，标[推断]）。**撰写时我方已增补 `sk-[A-Za-z0-9]{20,}`（redact.ts:39，未提交），形状面已对齐。**
@@ -470,7 +470,7 @@ tests/adversarial/goal-poc3-files-grep.test.ts                  # 回归（泄�
 
 ## 8. 本文档证据台账（撰写时本轮独立执行的命令）
 
-以下命令全部于撰写时在 worktree `C:/Users/86183/Desktop/AI-workflow-worktrees/issue-28-goal-e2e-pentest` 执行，输出摘录见各用例 §x.6：
+以下命令全部于撰写时在 worktree `<workspace-worktrees>/issue-28-goal-e2e-pentest` 执行，输出摘录见各用例 §x.6：
 
 ```text
 # 构建门禁
@@ -527,7 +527,7 @@ compile.ts:33-39,169-179 / engine.ts:36-44,452-466,597-609,795-824,884-889(NUL �
 redact.ts:38-79 / prober/sanitizer.ts:3-5 / process-supervision.ts:55-89,129-144
 schema-synth.ts:23-28,56,70 / glob.ts:44-47,61 / governor.ts:1-6,49-52
 
-# 官方源码抽查（C:/Users/86183/Desktop/AI-workflow-research/ZCode，只读）
+# 官方源码抽查（<official-zcode-clone>，只读）
 dynamic-workflow-runtime/src/child-source.ts:21-28,202-206,332-339
 zcode-protocol-v4/core.ts:63-67 / web-remote-control-rpc-transport.ts:10-16,229-235
 telemetryRedaction.ts:47-65 / dynamic-workflow/src/engine/concurrency.ts:23-38

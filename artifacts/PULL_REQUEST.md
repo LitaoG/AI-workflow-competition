@@ -35,7 +35,7 @@ This automated migration converts legacy monolithic `aws-sdk` v2 clients to modu
 
 ## 4. Verification & Gates
 - **Baseline Gate**: Unit tests passed before migration initiation.
-- **Post-Merge Gate**: [GateRunner] Mode: post-merge | Target: C:\Users\86183\Desktop\AI-workflow-worktrees\issue-33-real-diff-stats\apps\repo-migration-engine\fixtures\legacy-aws-sdk-app | Mock: true
+- **Post-Merge Gate**: [GateRunner] Mode: post-merge | Target: apps\repo-migration-engine\fixtures\legacy-aws-sdk-app | Mock: true
 [GateRunner] ✔ Post-Merge Compilation & Test Gate PASSED:
   - TypeScript Compiler: 0 syntax errors, 0 type diagnostics (tsc --noEmit passed)
   - AWS SDK v3 Unit Tests: 3 suites passed, 15 tests passed, 0 failures
@@ -53,8 +53,8 @@ This automated migration converts legacy monolithic `aws-sdk` v2 clients to modu
 Measured from `fixtures/legacy-aws-sdk-app/src` on disk vs the `transformedCode` each worker produced in this run. In mock mode the transformation is the documented deterministic substitution, so no git-style `-N +M` diff is claimed.
 
 ## 6. Durable Replay & Provenance
-- **Workflow Run ID**: `run-1794751080415-rpeedg`
-- **Event Journal**: All step transitions recorded to event log — inspect with `workflow view run-1794751080415-rpeedg`.
+- **Workflow Run ID**: `run-1794854317283-mk4ahn`
+- **Event Journal**: All step transitions recorded to event log — inspect with `workflow view run-1794854317283-mk4ahn`.
 
 ## 7. Rollback Runbook
 1. Revert this pull request: `git revert -m 1 HEAD`
@@ -62,4 +62,4 @@ Measured from `fixtures/legacy-aws-sdk-app/src` on disk vs the `transformedCode`
 3. Re-run baseline verification: `npm test`
 
 ---
-*Generated autonomously by AI-Workflow on 2026-11-15T13:58:00.770Z*
+*Generated autonomously by AI-Workflow on 2026-11-16T18:38:37.852Z*

@@ -2,7 +2,7 @@
   "benchmark": "cross-engine-deliverable-4",
   "track": "official",
   "engine": "ZCode apps/zcode-cli/packages/dynamic-workflow (dist)",
-  "pkgRoot": "C:/Users/86183/Desktop/AI-workflow-research/ZCode/apps/zcode-cli/packages/dynamic-workflow",
+  "pkgRoot": "$OFFICIAL_DWF (the official ZCode checkout; see tests/cross-engine/README.md)",
   "node": "v26.13.0",
   "mission": "cross-benchmark-mission.facade.ts (planner -> 4-way fanout -> verifier self-heal -> report/complete; common-subset facade)",
   "facadeSurfaceUsed": [

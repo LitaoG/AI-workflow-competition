@@ -1,7 +1,7 @@
 # ZCODE 官方引擎 × 本仓引擎 七维基准对比报告（TEST-GOAL 4.1）
 
 - **产出**：文档·基准对比报告 子代理 ｜ **日期**：2026-11-01
-- **执行环境**：worktree `C:/Users/86183/Desktop/AI-workflow-worktrees/issue-28-goal-e2e-pentest`（分支 `feat/issue-28-goal-e2e-pentest`，HEAD `30eb54f`，2026-11-01 16:32:49 +0800）；主仓 `C:/Users/86183/Desktop/AI-workflow` 只读未动
+- **执行环境**：worktree `<workspace-worktrees>/issue-28-goal-e2e-pentest`（分支 `feat/issue-28-goal-e2e-pentest`，HEAD `30eb54f`，2026-11-01 16:32:49 +0800）；主仓 `<workspace>` 只读未动
 - **对比对象**：官方 = ZCode 官方 dynamic-workflow 引擎（`apps/zcode-cli/packages/...`，代码不在本仓）；我方 = 本仓 `node bin/workflow.js` 引擎（`src/dwf/`）
 - **文档分工（2026-11-01 修订确立）**：本报告只管七维基准对比与证据分级；各子系统的修复/缺口**状态唯一登记处**为同目录 `WORKFLOW-GAP-MATRIX.md`（其 D#/R#/GAP-# 条目号），本文提及状态时引用该矩阵条目，两文冲突时以矩阵为准。
 - **行号基准**：正文所引源码行号基于 worktree HEAD `30eb54f`；行号漂移以符号名为准（2026-11-01 修订轮已复核本文 schema-synth/governor/engine/run-script 各行号引用）。
@@ -50,7 +50,7 @@
 | journal | `.workflow/goal-bench.db` 终值 172,032 B；sha256 `4e3cc4b7de2b0f7456b63a0a2b03b2a15470ec02ff12667013b2dc5500095c8c` `[已验证·本轮]` |
 | run | `dwfrun-mvxomkgk-7e7fc1`（bench50 首跑 + 同 runId resume；status=completed；script_hash 64 位 hex；created 2026-11-01T10:23:30.069Z / updated 10:31:19.265Z）`[已验证·本轮·journal 复查]` |
 | 并发基准 run | `dwfrun-mvxpq3am-9e4838`（-c 4）、`dwfrun-mvxpq46q-41dbdc`（-c 16），各用独立 db |
-| 脚本与产物 | `C:/Users/86183/.zcode/workflow-drafts/goal-mission/bench/`：minimal.facade.ts 147 B、bench50.facade.ts 1,111 B、bench16.facade.ts 515 B、time-cmd.js 1,135 B、view-bench50.html 96,928 B、graph-basic.html 10,274 B —— 六件全部在位且字节数逐一对上 `[已验证·本轮·ls -la]` |
+| 脚本与产物 | `<local-machine>/.zcode/workflow-drafts/goal-mission/bench/`：minimal.facade.ts 147 B、bench50.facade.ts 1,111 B、bench16.facade.ts 515 B、time-cmd.js 1,135 B、view-bench50.html 96,928 B、graph-basic.html 10,274 B —— 六件全部在位且字节数逐一对上 `[已验证·本轮·ls -la]` |
 
 ---
 
@@ -254,7 +254,7 @@
 
 1. `git -C <worktree> branch --show-current`、`git -C <worktree> log --oneline -3`、`git -C <worktree> status --porcelain` —— 分支 `feat/issue-28-goal-e2e-pentest`、HEAD `30eb54f`、并行改动在案（未触碰）。
 2. `git -C <worktree> merge-base --is-ancestor fa274e5 HEAD` → 通过（hole parking 在谱系内）。
-3. `ls -la C:/Users/86183/.zcode/workflow-drafts/goal-mission/bench/` —— 六产物字节数逐一对上记录。
+3. `ls -la <local-machine>/.zcode/workflow-drafts/goal-mission/bench/` —— 六产物字节数逐一对上记录。
 4. `node <worktree>/bin/workflow.js --help`、`node <worktree>/bin/workflow.js run-script --help` —— CLI 语法、--db/--resume/-c/-m 旗标确认。
 5. `node <bench>/time-cmd.js 3 <worktree> node bin/workflow.js check <bench>/minimal.facade.ts` → 903/938/948 ms（中位 937.574）、exit=0、"✔ facade script compiled clean (2 sites)"；执行前后 `<worktree>/.workflow` 文件数 40→40（check 零写入）。
 6. node:sqlite 只读查询 `goal-bench.db` **副本**（先 `cp` 到 `<worktree>/.scratch-b41doc/`，查毕整目录已删，原件未动）→ §3.5 逐类型分布、`dwf_runs` 列族（PRAGMA table_info）、run 行实况。

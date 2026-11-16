@@ -2,7 +2,7 @@
   "benchmark": "cross-engine-deliverable-4",
   "track": "ours",
   "engine": "AI-workflow src/dwf FacadeEngine (WT/dist build)",
-  "wtRoot": "C:\\Users\\86183\\Desktop\\AI-workflow-worktrees\\issue-67-zcode-benchmark",
+  "wtRoot": "<local-machine>\\Desktop\\AI-workflow-worktrees\\<workspace-worktrees-issue-67>",
   "node": "v26.13.0",
   "mission": "cross-benchmark-mission.facade.ts (same file as the official track)",
   "facadeSurfaceUsed": [
@@ -495,7 +495,7 @@
     "feasible": true,
     "park": {
       "status": "parked",
-      "runId": "dwfrun-mw0vdv85-919abd",
+      "runId": "<runId>",
       "parkedAt": {
         "siteId": "hole#5",
         "name": "verdict-hole",
@@ -514,7 +514,7 @@
       "amendHitEvents": 1,
       "holeValue": "hole value: verdict-42",
       "wallMs": 411.455,
-      "effectiveScriptPath": "C:\\Users\\86183\\Desktop\\AI-workflow-worktrees\\issue-67-zcode-benchmark\\.workflow\\runs\\dwfrun-mw0vdv85-919abd\\script.effective.ts"
+      "effectiveScriptPath": "<local-machine>\\Desktop\\AI-workflow-worktrees\\<workspace-worktrees-issue-67>\\.workflow\\runs\\<runId>\\script.effective.ts"
     },
     "note": "Our fill is NOT an engine-level payload swap (official fillHole): hole() parks in-process (dwf_hole_open) and `workflow fill` splices the body into the script, forks an amend run (new runId, lineage to the parked run) whose unchanged nodes replay from the journal at zero cost (dwf_amend_hit). Probed through the real runner pipeline with the scripted offline provider."
   },

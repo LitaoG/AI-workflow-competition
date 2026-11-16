@@ -49,7 +49,15 @@ for (let i = 1; i < args.length; i++) {
 const isMock = args.includes('--mock') || process.env.MOCK === 'true';
 const targetDir = customCwd || process.env.REPO_DIR || path.resolve(__dirname, '..', 'fixtures', 'legacy-aws-sdk-app');
 
-console.log(`[GateRunner] Mode: ${gateMode} | Target: ${targetDir} | Mock: ${isMock}`);
+// Issue #48: print the target relative to the repo root so captured gate logs
+// (embedded verbatim into the committed demo artifacts) never carry machine
+// absolute paths. Non-repo targets fall back to as-is.
+const repoRoot = path.resolve(__dirname, "..", "..", "..");
+const displayTarget =
+  path.isAbsolute(targetDir) && targetDir.startsWith(repoRoot)
+    ? path.relative(repoRoot, targetDir)
+    : targetDir;
+console.log(`[GateRunner] Mode: ${gateMode} | Target: ${displayTarget} | Mock: ${isMock}`);
 
 async function main() {
   // Fault Injection Simulation

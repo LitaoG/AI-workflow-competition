@@ -38,7 +38,9 @@ const OUT_PATH = join(HERE, "results", "official-cross-benchmark.json");
 const pkgRoot =
   process.argv[2] ??
   process.env.OFFICIAL_DWF ??
-  "C:/Users/86183/Desktop/AI-workflow-research/ZCode/apps/zcode-cli/packages/dynamic-workflow";
+  (() => {
+    throw new Error("OFFICIAL_DWF is not set: point it at the official ZCode checkout containing apps/zcode-cli/packages/dynamic-workflow (see tests/cross-engine/README.md)");
+  })();
 
 const dwf = await import(pathToFileURL(join(pkgRoot, "dist", "index.js")).href);
 
