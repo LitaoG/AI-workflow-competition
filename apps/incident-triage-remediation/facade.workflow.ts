@@ -151,8 +151,12 @@ if (toolchainGate.exitCode !== 0) {
 
 // Deterministic steering-policy enforcement — "Code, not conversation": the
 // reviewer's verdict does not license destructive commands. Every planned
-// command token is rescanned against the same six-pattern blacklist as
-// workflow.ts, regardless of the safety review's score.
+// command token is rescanned against this demo's own six-pattern blacklist,
+// regardless of the safety review's score. NOTE (Issue #112 audit): pattern 6
+// is deliberately WIDER than workflow.ts's DESTRUCTIVE_BLACKLIST (unanchored
+// `\bdelete\s+from\b` vs the end-anchored form) — a demo-hardening choice kept
+// local so the facade's interception drill stays independent; the two surfaces
+// are not the same policy and drift here is intentional, not accidental.
 const DESTRUCTIVE_PATTERNS: RegExp[] = [
   /\bdrop\b/i,
   /\btruncate\b/i,
