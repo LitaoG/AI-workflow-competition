@@ -590,28 +590,11 @@ export class SQLiteStateStore implements StateStore {
     );
   }
 
-  public async getDwfNode(runId: string, siteId: string, ordinal: number): Promise<DwfNode | null> {
-    const stmt = this.db.prepare(`SELECT * FROM dwf_nodes WHERE run_id = ? AND site_id = ? AND ordinal = ?`);
-    const row = stmt.get(runId, siteId, ordinal) as any;
-    if (!row) return null;
+  /** One dwf_nodes row → DwfNode, shared by the single and plural getters so
+   *  their mapped fields cannot drift (Issue #116: the singular getter used to
+   *  silently drop the per-actor identity fields). */
+  private rowToDwfNode(row: any): DwfNode {
     return {
-      runId: row.run_id,
-      siteId: row.site_id,
-      ordinal: row.ordinal,
-      kind: row.kind,
-      inputHash: row.input_hash,
-      status: row.status,
-      resultJson: row.result_json ?? undefined,
-      errorText: row.error_text ?? undefined,
-      durationMs: row.duration_ms,
-      completedAt: row.completed_at ?? undefined,
-    };
-  }
-
-  public async getDwfNodes(runId: string): Promise<DwfNode[]> {
-    const stmt = this.db.prepare(`SELECT * FROM dwf_nodes WHERE run_id = ? ORDER BY completed_at ASC`);
-    const rows = stmt.all(runId) as any[];
-    return rows.map((row) => ({
       runId: row.run_id,
       siteId: row.site_id,
       ordinal: row.ordinal,
@@ -626,7 +609,20 @@ export class SQLiteStateStore implements StateStore {
       actorSeq: row.actor_seq ?? undefined,
       contentHash: row.content_hash ?? undefined,
       personaJson: row.persona_json ?? undefined,
-    }));
+    };
+  }
+
+  public async getDwfNode(runId: string, siteId: string, ordinal: number): Promise<DwfNode | null> {
+    const stmt = this.db.prepare(`SELECT * FROM dwf_nodes WHERE run_id = ? AND site_id = ? AND ordinal = ?`);
+    const row = stmt.get(runId, siteId, ordinal) as any;
+    if (!row) return null;
+    return this.rowToDwfNode(row);
+  }
+
+  public async getDwfNodes(runId: string): Promise<DwfNode[]> {
+    const stmt = this.db.prepare(`SELECT * FROM dwf_nodes WHERE run_id = ? ORDER BY completed_at ASC`);
+    const rows = stmt.all(runId) as any[];
+    return rows.map((row) => this.rowToDwfNode(row));
   }
 
   public async saveDwfRun(row: DwfRunRow): Promise<void> {
