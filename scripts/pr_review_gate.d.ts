@@ -45,3 +45,30 @@ export function checkCoolingPeriod(
 ): CoolingResult;
 export function checkReviewComments(comments: ReviewComment[]): ReviewCommentsResult;
 export function checkWorktreeCleanliness(cwd?: string): CleanlinessResult;
+
+export interface FailureNamingResult extends CheckResult {
+  failedCount: number;
+}
+
+export interface NoCommentClaimsResult extends CheckResult {
+  violations: string[];
+}
+
+export declare const FAST_MERGE_FLOOR_SECONDS = 600;
+export declare const DEFAULT_COOLING_SECONDS = 900;
+export declare const REVIEW_MARKERS: string[];
+export declare const RESOLVE_KEYWORDS: string[];
+export declare const FORBIDDEN_PLACEHOLDERS: string[];
+
+export function checkFailureNaming(content: string): FailureNamingResult;
+export function checkNoCommentClaims(
+  prBody: string,
+  issueComments?: Array<{ fromIssue?: number | string; author?: string; body?: string }>
+): NoCommentClaimsResult;
+
+/**
+ * Directories under the sibling AI-workflow-worktrees/ root whose `git
+ * rev-parse --git-dir` no longer resolves — orphan worktree shells (Issue #67)
+ * that must be deleted on sight (AGENTS.md §1.5). Empty on CI clones.
+ */
+export function findOrphanWorktrees(cwd?: string): string[];

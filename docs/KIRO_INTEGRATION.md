@@ -20,11 +20,11 @@ AI-workflow/
     │   ├── state-replay-invariants.md
     │   └── ui-presentation-spec.md
     ├── hooks/                      # Kiro lifecycle hooks & deterministic shell gates
-    │   ├── lifecycle.json
-    │   ├── pre-workflow-gate.cmd / .sh
-    │   ├── pre-step-gate.cmd / .sh
-    │   ├── post-step-audit.cmd / .sh
-    │   └── pre-commit.cmd / .sh
+    │   ├── lifecycle.json          # the live hook surface: binds the .js gates by event
+    │   ├── pre-workflow-gate.js    # AgentSpawn — deterministic environment probe
+    │   ├── pre-step-gate.js        # PreToolUse — destructive-command interception
+    │   ├── post-step-audit.js      # PostToolUse — append-only event-stream audit
+    │   └── stop-workflow-gate.js   # Stop — verification gates before session exit
     ├── steering/                   # Frontmatter-driven steering guardrails (inclusion: always)
     │   ├── guidelines.md
     │   ├── policy-guardrails.md

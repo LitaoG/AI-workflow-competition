@@ -814,6 +814,27 @@ not ok 2 - stdio e2e: real spawn lists all seven tools
     );
   });
 
+  test('Tier 3: pr_review_gate.d.ts declares exactly the functions the .mjs exports (Issue #124/#128)', () => {
+    // Issue #128 shipped a d.ts that silently missed findOrphanWorktrees while
+    // its PR body claimed "declaration surface matches the implementation" —
+    // the supervisor caught it on PR #129. This machine check makes the two
+    // export-function sets a hard equality so the drift class is closed.
+    const mjs = fs.readFileSync(path.join(REPO_ROOT, 'scripts', 'pr_review_gate.mjs'), 'utf8');
+    const dts = fs.readFileSync(path.join(REPO_ROOT, 'scripts', 'pr_review_gate.d.ts'), 'utf8');
+    const mjsFns = [...new Set([...mjs.matchAll(/^export function (\w+)/gm)].map((m) => m[1]))].sort();
+    const dtsFns = [
+      ...new Set([...dts.matchAll(/^export (?:declare )?function (\w+)/gm)].map((m) => m[1])),
+    ].sort();
+    assert.ok(mjsFns.length >= 8, `the .mjs export-function scan must actually match (found ${mjsFns.length})`);
+    assert.deepStrictEqual(
+      dtsFns,
+      mjsFns,
+      'pr_review_gate.d.ts must declare exactly the functions pr_review_gate.mjs exports — ' +
+        `missing: [${mjsFns.filter((f) => !dtsFns.includes(f)).join(', ')}], ` +
+        `extra: [${dtsFns.filter((f) => !mjsFns.includes(f)).join(', ')}]`,
+    );
+  });
+
   test('Tier 3: dwf parking semantics must be locked (Issue #35)', () => {
     // ① The canonical event vocabulary carries dwf_parked as its own terminal —
     //    a parked run must never be countable as a failure by event type.
