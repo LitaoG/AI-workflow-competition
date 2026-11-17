@@ -2,6 +2,14 @@
  * Core agent loop (Issue #102). `queryLoop()` is an async generator
  * that drives one ReAct session turn by turn:
  *
+ * Capability-absorption disclosure (Issue #123): this ReAct loop subsystem
+ * (agent-loop / query-engine / compaction / permissions) is a documented demo
+ * asset — docs/absorbed-capabilities.md CAP-004 — and is NOT wired into the
+ * production ask path. Production asks run through src/agent/rpc.ts (builder
+ * steps) and src/dwf/ask-executor.ts (the engine), which carry their own
+ * retry/governor/failover chain; this subsystem is exercised only by
+ * tests/unit/core/*. Treat it as a demonstration, not a second engine.
+ *
  *   1. budget check and compaction (CompactionPipeline.ensureBudget);
  *   2. model request, streamed when the provider offers `stream`;
  *   3. a reply without tool calls is the final answer;

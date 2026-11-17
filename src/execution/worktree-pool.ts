@@ -1,6 +1,14 @@
 /**
  * Git worktree physical isolation for subagent tasks (Issue #140).
  *
+ * Wiring disclosure (Issue #123): this pool is NOT wired into the dwf swarm
+ * path — the engine consumes only src/execution/swarm-dispatcher.ts (the
+ * concurrency window formula). Per-task worktree isolation exists here and in
+ * its unit tests (docs/absorbed-capabilities.md CAP-003), while the public
+ * swarm contract in src/dwf/facade-dts.ts explicitly states "All tasks share
+ * this run's working tree (no per-task worktree)". Wiring it in — or retiring
+ * it — is a pending decision.
+ *
  * A pool mints one physical worktree per task key, at a branch cut from the
  * workspace's HEAD, under a pool directory beside the workspace (never inside
  * it — AGENTS.md §1.8 sibling-directory discipline). Semantics mirror the
