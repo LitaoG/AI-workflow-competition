@@ -285,10 +285,15 @@ node --experimental-strip-types scripts/pr_review_gate.mjs <pr_number>
 
 ### 7.3 合入操作（必须在主仓 main 执行）
 
+**推荐入口（Issue #134）**：`bash scripts/pr_merge.sh <pr_number> [--ack <reason>]` —— 逐段显式校验退出码（`set -o pipefail`，无过滤管道）的合入入口：①审查门禁（可显式 `--ack` 豁免，理由登记）②CI 绿 ③打印最新 PR 评论供 §1.9 人工扫描 ④merge ⑤同步 main。任何一段非零即中止——`#105/#119/#125` 三次「管道吞退出码」违纪（`| tail` 吞 `exit 1`）自此从机制上杜绝，**严禁再手写 `| tail` 类合入链**。
+
+手动等价流程（仅当无法运行脚本时）：
+
 ```powershell
 # 1. 远端 CI 已于 2026-11-14 经用户重新拍板恢复（比赛仓为 public 仓库，Actions
 #    免费，Issue #7；历史拍板 Issue #203）：合入放行判据 = PR 正文本机门禁指纹
 #    + scripts/pr_review_gate.mjs <pr_number> 校验通过 + CI 绿（gh pr checks）。
+#    退出码必须裸跑核验——严禁经管道过滤后连写（Issue #134）。
 
 # 2. 确认放行后，执行 merge（禁止使用 && 或 ; 连写）
 gh pr merge <pr_number> --merge --delete-branch
