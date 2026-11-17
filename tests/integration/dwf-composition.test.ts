@@ -25,7 +25,11 @@ const GRANDCHILD = `/* workflow
 name: comp-grandchild
 description: Third level of the composition probe
 */
-return { level: "grandchild", value: 3 };
+// Issue #62: the depth-3 leaf carries a provider ask so a nested resume has
+// something to re-bill when the lineage import fails at depth >= 2.
+const reading = await agent("inspector").ask<Answer>("inspect health report of service A");
+return { level: "grandchild", value: 3, survey: reading.healthStatus };
+interface Answer { healthStatus: string; }
 `;
 
 const MIDDLE = `/* workflow
@@ -111,7 +115,7 @@ test('workflow() composes three levels and threads the value back up', async () 
     assert.equal(r.status, 'completed', r.error);
     assert.deepEqual(r.value, {
       level: 'root',
-      child: { level: 'middle', child: { level: 'grandchild', value: 3 } },
+      child: { level: 'middle', child: { level: 'grandchild', value: 3, survey: 'HEALTHY' } },
     });
   } finally {
     project.cleanup();
@@ -211,6 +215,54 @@ test('an edited child workflow runs live — no stale replay across the composit
     const second = await runFacadeScript({ scriptPath: parentPath, cwd: project.dir, resumeRunId: first.runId });
     assert.equal(second.status, 'completed', second.error);
     assert.equal(second.stats.asks, 1, 'the edited child must run live, not replay the stale journal');
+  } finally {
+    project.cleanup();
+  }
+});
+
+test('composition re-entry replays nested (depth >= 2) subtrees at zero provider calls (Issue #62)', async () => {
+  const project = makeProject();
+  try {
+    const rootPath = path.join(project.dir, 'three-level.facade.ts');
+    fs.writeFileSync(rootPath, THREE_LEVEL_ROOT);
+    const first = await runFacadeScript({ scriptPath: rootPath, cwd: project.dir });
+    assert.equal(first.status, 'completed', first.error);
+    assert.equal(first.stats.asks, 1, 'the depth-3 grandchild ask executes live on the fresh run');
+
+    // Resuming the root re-enters workflow("comp-middle") — that re-entry
+    // imports the prior middle journal (#35). The grandchild the middle then
+    // re-invokes used to find NO prior run: its old parent is the PRIOR
+    // middle run — a sibling of the new middle under the shared root, never
+    // on the upward parentRunId chain — so the whole grandchild subtree
+    // re-billed its ask on every resume (Issue #62). The recursive
+    // correspondence imports it too.
+    const second = await runFacadeScript({ scriptPath: rootPath, cwd: project.dir, resumeRunId: first.runId });
+    assert.equal(second.status, 'completed', second.error);
+    assert.deepEqual(second.value, first.value);
+    assert.equal(second.stats.asks, 0, 'the depth-3 grandchild must replay from its imported journal, not re-bill');
+  } finally {
+    project.cleanup();
+  }
+});
+
+test('sibling composition call sites replay their OWN subtrees on resume — per-site isolation kept (Issues #62/#124)', async () => {
+  const project = makeProject();
+  try {
+    const rootPath = path.join(project.dir, 'two-sites.facade.ts');
+    fs.writeFileSync(rootPath, `
+phase("Two sites");
+const a = await workflow("comp-middle");
+const b = await workflow("comp-middle");
+return { a, b };
+`);
+    const first = await runFacadeScript({ scriptPath: rootPath, cwd: project.dir });
+    assert.equal(first.status, 'completed', first.error);
+    assert.equal(first.stats.asks, 2, 'each call site runs its grandchild ask live');
+
+    const second = await runFacadeScript({ scriptPath: rootPath, cwd: project.dir, resumeRunId: first.runId });
+    assert.equal(second.status, 'completed', second.error);
+    assert.deepEqual(second.value, first.value);
+    assert.equal(second.stats.asks, 0, 'both call sites replay their own subtrees — no cross-import, nothing re-billed');
   } finally {
     project.cleanup();
   }

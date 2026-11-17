@@ -141,46 +141,84 @@ export async function resolveRunLineage(
     // parent-site coordinates into the child's args (workflowParentSite /
     // workflowParentOrdinal), so two workflow() calls to the same saved
     // workflow under one parent never cross-import each other's journals
-    // (the Issue #124 budget-composition scenario bills both sites). The
-    // parent lineage chains through the parentRunId column, which carries
-    // the amend source for an amended run and the composition parent for a
-    // composed child — walking it reaches the prior parent of an amended
-    // composition too. Rows without the site stamps (pre-#35 children) never
-    // match: they fall back to the live run instead of a blind import.
-    const lineageParents: string[] = [];
-    {
-      const seen = new Set<string>();
-      let cursor: string | null | undefined = options.parentRunId;
-      while (cursor && !seen.has(cursor)) {
-        seen.add(cursor);
-        lineageParents.push(cursor);
-        const row: DwfRunRow | null = await store.getDwfRun(cursor);
-        if (!row) break;
-        cursor = row.parentRunId ?? null;
+    // (the Issue #124 budget-composition scenario bills both sites).
+    // Issue #62: the flat "candidate's parent is one of my ancestors" walk
+    // only ever matched depth 1 — the prior GRANDchild's parent is the PRIOR
+    // middle run, a SIBLING of the re-entered middle under the shared root,
+    // never on the upward parentRunId chain, so every root resume re-billed
+    // the whole grandchild subtree. Two runs now correspond when one lies on
+    // the other's parentRunId chain (amend/rerun/composition lineage all ride
+    // that column) or — recursively — they carry the same scriptHash + site
+    // stamps and their parents correspond. Independent roots of the same
+    // script never correspond (both parents null), so a fresh run stays live;
+    // sibling call sites keep their per-site isolation because the stamps of
+    // their PARENT runs differ. Rows without the site stamps (pre-#35
+    // children) never match: they fall back to the live run instead of a
+    // blind import.
+    const rowCache = new Map<string, DwfRunRow | null>();
+    const getRow = async (id: string): Promise<DwfRunRow | null> => {
+      if (!rowCache.has(id)) rowCache.set(id, await store.getDwfRun(id));
+      return rowCache.get(id)!;
+    };
+    const stampsOf = (r: DwfRunRow): { site: string | undefined; ordinal: number | undefined } => {
+      try {
+        const args = JSON.parse(r.argsJson ?? '{}') as { workflowParentSite?: string; workflowParentOrdinal?: number };
+        return { site: args.workflowParentSite, ordinal: args.workflowParentOrdinal };
+      } catch {
+        return { site: undefined, ordinal: undefined };
       }
-    }
+    };
     const siteArgs = (options.args ?? {}) as { workflowParentSite?: string; workflowParentOrdinal?: number };
     const expectedSite = siteArgs.workflowParentSite;
     const expectedOrdinal = siteArgs.workflowParentOrdinal;
-    const matchesSite = (r: DwfRunRow, parent: string): boolean => {
+    const matchesSite = (r: DwfRunRow): boolean => {
       if (expectedSite === undefined || expectedOrdinal === undefined) return false;
-      try {
-        const args = JSON.parse(r.argsJson ?? '{}') as { workflowParent?: string; workflowParentSite?: string; workflowParentOrdinal?: number };
-        return args.workflowParent === parent && args.workflowParentSite === expectedSite && args.workflowParentOrdinal === expectedOrdinal;
-      } catch {
-        return false;
+      const s = stampsOf(r);
+      return s.site === expectedSite && s.ordinal === expectedOrdinal;
+    };
+    const corresponds = async (
+      aId: string | null | undefined,
+      bId: string | null | undefined,
+      seen: Set<string>,
+    ): Promise<boolean> => {
+      if (aId === undefined || aId === null || bId === undefined || bId === null) return false;
+      if (aId === bId) return true;
+      const key = `${aId}|${bId}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      // Lineage link: one run lies on the other's parentRunId chain (the
+      // amend source and the composition parent both ride that column).
+      for (const [from, to] of [[aId, bId], [bId, aId]] as const) {
+        let cursor: string | null = from;
+        const walked = new Set<string>();
+        while (cursor && !walked.has(cursor)) {
+          walked.add(cursor);
+          if (cursor === to) return true;
+          const row = await getRow(cursor);
+          cursor = row?.parentRunId ?? null;
+        }
       }
+      // Structural correspondence: the same script at the same composition
+      // site whose parents are themselves the same logical instance.
+      const a = await getRow(aId);
+      const b = await getRow(bId);
+      if (!a || !b) return false;
+      if (a.scriptHash !== b.scriptHash) return false;
+      const sa = stampsOf(a);
+      const sb = stampsOf(b);
+      if ((sa.site ?? null) !== (sb.site ?? null) || (sa.ordinal ?? null) !== (sb.ordinal ?? null)) return false;
+      return corresponds(a.parentRunId, b.parentRunId, seen);
     };
     const runs = await store.listDwfRuns({ limit: 1000 });
-    for (const parent of lineageParents) {
-      // listDwfRuns returns newest-first; the first candidate is the newest
-      // prior child run of this call site under this parent. `running` rows
-      // are skipped: their journals are still being written by a live host.
-      const priorChild = runs.find(
-        (r) => r.parentRunId === parent && r.scriptHash === scriptHash && r.status !== 'running' && matchesSite(r, parent),
-      );
-      if (priorChild) {
-        const priorNodes: DwfNode[] = await store.getDwfNodes(priorChild.runId);
+    for (const r of runs) {
+      // listDwfRuns returns newest-first; the first matching candidate is the
+      // newest prior child run of this call site in the corresponding
+      // lineage. `running` rows are skipped: their journals are still being
+      // written by a live host. Rows without parentRunId (pre-lineage) never
+      // match: they fall back to the live run instead of a blind import.
+      if (r.scriptHash !== scriptHash || r.status === 'running' || !r.parentRunId || !matchesSite(r)) continue;
+      if (await corresponds(r.parentRunId, options.parentRunId, new Set())) {
+        const priorNodes: DwfNode[] = await store.getDwfNodes(r.runId);
         importedCache = new Map(priorNodes.map((n) => [`${n.siteId}#${n.ordinal}`, n]));
         break;
       }
