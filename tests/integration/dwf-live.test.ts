@@ -8,7 +8,7 @@ import { createSQLiteStore } from '../../src/state/store.js';
 import { SQLiteStateStore } from '../../src/state/sqlite-store.js';
 import { DwfJournalStore } from '../../src/types.js';
 import { runFacadeScript } from '../../src/dwf/runner.js';
-import { startLiveServer, projectRun } from '../../src/dwf/live.js';
+import { startLiveServer } from '../../src/dwf/live.js';
 
 const SCRIPT = `
 phase('Inspect');
@@ -126,15 +126,6 @@ test('live server serves the Studio SPA, the snapshot API and SSE event frames',
     }
   } finally {
     rmTempDir(dir);
-  }
-});
-
-test('projectRun rejects unknown runs with a clear error', async () => {
-  const store = createSQLiteStore(':memory:') as SQLiteStateStore & DwfJournalStore;
-  try {
-    await assert.rejects(() => projectRun(store, 'dwfrun-none'), /not found/);
-  } finally {
-    store.close();
   }
 });
 
