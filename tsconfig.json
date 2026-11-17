@@ -37,7 +37,6 @@
     "dist",
     ".workflow",
     "src/cli/scaffolding/**/*",
-    "tests/unit/fixtures/**/*",
     "tests/e2e/**/*"
   ]
 }
