@@ -89,7 +89,7 @@
 - 复发性：G2 单次高代价
 - 代价：运行 `npm.cmd run test:unit` 后，测试脚本向 `tests/unit/fixtures/` 输出了 `exported-dag.html`、`test-scaffold-basic` 等测试生成文件，若不注意直接 `git add .`，会将运行副产物带入 Git 提交。
 - 根因：单元测试包含 CLI 生成逻辑，直接写入了受版本控制的测试夹具目录。
-- 正确做法：测试运行完毕后，必须强制执行 `git restore tests/unit/fixtures/` 还原夹具目录，确保 `git status --porcelain` 完全干净后再进行 Git 提交。
+- 正确做法：测试运行完毕后，必须强制执行 `git restore tests/ artifacts/` 还原对抗模板与演示基线，确保 `git status --porcelain` 完全干净后再进行 Git 提交。（2026-11-17 已修 + 门禁：单元测试输出已迁 `os.tmpdir()`（Issue #54 根因修复、Issue #86 收尾），`tests/unit/fixtures/` 下 10 个零引用残骸已清（Issue #92），本条命令口径随 AGENTS §四.7 配方收敛。）
 - 门禁：`AGENTS.md` §四、`docs/WORKFLOW.md` §4.1。
 - 原位置：`docs/WORKFLOW.md` §4。
 

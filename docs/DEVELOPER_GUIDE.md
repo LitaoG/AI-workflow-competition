@@ -546,10 +546,10 @@ node --experimental-strip-types --test tests/my-workflow.test.ts
 
 ### 7.4 副产物还原（强制）
 
-测试运行若向受控夹具 `tests/unit/fixtures/` 输出了数据，跑完必须还原，保证 `git status --porcelain` 干净：
+单元测试输出自 Issue #54/#86 起写 `os.tmpdir()` 并自清理；对抗套件会重写被跟踪的 `tests/adversarial/fixtures/` 模板，手工演示链会重写 `artifacts/`——跑完必须还原，保证 `git status --porcelain` 干净：
 
 ```bash
-git restore tests/unit/fixtures/
+git restore tests/ artifacts/
 ```
 
 改码全流程（Issue → worktree → 门禁 → PR 指纹）见 `docs/WORKFLOW.md`；PR 提交模板与自检清单见 `.github/PULL_REQUEST_TEMPLATE.md`。
