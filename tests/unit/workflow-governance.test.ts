@@ -4,10 +4,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-// From dist (not src): this gate runs directly on the source tree with
-// --experimental-strip-types, where .js specifiers do not rewrite to .ts —
-// the compiled catalog is the same artifact the server serves.
-import { TOOL_CATALOG } from '../../dist/src/mcp/tool-catalog.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -446,18 +442,26 @@ describe('Workflow & Governance Specification Suite Invariant Locks', () => {
     );
   });
 
-  test('Tier 2: .kiro/mcp/mcp-server.json tool face is locked to TOOL_CATALOG (Issue #118)', () => {
+  test('Tier 2: .kiro/mcp/mcp-server.json tool face is locked to TOOL_CATALOG (Issue #118)', async () => {
     // The Kiro MCP manifest used to register only the 5 legacy tools while the
     // served catalog grew to 10 (the facade face was missing) — and nothing
     // locked it, unlike .codex/tools.json which is byte-identical-locked.
+    //
+    // TOOL_CATALOG is loaded from dist via a runtime file-URL import: this gate
+    // runs directly on the source tree with --experimental-strip-types, where
+    // static `.js` specifiers do not rewrite to `.ts`, and a static import of
+    // the excluded dist tree breaks `tsc` (Issue #118 follow-up). dist is
+    // produced by gate 1 before this gate runs.
     const manifestPath = path.join(REPO_ROOT, '.kiro', 'mcp', 'mcp-server.json');
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as {
       mcpServers?: Record<string, { tools?: Array<{ name: string }> }>;
     };
+    const catalogUrl = pathToFileURL(path.join(REPO_ROOT, 'dist', 'src', 'mcp', 'tool-catalog.js')).href;
+    const catalogModule = (await import(catalogUrl)) as { TOOL_CATALOG: Array<{ name: string }> };
     const declared = (manifest.mcpServers?.['ai-workflow-engine']?.tools ?? [])
       .map((tool) => tool.name)
       .sort();
-    const catalog = TOOL_CATALOG.map((tool) => tool.name).sort();
+    const catalog = catalogModule.TOOL_CATALOG.map((tool: { name: string }) => tool.name).sort();
     assert.deepStrictEqual(
       declared,
       catalog,
