@@ -2,90 +2,73 @@ import test from 'node:test';
 import * as assert from 'node:assert';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
-import { createTempDir, cleanupTempDir, writeTempFile } from '../helpers/env.ts';
 
+// R3 compliance lock (docs/KIRO_INTEGRATION.md): every assertion below targets the
+// real /.kiro tree with NO existsSync fallback to synthetic samples — if the tracked
+// Kiro configuration is removed or renamed, this suite must go red (Issue #84,
+// same defect class as the t2-10 cannot-fail subtests fixed under Issue #23).
 test('Tier 1 - Feature 10: Mandatory Kiro Integration (/.kiro)', async (t) => {
-  const tempDir = createTempDir('t1-f10-kiro-');
   const projectRoot = path.resolve(import.meta.dirname || process.cwd(), '..', '..', '..');
   const kiroDir = path.join(projectRoot, '.kiro');
 
-  t.after(() => {
-    cleanupTempDir(tempDir);
-  });
-
   await t.test('T1_F10_01: .gitignore rules explicitly preserve and track /.kiro directory', () => {
     const gitignorePath = path.join(projectRoot, '.gitignore');
-    if (fs.existsSync(gitignorePath)) {
-      const gitignore = fs.readFileSync(gitignorePath, 'utf-8');
-      assert.ok(
-        gitignore.includes('!/.kiro/') || gitignore.includes('!.kiro'),
-        '.gitignore must explicitly whitelist and unignore /.kiro/'
-      );
-    } else {
-      // Test contract invariant with simulated gitignore
-      const sampleGitignore = `node_modules/\n.workflow/\n!/.kiro/\n!/.kiro/**\n`;
-      assert.ok(sampleGitignore.includes('!/.kiro/'));
-    }
+    assert.ok(fs.existsSync(gitignorePath), '.gitignore must exist at the project root');
+    const gitignore = fs.readFileSync(gitignorePath, 'utf-8');
+    assert.ok(
+      gitignore.includes('!/.kiro/') || gitignore.includes('!.kiro'),
+      '.gitignore must explicitly whitelist and unignore /.kiro/'
+    );
   });
 
   await t.test('T1_F10_02: /.kiro/specs contains formal workflow engine requirements and typed RPC schemas', () => {
     const specsDir = path.join(kiroDir, 'specs');
-    if (fs.existsSync(specsDir)) {
-      const files = fs.readdirSync(specsDir);
-      assert.ok(files.length >= 1, 'specs directory must contain specification files');
-    } else {
-      const specFile = writeTempFile(tempDir, '.kiro/specs/workflow-engine-spec.md', '# Workflow Engine Spec');
-      assert.ok(fs.existsSync(specFile));
-    }
+    assert.ok(fs.existsSync(specsDir), '.kiro/specs must exist (R3: mandatory Kiro root configuration)');
+    const files = fs.readdirSync(specsDir);
+    assert.ok(files.length >= 1, 'specs directory must contain specification files');
   });
 
   await t.test('T1_F10_03: /.kiro/hooks contains lifecycle.json with canonical Kiro lifecycle events', () => {
     const lifecyclePath = path.join(kiroDir, 'hooks', 'lifecycle.json');
-    let lifecycle: any;
-    if (fs.existsSync(lifecyclePath)) {
-      lifecycle = JSON.parse(fs.readFileSync(lifecyclePath, 'utf-8'));
-    } else {
-      const sample = {
-        version: "v1",
-        hooks: [
-          { name: "env-probe", event: "AgentSpawn", command: "node .kiro/hooks/probe.js", enabled: true }
-        ]
-      };
-      writeTempFile(tempDir, '.kiro/hooks/lifecycle.json', JSON.stringify(sample, null, 2));
-      lifecycle = sample;
-    }
+    assert.ok(fs.existsSync(lifecyclePath), '.kiro/hooks/lifecycle.json must exist');
+    const lifecycle = JSON.parse(fs.readFileSync(lifecyclePath, 'utf-8'));
     assert.strictEqual(lifecycle.version, 'v1');
-    assert.ok(Array.isArray(lifecycle.hooks));
-    assert.ok(lifecycle.hooks.some((h: any) => h.event === 'AgentSpawn' || h.event === 'PreToolUse'));
+    assert.ok(Array.isArray(lifecycle.hooks) && lifecycle.hooks.length >= 4, 'lifecycle.json must register the four canonical lifecycle hooks');
+    for (const event of ['AgentSpawn', 'PreToolUse', 'PostToolUse', 'Stop']) {
+      const hook = lifecycle.hooks.find((h: { event: string }) => h.event === event);
+      assert.ok(hook, `lifecycle.json must register a ${event} hook`);
+      assert.strictEqual(hook.enabled, true, `${event} hook must be enabled`);
+    }
   });
 
   await t.test('T1_F10_04: /.kiro/steering contains guidelines with inclusion frontmatter', () => {
     const steeringDir = path.join(kiroDir, 'steering');
-    let content = '';
-    if (fs.existsSync(steeringDir)) {
-      const files = fs.readdirSync(steeringDir);
-      assert.ok(files.length >= 1);
-      content = fs.readFileSync(path.join(steeringDir, files[0]), 'utf-8');
-    } else {
-      content = `---\ninclusion: always\n---\n# Architecture Guidelines\n"Code, not conversation"`;
-      writeTempFile(tempDir, '.kiro/steering/guidelines.md', content);
-    }
+    assert.ok(fs.existsSync(steeringDir), '.kiro/steering must exist');
+    const files = fs.readdirSync(steeringDir);
+    assert.ok(files.length >= 1, 'steering directory must contain guideline files');
+    const content = fs.readFileSync(path.join(steeringDir, files[0]), 'utf-8');
     assert.ok(content.includes('inclusion: always'), 'Steering files must include "inclusion: always" frontmatter');
   });
 
   await t.test('T1_F10_05: /.kiro/crew contains Skeleton Crew team roster and permissions', () => {
     const crewDir = path.join(kiroDir, 'crew');
-    let roster: any;
-    if (fs.existsSync(crewDir) && fs.existsSync(path.join(crewDir, 'roster.json'))) {
-      roster = JSON.parse(fs.readFileSync(path.join(crewDir, 'roster.json'), 'utf-8'));
-    } else {
-      roster = {
-        team: "Skeleton Crew",
-        members: ["conductor", "prober", "worker", "visualizer"]
-      };
-      writeTempFile(tempDir, '.kiro/crew/roster.json', JSON.stringify(roster, null, 2));
-    }
-    assert.strictEqual(roster.team, 'Skeleton Crew');
-    assert.ok(Array.isArray(roster.members));
+    const teamPath = path.join(crewDir, 'team.json');
+    const permissionsPath = path.join(crewDir, 'permissions.json');
+    assert.ok(fs.existsSync(teamPath), '.kiro/crew/team.json must exist (the real roster file)');
+    assert.ok(fs.existsSync(permissionsPath), '.kiro/crew/permissions.json must exist');
+    const team = JSON.parse(fs.readFileSync(teamPath, 'utf-8'));
+    const permissions = JSON.parse(fs.readFileSync(permissionsPath, 'utf-8'));
+    assert.strictEqual(team.category, 'Skeleton Crew');
+    const rosterIds = (team.roster as Array<{ id: string }>).map((member) => member.id).sort();
+    assert.deepStrictEqual(
+      rosterIds,
+      ['architect', 'gatekeeper', 'inspector', 'reviewer', 'worker'],
+      'team roster must list the five Skeleton Crew roles'
+    );
+    assert.deepStrictEqual(
+      Object.keys(permissions.roles).sort(),
+      rosterIds,
+      'permissions.json roles must align 1:1 with the team roster'
+    );
   });
 });
