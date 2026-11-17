@@ -19,11 +19,9 @@ export interface I18nDictionary {
   CMD_MCP_DESC: string;
   CMD_CHECK_DESC: string;
   CMD_RUN_SCRIPT_DESC: string;
-  CMD_SCRIPT_DESC: string;
   CMD_ULTRACODE_DESC: string;
   CMD_VIEW_DESC: string;
   CMD_SERVE_DESC: string;
-  CMD_STOP_DESC: string;
 
   // Options
   OPT_RESUME_FAILED: string;
@@ -42,12 +40,8 @@ export interface I18nDictionary {
   MSG_PHASE_HEADER: string;
   MSG_STEP_SUCCESS: string;
   MSG_STEP_FAILED: string;
-  MSG_GATE_EVALUATING: string;
-  MSG_GATE_PASSED: string;
-  MSG_GATE_FAILED: string;
   MSG_WORKFLOW_SUCCESS: string;
   MSG_WORKFLOW_FAILED: string;
-  MSG_REPLAY_START: string;
   MSG_REPLAY_SKIPPED: string;
   MSG_REPLAY_REBUILD: string;
   MSG_REPLAY_INVALIDATED: string;
@@ -67,9 +61,6 @@ export interface I18nDictionary {
   ERR_REPLAY_DEFINITION_UNLOADABLE: string;
   ERR_TEMPLATE_INVALID: string;
   ERR_DIR_NOT_EMPTY: string;
-  ERR_SCHEMA_VALIDATION: string;
-  ERR_GATE_FAILED: string;
-  ERR_DIRTY_GIT: string;
 
   // Prober Headers
   PROBE_SYSTEM_HEADER: string;
@@ -77,18 +68,6 @@ export interface I18nDictionary {
   PROBE_TOOLCHAIN_HEADER: string;
   PROBE_SANITIZED_HEADER: string;
 
-  // DAG & Kanban UI
-  DAG_ACTIVE_SUBAGENTS: string;
-  DAG_PHASES: string;
-  DAG_STATUS_PENDING: string;
-  DAG_STATUS_RUNNING: string;
-  DAG_STATUS_COMPLETED: string;
-  DAG_STATUS_FAILED: string;
-  DAG_ROLE_INSPECTOR: string;
-  DAG_ROLE_WORKER: string;
-  DAG_ROLE_REVIEWER: string;
-  DAG_ROLE_GATE: string;
-  DAG_ROLE_COORDINATOR: string;
 }
 
 export function resolveLang(langFlag?: string): SupportedLang {

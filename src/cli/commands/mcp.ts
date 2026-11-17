@@ -1,6 +1,5 @@
 import { MCPClientManager } from '../../mcp/client.js';
 import { BuiltinWorkflowMCPServer } from '../../mcp/server.js';
-import { resolveLang } from '../i18n/index.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 
@@ -33,7 +32,6 @@ async function withBuiltinServerSession<T>(fn: (client: Client) => Promise<T>): 
 }
 
 export async function executeMCPList(options?: MCPCommandOptions): Promise<number> {
-  const _lang = resolveLang(options?.lang);
 
   try {
     let tools: Array<{ name: string; description: string; inputSchema: Record<string, unknown> }>;
@@ -74,7 +72,6 @@ export async function executeMCPCall(
   argsJson?: string,
   options?: MCPCommandOptions
 ): Promise<number> {
-  const _lang = resolveLang(options?.lang);
 
   let server = 'builtin';
   let tool = serverOrTool ?? '';
