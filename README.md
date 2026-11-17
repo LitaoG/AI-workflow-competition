@@ -185,10 +185,13 @@ AI-Workflow treats Kiro not as a chat window but as a governance surface. The ro
   sanitized, sandbox isolation), workflow conventions, bilingual presentation.
 - **MCP** (`.kiro/mcp/mcp-server.json`) — exposes the engine to Kiro over stdio, including the
   `workflow_script_check` / `workflow_script_run` tools.
-- **PBT** (`.kiro/pbt/`) — `fast-check` property-based tests proving 5 invariants (50–100
-  randomized cases per property, see `.kiro/pbt/engine-invariants.test.ts`): DAG acyclicity,
-  idempotent zero-token replay, typed-RPC contract soundness, monotonic event-log ordering, and
-  credential redaction (AWS keys / JWTs → `***REDACTED***` in persisted logs).
+- **PBT** (`.kiro/pbt/`) — `fast-check` property-based tests proving the core invariants (50–100
+  randomized cases per property, see `.kiro/pbt/engine-invariants.test.ts`): DAG acyclicity against a
+  reference Kahn model (arbitrary digraphs — self-loops and back-edges must throw), idempotent
+  zero-token replay, typed-ask contract enforcement (a schema-violating reply exhausts the repair
+  budget and throws `SchemaValidationError`), monotonic event-log ordering, and
+  credential redaction (AWS keys / JWTs → `***REDACTED***` in persisted logs). A freshness guard
+  pins the suite to a dist build no older than the src tree.
 
 And the namesake: the **Skeleton Crew roster** (`.kiro/crew/`) — `Conductor`, `Prober`, `Worker`,
 `Reviewer`, `GateKeeper` — with least-privilege permission ceilings per role.
