@@ -202,6 +202,8 @@ git status --porcelain
 node --experimental-strip-types scripts/pr_review_gate.mjs --check-clean
 ```
 
+> 第 8 级除 `git status` 洁净外，还扫描兄弟 `../AI-workflow-worktrees/` 下的**孤儿 worktree 壳**（目录在、`git rev-parse` 无法解析——Windows 句柄常让 `git worktree remove` 留壳，Issue #67）：发现即门禁失败，当场连目录删除。CI clone 无该目录时扫描为空操作。
+
 > 其中第 6 级治理门禁包含「冲突标记全仓扫描」（上游 Issue #277，经 comp Issue #17 同步移植）：对 `git ls-files` 全部受控文本文件断言不得残留行首 `<<<<<<< ` / `>>>>>>> ` 合并冲突标记（排除二进制与 fixtures），防止合并腐蚀静默进入 main。
 
 ### 4.1 提取真实测试指纹
