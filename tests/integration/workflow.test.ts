@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import { Workflow, defineWorkflow } from '../../src/core/workflow.js';
 import { SQLiteStateStore } from '../../src/state/sqlite-store.js';
@@ -8,9 +9,15 @@ import { EventLogWriter, EventLogReader } from '../../src/state/event-log.js';
 import { DAGVisualizerCoordinator } from '../../src/dag/visualizer.js';
 import { z } from 'zod';
 
-test('Workflow Integration: end-to-end execution with SQLite checkpoints, event log, and DAG export', async () => {
-  const tmpDir = path.resolve(process.cwd(), 'tests', 'integration', 'fixtures', 'run-' + Date.now());
+test('Workflow Integration: end-to-end execution with SQLite checkpoints, event log, and DAG export', async (t) => {
+  // Run outputs live in the OS temp dir (P-TEST-2, Issue #86): writing into the
+  // tracked tests/integration/fixtures/ path leaked run-* residue that gitignore
+  // swallowed, invisible to git status and every cleanliness gate.
+  const tmpDir = path.join(os.tmpdir(), 'wf-integration-run-' + Date.now());
   fs.mkdirSync(tmpDir, { recursive: true });
+  t.after(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
 
   const dbPath = path.join(tmpDir, 'state.db');
   const store = new SQLiteStateStore(dbPath);
@@ -104,7 +111,8 @@ test('Workflow Integration: end-to-end execution with SQLite checkpoints, event 
 });
 
 test('EventLogWriter: handles corrupted trailing fragments without newline cleanly', async () => {
-  const tmpDir = path.resolve(process.cwd(), 'tests', 'integration', 'fixtures', 'crash-recovery-' + Date.now());
+  // Same hygiene rule as above (Issue #86): OS temp dir instead of the repo.
+  const tmpDir = path.join(os.tmpdir(), 'wf-integration-crash-recovery-' + Date.now());
   fs.mkdirSync(tmpDir, { recursive: true });
   const logFile = path.join(tmpDir, 'events.jsonl');
 
