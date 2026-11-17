@@ -56,7 +56,7 @@ my-agent-pipeline/
 
 `node bin/workflow.js --help` 查看全集。按用途分组（与 `src/cli/index.ts` 一致）：
 
-- **运行与编排**：`run <file>`（核心构建器）、`run-script <file>`（Facade 脚本，§3.1）、`replay <runId>`（统一续跑/重放入口，§6.3）、`author <intent...>`（意图生成脚本）、`check <file>`（编译期自检，§5.1）
+- **运行与编排**：`run <file>`（核心构建器）、`run-script <file>`（Facade 脚本，§3.1）、`demo`（旗舰事故分诊一键演示：离线 mock + Studio 看板）、`replay <runId>`（统一续跑/重放入口，§6.3）、`author <intent...>`（意图生成脚本）、`check <file>`（编译期自检，§5.1）
 - **检视与观测**：`inspect <runId>`、`graph <file> --format html|mermaid|ascii`、`probe [targetDir]`、`list`、`view <runId>`（渲染 Studio 单页）、`serve <runId>`（Studio 实时服务）、`stop <runId>`、`doctor`（环境自检）
 - **人工介入**：`fill <runId> <holeName> [bodyFile]`（补 hole）、`answer <runId> <questionId> <text...>`（答 escalate 提问）——两者都只接受 `parked` 状态的运行
 - **注册表与集成**：`workflows list|run`（已保存脚本注册表，`.workflow/workflows/`）、`mcp list|call|serve`、`setup`（互通配置）、`new <name>`、`export-schema`、`ultracode <task>`
@@ -70,6 +70,7 @@ my-agent-pipeline/
 | **执行** | `run <file>` | 统一执行入口，自动识别 Facade 脚本与 Builder 定义 | `-m --mock`、`--set <k=v>`（可重复）、`--args-file <file>`、`-a --args <json>`、`--resume <runId>`、`--amend <runId>`、`--ui`、`--live <path>`、`--watch-graph`、`--cwd <path>`、`-c --max-concurrency <n>`、`--budget-total <n>`、`--run-timeout <ms>`、`--failover <ids>`、`-r --resume-from-failed <runId>`（Builder）、`--dry-run`、`-o --out <dir>`、`-l --lang en\|zh` |
 | | `check <file>` | 编译检查 Facade 脚本，打印诊断、阶段图与站点表（不执行） | `-j --json` |
 | | `run-script <file>` | 以沙箱引擎执行 Facade 脚本（journal 重放） | `run` 全部 Facade 选项，另加 `--rerun <runId> --from <siteId>`、`--approve-cmd <name>`（可重复） |
+| | `demo` | 一键旗舰演示：离线 mock 运行 incident-triage facade、渲染 Studio 看板并打开浏览器 | `--lang en\|zh`、`--no-open`、`--open` |
 | | `replay <runId>` | 重放或恢复 Builder 工作流执行 | `-s --step <stepId>`、`-f --force-recompute`、`-r --resume-from-failed`、`-m --mock`、`--file <path>` |
 | | `stop <runId>` | 强杀运行中的 Facade 进程树，解锁 resume / amend / fill | `--db <path>` |
 | **观测** | `list` | 历史运行列表 | `-n --limit`、`-s --status`、`-j --json`、`--db <path>` |
@@ -86,7 +87,7 @@ my-agent-pipeline/
 | **环境** | `doctor` | 六项就绪度体检 | `-j --json` |
 | | `probe [targetDir]` | 主机环境与工具链确定性探测 | `-o --output json\|text`、`-j --json`、`-s --strict` |
 | **注册表与互通** | `workflows list` / `workflows run <name>` | 已保存工作流注册表（项目覆盖全局） | `-a --args <json>`、`-r --resume`、`--live <path>` |
-| | `setup` | 生成编码助手互通配置 | `-t --target claude\|opencode\|codex\|all`、`-d --dir` |
+| | `setup` | 生成编码助手互通配置 | `-t --target claude\|opencode\|codex\|zcode\|all`、`-d --dir` |
 | | `export-schema` | 导出引擎工具面为 OpenAI function-calling JSON Schema | `-f --format`、`-o --out <path>` |
 | | `mcp list` / `mcp call` / `mcp serve` | MCP 工具列举、调用与 stdio 服务端 | `-j --json`、`-m --mock` |
 

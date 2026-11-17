@@ -34,8 +34,10 @@
 | **F5** | MCP 工具集成（`mcp`） | 核心架构 | ✓ | ✓ | P4, P9, P13 | S2 |
 | **F6** | 斜杠命令 CLI（`/workflow`） | 核心需求 | ✓ | ✓ | P6, P7, P8, P9, P10, P15 | S1, S2, S3, S4, S6 |
 | **F7** | 脚手架模板（`init`） | 脚手架场景 | ✓ | ✓ | P10 | S4 |
-| **F8** | 示例 1：事故分诊与修复 | 示例应用 | ✓ | ✓ | P11, P12 | S1, S6 |
-| **F9** | 示例 2：仓库迁移引擎 | 示例应用 | ✓ | ✓ | P13, P14 | S2, S6 |
+| **F8** | 示例 1：事故分诊与修复 | 示例应用 | ✓ | ✓（替身） | P11, P12 | S1, S6 |
+| **F9** | 示例 2：仓库迁移引擎 | 示例应用 | ✓ | ✓（替身） | P13, P14 | S2, S6 |
+
+> 注（Issue #120）：F8/F9 的 E2E 覆盖跑的是 `tests/e2e/helpers/fixtures.ts` 内的结构化**替身**剧本（与真身同名的 5 步简化版，`SAMPLE_DEMO1_INCIDENT_WORKFLOW` / `SAMPLE_DEMO2_MIGRATION_WORKFLOW`）；apps 真身由集成层（`demo-incident.test.ts` / `demo-migration.test.ts`）与对抗层（`demo1-dag-stress.js` 等）直接运行覆盖，替身与真身的步骤面并不逐字相同。
 
 ## E2E 分层结构
 
