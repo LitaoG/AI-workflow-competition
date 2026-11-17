@@ -30,8 +30,24 @@ const {
   checkReviewComments,
   checkNoCommentClaims,
   checkWorktreeCleanliness,
+  findOrphanWorktrees,
 } = await import(gateScriptUrl);
 const { parseTapSummary, formatRoundFingerprint } = await import(baselineSampleUrl);
+
+// Issue #68: behavior locks import the real behavior surfaces from the dist
+// build. The governance test must run both from src under strip-types and
+// compiled from dist under plain node — a literal .ts specifier would break
+// the latter, so dist is the only import path that works in both modes (the
+// §4 gate chain runs build first, so it is fresh). The imports ride VARIABLE
+// module URLs (same pattern as the gate script import above): a literal dist
+// specifier would drag the dist tree into tsc's input set and trip TS5055
+// (declaration emit would overwrite its own outputs).
+const distEventsUrl = pathToFileURL(path.join(REPO_ROOT, 'dist/src/domain/events.js')).href;
+const distProjectionUrl = pathToFileURL(path.join(REPO_ROOT, 'dist/src/dag/journal-projection.js')).href;
+const { WORKFLOW_EVENT } = await import(distEventsUrl) as { WORKFLOW_EVENT: Record<string, string> };
+const { projectEventsToGraph } = await import(distProjectionUrl) as {
+  projectEventsToGraph: (events: Array<Record<string, unknown>>) => { status: string };
+};
 
 describe('Workflow & Governance Specification Suite Invariant Locks', () => {
 
@@ -69,7 +85,6 @@ describe('Workflow & Governance Specification Suite Invariant Locks', () => {
     const expectedTokens = [
       '无 Issue 不开工',
       'gh issue create',
-      'Closes #',
       'issue-',
     ];
 
@@ -83,6 +98,21 @@ describe('Workflow & Governance Specification Suite Invariant Locks', () => {
       workflowMd.includes('feat/issue-') || workflowMd.includes('issue-<id>'),
       'docs/WORKFLOW.md must document issue-based branch naming format'
     );
+
+    // Issue #68: the "Closes #" discipline is BEHAVIOR-locked against the
+    // gate's exported check, not doc-text-locked — deleting the AGENTS.md
+    // phrase used to leave the enforcement path free to regress silently
+    // (the old token assertion stayed green while pr_review_gate.mjs:66
+    // was neutered). A PR body without an issue linkage must produce a
+    // violation; a linked body must pass.
+    const unlinked = checkIssueLinkage('## 变更说明\n\n修复了一个缺陷，未声明关联 Issue。');
+    assert.ok(
+      unlinked.violations.length > 0,
+      'a PR body without "Closes #NNN" must violate the Issue-Driven gate'
+    );
+    assert.match(unlinked.violations.join('\n'), /Issue/, 'the violation names the missing Issue linkage');
+    const linked = checkIssueLinkage('## 变更说明\n\n修复缺陷。\n\nCloses #123');
+    assert.equal(linked.violations.length, 0, 'a body carrying Closes #NNN passes the linkage gate');
   });
 
   test('Tier 1: Issue Template configuration must be well-formed', () => {
@@ -720,63 +750,50 @@ not ok 2 - stdio e2e: real spawn lists all seven tools
     assert.ok(Array.isArray(res.violations));
   });
 
-  test('Tier 4: Worktree physical isolation invariant logic check', () => {
-    // Simulated check: Verifies logic that catches direct source edits on main checkout in a main repo
-    function evaluateWorktreeIsolation({
-      branch,
-      isMainWorktree,
-      modifiedFiles,
-    }: {
-      branch: string;
-      isMainWorktree: boolean;
-      modifiedFiles: string[];
-    }) {
-      if (branch === 'main' && isMainWorktree) {
-        const sourceEdits = modifiedFiles.filter((f: string) => 
-          f.startsWith('src/') || f.startsWith('docs/') || f === 'package.json' || f === 'AGENTS.md'
-        );
-        if (sourceEdits.length > 0) {
-          return {
-            allowed: false,
-            violation: `Direct source modifications detected in main checkout on branch main: ${sourceEdits.join(', ')}`,
-          };
-        }
-      }
-      return { allowed: true };
-    }
-
-    // Violation case: modifying src/ on main branch in main checkout
-    const badRun = evaluateWorktreeIsolation({
-      branch: 'main',
-      isMainWorktree: true,
-      modifiedFiles: ['src/engine/workflow.ts', 'docs/README.md'],
-    });
-    assert.ok(!badRun.allowed, 'Should disallow direct edits on main in main checkout');
-
-    // Allowed case: in isolated worktree on feature branch
-    const goodRun = evaluateWorktreeIsolation({
-      branch: 'feat/dev-workflow',
-      isMainWorktree: false,
-      modifiedFiles: ['AGENTS.md', 'docs/WORKFLOW.md'],
-    });
-    assert.ok(goodRun.allowed, 'Should allow edits in feature worktree');
+  test('Tier 4: no orphan worktree shells rot beside the repo (Issue #68, probe from #67)', () => {
+    // The old Tier 4 defined `evaluateWorktreeIsolation` inside the test body
+    // and called it twice with literals — deleting the function changed no
+    // real behavior (Issue #68: a self-test, not a lock). The real worktree
+    // hygiene invariant is the one #67 wired into the cleanliness gate: a
+    // directory under the sibling AI-workflow-worktrees/ root that no longer
+    // resolves to a git worktree is a shell that must be deleted on sight.
+    // The same exported probe is asserted here so the unit suite also fails
+    // while a shell rots (on CI clones the sibling root does not exist and
+    // the probe is a no-op empty list).
+    const orphans = findOrphanWorktrees(REPO_ROOT);
+    assert.equal(
+      orphans.length,
+      0,
+      `orphan worktree shells must be deleted on sight (AGENTS.md §1.5): ${orphans.join(', ')}`,
+    );
   });
 
   test('Tier 3: dwf parking semantics must be locked (Issue #35)', () => {
     // ① The canonical event vocabulary carries dwf_parked as its own terminal —
     //    a parked run must never be countable as a failure by event type.
-    const eventsSource = fs.readFileSync(path.join(REPO_ROOT, 'src/domain/events.ts'), 'utf8');
-    assert.ok(/DWF_PARKED:\s*'dwf_parked'/.test(eventsSource), 'events.ts must declare DWF_PARKED: dwf_parked');
+    //    Issue #68: locked against the SHIPPED constant (dist build), not the
+    //    source text — rewriting the source line without changing the built
+    //    vocabulary cannot go unnoticed anymore.
+    assert.equal(WORKFLOW_EVENT.DWF_PARKED, 'dwf_parked', 'the canonical vocabulary must carry DWF_PARKED: dwf_parked');
 
     // ② The runner emits the park terminal as dwf_parked (payload keeps
-    //    data.status "parked" for consumers keyed on it).
+    //    data.status "parked" for consumers keyed on it). Source lock kept:
+    //    the terminal selection has no exported pure surface, and the
+    //    emission behavior is already behaviorally pinned end-to-end by
+    //    tests/integration/dwf-branch-parking.test.ts (dwf_parked payload
+    //    assertions) — this regex only guards the emit-site ternary shape.
     const runnerSource = fs.readFileSync(path.join(REPO_ROOT, 'src/dwf/runner.ts'), 'utf8');
     assert.ok(/result\.status === 'parked' \? 'dwf_parked' : 'dwf_failed'/.test(runnerSource), 'runner terminal emit must select dwf_parked for parked runs');
 
-    // ③ The projection folds dwf_parked to paused and keeps the legacy
-    //    dwf_failed{status:"parked"} journal shape folding to paused too.
-    const projectionSource = fs.readFileSync(path.join(REPO_ROOT, 'src/dag/journal-projection.ts'), 'utf8');
-    assert.ok(/case 'dwf_parked':\s*\n\s*case 'dwf_failed':/.test(projectionSource), 'journal-projection must fold dwf_parked (and the legacy parked shape) to paused');
+    // ③ The projection folds dwf_parked to paused — Issue #68: locked by
+    //    BEHAVIOR through the shipped projector (a parked stream folds to a
+    //    paused graph), not by matching a case-label text; the legacy
+    //    dwf_failed{status:"parked"} fold stays covered by
+    //    tests/unit/dag-journal-projection.test.ts.
+    const parkedStream: Array<Record<string, unknown>> = [
+      { id: 'e1', workflowId: 'facade-script', runId: 'dwfrun-gov-parked', type: 'dwf_parked', timestamp: '2026-01-01T00:00:00.000Z', data: { status: 'parked' } },
+    ];
+    assert.equal(projectEventsToGraph(parkedStream).status, 'paused', 'the shipped projection folds a dwf_parked stream to paused');
 
     // ④ answer refuses non-parked runs with the same refusal family as fill.
     const answerSource = fs.readFileSync(path.join(REPO_ROOT, 'src/cli/commands/answer.ts'), 'utf8');
