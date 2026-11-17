@@ -174,6 +174,11 @@ export class SQLiteStateStore implements StateStore {
     if (!dwfRunCols.includes('budget_total')) {
       this.addColumnToleratingRace('dwf_runs', 'budget_total', 'INTEGER');
     }
+    // Issue #63: the executed (live) ask count settles next to the token spend
+    // so the agent() call cap continues across resumes (same restoration doors).
+    if (!dwfRunCols.includes('executed_asks')) {
+      this.addColumnToleratingRace('dwf_runs', 'executed_asks', 'INTEGER');
+    }
     // Issue #39: per-actor named-cache identity columns on ask rows. The pragma
     // guard keeps old journals readable in place (missing columns read back
     // as undefined and the actor-keyed cache path stays inert for them).
@@ -627,17 +632,18 @@ export class SQLiteStateStore implements StateStore {
   public async saveDwfRun(row: DwfRunRow): Promise<void> {
     const now = new Date().toISOString();
     const stmt = this.db.prepare(`
-      INSERT INTO dwf_runs (run_id, script_hash, script_path, args_json, status, parent_run_id, runner_pid, output_tokens_spent, budget_total, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO dwf_runs (run_id, script_hash, script_path, args_json, status, parent_run_id, runner_pid, output_tokens_spent, executed_asks, budget_total, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(run_id) DO UPDATE SET
         status = excluded.status,
         updated_at = excluded.updated_at,
         parent_run_id = excluded.parent_run_id,
         runner_pid = excluded.runner_pid,
         output_tokens_spent = excluded.output_tokens_spent,
+        executed_asks = excluded.executed_asks,
         budget_total = excluded.budget_total
     `);
-    stmt.run(row.runId, row.scriptHash, row.scriptPath ?? null, row.argsJson ?? null, row.status, row.parentRunId ?? null, row.runnerPid ?? null, row.outputTokensSpent ?? null, row.budgetTotal ?? null, row.createdAt ?? now, row.updatedAt ?? now);
+    stmt.run(row.runId, row.scriptHash, row.scriptPath ?? null, row.argsJson ?? null, row.status, row.parentRunId ?? null, row.runnerPid ?? null, row.outputTokensSpent ?? null, row.executedAsks ?? null, row.budgetTotal ?? null, row.createdAt ?? now, row.updatedAt ?? now);
   }
 
   public async getDwfRun(runId: string): Promise<DwfRunRow | null> {
@@ -658,6 +664,7 @@ export class SQLiteStateStore implements StateStore {
       parentRunId: row.parent_run_id ?? undefined,
       runnerPid: row.runner_pid === null || row.runner_pid === undefined ? undefined : Number(row.runner_pid),
       outputTokensSpent: row.output_tokens_spent === null || row.output_tokens_spent === undefined ? undefined : Number(row.output_tokens_spent),
+      executedAsks: row.executed_asks === null || row.executed_asks === undefined ? undefined : Number(row.executed_asks),
       budgetTotal: row.budget_total === null || row.budget_total === undefined ? undefined : Number(row.budget_total),
       createdAt: row.created_at,
       updatedAt: row.updated_at,

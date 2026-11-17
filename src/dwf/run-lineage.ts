@@ -47,6 +47,8 @@ export interface LineageResolution {
   amendedFrom?: string;
   priorRunParent?: string;
   priorSpentTokens?: number;
+  /** Issue #63: the prior run's executed (live) ask count — restores the call cap on continuation doors. */
+  priorExecutedAsks?: number;
   priorBudgetTotal?: number;
   /** Stale-run takeover (GOAL.md §1.5): a resumed `running` row whose host is gone. */
   resumeTakeover?: { reason: 'dead-pid' | 'no-recorded-pid'; deadPid?: number };
@@ -71,6 +73,7 @@ export async function resolveRunLineage(
   let amendedFrom: string | undefined;
   let priorRunParent: string | undefined;
   let priorSpentTokens: number | undefined;
+  let priorExecutedAsks: number | undefined;
   // Issue #118: the recorded cap of the run being continued — inherited when
   // the caller does not pass an explicit --budget-total (the caller always wins).
   let priorBudgetTotal: number | undefined;
@@ -117,7 +120,8 @@ export async function resolveRunLineage(
     // spent baseline come with it (the caller's explicit --budget-total wins).
     priorBudgetTotal = prior.budgetTotal;
     priorSpentTokens = prior.outputTokensSpent;
-    return { ok: true, resolution: { runId, amendedFrom, priorRunParent, priorSpentTokens, priorBudgetTotal, resumeTakeover } };
+    priorExecutedAsks = prior.executedAsks;
+    return { ok: true, resolution: { runId, amendedFrom, priorRunParent, priorSpentTokens, priorExecutedAsks, priorBudgetTotal, resumeTakeover } };
   }
 
   if (options.parentRunId) {
@@ -253,8 +257,9 @@ export async function resolveRunLineage(
     importedCache = new Map(priorNodes.slice().reverse().map((n) => [`${n.siteId}#${n.ordinal}`, n]));
     amendedFrom = sourceRunId;
     priorBudgetTotal = prior.budgetTotal; // amend/rerun inherit the cap (Issue #118)
+    priorExecutedAsks = prior.executedAsks; // and the ask-cap baseline (Issue #63)
     runId = mintRunId();
-    return { ok: true, resolution: { runId, importedCache, amendedFrom, priorRunParent, priorSpentTokens, priorBudgetTotal, resumeTakeover } };
+    return { ok: true, resolution: { runId, importedCache, amendedFrom, priorRunParent, priorSpentTokens, priorExecutedAsks, priorBudgetTotal, resumeTakeover } };
   }
 
   return { ok: true, resolution: { runId: mintRunId(), amendedFrom, priorRunParent, priorSpentTokens, priorBudgetTotal, resumeTakeover } };

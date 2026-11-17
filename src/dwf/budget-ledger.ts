@@ -20,10 +20,20 @@ export class BudgetLedger {
   private sizeWarningEmitted = false;
   private readonly budgetTotal: number | null;
 
-  constructor(opts: { restoreOutputTokensSpent?: number; budgetTotal?: number }) {
+  constructor(opts: { restoreOutputTokensSpent?: number; restoreExecutedAsks?: number; budgetTotal?: number }) {
     // A resumed run continues its token accounting, not a fresh zero.
     if (opts.restoreOutputTokensSpent !== undefined) {
       this.outputTokensSpent = opts.restoreOutputTokensSpent;
+    }
+    // Issue #63: the ask cap continues across a resume too — the prior run's
+    // executed asks come back from the dwf_runs row, or a resumed run would
+    // burn another full AGENT_CALL_CAP on top of the lineage's asks while its
+    // token budget stays continuous. A lineage that already crossed the size
+    // warning threshold counts as warned: without this, the one-shot warning
+    // (dwf_size_warning) would re-emit on every continuation past 25 asks.
+    if (opts.restoreExecutedAsks !== undefined) {
+      this.executedAsks = opts.restoreExecutedAsks;
+      this.sizeWarningEmitted = this.executedAsks >= SIZE_WARNING_ASKS;
     }
     // Official parity: the run config, not the script, owns the cap.
     this.budgetTotal = opts.budgetTotal !== undefined && opts.budgetTotal > 0 ? opts.budgetTotal : null;
@@ -35,6 +45,11 @@ export class BudgetLedger {
 
   get total(): number | null {
     return this.budgetTotal;
+  }
+
+  /** Executed (live) ask count so far — the dwf_budget_spent payload carries it for settlement persistence. */
+  get askCount(): number {
+    return this.executedAsks;
   }
 
   charge(usage: TokenUsage): void {

@@ -275,7 +275,7 @@ async function runInner(
   const scriptHash = hashScriptSource(source);
   const lineage = await resolveRunLineage(options, cwd, store, analysis, scriptHash);
   if (!lineage.ok) return lineage.result;
-  const { runId, importedCache, amendedFrom, priorRunParent, priorSpentTokens, priorBudgetTotal, resumeTakeover } = lineage.resolution;
+  const { runId, importedCache, amendedFrom, priorRunParent, priorSpentTokens, priorExecutedAsks, priorBudgetTotal, resumeTakeover } = lineage.resolution;
   // Issue #118: the effective ceiling — the caller's explicit --budget-total
   // wins; otherwise the run's recorded cap rides every continuation door.
   const effectiveBudgetTotal = options.budgetTotal ?? priorBudgetTotal;
@@ -394,6 +394,7 @@ async function runInner(
   let replayHits = 0;
   let amendHits = 0;
   let lastSpentTokens: number | undefined;
+  let lastExecutedAsks: number | undefined;
   let diverged = 0;
   let inFlightAsks = 0;
   let parkedAt: { siteId: string; name: string; prompt: string; kind: 'hole' | 'escalation' } | undefined;
@@ -462,6 +463,7 @@ async function runInner(
     // this deadline to decline a wait that the runner would kill anyway.
     deadlineMs: Date.now() + runTimeoutMs,
     restoreOutputTokensSpent: options.restoreOutputTokensSpent ?? priorSpentTokens,
+    restoreExecutedAsks: priorExecutedAsks,
     importedCache,
     modelDirectory: options.modelDirectory,
     workflowDepth: options.workflowDepth ?? 0,
@@ -489,6 +491,10 @@ async function runInner(
       // settlement accounting (the parent engine absorbs it explicitly).
       if (e.type === 'dwf_budget_spent' && typeof e.data.spent === 'number' && e.data.childWorkflow === undefined) {
         lastSpentTokens = e.data.spent;
+        // Issue #63: the ledger's absolute live-ask count (restored + this
+        // process) rides the same event — settlement persists it so the cap
+        // continues across resumes instead of restarting from zero.
+        if (typeof e.data.executedAsks === 'number') lastExecutedAsks = e.data.executedAsks;
       }
       // Park-site capture: the open events record WHERE the run is suspended;
       // the parking itself happens in maybePark (below) once the engine is idle.
@@ -783,6 +789,10 @@ async function runInner(
     parentRunId: amendedFrom ?? (options.resumeRunId ? priorRunParent : undefined),
     runnerPid: undefined, // a settled run has no owning process
     outputTokensSpent: lastSpentTokens ?? priorSpentTokens,
+    // Issue #63: the lineage's live-ask count settles next to the token spend —
+    // a continuation door (answer/resume/amend/rerun) restores the call cap
+    // from this column instead of granting a fresh AGENT_CALL_CAP.
+    executedAsks: lastExecutedAsks ?? priorExecutedAsks,
     // Same UPSERT hazard as parentRunId: without this the settlement would
     // null the cap recorded at launch (Issue #118).
     budgetTotal: effectiveBudgetTotal,

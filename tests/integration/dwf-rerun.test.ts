@@ -5,6 +5,9 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { runFacadeScript } from '../../src/dwf/runner.js';
 import { analyzeFacadeScript } from '../../src/dwf/compile.js';
+import { createSQLiteStore } from '../../src/state/store.js';
+import type { SQLiteStateStore } from '../../src/state/sqlite-store.js';
+import type { DwfJournalStore } from '../../src/types.js';
 
 /**
  * Issue #116: rerun the SAME script from a chosen site. Sites before the
@@ -100,6 +103,39 @@ test('rerun refuses an unknown --from site and lists the known sites; --rerun wi
     const both = await runFacadeScript({ scriptPath, cwd: ws.dir, rerunRunId: first.runId, amendRunId: first.runId, rerunFromSite: askSiteIds(THREE_ASKS)[1] });
     assert.equal(both.status, 'failed');
     assert.match(both.error ?? '', /--rerun alone/);
+  } finally {
+    ws.cleanup();
+  }
+});
+
+test('executedAsks settle with the run row and continue across a rerun (Issue #63)', async () => {
+  const ws = makeWorkspace();
+  try {
+    const scriptPath = path.join(ws.dir, 'script.facade.ts');
+    fs.writeFileSync(scriptPath, THREE_ASKS);
+    const asks = askSiteIds(THREE_ASKS);
+
+    const first = await runFacadeScript({ scriptPath, cwd: ws.dir });
+    assert.equal(first.status, 'completed', `first run failed: ${first.error}`);
+    assert.equal(first.stats.asks, 3, 'the first run executes every ask live');
+
+    // The settlement persists the lineage's live-ask count next to the token spend.
+    const store = createSQLiteStore(path.join(ws.dir, '.workflow', 'dwf.sqlite')) as SQLiteStateStore & DwfJournalStore;
+    const firstRow = await store.getDwfRun(first.runId);
+    assert.ok(firstRow);
+    assert.equal(firstRow.executedAsks, 3, "the executed_asks column records the first run's live asks");
+
+    // Rerun from the second site: 1 warm replay + 2 live asks — the rerun's
+    // ledger starts from the restored 3, not from zero, so its settlement
+    // carries 3 + 2 = 5. Without the restore the row would read 2 (cap reset).
+    const rerun = await runFacadeScript({ scriptPath, cwd: ws.dir, rerunRunId: first.runId, rerunFromSite: asks[1] });
+    assert.equal(rerun.status, 'completed', `rerun failed: ${rerun.error}`);
+    assert.equal(rerun.stats.amendHits, 1);
+    assert.equal(rerun.stats.asks, 2);
+    const rerunRow = await store.getDwfRun(rerun.runId);
+    assert.ok(rerunRow);
+    assert.equal(rerunRow.executedAsks, 5, 'the rerun continues the lineage ask count instead of restarting from zero');
+    store.close();
   } finally {
     ws.cleanup();
   }

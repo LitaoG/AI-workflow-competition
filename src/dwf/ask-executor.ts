@@ -182,7 +182,10 @@ export async function executeAsk(ctx: AskExecutionContext): Promise<unknown> {
       retryOrchestrator.recordSuccess(routedProvider);
       aimdGovernor.release(routedProvider, 'success', { modelId: aimdModel });
       const spent = ledger.noteAskCompleted();
-      emit('dwf_budget_spent', { spent, total: ledger.total });
+      // Issue #63: the executed-ask count rides the same settlement event so
+      // the runner persists it next to the token spend and a resume restores
+      // the agent() call cap from the dwf_runs row.
+      emit('dwf_budget_spent', { spent, total: ledger.total, executedAsks: ledger.askCount });
       emit('dwf_ask_complete', { siteId, actor: actor.name });
       return reply;
     } catch (err) {

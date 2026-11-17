@@ -440,6 +440,13 @@ export interface DwfRunRow {
    * ceiling was set.
    */
   budgetTotal?: number;
+  /**
+   * Executed (live) ask count at the last settlement (Issue #63): persisted
+   * alongside outputTokensSpent and restored by the same continuation doors,
+   * so the agent() call cap and the size warning keep counting across a
+   * resume instead of restarting from zero while the token spend continues.
+   */
+  executedAsks?: number;
 }
 
 /** Optional facade-journal surface a StateStore may implement. */

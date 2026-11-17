@@ -291,7 +291,7 @@ Provider 抽象层（`src/agent/provider-contract.ts`）定义了标准统一的
 - **运行座位闸门**：FIFO 泊车排队；
 - **逐 Provider AIMD 进程治理**（`src/dwf/governor.ts`）：失败乘性降 ×0.75，每连续 4 次成功加性升 +1，下限 1，5 分钟空闲重置——一次 429 批次不会永久压垮吞吐。
 
-**硬熔断**：`agent()` 调用数硬上限 `AGENT_CALL_CAP = 1000`（`src/execution/swarm-dispatcher.ts` 的 `SWARM_AGENT_CAP`，与 Claude Code 对齐）；触顶即 `WorkflowAgentCapError`（可捕获，运行存活），附带官方同款反死循环文案——"用 `budget.remaining()` 判终止的循环永远不终止"。**预算**：`budgetTotal` 以 `agent()` 调用粒度执行输出 Token 预算，超支阻止**后续** `agent()` 调用（`WorkflowBudgetExceededError`），在途 ask 完成且结果保留；脚本内 `budget` 只读（`spent()`/`remaining()`/`total`），`total = null` 表示无限。
+**硬熔断**：`agent()` 调用数硬上限 `AGENT_CALL_CAP = 1000`（`src/execution/swarm-dispatcher.ts` 的 `SWARM_AGENT_CAP`，与 Claude Code 对齐）；触顶即 `WorkflowAgentCapError`（可捕获，运行存活），附带官方同款反死循环文案——"用 `budget.remaining()` 判终止的循环永远不终止"。该计数随 run 结算落盘（`dwf_runs.executed_asks`，Issue #63），answer/resume/amend/rerun 从行内续算而非归零重发一个新配额——熔断口径与 Token 预算同为**整条 run lineage 连续**。**预算**：`budgetTotal` 以 `agent()` 调用粒度执行输出 Token 预算，超支阻止**后续** `agent()` 调用（`WorkflowBudgetExceededError`），在途 ask 完成且结果保留；脚本内 `budget` 只读（`spent()`/`remaining()`/`total`），`total = null` 表示无限。
 
 ### 6.6 确定性键控与 Settle-Order Gate
 
