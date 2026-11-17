@@ -365,6 +365,24 @@ export function findOrphanWorktrees(cwd = process.cwd()) {
   return orphans;
 }
 
+/**
+ * B③（Issue #136，#130 建议 3 / Part of #134）：head commit 的 CI `gate`
+ * check-run 结论为 failure 时拦截——红门合入的机械预防（#119 实证形态）。
+ * pending / 无 check-run（CI 尚未出结论）不拦：enforce_admins 在 GitHub 侧兜底；
+ * null 结论视为「无法核对」，放行不误伤。
+ */
+export function checkCiGateConclusion(conclusion) {
+  if (conclusion === 'failure') {
+    return {
+      valid: false,
+      violations: [
+        'head commit 的 CI gate 结论为 failure——红门禁止合入（Issue #130/#136）；修复后或等 CI 重跑转绿再合',
+      ],
+    };
+  }
+  return { valid: true, violations: [] };
+}
+
 // CLI 执行逻辑
 function runCLI() {
   const args = process.argv.slice(2);
@@ -474,7 +492,7 @@ PR Review & Cooling Period Gate CLI (pr_review_gate.mjs)
 
   console.log(`正在检查 PR #${prNumber} ...`);
   try {
-    const raw = execFileSync('gh', ['pr', 'view', prNumber, '--json', 'body,createdAt,comments,reviews'], {
+    const raw = execFileSync('gh', ['pr', 'view', prNumber, '--json', 'body,createdAt,comments,reviews,headRefOid'], {
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
     });
@@ -531,6 +549,27 @@ PR Review & Cooling Period Gate CLI (pr_review_gate.mjs)
     // S2（Issue #196）：「无评论」声明与关联 Issue 时间线机械核对。
     const claimRes = checkNoCommentClaims(prData.body || '', issueComments);
 
+    // B③（Issue #136，#130 建议 3 / Part of #134）：head commit 的 CI `gate`
+    // 结论为 failure 时拦截——红门合入的机械预防。拉取失败降级为提示
+    // （可用性优先，与关联 Issue 评论拉取口径一致）；pending 不拦，
+    // enforce_admins 在 GitHub 侧兜底。
+    let ciRes = { valid: true, violations: [] };
+    if (prData.headRefOid) {
+      try {
+        const rawRuns = execFileSync(
+          'gh',
+          ['api', `repos/:owner/:repo/commits/${prData.headRefOid}/check-runs`],
+          { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
+        );
+        const gateRun = (JSON.parse(rawRuns).check_runs || []).find((r) => r.name === 'gate');
+        if (gateRun && gateRun.status === 'completed') {
+          ciRes = checkCiGateConclusion(gateRun.conclusion);
+        }
+      } catch {
+        console.log('[提示] head check-runs 拉取失败，CI 结论核对跳过');
+      }
+    }
+
     const allViolations = [
       ...issueRes.violations,
       ...fpRes.violations,
@@ -538,6 +577,7 @@ PR Review & Cooling Period Gate CLI (pr_review_gate.mjs)
       ...coolRes.violations,
       ...commRes.violations,
       ...claimRes.violations,
+      ...ciRes.violations,
     ];
 
     if (allViolations.length > 0) {
