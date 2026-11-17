@@ -38,6 +38,30 @@ function collect(value: string, previous: string[]): string[] {
 }
 
 /**
+ * Shared facade-run option face for `run` and `run-script` (Issue #104): one
+ * registration so the two entries cannot drift. Per-command extras stay with
+ * their own command (`--watch`/`--progress` on run; `--rerun`/`--from`/
+ * `--approve-cmd` on run-script), and the --resume/--amend short flags stay
+ * per-command too — `-r`/`-m` are already taken by run's
+ * --resume-from-failed/--mock.
+ */
+function registerFacadeRunOptions(cmd: Command): Command {
+  return cmd
+    .option('-a, --args <json>', 'Script input as JSON (available as `args`)')
+    .option('--args-file <file>', 'Read script input from a JSON file (PowerShell-safe, zero escaping)')
+    .option('--set <pair>', 'Set a script arg key=value with type inference (repeatable)', collect, [])
+    .option('--cwd <path>', 'Workspace the run executes in (journal resolution + sandbox child cwd)')
+    .option('--db <path>', 'Journal database path (default .workflow/dwf.sqlite)')
+    .option('-c, --max-concurrency <n>', 'Max concurrent subagent asks (default 4)')
+    .option('--budget-total <n>', 'Output-token budget for the run (read-only inside the script)')
+    .option('--failover <ids>', 'Comma-separated failover provider ids for actor asks (e.g. mock,gemini-cli)')
+    .option('--live <path>', 'Write a self-refreshing HTML execution view while the run goes')
+    .option('--watch-graph', 'Rewrite the run dir graph.html after every event (same journal projection as `workflow graph` cold replay)')
+    .option('--ui', 'When the run settles, serve the AI-Workflow Studio (SSE + A2UI resume) and open the browser')
+    .option('--run-timeout <ms>', 'Whole-run wall clock in ms (default 600000; env AI_WORKFLOW_RUN_TIMEOUT_MS)');
+}
+
+/**
  * The CLI banner version, read from the package manifest so the published
  * tarball, the docs and `workflow --version` can never drift apart (they used
  * to: the hardcoded literal said 1.0.0 while package.json said 2.0.0).
@@ -106,7 +130,7 @@ Commands:
 
   let exitCode = 0;
 
-  program
+  const runCmd = program
     .command('run <file>')
     .description(dict.CMD_RUN_DESC)
     .option('-r, --resume-from-failed <runId>', dict.OPT_RESUME_FAILED)
@@ -119,27 +143,16 @@ Commands:
     // directly; registered so commander does not reject the documented
     // resumption walkthrough (2026-11-14 round 2).
     .option('--interrupt-at <n>', 'Demo resumption hook: stop the workflow after N steps (read by demo workflows from argv)')
-    .option('-v, --verbose', dict.OPT_VERBOSE)
-    // Facade-script face: `run` auto-detects facade traits (static scan — never
-    // an import() probe, facade scripts have a top-level `return`) and forwards
-    // transparently to the DWF sandbox runner. Builder definitions keep the
-    // legacy behavior below.
-    .option('-a, --args <json>', 'Script input as JSON (facade scripts; available inside as `args`)')
-    .option('--args-file <file>', 'Read script input from a JSON file (facade scripts; PowerShell-safe, zero escaping)')
-    .option('--set <pair>', 'Set a script arg key=value with type inference (facade scripts; repeatable)', collect, [])
-    .option('--resume <runId>', 'Resume a prior facade run: completed nodes replay from the journal at zero model calls')
-    .option('--amend <runId>', 'Amend a prior facade run: fork a new run with an edited script; unchanged nodes replay warm')
-    .option('--db <path>', 'Journal database path (facade scripts; default .workflow/dwf.sqlite)')
-    .option('-c, --max-concurrency <n>', 'Max concurrent subagent asks (facade scripts; default 4)')
-    .option('--budget-total <n>', 'Output-token budget for the run (facade scripts)')
-    .option('--failover <ids>', 'Comma-separated failover provider ids for actor asks (facade scripts)')
-    .option('--live <path>', 'Write a self-refreshing HTML execution view while the run goes (facade scripts)')
-    .option('--watch-graph', 'Rewrite the run dir graph.html after every event (facade scripts)')
-    .option('--watch', 'Alias of --watch-graph: rewrite the run dir graph.html after every event (facade scripts)')
-    .option('--progress', 'Structured [wf] progress lines on stdout for harness agents to mirror into their todo list (facade scripts)')
-    .option('--ui', 'When the run settles, serve the AI-Workflow Studio (SSE + A2UI resume) and open the browser')
-    .option('--run-timeout <ms>', 'Whole-run wall clock in ms for facade runs (default 600000; env AI_WORKFLOW_RUN_TIMEOUT_MS)')
-    .option('--cwd <path>', 'Workspace the workflow executes in (journal resolution + sandbox child cwd)')
+    .option('-v, --verbose', dict.OPT_VERBOSE);
+  // Facade-script face: `run` auto-detects facade traits (static scan — never
+  // an import() probe, facade scripts have a top-level `return`) and forwards
+  // transparently to the DWF sandbox runner. Builder definitions keep the
+  // legacy behavior below.
+  registerFacadeRunOptions(runCmd)
+    .option('--resume <runId>', 'Resume a prior run: completed nodes replay from the journal at zero model calls (script must be byte-identical)')
+    .option('--amend <runId>', 'Amend a prior run: fork a new run with an edited script; unchanged nodes replay from the warm cache')
+    .option('--watch', 'Alias of --watch-graph: rewrite the run dir graph.html after every event')
+    .option('--progress', 'Structured [wf] progress lines on stdout for harness agents to mirror into their todo list')
     .action(async (file, opts) => {
       const effectiveLang = opts.lang ?? program.opts().lang ?? lang;
       // Facade scripts may be spelled relative to --cwd; fall back to that
@@ -288,28 +301,17 @@ Commands:
       });
     });
 
-  program
+  const runScriptCmd = program
     .command('run-script <file>')
     .description(dict.CMD_RUN_SCRIPT_DESC)
-    .option('-a, --args <json>', 'Script input as JSON (available as `args`)')
-    .option('--args-file <file>', 'Read script input from a JSON file (PowerShell-safe, zero escaping)')
-    .option('--set <pair>', 'Set a script arg key=value with type inference (repeatable)', collect, [])
-    .option('--cwd <path>', 'Workspace the run executes in (journal resolution + sandbox child cwd)')
-    .option('-r, --resume <runId>', 'Resume a prior run: completed nodes replay from the journal at zero model calls (script must be byte-identical)')
-    .option('-m, --amend <runId>', 'Amend a prior run: fork a new run with an edited script; unchanged nodes replay from the warm cache')
     .option('--rerun <runId>', 'Rerun a prior run with the same script from --from <siteId>: earlier sites replay from the warm cache, that site and later ones run live')
     .option('--from <siteId>', 'Site id where a --rerun starts executing live (`workflow check <file>` lists the site table)')
-    .option('--db <path>', 'Journal database path (default .workflow/dwf.sqlite)')
-    .option('-c, --max-concurrency <n>', 'Max concurrent subagent asks (default 4)')
-    .option('--budget-total <n>', 'Output-token budget for the run (read-only inside the script)')
     .option('--approve-cmd <name>', 'Authorize a world.run command for this run (repeatable; the script own list no longer authorizes - Issue #127)', collect, [])
-    .option('--failover <ids>', 'Comma-separated failover provider ids for actor asks (e.g. mock,gemini-cli)')
-    .option('--live <path>', 'Write a self-refreshing HTML execution view while the run goes')
-    .option('--watch-graph', 'Rewrite the run dir graph.html after every event (same journal projection as `workflow graph` cold replay)')
-    .option('--ui', 'When the run settles, serve the AI-Workflow Studio (SSE + A2UI resume) and open the browser')
     .option('--mock', 'Force tier routing to the built-in mock provider (offline, 0 tokens; overrides AI_WORKFLOW_*_PROVIDER tier routing)')
-    .option('--run-timeout <ms>', 'Whole-run wall clock in ms (default 600000; env AI_WORKFLOW_RUN_TIMEOUT_MS)')
-    .option('-l, --lang <lang>', dict.OPT_LANG)
+    .option('-l, --lang <lang>', dict.OPT_LANG);
+  registerFacadeRunOptions(runScriptCmd)
+    .option('-r, --resume <runId>', 'Resume a prior run: completed nodes replay from the journal at zero model calls (script must be byte-identical)')
+    .option('-m, --amend <runId>', 'Amend a prior run: fork a new run with an edited script; unchanged nodes replay from the warm cache')
     .action(async (file, opts) => {
       const composed = composeScriptArgs({ argsJson: opts.args, argsFile: opts.argsFile, setPairs: opts.set });
       if (composed.error) {
