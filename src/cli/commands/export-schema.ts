@@ -15,13 +15,13 @@ export interface ExportSchemaCommandOptions {
   out?: string;
 }
 
-export async function executeExportSchema(options?: ExportSchemaCommandOptions): Promise<number> {
-  const format = (options?.format ?? 'openai').toLowerCase();
-  if (format !== 'openai') {
-    console.error(`Error: unsupported --format "${format}". Supported: openai`);
-    return 1;
-  }
-  const tools = TOOL_CATALOG.map((t) => ({
+/**
+ * TOOL_CATALOG → OpenAI function-calling array — the single mapping both the
+ * export-schema command and the setup codex target render (Issue #114), so
+ * `.codex/tools.json` and the export output cannot drift apart.
+ */
+export function openAiToolArray(): Array<{ type: 'function'; function: { name: string; description: string; parameters: unknown } }> {
+  return TOOL_CATALOG.map((t) => ({
     type: 'function',
     function: {
       name: t.name,
@@ -29,6 +29,15 @@ export async function executeExportSchema(options?: ExportSchemaCommandOptions):
       parameters: t.inputSchema,
     },
   }));
+}
+
+export async function executeExportSchema(options?: ExportSchemaCommandOptions): Promise<number> {
+  const format = (options?.format ?? 'openai').toLowerCase();
+  if (format !== 'openai') {
+    console.error(`Error: unsupported --format "${format}". Supported: openai`);
+    return 1;
+  }
+  const tools = openAiToolArray();
   const json = JSON.stringify(tools, null, 2) + '\n';
   if (options?.out) {
     const abs = path.resolve(options.out);

@@ -15,7 +15,7 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { TOOL_CATALOG } from '../../mcp/server.js';
+import { openAiToolArray } from './export-schema.js';
 import {
   CLAUDE_SKILL_TEMPLATE,
   OPENCODE_AGENT_TEMPLATE,
@@ -157,10 +157,7 @@ function opencodeFiles(invocation: ReturnType<typeof engineInvocation>): Array<{
 }
 
 function codexFiles(): Array<{ rel: string; content: string }> {
-  const tools = TOOL_CATALOG.map((t) => ({
-    type: 'function',
-    function: { name: t.name, description: t.description, parameters: t.inputSchema },
-  }));
+  const tools = openAiToolArray();
   // Pure JSON only — OpenAI function-calling consumers JSON.parse this file
   // verbatim; a `//` comment prefix made the committed copy unparseable
   // (review round 1, HIGH). Regeneration hint lives in .codex/instructions.md.
