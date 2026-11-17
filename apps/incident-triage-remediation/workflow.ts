@@ -30,6 +30,22 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 /**
+ * Deterministic steering policy — the single source of the six-pattern
+ * destructive-command blacklist (Issue #112): the reviewer's verdict never
+ * licenses destructive commands. Exported so tests/adversarial/demo1-safety-stress.js
+ * asserts against THIS array instead of a pasted copy (a policy edit must turn
+ * the safety suite red, not silently keep it green).
+ */
+export const DESTRUCTIVE_BLACKLIST: RegExp[] = [
+  /\bdrop\b/i,
+  /\btruncate\b/i,
+  /rm\s+-rf/i,
+  /\bmkfs\b/i,
+  /format\s+[a-z]:/i,
+  /delete\s+from\s+[a-z0-9_]+\s*;?$/i,
+];
+
+/**
  * Autonomous DevOps Incident Triage & Automated Remediation Dynamic Workflow
  *
  * Implements the 5-phase "Code, not conversation" dynamic workflow:
@@ -191,17 +207,9 @@ export const workflow = defineWorkflow({
 
         // Deterministic Steering Policy Enforcement: "Code, not conversation"
         // Reject any destructive command tokens regardless of LLM score
-        const destructiveBlacklist = [
-          /\bdrop\b/i,
-          /\btruncate\b/i,
-          /rm\s+-rf/i,
-          /\bmkfs\b/i,
-          /format\s+[a-z]:/i,
-          /delete\s+from\s+[a-z0-9_]+\s*;?$/i,
-        ];
-
+        // (single-sourced from DESTRUCTIVE_BLACKLIST above — Issue #112).
         for (const action of plan.actions) {
-          for (const pattern of destructiveBlacklist) {
+          for (const pattern of DESTRUCTIVE_BLACKLIST) {
             if (pattern.test(action.command)) {
               review.approved = false;
               review.policyCompliance = 'FAIL';

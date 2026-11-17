@@ -34,7 +34,7 @@ import {
   PostMortemReportSchema,
 } from '../../apps/incident-triage-remediation/schemas.ts';
 
-import { workflow } from '../../apps/incident-triage-remediation/workflow.ts';
+import { workflow, DESTRUCTIVE_BLACKLIST } from '../../apps/incident-triage-remediation/workflow.ts';
 import { SCENARIO_BUNDLES } from '../../apps/incident-triage-remediation/mocks/mock-agent-responses.ts';
 import { SQLiteStateStore } from '../../dist/src/state/sqlite-store.js';
 import { GateFailureError, StepExecutionError } from '../../dist/src/core/error.js';
@@ -62,31 +62,11 @@ function cleanupTempDir(dirPath) {
 // ============================================================================
 // SUITE 1: Adversarial Safety Attacks & Policy Gate Hardening
 // ============================================================================
-
-test('Adversarial Safety: Mandated destructive attacks are blocked by policy regex', async (t) => {
-  const mandatedAttacks = [
-    'DROP DATABASE production;',
-    'rm -rf /var/data',
-    'TRUNCATE TABLE users;',
-    'mkfs.ext4 /dev/sda1',
-  ];
-
-  const destructiveBlacklist = [
-    /\bdrop\b/i,
-    /\btruncate\b/i,
-    /rm\s+-rf/i,
-    /\bmkfs\b/i,
-    /format\s+[a-z]:/i,
-    /delete\s+from\s+[a-z0-9_]+\s*;?$/i,
-  ];
-
-  for (const cmd of mandatedAttacks) {
-    await t.test(`Blocks mandated attack: "${cmd}"`, () => {
-      const isBlocked = destructiveBlacklist.some((re) => re.test(cmd));
-      assert.equal(isBlocked, true, `Destructive command "${cmd}" should be blocked by blacklist`);
-    });
-  }
-});
+// All policy assertions below run against DESTRUCTIVE_BLACKLIST imported from
+// apps/incident-triage-remediation/workflow.ts (Issue #112): a policy edit in
+// the source must turn this suite red, not silently keep it green. The former
+// "Mandated attacks" test was a strict subset of the extended catalog and its
+// local regex copy — deleted.
 
 test('Adversarial Safety: Comprehensive destructive command catalog (25+ variants) blocked 100%', async (t) => {
   const extendedAttacks = [
@@ -127,18 +107,9 @@ test('Adversarial Safety: Comprehensive destructive command catalog (25+ variant
     'sh -c "truncate table users;"',
   ];
 
-  const destructiveBlacklist = [
-    /\bdrop\b/i,
-    /\btruncate\b/i,
-    /rm\s+-rf/i,
-    /\bmkfs\b/i,
-    /format\s+[a-z]:/i,
-    /delete\s+from\s+[a-z0-9_]+\s*;?$/i,
-  ];
-
   let blockedCount = 0;
   for (const cmd of extendedAttacks) {
-    const isBlocked = destructiveBlacklist.some((re) => re.test(cmd));
+    const isBlocked = DESTRUCTIVE_BLACKLIST.some((re) => re.test(cmd));
     if (isBlocked) blockedCount++;
     assert.equal(isBlocked, true, `Attack "${cmd}" was NOT blocked!`);
   }
@@ -159,17 +130,8 @@ test('Adversarial Safety: Non-destructive operational commands are NOT falsely b
     'cat /var/log/app.log',
   ];
 
-  const destructiveBlacklist = [
-    /\bdrop\b/i,
-    /\btruncate\b/i,
-    /rm\s+-rf/i,
-    /\bmkfs\b/i,
-    /format\s+[a-z]:/i,
-    /delete\s+from\s+[a-z0-9_]+\s*;?$/i,
-  ];
-
   for (const cmd of benignCommands) {
-    const isBlocked = destructiveBlacklist.some((re) => re.test(cmd));
+    const isBlocked = DESTRUCTIVE_BLACKLIST.some((re) => re.test(cmd));
     assert.equal(isBlocked, false, `Benign command "${cmd}" was falsely blocked!`);
   }
 });
