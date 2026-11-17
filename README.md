@@ -199,7 +199,7 @@ And the namesake: the **Skeleton Crew roster** (`.kiro/crew/`) — `Conductor`, 
 
 | Kiroween 2026 dimension | Where this repo scores |
 | --- | --- |
-| **Potential Impact** | The four failure modes above are endemic to every multi-agent deployment; zero-token replay turns workflow iteration economics from "re-bill everything" into "bill only the diff" — and composed `workflow()` subtrees are covered too: re-entry imports the prior child journal per call site and replays the subtree at zero provider calls (Issue #35, fixed; only pre-#35 child runs without site stamps fall back to a live run) |
+| **Potential Impact** | The four failure modes above are endemic to every multi-agent deployment; zero-token replay turns workflow iteration economics from "re-bill everything" into "bill only the diff" — and composed `workflow()` subtrees are covered too, at every nesting depth: re-entry imports the prior child journal per call site and replays the subtree at zero provider calls (Issues #35/#62, fixed; only pre-#35 child runs without site stamps fall back to a live run) |
 | **Technological Implementation** | Compile-time purity bans, a real sandbox (child process + `node:vm`, process supervision), SQLite WAL journal with hash-verified replay, PBT-proven invariants |
 | **Design** | Journal-rendered interactive HTML reports, cubic-Bézier DAG canvases, live Kanban tracking — presentation generated from evidence, not hand-made |
 | **Innovation** | Amend lineage (`♻` reuse / `⑂` diverge), mid-run hole growth, human escalation with zero-cost resume, hard budget enforcement |
