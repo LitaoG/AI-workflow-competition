@@ -56,6 +56,13 @@ export const FORBIDDEN_PLACEHOLDERS = [
 ];
 
 /**
+ * 方括号体审查标题（Issue #121/#124）：监督席实际书写格式是「[监督席·只读复核] …」，
+ * 不带井号——纯 REVIEW_MARKERS 的子串匹配对它整类放空（#105 的意见被静默跳过 103s
+ * 的根因）。锚定在评论开头，避免把正文中恰好提到「监督席」的普通回音误判为意见。
+ */
+const BRACKET_REVIEW_MARKER_RE = /^\s*\[(?:监督席|审查意见|审阅意见|交叉评审|交叉审查|监督提醒|评审)/;
+
+/**
  * 校验 PR 正文中的 Issue 关联
  */
 export function checkIssueLinkage(content) {
@@ -201,7 +208,8 @@ export function checkCoolingPeriod(createdAtIso, options = {}) {
  */
 function isReviewComment(body) {
   const lower = body.toLowerCase();
-  return REVIEW_MARKERS.some(marker => lower.includes(marker.toLowerCase()));
+  if (REVIEW_MARKERS.some(marker => lower.includes(marker.toLowerCase()))) return true;
+  return BRACKET_REVIEW_MARKER_RE.test(body || '');
 }
 
 /** 提取审查意见的编号（仓内惯例 F1、F2…；未编号的审查意见整体作为一条）。 */
