@@ -126,6 +126,7 @@
 - **落地模块**：`src/execution/{worktree-pool,swarm-dispatcher}.ts`；测试 `tests/unit/execution/`、`tests/unit/dwf/dwf-swarm-budget.test.ts`。
 - **对应 Issue & PR**：Issue #140（Part of #88）；PR #150。
 - **验证证据**（审计快照，2026-11-07，head `d3734b1`，Windows / Node 26）：build exit 0；unit `tests 448, pass 448, fail 0`（438→448）；PBT 9/9；E2E `pass 121, fail 0`；governance 24/24；check-clean 通过。并发 4 任务各写不同文件→逐个 mergeIntoBase→`git worktree list` 只剩主树（零残留断言）。
+- **定位披露（Issue #123）**：**worktree-pool 未接线 swarm 主链路**——dwf swarm 消费的仅是 swarm-dispatcher 的窗口公式；per-task worktree 物理隔离止于本模块与其单测，而 facade 公开契约（`src/dwf/facade-dts.ts` swarm()）明文写 "All tasks share this run's working tree (no per-task worktree)"。本条 T1 的「物理隔离」语义**仅在该模块自身验证范围内成立**，不适用于主引擎 swarm 路径。接线或退役为后续拍板项。
 
 ### [CAP-004] 任务属性双轨模型路由 + Plan/Build/YOLO 三档权限 + 门禁监督化（Phase 6 三件套）
 
@@ -135,6 +136,7 @@
 - **落地模块**：`src/agent/model-router.ts`、`src/core/permissions/{modes,permission-manager}.ts`、`src/core/{step,context,agent-loop,query-engine}.ts`、`src/process-supervision.ts`（SPAWN_ENV_ALLOWLIST 共享）、`src/dwf/{facade-dts,compile,lower,protocol,child-main,runner,engine}.ts`（tier 贯通）。
 - **对应 Issue & PR**：Issue #151（Part of #88）；PR #158。
 - **验证证据**（审计快照，2026-11-07，head `fabd080`）：build exit 0；unit `tests 457, pass 457, fail 0`（452→457）；PBT 9/9；E2E `pass 121, fail 0`；governance 24/24；check-clean 通过。既有 gate 测试（core.test.ts / step-failure-paths.test.ts）不改编全绿。
+- **定位披露（Issue #123）**：**src/core 的 ReAct 循环子系统（agent-loop/query-engine/compaction/permissions，约 1408 行）生产不可达**——全仓唯一消费是 `tests/unit/core/{query-engine,permissions}.test.ts`（831 行）；生产 ask 链路走 `src/agent/rpc.ts`（builder 步骤）与 `src/dwf/ask-executor.ts`（主引擎，自带 RetryOrchestrator + governor AIMD + failover），两套为平行实现（共享 attempt-classifier 原语）。保留为能力吸收演示资产；退役（净减约 2200 行含测试）或提供真实入口为后续拍板项。
 
 ### [CAP-005] AST 符号图上下文索引与预算化切片（Repomap，支柱二）
 

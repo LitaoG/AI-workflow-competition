@@ -3,6 +3,12 @@
  * table, moved verbatim from studio-renderer so the renderer logic reads in
  * one screen. Placeholders (__STUDIO_*) are substituted by renderStudioHtml.
  *
+ * Sister implementation (Issue #123): src/visualizer/studio-page.ts is the
+ * WebSocket + time-travel shell served when `--studio` is set; THIS template is
+ * the SSE + A2UI face that live.ts renders by default (the CLI help calls it
+ * the legacy SSE view). The two shells share no code — UI semantics added to
+ * one face must be mirrored (or consciously dropped) in the other.
+ *
  * Issue #248 visual recast: the affectui design language (MIT free-tier
  * sources + public demo observation, clean-room) applied across every region —
  * soft status pills, KPI metric cells in the top bar, icon-tile node cards

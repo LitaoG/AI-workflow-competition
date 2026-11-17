@@ -3,6 +3,13 @@
  * an embedded boot snapshot (window.__STUDIO__), a reconnecting WebSocket
  * that applies snapshot frames, logs event frames and re-seeks to "now" on
  * each push, plus a slider driving the same seek op for time travel.
+ *
+ * Sister implementation (Issue #123): src/visualizer/studio-template.ts is the
+ * SSE + A2UI face live.ts renders by default (CLI help: "legacy SSE view");
+ * this page is the `--studio` WS + time-travel shell (svg-canvas.ts +
+ * ws-endpoint.ts serve only this face). The two shells share no code — UI
+ * semantics added to one face must be mirrored (or consciously dropped) in the
+ * other.
  */
 import type { DAGGraph } from '../types.js';
 import { renderSvgCanvas } from './svg-canvas.js';

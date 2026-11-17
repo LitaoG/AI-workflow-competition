@@ -3,6 +3,11 @@
  * engine's dependencies (main model, tools, permission gate, compaction
  * pipeline, snapshot hook) and drives queryLoop() for a goal.
  *
+ * Capability-absorption disclosure (Issue #123): like the rest of the ReAct
+ * subsystem (see src/core/agent-loop.ts), this engine is a demo asset —
+ * production asks do NOT pass through it (they run via src/agent/rpc.ts and
+ * src/dwf/ask-executor.ts). Consumed only by tests/unit/core/*.
+ *
  * Model routing (Thinking vs Flash) and the Plan / Build / YOLO permission
  * modes are (Issue #151): the gate resolves through
  * permissions/permission-manager.ts (`permissionMode`, default 'yolo' — the
