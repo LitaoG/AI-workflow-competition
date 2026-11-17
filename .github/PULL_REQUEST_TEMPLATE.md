@@ -7,7 +7,7 @@
 - [ ] 已完整贴出 **§4.1 早筛清单**与本机测试指纹（`Ran N tests` / `pass N, fail 0`，附带真实用例数）
 - [ ] 已确认测试副产物已还原，工作区干净（已执行 `git restore tests/ artifacts/`，`git status --porcelain` 为空）
 - [ ] 已核对 `git diff` 中 `package-lock.json` 的变更仅来自本次依赖变更（未触及依赖时 lockfile 应零变更——extraneous 条目翻转防护，#196 S4；触及依赖须同 PR 提交 package.json 与 package-lock.json）
-- [ ] 已回看本 PR/Issue 的**全部评论**并逐条交代（已处理 / 刻意不改+理由 / 需人拍板；见 AGENTS.md §1.9）
+- [ ] 已回看**本 PR 自身与关联 Issue** 的全部评论并逐条交代（已处理 / 刻意不改+理由 / 需人拍板；监督席/评审的方括号体标题如「[监督席·只读复核] …」同样按审查意见计；见 AGENTS.md §1.9）
 - [ ] 已按 **AGENTS.md §1.11 文档同步**排查：全部受影响文档已在同一次 PR 内更新，或已在正文声明「无文档影响」（无影响时附一句理由）
 
 ---

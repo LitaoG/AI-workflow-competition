@@ -770,6 +770,24 @@ not ok 2 - stdio e2e: real spawn lists all seven tools
     ];
     const res3 = checkReviewComments(comments3);
     assert.ok(res3.valid, 'Review with "刻意不改" should pass');
+
+    // Case 4 (Issue #124): bracket-form supervisor markers count as review opinions.
+    // Issue #121 caught a real miss: "[监督席·只读复核] …" carries no "## " prefix,
+    // so the substring marker list skipped it and the PR merged 103s later silently.
+    const comments4 = [
+      { user: 'LitaoG', body: '[监督席·只读复核] 本轮窗口抓到一处 §1.9 执行漏洞，聚焦机制，不涉及代码对错。' },
+      { user: 'LitaoG', body: '收到，我看看' },
+    ];
+    const res4 = checkReviewComments(comments4);
+    assert.ok(!res4.valid, 'Bracket-form supervisor comment without three-state reply should fail');
+    assert.equal(res4.unresolvedCount, 1);
+
+    const comments5 = [
+      { user: 'LitaoG', body: '[监督席·只读复核] 本轮窗口抓到一处 §1.9 执行漏洞，聚焦机制，不涉及代码对错。' },
+      { user: 'LitaoG', body: '已处理：DoD 已同步，PR 评论已补三态交代（issuecomment 6959991711）' },
+    ];
+    const res5 = checkReviewComments(comments5);
+    assert.ok(res5.valid, 'Bracket-form supervisor comment with a later "已处理" reply should pass');
   });
 
   test('Tier 3: PR Review Gate script functionality - checkWorktreeCleanliness', () => {
