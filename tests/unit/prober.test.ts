@@ -23,11 +23,13 @@ test('Prober: detects git branch, commit hash, and dirty status gracefully', asy
   assert.equal(typeof git.isDirty, 'boolean');
 });
 
-test('Prober: detects installed node, npm, and git toolchains', async () => {
+test('Prober: detects installed node, npm, and git toolchains honestly', async () => {
   const toolchain = await probeToolchain();
   assert.ok(toolchain.node.length > 0);
-  assert.ok(toolchain.npm.length > 0);
-  assert.ok(toolchain.git.length > 0);
+  // Honesty contract (Issue #88): a tool reports a measured version or undefined —
+  // never a fabricated placeholder.
+  assert.ok(toolchain.npm === undefined || toolchain.npm.length > 0);
+  assert.ok(toolchain.git === undefined || toolchain.git.length > 0);
 });
 
 test('Prober: strictly sanitizes and redacts all secret environment keys', () => {

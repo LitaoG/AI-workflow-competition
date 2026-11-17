@@ -27,8 +27,10 @@ export async function probeToolchain(): Promise<ToolchainProbe> {
 
   return {
     node: nodeV !== 'not_installed' ? nodeV : process.version,
-    npm: npmV !== 'not_installed' ? npmV : '10.9.8',
-    git: gitV !== 'not_installed' ? gitV : 'installed',
+    // Missing tools stay undefined (same honest path as python/tsc): the prober
+    // reports measured facts only, never a fabricated version (Issue #88).
+    npm: npmV !== 'not_installed' ? npmV : undefined,
+    git: gitV !== 'not_installed' ? gitV : undefined,
     python: pythonV !== 'not_installed' ? pythonV : undefined,
     tsc: tscV !== 'not_installed' ? tscV : undefined,
   };

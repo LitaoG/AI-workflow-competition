@@ -298,8 +298,10 @@ export interface GitProbe {
 export interface ToolchainProbe {
   node: string;
   nodeVersion?: string;
-  npm: string;
-  git: string;
+  /** Measured npm version; undefined = not installed (never a fabricated value, Issue #88). */
+  npm?: string;
+  /** Measured git version; undefined = not installed (never a fabricated value, Issue #88). */
+  git?: string;
   python?: string;
   tsc?: string;
   docker?: string;

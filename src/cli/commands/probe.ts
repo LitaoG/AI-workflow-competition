@@ -40,8 +40,8 @@ export async function executeProbe(targetDir?: string, options?: ProbeCommandOpt
 
       console.log(`\n[${t('PROBE_TOOLCHAIN_HEADER', {}, lang)}]`);
       console.log(`  Node.js:       ${result.toolchain.node}`);
-      console.log(`  npm:           ${result.toolchain.npm}`);
-      console.log(`  git:           ${result.toolchain.git}`);
+      console.log(`  npm:           ${result.toolchain.npm ?? 'not_installed'}`);
+      console.log(`  git:           ${result.toolchain.git ?? 'not_installed'}`);
       if (result.toolchain.python) console.log(`  python:        ${result.toolchain.python}`);
       if (result.toolchain.tsc) console.log(`  typescript:    ${result.toolchain.tsc}`);
 
