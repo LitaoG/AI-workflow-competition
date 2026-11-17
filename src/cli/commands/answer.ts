@@ -7,6 +7,7 @@ import { createSQLiteStore } from '../../state/store.js';
 import type { SQLiteStateStore } from '../../state/sqlite-store.js';
 import type { DwfJournalStore, WorkflowEventType } from '../../types.js';
 import { runFacadeScript } from '../../dwf/runner.js';
+import { printDwfEvent } from '../console-events.js';
 
 export async function executeAnswer(
   runId: string,
@@ -75,12 +76,7 @@ export async function executeAnswer(
       resumeRunId: runId,
       dbPath: options.dbPath,
       approvedCommands: options.approvedCommands,
-      onEvent: (e) => {
-        if (e.type === 'dwf_replay_hit') console.log(`  ⚡ replayed: ${e.data.siteId}#${e.data.ordinal}`);
-        if (e.type === 'dwf_phase') console.log(`\n--- ${e.data.phase} ---`);
-        if (e.type === 'dwf_ask_complete') console.log(`  ✔ ask done (${e.data.siteId})`);
-        if (e.type === 'dwf_escalation_open') console.log(`  ❓ escalation open: ${e.data.questionId}`);
-      },
+      onEvent: printDwfEvent,
     });
 
     if (result.status === 'completed') {

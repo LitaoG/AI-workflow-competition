@@ -5,6 +5,7 @@
  */
 import { listSavedWorkflows, validateSavedArgs } from '../../dwf/saved.js';
 import { runFacadeScript } from '../../dwf/runner.js';
+import { printDwfEvent } from '../console-events.js';
 
 export async function executeWorkflowsList(options: { json?: boolean; lang?: string }): Promise<number> {
   const saved = listSavedWorkflows();
@@ -61,12 +62,7 @@ export async function executeWorkflowsRun(
     cwd: options.cwd,
     liveHtmlPath: options.live,
     maxConcurrency: options.maxConcurrency ? Number(options.maxConcurrency) : undefined,
-    onEvent: (e) => {
-      if (e.type === 'dwf_phase') console.log(`\n--- ${e.data.phase} ---`);
-      if (e.type === 'dwf_ask_start') console.log(`  ask → ${e.data.actor} (${e.data.siteId})`);
-      if (e.type === 'dwf_replay_hit') console.log(`  ⚡ replayed: ${e.data.siteId}#${e.data.ordinal}`);
-      if (e.type === 'dwf_amend_hit') console.log(`  ♻ reused: ${e.data.siteId}#${e.data.ordinal}`);
-    },
+    onEvent: printDwfEvent,
   });
 
   if (exit.status === 'completed') {
