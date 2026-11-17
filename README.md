@@ -183,18 +183,19 @@ AI-Workflow treats Kiro not as a chat window but as a governance surface. The ro
 - **Steering** (`.kiro/steering/`) — frontmatter (`inclusion: always`) guardrails: "code, not
   conversation" philosophy, security policy (destructive shell syntax banned, credentials
   sanitized, sandbox isolation), workflow conventions, bilingual presentation.
-- **MCP** (`.kiro/mcp/mcp-server.json`) — exposes the engine to Kiro over stdio, including the
-  `workflow_script_check` / `workflow_script_run` tools.
-- **PBT** (`.kiro/pbt/`) — `fast-check` property-based tests proving the core invariants (50–100
-  randomized cases per property, see `.kiro/pbt/engine-invariants.test.ts`): DAG acyclicity against a
+- **MCP** (`.kiro/mcp/mcp-server.json`) — exposes the engine to Kiro over stdio with the full
+  ten-tool face (five legacy builder tools plus five `workflow_script_*` / `workflow_*_run` facade
+  tools), locked to `TOOL_CATALOG` by the governance suite.
+- **PBT** (`.kiro/pbt/`) — `fast-check` property-based tests across six property files proving the
+  core invariants (per-property `numRuns` tuned 8–3,000 by cost): DAG acyclicity against a
   reference Kahn model (arbitrary digraphs — self-loops and back-edges must throw), idempotent
   zero-token replay, typed-ask contract enforcement (a schema-violating reply exhausts the repair
   budget and throws `SchemaValidationError`), monotonic event-log ordering, and
   credential redaction (AWS keys / JWTs → `***REDACTED***` in persisted logs). A freshness guard
   pins the suite to a dist build no older than the src tree.
 
-And the namesake: the **Skeleton Crew roster** (`.kiro/crew/`) — `Conductor`, `Prober`, `Worker`,
-`Reviewer`, `GateKeeper` — with least-privilege permission ceilings per role.
+And the namesake: the **Skeleton Crew roster** (`.kiro/crew/`) — `inspector`, `architect`, `worker`,
+`reviewer`, `gatekeeper` — with least-privilege permission ceilings per role.
 
 ---
 
