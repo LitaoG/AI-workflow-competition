@@ -6,6 +6,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fillHoleAndRun } from '../../dwf/runner.js';
+import { printDwfEvent } from '../console-events.js';
 
 export async function executeFill(
   runId: string,
@@ -34,33 +35,7 @@ export async function executeFill(
     body,
     dbPath: options.dbPath,
     maxConcurrency: options.maxConcurrency ? Number(options.maxConcurrency) : undefined,
-    onEvent: (e) => {
-      switch (e.type) {
-        case 'dwf_phase':
-          console.log(`\n--- ${e.data.phase} ---`);
-          break;
-        case 'dwf_amend_hit':
-          console.log(`  ♻ amended run reused: ${e.data.siteId}#${e.data.ordinal} (0 provider calls)`);
-          break;
-        case 'dwf_amend_diverged':
-          console.log(`  ⑂ amended run diverged: ${e.data.siteId} (executing live)`);
-          break;
-        case 'dwf_ask_start':
-          console.log(`  ask → ${e.data.actor} (${e.data.siteId})`);
-          break;
-        case 'dwf_ask_complete':
-          console.log(`  ✔ ask done (${e.data.siteId})`);
-          break;
-        case 'dwf_hole_open':
-          console.log(`  ⏸ hole open: ${e.data.name} (${e.data.siteId})`);
-          break;
-        case 'dwf_call_error':
-          console.error(`  ✖ ${e.data.siteId ?? e.data.op}: ${e.data.error}`);
-          break;
-        default:
-          break;
-      }
-    },
+    onEvent: printDwfEvent,
   });
 
   const seconds = ((Date.now() - started) / 1000).toFixed(2);
