@@ -55,6 +55,40 @@ const MAX_EVENT_SUMMARIES = 50;
 /** How many of the latest evidence entries `workflow_inspect_run` returns. */
 const LATEST_EVIDENCE_COUNT = 5;
 
+/**
+ * Load and validate a workflow module for the workflow_run / workflow_graph tool
+ * cases (Issue #102: single source — the two cases must not drift on path
+ * resolution, import, or instance validation).
+ */
+async function loadWorkflowModule(
+  rawPath: string
+): Promise<{ ok: true; wf: Workflow } | { ok: false; text: string }> {
+  const resolvedPath = path.resolve(process.cwd(), rawPath);
+
+  if (!fs.existsSync(resolvedPath)) {
+    return { ok: false, text: `Workflow file not found: ${resolvedPath}` };
+  }
+
+  let mod: any;
+  try {
+    const fileUrl = pathToFileURL(resolvedPath).href;
+    mod = await import(fileUrl);
+  } catch (err: any) {
+    return { ok: false, text: `Failed to load workflow module: ${redactText(err.message)}` };
+  }
+
+  let wf = mod.default ?? mod.workflow;
+  if (wf && !(wf instanceof Workflow) && (wf.steps || wf.phases)) {
+    wf = defineWorkflow(wf);
+  }
+
+  if (!wf || !(wf instanceof Workflow)) {
+    return { ok: false, text: `Module "${rawPath}" does not export a valid Workflow instance.` };
+  }
+
+  return { ok: true, wf };
+}
+
 // ---------------------------------------------------------------------------
 // The facade-tool zod schemas live in tool-catalog.ts (single source: the
 // catalog derives the documented JSON Schemas from them). Aliased here for
@@ -110,37 +144,11 @@ export class BuiltinWorkflowMCPServer {
 
         case 'workflow_run': {
           const rawPath = String(args?.workflowPath ?? '');
-          const resolvedPath = path.resolve(process.cwd(), rawPath);
-
-          if (!fs.existsSync(resolvedPath)) {
-            return {
-              isError: true,
-              content: [{ type: 'text', text: `Workflow file not found: ${resolvedPath}` }],
-            };
+          const loaded = await loadWorkflowModule(rawPath);
+          if (!loaded.ok) {
+            return { isError: true, content: [{ type: 'text', text: loaded.text }] };
           }
-
-          let mod: any;
-          try {
-            const fileUrl = pathToFileURL(resolvedPath).href;
-            mod = await import(fileUrl);
-          } catch (err: any) {
-            return {
-              isError: true,
-              content: [{ type: 'text', text: `Failed to load workflow module: ${redactText(err.message)}` }],
-            };
-          }
-
-          let wf = mod.default ?? mod.workflow;
-          if (wf && !(wf instanceof Workflow) && (wf.steps || wf.phases)) {
-            wf = defineWorkflow(wf);
-          }
-
-          if (!wf || !(wf instanceof Workflow)) {
-            return {
-              isError: true,
-              content: [{ type: 'text', text: `Module "${rawPath}" does not export a valid Workflow instance.` }],
-            };
-          }
+          const wf = loaded.wf;
 
           const runId = (args?.runId as string) || `run-mcp-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
           const dbPath = (args?.dbPath as string) || path.join(process.cwd(), '.workflow', 'runs.db');
@@ -312,37 +320,11 @@ export class BuiltinWorkflowMCPServer {
 
         case 'workflow_graph': {
           const rawPath = String(args?.workflowPath ?? '');
-          const resolvedPath = path.resolve(process.cwd(), rawPath);
-
-          if (!fs.existsSync(resolvedPath)) {
-            return {
-              isError: true,
-              content: [{ type: 'text', text: `Workflow file not found: ${resolvedPath}` }],
-            };
+          const loaded = await loadWorkflowModule(rawPath);
+          if (!loaded.ok) {
+            return { isError: true, content: [{ type: 'text', text: loaded.text }] };
           }
-
-          let mod: any;
-          try {
-            const fileUrl = pathToFileURL(resolvedPath).href;
-            mod = await import(fileUrl);
-          } catch (err: any) {
-            return {
-              isError: true,
-              content: [{ type: 'text', text: `Failed to load workflow module: ${redactText(err.message)}` }],
-            };
-          }
-
-          let wf = mod.default ?? mod.workflow;
-          if (wf && !(wf instanceof Workflow) && (wf.steps || wf.phases)) {
-            wf = defineWorkflow(wf);
-          }
-
-          if (!wf || !(wf instanceof Workflow)) {
-            return {
-              isError: true,
-              content: [{ type: 'text', text: `Module "${rawPath}" does not export a valid Workflow instance.` }],
-            };
-          }
+          const wf = loaded.wf;
 
           try {
             wf.validate();
