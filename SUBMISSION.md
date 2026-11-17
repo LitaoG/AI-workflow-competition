@@ -85,15 +85,17 @@ Measured end-to-end 2026-11-03 (Git Bash on Windows, Node v26.13.0, warm npm cac
 
 ### Reproducible quality-gate fingerprints
 
-All run 2026-11-18 on the closeout tree (`test/issue-65-gate-failure-naming` @ `657c2f2` — content-identical to `main` once this PR merges), Node v26.13.0, from a **fresh build** (fresh-build numbers are what a judge
-clone reproduces — full context in [README](README.md#reproducible-quality-gate-fingerprints)):
+All run 2026-11-18 on the sharp-review closeout tree (main @ `7a64439` + a docs-only overlay —
+the 20-PR fix series closed every confirmed finding from the sharp review), Node v26.13.0, from a
+**fresh build** (fresh-build numbers are what a judge clone reproduces; full context in
+[README](README.md#reproducible-quality-gate-fingerprints)):
 
 ```text
-npm test                                            → 835 tests, 832 pass, 3 skipped, 0 fail
+npm test                                            → 828 tests, 825 pass, 3 skipped, 0 fail
 npm run test:pbt                                    →  18 tests,  18 pass, 0 fail
 node --experimental-strip-types tests/e2e/runner.ts → 118/118 passed
-npm run test:adversarial                            → 202 tests, 202 pass, 0 fail
-npm run test:governance                             →  39 tests,  39 pass, 0 fail
+npm run test:adversarial                            → 197 tests, 197 pass, 0 fail
+npm run test:governance                             →  41 tests,  41 pass, 0 fail
 bash scripts/demo.sh                                → exit 0, all nine acts OK
 ```
 

@@ -17,7 +17,7 @@
 
 | 领域 / 主题 | 权威文档路径 | 核心职责与涵盖范围 |
 |---|---|---|
-| **项目主入口（评委导向）** | `README.md` | 英文评委导向主页：30 秒 pitch、三种对话式失败模式的结构性修复、"一副骨架两个应用"与两个 demo 对照、三分钟评委体验（一键九幕 demo）、Kiro 集成总览、评审五维映射与合规声明——细节经导航分流至 SUBMISSION.md 与各权威文档 |
+| **项目主入口（评委导向）** | `README.md` | 英文评委导向主页：30 秒 pitch、三种对话式失败模式的结构性修复、"一副骨架两个应用"与两个 demo 对照、三分钟评委体验（一键九幕 demo）、Kiro 集成总览、评审五维映射与合规声明——九幕证据表、质量指纹与跨引擎基准的**权威版本在 SUBMISSION.md**（本页只留链接分流，Issue #132 收敛） |
 | **1分钟上手指南** | `QUICKSTART.md` | 零门槛上手：capabilities-tour 示例、统一 run 入口、--set/--args-file 传参、Studio 看板、setup 互通与命令速查 |
 | **系统架构设计（权威中文规约）** | `docs/ARCHITECTURE.md` | 总体架构图（自 README 迁入）、设计哲学、模块地图、双引擎执行模型、Facade 编译器纯度契约、VM 沙箱与进程组监管、强类型 RPC、环境探测、双层持久化与零 Token 重放、可视化与 Studio、MCP、技术溯源、威胁模型与纵深防御 |
 | **系统演进蓝图** | `GOAL.md` | 引擎演进蓝图与技术路线：核心使命与架构哲学、三大参考源技术谱系、已落地架构现状与里程碑（阶段 0–8）、后续演进方向、工程铁律 |
@@ -68,9 +68,10 @@
 | **开发者指南（权威中文指南）** | `docs/DEVELOPER_GUIDE.md` | 两种编写面选型、脚手架与 CLI 速查、CLI 全量命令手册 / 环境变量 / MCP 工具面与特性矩阵（自 README 迁入）、Facade 脚本规范与编译期禁忌、core 构建器、沙箱与安全测试、调试排障、测试分层与门禁 |
 | **接入集成指南** | `docs/INTEGRATION.md` | CLI 接入、MCP Server 挂载（Claude Code / ZCode / opencode / Codex CLI / Cursor）、Skill 安装、Provider 路由 |
 | **Kiro 集成与合规** | `docs/KIRO_INTEGRATION.md` | `.kiro/` 五子系统（specs / hooks / steering / MCP / PBT）与 Skeleton Crew 花名册、权限上限的完整指南 |
-| **评委导航入口** | `SUBMISSION.md` | 1 分钟 pitch、演示视频占位、九幕一键复现、仓库地图与合规声明 |
+| **评委导航入口（提交权威）** | `SUBMISSION.md` | 1 分钟 pitch、演示视频占位、九幕一键复现（证据表唯一权威）、质量指纹唯一钉点、跨引擎基准实测、仓库地图与合规声明 |
 | **Facade 编排模式** | `docs/authoring-patterns.md` | facade 脚本编排模式目录：workflow 脚本的写作范式与可复用结构 |
 | **中文译本（历史存档）** | `docs/i18n/` | ARCHITECTURE / DEVELOPER_GUIDE / KIRO_INTEGRATION 三篇的 **2026-11-03 黑客松版本中文原文——历史存档，不再演进**；现行权威内容以各篇主文档（`docs/ARCHITECTURE.md` / `docs/DEVELOPER_GUIDE.md` / `docs/KIRO_INTEGRATION.md`）为准 |
+| **多代理治理体系历史存档** | `PROJECT.md` | 私有仓时代 M1 里程碑 survey 的**历史存档**（2026-11-14 定版）：治理框架 / 证据规范 / 门禁机制的立项期全貌；现行权威以 `AGENTS.md` 与 `docs/` 各篇为准（Issue #132 登记，消除悬空状态） |
 | **产品展示页** | `docs/showcase.html` | 单文件深色主题展示页：pitch、失败模式修复、架构 SVG、实拍演示输出，无构建步骤 |
 
 ---

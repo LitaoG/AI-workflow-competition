@@ -103,20 +103,9 @@ fails. Measured end-to-end on this machine (2026-11-03, Git Bash on Windows, Nod
 npm cache; fresh `node_modules`/`dist`): **42 seconds, exit 0, `ALL NINE ACTS COMPLETE`** — well
 inside the three-minute budget, with headroom for a cold registry.
 
-Every act prints the evidence line for the capability it demos:
-
-| Act | Capability | Evidence line |
-| --- | --- | --- |
-| 1 | strict compile + phase graph | `✔ facade script compiled clean (35 sites)` |
-| 2 | sandbox run (incident demo) | `✔ run dwfrun-… completed` |
-| 3 | **zero-token replay** | `⚡ replayed from journal: … (0 provider calls)` |
-| 4 | migration demo | `asks: 8 (replayed from journal: 0)` → `result: {"migrated":3,…,"gates":"passed"}` |
-| 5 | **amend lineage** | `♻ amended run reused` + `⑂ diverged (executing live)` |
-| 6 | **hole growth** | `⏸ parked at hole` → `✔ hole filled; forked run completed` |
-| 7 | **human escalation** | `dwfq-…` → `✔ run completed with the answer in hand` |
-| 8 | **budget hard enforcement** | `WorkflowBudgetExceededError` caught by the script |
-| 9 | journal-rendered report + live attach | `.workflow/views/demo.html` + `workflow serve <runId>` |
-
+Every act prints the evidence line for the capability it demos — the authoritative
+nine-act table (act → capability → evidence line) lives in
+[`SUBMISSION.md` §3](SUBMISSION.md#3-reproduce-the-demo-one-command-nine-self-verifying-acts).
 Act 9 leaves an interactive HTML run report at `.workflow/views/demo.html` — every node, timing and
 journal event rendered as a standalone page. Attach live during a run with
 `node bin/workflow.js serve <runId> --db .workflow/demo-dwf.sqlite` and open
@@ -128,17 +117,10 @@ placeholder and recording recipe live in [`SUBMISSION.md`](SUBMISSION.md).
 
 ### Reproducible quality-gate fingerprints
 
-All run on this machine, 2026-11-17 (Node v26.13.0), from a **fresh build** of the v2.6.0 release tree (main @ `ed226954` + this release's four files; tree identity to the PR head mechanically verified) (a stale `dist/` can
-double-count one moved test file — the fresh-build numbers below are what a judge clone reproduces):
-
-```text
-npm test                                          → 827 tests, 824 pass, 3 skipped, 0 fail
-node --experimental-strip-types tests/e2e/runner.ts → 118/118 passed (4 tiers)
-npm run test:adversarial                          → 202 tests, 202 pass, 0 fail
-npm run test:pbt                                  →  16 tests,  16 pass, 0 fail
-npm run test:governance                           →  38 tests,  38 pass, 0 fail
-bash scripts/demo.sh                              → exit 0, all nine acts OK
-```
+Current quality-gate fingerprints are pinned in one place only:
+[`SUBMISSION.md` § Reproducible quality-gate fingerprints](SUBMISSION.md#reproducible-quality-gate-fingerprints)
+(re-pinned 2026-11-18 on the sharp-review closeout tree, after the 20-PR fix series — fresh-build
+numbers are what a judge clone reproduces).
 
 Both demo applications also run standalone (offline mock mode, `--lang zh` for Chinese
 presentation) — see their READMEs:
@@ -150,19 +132,10 @@ presentation) — see their READMEs:
 We also ran a **bilateral cross-engine benchmark** — the identical facade mission script
 (planner → 4-way fan-out → verifier self-heal → report) executed on both our engine (`src/dwf`)
 and the official ZCode dynamic-workflow engine, on the same scripted fake model (zero network,
-zero API keys). Measured highlights (2 runs each, Windows, Node v26.13.0):
-
-| Metric | Official ZCode engine | AI-Workflow (`src/dwf`) |
-| --- | :---: | :---: |
-| Mission run wall time (run 1 / run 2) | 167.271 / 155.256 ms | 168.833 / 154.248 ms |
-| Cold compile | **66.444 ms** | 211.506 ms (honest gap, attribution open) |
-| Warm compile mean | 51.072 ms | **7.206 ms** (7.1× faster) |
-| Peak heapUsed | 100.18 MB | **40.54 MB** (−59.5%) |
-| Peak RSS | 235.88 MB | **147.7 MB** (−37.4%) |
-
-Determinism holds on both sides — settle/event-type sequences are byte-identical across the two
-runs on each engine, and the two independent schedulers converge on the same normalized settle
-order (12 = 12). Full analysis:
+zero API keys). The measured table (mission wall time, compile, heap, RSS, and the determinism
+statement) lives in
+[`SUBMISSION.md` § Cross-engine benchmark](SUBMISSION.md#cross-engine-benchmark-measured);
+full analysis:
 [`docs/research/BILATERAL-CROSS-BENCHMARK-REPORT.md`](docs/research/BILATERAL-CROSS-BENCHMARK-REPORT.md) ·
 raw measurements: [`tests/cross-engine/results/`](tests/cross-engine/results/).
 
