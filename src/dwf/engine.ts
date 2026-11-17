@@ -43,6 +43,7 @@ import { WorldBoundary } from './host-boundary-dispatcher.js';
 import { ArtifactLedger } from './artifact-ledger.js';
 import { BudgetLedger } from './budget-ledger.js';
 import { executeAsk } from './ask-executor.js';
+import { zodFromJsonSchema } from './json-schema-zod.js';
 import { recordNodeEvidence } from './evidence-ledger.js';
 import { StateStore, DwfJournalStore, DwfNode, LLMMessage, TokenUsage, WorkflowEventType } from '../types.js';
 import { WORKFLOW_EVENT } from '../domain/events.js';
@@ -96,6 +97,12 @@ export interface FacadeEngineOptions {
    * instead of resetting to zero.
    */
   restoreOutputTokensSpent?: number;
+  /**
+   * Executed (live) asks already counted by this runId's earlier attempts
+   * (Issue #63): restored on resume so the agent() call cap and the one-shot
+   * size warning continue across resumes instead of restarting from zero.
+   */
+  restoreExecutedAsks?: number;
   /**
    * Run-level output-token budget (canonical parity: read-only in the sandbox).
    * Omit/null for unlimited. The runner seeds the child and the enforcer with
@@ -198,6 +205,7 @@ export class FacadeEngine {
     this.boundary = new WorldBoundary(options.workspace);
     this.budget = new BudgetLedger({
       restoreOutputTokensSpent: options.restoreOutputTokensSpent,
+      restoreExecutedAsks: options.restoreExecutedAsks,
       budgetTotal: options.budgetTotal,
     });
     this.artifacts = new ArtifactLedger(this.boundary);
@@ -493,6 +501,7 @@ export class FacadeEngine {
             emit: (type, data) => this.emit(type, data),
           }),
         meta,
+        schemaJson,
         ),
       ).finally(() => {
         if (callId !== undefined) this.inFlight.delete(callId);
@@ -750,6 +759,28 @@ export class FacadeEngine {
   }
 
   /**
+   * Issue #63: a replayed ask must still satisfy the ask's CURRENT contract.
+   * The replay identity is (siteId, inputHash) — the prompt — so tightening
+   * `ask<T>`'s schema after a node was recorded would otherwise return a stale
+   * answer that no longer parses, bypassing rpc.ts's safeParse entirely. Only
+   * typed asks (schemaJson present) are checked; a validation failure — or a
+   * corrupt row / unusable schema — degrades that ONE node to a live
+   * execution instead of failing the resume (the live path journals at a
+   * fresh ordinal and the amend path's divergence rules take over). No journal
+   * migration: recorded rows stay byte-identical.
+   */
+  private replayedAskValid(resultJson: string, schemaJson: string | null | undefined): boolean {
+    if (!schemaJson) return true;
+    try {
+      const parsed = JSON.parse(resultJson);
+      const schema = zodFromJsonSchema(JSON.parse(schemaJson) as Parameters<typeof zodFromJsonSchema>[0]);
+      return schema.safeParse(parsed).success;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Journal short-circuit: `(siteId, ordinal, inputHash)` — a completed hit returns the
    * recorded result without executing; a hash mismatch fails loudly; a miss executes
    * once and records. With an importedCache (amend), a matching prior-run node replays
@@ -773,6 +804,7 @@ export class FacadeEngine {
       actorSiteId?: string;
       actorCache?: { name: string; seq: number; contentHash: string; personaJson: string };
     },
+    schemaJson?: string | null,
   ): Promise<T> {
     const inputHash = journalInputHash(kind, siteId, input);
 
@@ -788,7 +820,12 @@ export class FacadeEngine {
           if (ordinal > cursor) this.ordinals.set(siteId, ordinal);
         }
         if (kind === 'worldRun') this.importClosed = true; // the recorded world mutation happened
-        if (cached.status === 'completed' && cached.resultJson !== undefined) {
+        // Issue #63: the journal identity is (siteId, inputHash) = the prompt —
+        // not the ask's schema. A same-script resume whose synthesized contract
+        // drifted (compiler change) must not replay an answer that no longer
+        // satisfies the CURRENT schema; consume the row and run that one node
+        // live instead (the live write allocates a fresh ordinal, no fork).
+        if (cached.status === 'completed' && cached.resultJson !== undefined && this.replayedAskValid(cached.resultJson, schemaJson)) {
           this.emit('dwf_replay_hit', { siteId, ordinal, kind });
           return JSON.parse(cached.resultJson) as T;
         }
@@ -832,7 +869,11 @@ export class FacadeEngine {
         const importedPool = this.settlePools.importedPool(siteId);
         const imported = this.settlePools.take(importedPool, kind, inputHash);
         if (imported) {
-          if (imported.status === 'completed' && imported.resultJson !== undefined) {
+          // Issue #63: an amend keeps the prompt hash but the edited script may
+          // carry a tightened ask schema — a warm entry whose answer no longer
+          // satisfies the CURRENT contract falls through to the divergence
+          // rules below (the actor goes live) instead of replaying stale data.
+          if (imported.status === 'completed' && imported.resultJson !== undefined && this.replayedAskValid(imported.resultJson, schemaJson)) {
             // Issue #39 persona guard: a same-site ask row stamped with a
             // DIFFERENT canonical persona belongs to another actor identity —
             // re-run live instead of replaying the lineage's answer. Old rows
@@ -856,10 +897,13 @@ export class FacadeEngine {
         // misses whenever an amend renumbers sites, but a named actor whose
         // canonical persona matches the lineage still consumes its prior asks
         // 1:1 by position + content hash (canonical matchImportedActor parity).
+        // Issue #63: the replayed answer must also satisfy the ask's current
+        // schema — an invalid warm entry is consumed and the actor diverges
+        // (fall-through) instead of replaying it.
         const actorHit = kind === 'ask' && actorSiteId !== undefined && meta?.actorCache !== undefined && !this.divergedActors.has(actorSiteId)
           ? this.takeActorImport(actorSiteId, meta.actorCache)
           : undefined;
-        if (actorHit !== undefined) {
+        if (actorHit !== undefined && this.replayedAskValid(actorHit, schemaJson)) {
           const hitActor = meta?.actorCache?.name ?? '';
           this.emit('dwf_amend_hit', { siteId, kind, actor: hitActor, via: 'actor' });
           return JSON.parse(actorHit) as T;
