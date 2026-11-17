@@ -65,3 +65,10 @@ export function checkNoCommentClaims(
   prBody: string,
   issueComments?: Array<{ fromIssue?: number | string; author?: string; body?: string }>
 ): NoCommentClaimsResult;
+
+/**
+ * Directories under the sibling AI-workflow-worktrees/ root whose `git
+ * rev-parse --git-dir` no longer resolves — orphan worktree shells (Issue #67)
+ * that must be deleted on sight (AGENTS.md §1.5). Empty on CI clones.
+ */
+export function findOrphanWorktrees(cwd?: string): string[];
