@@ -121,7 +121,7 @@ Commands:
   graph <file>             Generate DAG visualization (html, mermaid, ascii)
   serve <run-id>           Live Studio dashboard for a run (SSE + inline A2UI resume)
   view <run-id>            Export the Studio dashboard as a standalone HTML page
-  setup                    Generate Claude Code / OpenCode / Codex interop configs
+  setup                    Generate Claude Code / OpenCode / Codex / ZCode interop configs
   export-schema            Export the engine tool face as an OpenAI function-calling schema
   probe                    Inspect host environment and toolchains
 `
