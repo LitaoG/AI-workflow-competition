@@ -1,5 +1,5 @@
 /**
- * Unit tests for the pure domain layer (src/domain): the Result monad, the tagged
+ * Unit tests for the pure domain layer (src/domain): the tagged
  * error algebra and its NDJSON/JSONL round trip, the evidence ledger, the
  * canonical event vocabulary, and the backward-compatible re-export surface of
  * src/types.ts.
@@ -7,18 +7,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { z } from 'zod';
-import {
-  ok,
-  err,
-  isOk,
-  isErr,
-  map,
-  mapErr,
-  flatMap,
-  match,
-  unwrapOr,
-  type Result,
-} from '../../src/domain/result.js';
 import {
   domainError,
   toDomainError,
@@ -63,94 +51,6 @@ import {
 // Runtime re-export surface of the legacy import path:
 import { WORKFLOW_EVENT as REEXPORTED_EVENT, type WorkflowEvent, type WorkflowStatus, type AgentRPCClient, type PromptSchema } from '../../src/types.js';
 import type { AgentRPCClient as DomainAgentRPCClient, WorkflowStatus as DomainWorkflowStatus } from '../../src/domain/workflow-types.js';
-
-// ============================================================================
-// Result monad
-// ============================================================================
-
-test('Result: ok/err build the discriminated branches and guards narrow them', () => {
-  const good = ok<number, string>(42);
-  const bad = err<number, string>('boom');
-
-  assert.ok(isOk(good));
-  assert.equal(good.ok, true);
-  assert.equal(good.value, 42);
-  assert.equal(good.error, undefined);
-
-  assert.ok(isErr(bad));
-  assert.equal(bad.ok, false);
-  assert.equal(bad.error, 'boom');
-  assert.equal(bad.value, undefined);
-
-  assert.equal(isOk(bad), false);
-  assert.equal(isErr(good), false);
-});
-
-test('Result: map transforms only the success branch', () => {
-  const doubled = map(ok<number, string>(21), (n) => n * 2);
-  assert.deepEqual(doubled, { ok: true, value: 42 });
-
-  const untouched = map(err<number, string>('boom'), (n) => n * 2);
-  assert.deepEqual(untouched, { ok: false, error: 'boom' });
-});
-
-test('Result: mapErr transforms only the failure branch', () => {
-  const retagged = mapErr(err<number, string>('boom'), (message) => ({ code: message }));
-  assert.deepEqual(retagged, { ok: false, error: { code: 'boom' } });
-
-  const untouched = mapErr(ok<number, string>(7), (message) => ({ code: message }));
-  assert.deepEqual(untouched, { ok: true, value: 7 });
-});
-
-test('Result: flatMap chains fallible steps and short-circuits on failure', () => {
-  let sideEffect = 0;
-  const parse = (text: string): Result<number, string> =>
-    /^\d+$/.test(text) ? ok(Number(text)) : err(`not a number: ${text}`);
-  const halve = (n: number): Result<number, string> =>
-    n % 2 === 0 ? ok(n / 2) : err('odd number');
-
-  assert.deepEqual(flatMap(flatMap(ok<string, string>('84'), parse), halve), { ok: true, value: 42 });
-  assert.deepEqual(flatMap(flatMap(ok<string, string>('85'), parse), halve), { ok: false, error: 'odd number' });
-
-  const shortCircuited = flatMap(err<string, string>('boom'), (v) => {
-    sideEffect += 1;
-    return ok(v.length);
-  });
-  assert.deepEqual(shortCircuited, { ok: false, error: 'boom' });
-  assert.equal(sideEffect, 0, 'flatMap must not invoke the continuation on a failed input');
-});
-
-test('Result: match folds both branches exhaustively', () => {
-  const describe = (r: Result<number, string>): string =>
-    match(r, (n) => `value ${n}`, (message) => `error ${message}`);
-
-  assert.equal(describe(ok(5)), 'value 5');
-  assert.equal(describe(err('late')), 'error late');
-});
-
-test('Result: unwrapOr substitutes the fallback on failure only', () => {
-  assert.equal(unwrapOr(ok<number, string>(3), -1), 3);
-  assert.equal(unwrapOr(err<number, string>('boom'), -1), -1);
-});
-
-test('Result: composes into a typed pipeline over DomainError', () => {
-  const parseCount = (raw: string): Result<number, DomainError> =>
-    /^\d+$/.test(raw) ? ok(Number(raw)) : err(domainError('AgentError', 'non-numeric count'));
-
-  const pipeline = (raw: string): Result<string, DomainError> =>
-    map(
-      flatMap(parseCount(raw), (n): Result<number, DomainError> =>
-        n > 0 ? ok(n) : err(domainError('AgentError', 'count must be positive'))
-      ),
-      (n) => `count=${n}`
-    );
-
-  assert.deepEqual(pipeline('3'), { ok: true, value: 'count=3' });
-  const negative = pipeline('-1');
-  const nonNumeric = pipeline('abc');
-  assert.ok(isErr(negative) && isAgentError(negative.error));
-  assert.ok(isErr(nonNumeric) && isAgentError(nonNumeric.error));
-});
 
 // ============================================================================
 // Tagged error algebra

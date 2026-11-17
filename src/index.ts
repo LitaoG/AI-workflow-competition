@@ -66,7 +66,6 @@ export { DAGVisualizerCoordinator } from './dag/visualizer.js';
 export { HTMLRenderer } from './dag/html-renderer.js';
 export { MermaidRenderer } from './dag/mermaid-renderer.js';
 export { ASCIIRenderer } from './dag/ascii-renderer.js';
-export { KanbanDashboard } from './dag/kanban.js';
 
 // MCP
 export { MCPClientManager } from './mcp/client.js';
