@@ -13,6 +13,7 @@
  */
 
 import fs from 'node:fs';
+import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 export const FAST_MERGE_FLOOR_SECONDS = 600;
@@ -318,6 +319,44 @@ export function checkWorktreeCleanliness(cwd = process.cwd()) {
   }
 }
 
+// Issue #67: an orphan worktree shell is a directory under the sibling
+// AI-workflow-worktrees/ root that no longer resolves to a git worktree —
+// the registration is gone but the directory survived (Windows file locks
+// routinely make `git worktree remove` leave shells behind). Left in place
+// they rot silently, so the cleanliness gate names them: a shell must be
+// deleted on sight (AGENTS.md §1.5 用完即删). The sibling root simply does
+// not exist on CI clones, where the scan is a no-op. The root is derived
+// from the repo's COMMON git dir so the scan works identically from the
+// main checkout and from inside any live worktree.
+export function findOrphanWorktrees(cwd = process.cwd()) {
+  let commonDir;
+  try {
+    commonDir = execFileSync('git', ['-C', cwd, 'rev-parse', '--git-common-dir'], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      encoding: 'utf-8',
+    }).trim();
+  } catch {
+    return []; // not inside a git repository — nothing to scan
+  }
+  const mainRepoRoot = path.dirname(path.resolve(cwd, commonDir));
+  const worktreesRoot = path.resolve(mainRepoRoot, '..', 'AI-workflow-worktrees');
+  if (!fs.existsSync(worktreesRoot)) return [];
+  const orphans = [];
+  for (const entry of fs.readdirSync(worktreesRoot, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const dir = path.join(worktreesRoot, entry.name);
+    try {
+      execFileSync('git', ['-C', dir, 'rev-parse', '--git-dir'], {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        encoding: 'utf-8',
+      });
+    } catch {
+      orphans.push(dir);
+    }
+  }
+  return orphans;
+}
+
 // CLI 执行逻辑
 function runCLI() {
   const args = process.argv.slice(2);
@@ -338,12 +377,14 @@ PR Review & Cooling Period Gate CLI (pr_review_gate.mjs)
 
   if (args.includes('--check-clean')) {
     const res = checkWorktreeCleanliness();
-    if (!res.clean) {
+    const orphans = findOrphanWorktrees();
+    if (!res.clean || orphans.length > 0) {
       console.error('[门禁失败] 工作区存在残留或未提交变更:');
       res.violations.forEach(v => console.error(` - ${v}`));
+      orphans.forEach(o => console.error(` - 孤儿 worktree 壳（目录在、git 无法解析，用完即删）: ${o}`));
       process.exit(1);
     }
-    console.log('[门禁通过] 工作区彻底干净，无未暂存/未提交副产物。');
+    console.log('[门禁通过] 工作区彻底干净，无未暂存/未提交副产物，无孤儿 worktree 壳。');
     return;
   }
 
