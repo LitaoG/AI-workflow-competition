@@ -55,3 +55,33 @@ jobs:
 
       - name: Nine-act demo (offline, self-verifying)
         run: bash scripts/demo.sh
+
+  # Issue #66: a SIGNAL job, not a gate. Quantified at triage: 9
+  # `process.platform === 'win32'` branches across src/ plus 2 win32/ps1/
+  # jobhelper tracked files (scripts/win32-jobhelper.cs,
+  # tests/integration/win32-spawn-resolver.test.ts) — single digits, so a
+  # full windows matrix would roughly double every PR's wall clock while
+  # P-SHELL-1 / pipe-buffering / jobhelper compile risks would make it a
+  # merge-blocking hazard on its first red. This job runs the cheap
+  # build+unit slice on demand (workflow_dispatch) or when a PR carries the
+  # `win32` label, gathering signal without gating merges. Branch protection
+  # (Issue #66 action item 3) requires only the `gate` context above.
+  win32-signal:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'win32')
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (tsc)
+        run: npm run build
+
+      - name: Unit suite
+        run: npm run test:unit
