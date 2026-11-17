@@ -34,6 +34,26 @@
           "name": "workflow_graph",
           "description": "Generate static DAG graph visualization without execution (HTML, Mermaid, or ASCII)",
           "aliases": ["export_dag"]
+        },
+        {
+          "name": "workflow_script_check",
+          "description": "Compile-check a facade script (strict TS against the workflow facade, purity bans, literal rules) and return diagnostics, phases, and the site table — without executing anything"
+        },
+        {
+          "name": "workflow_script_run",
+          "description": "Run a facade script in the sandbox (deterministic journal; --resume replays completed nodes at zero provider calls). Returns runId, status, result value, and stats (asks/replayHits)."
+        },
+        {
+          "name": "workflow_run_script",
+          "description": "Run a facade script through the sandboxed engine (journal-backed deterministic replay) and return runId, final status, per-site summaries (siteId/ordinal/status/durationMs) and stats; bounded by runTimeoutMs"
+        },
+        {
+          "name": "workflow_inspect_run",
+          "description": "Inspect a facade-script run in the journal: the dwf_runs status row, the per-site dwf_nodes table (redacted) and an evidence-ledger summary (counts and the latest entries)"
+        },
+        {
+          "name": "workflow_get_run",
+          "description": "Fetch a facade-script run's journal short-circuit statistics — total asks, replay hits, amend hits, divergences and world.run executions (same accounting as the runner stats)"
         }
       ]
     }

@@ -4,6 +4,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+// From dist (not src): this gate runs directly on the source tree with
+// --experimental-strip-types, where .js specifiers do not rewrite to .ts —
+// the compiled catalog is the same artifact the server serves.
+import { TOOL_CATALOG } from '../../dist/src/mcp/tool-catalog.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -439,6 +443,26 @@ describe('Workflow & Governance Specification Suite Invariant Locks', () => {
     assert.ok(
       pitfallsMd.includes('P-ENV-3') && pitfallsMd.includes('2026-11-15，Issue #15'),
       'docs/AI-PITFALLS.md P-ENV-3 must record the 3rd instance and its status update (trigger removed)',
+    );
+  });
+
+  test('Tier 2: .kiro/mcp/mcp-server.json tool face is locked to TOOL_CATALOG (Issue #118)', () => {
+    // The Kiro MCP manifest used to register only the 5 legacy tools while the
+    // served catalog grew to 10 (the facade face was missing) — and nothing
+    // locked it, unlike .codex/tools.json which is byte-identical-locked.
+    const manifestPath = path.join(REPO_ROOT, '.kiro', 'mcp', 'mcp-server.json');
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')) as {
+      mcpServers?: Record<string, { tools?: Array<{ name: string }> }>;
+    };
+    const declared = (manifest.mcpServers?.['ai-workflow-engine']?.tools ?? [])
+      .map((tool) => tool.name)
+      .sort();
+    const catalog = TOOL_CATALOG.map((tool) => tool.name).sort();
+    assert.deepStrictEqual(
+      declared,
+      catalog,
+      'the Kiro MCP manifest must register exactly the TOOL_CATALOG tool face (Issue #118) — ' +
+        'add/remove tools in both places together',
     );
   });
 

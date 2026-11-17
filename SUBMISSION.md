@@ -184,15 +184,16 @@ directory is **fully tracked in Git** and carries five subsystems — the comple
   (append-only event-stream audit), `Stop` (no exit until verification gates pass).
 - **Steering** (`.kiro/steering/`) — frontmatter (`inclusion: always`) guardrails: "code, not
   conversation" philosophy, security policy, workflow conventions, bilingual presentation.
-- **MCP** (`.kiro/mcp/mcp-server.json`) — mounts the engine's MCP server over stdio (declared
-  tools: `workflow_run` / `probe` / `inspect` / `replay` / `graph`; the served catalog also
-  includes `workflow_script_check` / `workflow_script_run`).
-- **PBT** (`.kiro/pbt/`) — `fast-check` properties proving 5 invariants (50–100 randomized cases
-  per property, see `.kiro/pbt/engine-invariants.test.ts`): DAG acyclicity, idempotent zero-token
-  replay, typed-RPC soundness, monotonic event-log ordering, credential redaction.
+- **MCP** (`.kiro/mcp/mcp-server.json`) — mounts the engine's MCP server over stdio with the full
+  ten-tool face: five legacy tools (`workflow_run` / `probe` / `inspect` / `replay` / `graph`) plus
+  five facade tools (`workflow_script_check` / `workflow_script_run` / `workflow_run_script` /
+  `workflow_inspect_run` / `workflow_get_run`), locked to `TOOL_CATALOG` by the governance suite.
+- **PBT** (`.kiro/pbt/`) — `fast-check` properties across six property files proving the core
+  invariants (per-property `numRuns` tuned 8–3,000 by cost): DAG acyclicity, idempotent zero-token
+  replay, typed-RPC soundness, monotonic event-log ordering, credential redaction, and more.
 
-The namesake **Skeleton Crew roster** (`.kiro/crew/`): `Conductor`, `Prober`, `Worker`,
-`Reviewer`, `GateKeeper` — with least-privilege permission ceilings per role.
+The namesake **Skeleton Crew roster** (`.kiro/crew/`): `inspector`, `architect`, `worker`,
+`reviewer`, `gatekeeper` — with least-privilege permission ceilings per role.
 
 ### How Kiro was used to build this project
 
