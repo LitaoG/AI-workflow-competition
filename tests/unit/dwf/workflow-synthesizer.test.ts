@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import { synthesizeFacadeScript } from '../../../src/dwf/workflow-synthesizer.js';
 import { providerRegistry } from '../../../src/agent/provider.js';
 import type { LLMProvider, LLMRequest, LLMResponse } from '../../../src/types.js';
+import { makeRespond } from './test-helpers.js';
 
 const VALID_SCRIPT = [
   'phase("main");',
@@ -24,12 +25,7 @@ const INVALID_SCRIPT = [
   '',
 ].join('\n');
 
-const respond = (content: string): LLMResponse => ({
-  content,
-  model: 'synth-mock',
-  usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
-  latencyMs: 0,
-});
+const respond = makeRespond('synth-mock');
 
 /** A provider that replays a scripted queue of scripts (as JSON replies) and records every prompt. */
 function scriptQueueProvider(queue: string[]): LLMProvider & { prompts: string[] } {

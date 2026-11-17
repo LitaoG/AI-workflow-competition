@@ -1,73 +1,41 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { FacadeEngine } from '../../../src/dwf/engine.js';
-import { createSQLiteStore } from '../../../src/state/store.js';
-import type { SQLiteStateStore } from '../../../src/state/sqlite-store.js';
-import type { DwfJournalStore, LLMMessage, LLMProvider, LLMRequest, LLMResponse } from '../../../src/types.js';
+import type { LLMProvider, LLMRequest } from '../../../src/types.js';
 import { providerRegistry } from '../../../src/agent/provider.js';
-import { MockProvider } from '../../../src/agent/mock-provider.js';
+import { CountingProvider, actorFrame, askFrame, makeNodeApprovedEngine, makeStore } from './test-helpers.js';
 
-/** Counting wrapper so tests can assert exactly how many provider calls happened. */
-class CountingProvider implements LLMProvider {
-  readonly id = 'dwf-counting-mock';
-  readonly name = 'Counting mock';
-  calls = 0;
-  private readonly inner = new MockProvider();
-  async generate(request: LLMRequest): Promise<LLMResponse> {
-    this.calls++;
-    return this.inner.generate(request);
-  }
-}
-
-function makeEngine(runId: string, store: SQLiteStateStore & DwfJournalStore, overrides: Partial<ConstructorParameters<typeof FacadeEngine>[0]> = {}): FacadeEngine {
-  return new FacadeEngine({
-    runId,
-    workspace: process.cwd(),
-    store,
-    args: {},
-    approvedCommands: [{ name: 'node', source: 'explicit' as const }],
-    onEvent: () => {},
-    ...overrides,
-  });
-}
-
-function actorFrame(siteId: string): { t: 'call'; id: number; op: 'createActor'; siteId: string; payload: unknown[] } {
-  return { t: 'call', id: 1, op: 'createActor', siteId, payload: ['inspector'] };
-}
-
-function askFrame(id: number, siteId: string, actor: unknown): { t: 'call'; id: number; op: 'ask'; siteId: string; payload: unknown[] } {
-  return { t: 'call', id, op: 'ask', siteId, payload: [actor, 'inspect the service', null] };
-}
+const makeCounting = (): CountingProvider => new CountingProvider('dwf-counting-mock', 'Counting mock');
 
 test('engine replay: second engine on the same journal short-circuits asks at zero model calls', async () => {
-  const counting = new CountingProvider();
+  const counting = makeCounting();
   providerRegistry.register(counting);
   const previousDefault = 'mock';
   providerRegistry.setDefault('dwf-counting-mock');
 
   try {
-    const store = createSQLiteStore(':memory:') as SQLiteStateStore & DwfJournalStore;
+    const store = makeStore();
     const runId = 'dwfrun-replay-test';
 
     // Run 1: two asks execute against the provider
-    const engine1 = makeEngine(runId, store);
-    const actor1 = await engine1.handleCall(actorFrame('actor#1'));
-    const reply1 = await engine1.handleCall(askFrame(2, 'ask#1', actor1));
+    const engine1 = makeNodeApprovedEngine(runId, store);
+    const actor1 = await engine1.handleCall(actorFrame(1, 'actor#1'));
+    const reply1 = await engine1.handleCall(askFrame(2, 'ask#1', actor1, 'inspect the service'));
     // G3 contract: an UNTYPED ask returns the subagent's final reply TEXT (no JSON coercion).
     assert.ok(typeof reply1 === 'string' && reply1.length > 0, `untyped reply is text, got: ${typeof reply1}`);
     const callsAfterRun1 = counting.calls;
     assert.ok(callsAfterRun1 >= 1, 'provider was called on the fresh run');
 
     // Run 2 (resume): same journal, same inputs �?zero provider calls
-    const engine2 = makeEngine(runId, store);
-    const actor2 = await engine2.handleCall(actorFrame('actor#1'));
-    const reply2 = await engine2.handleCall(askFrame(3, 'ask#1', actor2));
+    const engine2 = makeNodeApprovedEngine(runId, store);
+    const actor2 = await engine2.handleCall(actorFrame(1, 'actor#1'));
+    const reply2 = await engine2.handleCall(askFrame(3, 'ask#1', actor2, 'inspect the service'));
     assert.equal(counting.calls, callsAfterRun1, 'replay must not call the provider');
     assert.equal(reply2, reply1);
 
     // Same site, different prompt �?inputHash mismatch fails loudly
-    const engine3 = makeEngine(runId, store);
-    const actor3 = await engine3.handleCall(actorFrame('actor#1'));
+    const engine3 = makeNodeApprovedEngine(runId, store);
+    const actor3 = await engine3.handleCall(actorFrame(1, 'actor#1'));
     // Settle pools still match by content, but on a same-script resume the
     // positional strictness gate (P0-2, locked in dwf-replay-strict.test.ts)
     // fires first: a drifted ask input whose arrival position holds an
@@ -92,8 +60,8 @@ test('engine replay: second engine on the same journal short-circuits asks at ze
 });
 
 test('ask seat gate bounds concurrency across actors; per-actor asks run FIFO', async () => {
-  const store = createSQLiteStore(':memory:') as SQLiteStateStore & DwfJournalStore;
-  const counting = new CountingProvider();
+  const store = makeStore();
+  const counting = makeCounting();
   providerRegistry.register(counting);
   providerRegistry.setDefault('dwf-counting-mock');
   let concurrent = 0;
@@ -148,8 +116,8 @@ test('ask seat gate bounds concurrency across actors; per-actor asks run FIFO', 
 });
 
 test('world.run outside the approval set is rejected', async () => {
-  const store = createSQLiteStore(':memory:') as SQLiteStateStore & DwfJournalStore;
-  const engine = makeEngine('dwfrun-approval', store, { approvedCommands: [{ name: 'node', source: 'explicit' as const }] });
+  const store = makeStore();
+  const engine = makeNodeApprovedEngine('dwfrun-approval', store, { approvedCommands: [{ name: 'node', source: 'explicit' as const }] });
   await assert.rejects(
     () => engine.handleCall({ t: 'call', id: 1, op: 'worldRun', siteId: 'worldrun#1', payload: ['curl', ['http://x'], undefined] }),
     // Tagged errors are plain objects — match the message, not String(err).
@@ -159,8 +127,8 @@ test('world.run outside the approval set is rejected', async () => {
 });
 
 test('files.read refusing to escape the workspace', async () => {
-  const store = createSQLiteStore(':memory:') as SQLiteStateStore & DwfJournalStore;
-  const engine = makeEngine('dwfrun-escape', store);
+  const store = makeStore();
+  const engine = makeNodeApprovedEngine('dwfrun-escape', store);
   await assert.rejects(
     () => engine.handleCall({ t: 'call', id: 1, op: 'worldRead', siteId: 'worldread#1', payload: ['files.read', ['..\\..\\secret.txt']] }),
     // Tagged errors are plain objects — match the message, not String(err).
@@ -170,8 +138,8 @@ test('files.read refusing to escape the workspace', async () => {
 });
 
 test('persistent actor sessions: the second ask sees the first turn, per-actor history is kept', async () => {
-  const store = createSQLiteStore(':memory:') as SQLiteStateStore & DwfJournalStore;
-  const counting = new CountingProvider();
+  const store = makeStore();
+  const counting = makeCounting();
   const seenRequests: LLMRequest[] = [];
   const wrapper: LLMProvider = {
     id: 'dwf-history-mock',
@@ -185,8 +153,8 @@ test('persistent actor sessions: the second ask sees the first turn, per-actor h
   providerRegistry.setDefault('dwf-history-mock');
 
   try {
-    const engine = makeEngine('dwfrun-history', store);
-    const actor = await engine.handleCall(actorFrame('actor#1'));
+    const engine = makeNodeApprovedEngine('dwfrun-history', store);
+    const actor = await engine.handleCall(actorFrame(1, 'actor#1'));
     await engine.handleCall({ t: 'call', id: 2, op: 'ask', siteId: 'ask#1', payload: [actor, 'inspect the service', null] });
     await engine.handleCall({ t: 'call', id: 3, op: 'ask', siteId: 'ask#2', payload: [actor, 'now summarize what you found', null] });
 
@@ -208,18 +176,18 @@ test('persistent actor sessions: the second ask sees the first turn, per-actor h
 });
 
 test('amend: an edited script forks a new run �?unchanged asks replay, changed ones diverge', async () => {
-  const counting = new CountingProvider();
+  const counting = makeCounting();
   providerRegistry.register(counting);
   providerRegistry.setDefault('dwf-counting-mock');
 
   try {
-    const store = createSQLiteStore(':memory:') as SQLiteStateStore & DwfJournalStore;
+    const store = makeStore();
     const runId = 'dwfrun-amend-base';
 
     // Base run: two asks.
-    const engine1 = makeEngine(runId, store);
-    const actor1 = await engine1.handleCall(actorFrame('actor#1'));
-    await engine1.handleCall(askFrame(2, 'ask#1', actor1));
+    const engine1 = makeNodeApprovedEngine(runId, store);
+    const actor1 = await engine1.handleCall(actorFrame(1, 'actor#1'));
+    await engine1.handleCall(askFrame(2, 'ask#1', actor1, 'inspect the service'));
     await engine1.handleCall({ t: 'call', id: 3, op: 'ask', siteId: 'ask#2', payload: [actor1, 'second question', null] });
     const callsAfterBase = counting.calls;
     assert.ok(callsAfterBase >= 2);
@@ -228,12 +196,12 @@ test('amend: an edited script forks a new run �?unchanged asks replay, changed
     const priorNodes = await store.getDwfNodes(runId);
     const importedCache = new Map(priorNodes.map((n) => [`${n.siteId}#${n.ordinal}`, n]));
     const events: Array<{ type: string }> = [];
-    const engine2 = makeEngine('dwfrun-amend-child', store, {
+    const engine2 = makeNodeApprovedEngine('dwfrun-amend-child', store, {
       importedCache,
       onEvent: (e) => events.push(e),
     });
-    const actor2 = await engine2.handleCall(actorFrame('actor#1'));
-    const replayed = await engine2.handleCall(askFrame(4, 'ask#1', actor2));
+    const actor2 = await engine2.handleCall(actorFrame(1, 'actor#1'));
+    const replayed = await engine2.handleCall(askFrame(4, 'ask#1', actor2, 'inspect the service'));
     const diverged = await engine2.handleCall({ t: 'call', id: 5, op: 'ask', siteId: 'ask#2', payload: [actor2, 'a CHANGED second question', null] });
 
     assert.equal(counting.calls, callsAfterBase + 1, 'only the diverged ask hits the provider');

@@ -12,34 +12,12 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { FacadeEngine } from '../../../src/dwf/engine.js';
-import { createSQLiteStore } from '../../../src/state/store.js';
-import type { SQLiteStateStore } from '../../../src/state/sqlite-store.js';
-import type { DwfJournalStore, LLMProvider, LLMResponse } from '../../../src/types.js';
+import type { LLMProvider, LLMResponse } from '../../../src/types.js';
 import { providerRegistry } from '../../../src/agent/provider.js';
+import { CallFrame, makeEngine, makeRespond, makeStore } from './test-helpers.js';
 
-const respond = (content: string): LLMResponse => ({
-  content,
-  model: 'swarm-budget-mock',
-  usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
-  latencyMs: 0,
-});
+const respond = makeRespond('swarm-budget-mock');
 
-type EngineOptions = Partial<ConstructorParameters<typeof FacadeEngine>[0]>;
-
-function makeEngine(runId: string, store: SQLiteStateStore & DwfJournalStore, overrides: EngineOptions = {}): FacadeEngine {
-  return new FacadeEngine({
-    runId,
-    workspace: process.cwd(),
-    store,
-    args: {},
-    approvedCommands: [],
-    onEvent: () => {},
-    ...overrides,
-  });
-}
-
-type CallFrame = { t: 'call'; id: number; op: 'ask' | 'createActor'; siteId: string; payload: unknown[] };
 const actorFrame = (id: number): CallFrame => ({ t: 'call', id, op: 'createActor', siteId: 'actor#1', payload: ['swarmer', null] });
 const askFrame = (id: number, siteId: string, actor: unknown, prompt: string): CallFrame => ({
   t: 'call', id, op: 'ask', siteId, payload: [actor, prompt, null, true],
@@ -56,7 +34,7 @@ test('asks entering after the budget is spent reject with WorkflowBudgetExceeded
   providerRegistry.register(prober);
   const previous = providerRegistry.get().id;
   providerRegistry.setDefault(prober.id);
-  const store = createSQLiteStore(':memory:') as SQLiteStateStore & DwfJournalStore;
+  const store = makeStore();
   try {
     const engine = makeEngine('dwfrun-swarm-budget-drop', store, { budgetTotal: 1 });
     const actor = await engine.handleCall(actorFrame(1));

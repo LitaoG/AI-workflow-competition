@@ -9,16 +9,11 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { analyzeFacadeScript } from '../../../src/dwf/compile.js';
 import { lowerFacadeScript } from '../../../src/dwf/lower.js';
 import { FacadeEngine } from '../../../src/dwf/engine.js';
-import { createSQLiteStore } from '../../../src/state/store.js';
-import type { SQLiteStateStore } from '../../../src/state/sqlite-store.js';
-import type { DwfJournalStore, LLMProvider, LLMRequest, LLMResponse } from '../../../src/types.js';
 import { providerRegistry } from '../../../src/agent/provider.js';
 import { resolveModelToProvider } from '../../../src/agent/model-router.js';
-
-const compile = (body: string) => analyzeFacadeScript(`${body}\nreturn null;`);
+import { CallFrame, compile, makeStore, makeTap } from './test-helpers.js';
 
 test('#38 compile: model() literal rules — non-literal/empty arg is 9015', () => {
   const dynamic = compile(`const id = "mock";\nconst a = agent("x", { model: model(id) });`);
@@ -62,29 +57,8 @@ test('#38 lowering: the model id rides as the fifth createActor argument (never 
   assert.match(unmodelled.js, /createActor\([^)]*null\s*,\s*null\s*,\s*null\s*\)/s, 'an unmodelled actor lowers with a null model');
 });
 
-const respond = (content: string): LLMResponse => ({
-  content,
-  model: 'model-mock',
-  usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
-  latencyMs: 0,
-});
+const tap = makeTap('model-mock');
 
-function tap(id: string): LLMProvider & { hits: number } {
-  return {
-    id,
-    name: id,
-    hits: 0,
-    async generate(_request: LLMRequest): Promise<LLMResponse> {
-      this.hits += 1;
-      return respond(`ok from ${id}`);
-    },
-  };
-}
-
-type CallFrame = { t: 'call'; id: number; op: 'ask' | 'createActor'; siteId: string; payload: unknown[] };
-const actorFrame = (id: number, opts: unknown[]): CallFrame => ({
-  t: 'call', id, op: 'createActor', siteId: 'actor#1', payload: ['router', ...opts],
-});
 const askFrame = (id: number, actor: unknown, prompt: string): CallFrame => ({
   t: 'call', id, op: 'ask', siteId: 'ask#1', payload: [actor, prompt, null, true],
 });
@@ -93,7 +67,7 @@ test('#38 engine: persona model wins over provider/tier; unresolved model fails 
   providerRegistry.register(tap('mock'));
   const alpha = tap('alpha');
   providerRegistry.register(alpha);
-  const store = createSQLiteStore(':memory:') as SQLiteStateStore & DwfJournalStore;
+  const store = makeStore();
   try {
     const events: Array<{ type: string; data: Record<string, unknown> }> = [];
     const engine = new FacadeEngine({
@@ -121,7 +95,7 @@ test('#38 engine: persona model wins over provider/tier; unresolved model fails 
   }
 
   // Unresolved model: the run fails at ACTOR CREATION — no ask ever fires.
-  const store2 = createSQLiteStore(':memory:') as SQLiteStateStore & DwfJournalStore;
+  const store2 = makeStore();
   try {
     const engine = new FacadeEngine({
       runId: 'model-route-2',
