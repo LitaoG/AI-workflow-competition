@@ -10,12 +10,11 @@
  *    (structural validator in src/domain/workflow-types.ts; any zod schema
  *    satisfies it, keeping this module validator-agnostic). The system prompt
  *    mandates the *transport format* only ("a single valid JSON object, nothing
- *    else") and deliberately does NOT inline the schema's shape — the
- *    `schemaToJsonSchema` helper in schema.ts exists for prompt-side description
- *    but is unused by this loop. Rationale: a prompt-side description can drift
- *    from the real schema, while `safeParse` cannot; the validator is the single
- *    source of truth, and field-level guidance reaches the model reactively
- *    through the repair loop instead of being promised up front.
+ *    else") and deliberately does NOT inline the schema's shape. Rationale: a
+ *    prompt-side description can drift from the real schema, while `safeParse`
+ *    cannot; the validator is the single source of truth, and field-level
+ *    guidance reaches the model reactively through the repair loop instead of
+ *    being promised up front.
  *
  * 2. Self-healing reflection loop. A failed turn is repaired over evidence, not
  *    resent blindly: the model's own raw output is replayed as an `assistant`

@@ -9,15 +9,6 @@
  *     boundary conversion reads it unchanged;
  *   - frame shapes reproduce the NDJSON wire protocol byte-for-byte (protocol.ts).
  */
-/**
- * The realm's boot program (Issue #31 预Seed). Pure JS with no backticks/`${}` so it
- * sits safely inside a template literal. Runs ONCE inside the context; every binding
- * it creates is context-native. Shape contracts mirrored from the host side:
- *   - `__tagged` reproduces `domainError(tag, message, {details})`'s plain-object
- *     shape (`src/domain/errors.ts`) so the host's `isDomainError`/`toSerializableError`
- *     boundary conversion reads it unchanged;
- *   - frame shapes reproduce the NDJSON wire protocol byte-for-byte (protocol.ts).
- */
 export const BOOTSTRAP = `"use strict";
 (function () {
   // —— The only host capabilities that ever cross: captured, then deleted from the

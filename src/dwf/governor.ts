@@ -352,8 +352,3 @@ export function retryAfterFromError(err: unknown): number | undefined {
   // 'Retry-After: 30' must freeze the bucket for 30s, not 30ms).
   return parseRetryAfterMs((err as Error)?.message ?? '');
 }
-
-/** Registered-provider guard reused by the engine (kept here for one import site). */
-export function knownProviders(): string[] {
-  return providerRegistry.list();
-}
