@@ -9,26 +9,9 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { MCPClientManager } from '../../src/mcp/client.js';
 import { BuiltinWorkflowMCPServer } from '../../src/mcp/server.js';
-import { toolRegistry } from '../../src/mcp/registry.js';
 
 // Resolved at runtime: tests execute from dist/tests/integration/ → repo root is three levels up.
 const REPO_ROOT = path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), '..', '..', '..');
-
-test('MCP Integration: ToolRegistry registers and retrieves namespaced tools', () => {
-  toolRegistry.register('test-server', {
-    name: 'custom_tool',
-    description: 'Custom test tool',
-    inputSchema: { type: 'object' },
-  });
-
-  const tool = toolRegistry.get('test-server', 'custom_tool');
-  assert.ok(tool !== undefined);
-  assert.equal(tool.toolName, 'custom_tool');
-  assert.equal(tool.serverName, 'test-server');
-
-  const all = toolRegistry.listAll();
-  assert.ok(all.some((t) => t.toolName === 'custom_tool'));
-});
 
 test('MCP Integration: MCPClientManager mock mode lists tools and executes calls in <20ms', async () => {
   const manager = new MCPClientManager(true);

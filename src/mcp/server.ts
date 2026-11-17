@@ -39,7 +39,6 @@ import {
 } from '../domain/errors.js';
 import { summarizeEvidence, ledgerFromEntries } from '../domain/evidence.js';
 import { DwfJournalStore, DwfNode, WorkflowEvent } from '../types.js';
-import { toolRegistry } from './registry.js';
 import { TOOL_CATALOG, facadeSchemas, type McpToolDescriptor } from './tool-catalog.js';
 import { jsonResult, taggedErrorResult, textResult, resolveScriptInsideCwd, zodArgsError, parseMaybeJson, readRunSites, countEvents, type RunSiteSummary } from './tool-helpers.js';
 
@@ -75,12 +74,6 @@ export class BuiltinWorkflowMCPServer {
       { capabilities: { tools: {} } }
     );
     this.setupHandlers();
-    // Catalog the full tool face into the shared registry (serverName:tool keys).
-    // Registration is idempotent (Map.set), so repeated server instances never
-    // duplicate entries.
-    for (const tool of TOOL_CATALOG) {
-      toolRegistry.register(SERVER_NAME, tool);
-    }
   }
 
   public getServer(): Server {
