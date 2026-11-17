@@ -3,10 +3,7 @@ import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { FacadeEngine } from '../../../src/dwf/engine.js';
-import { createSQLiteStore } from '../../../src/state/store.js';
-import type { SQLiteStateStore } from '../../../src/state/sqlite-store.js';
-import type { DwfJournalStore } from '../../../src/types.js';
+import { actorFrame, makeEngine, makeStore } from './test-helpers.js';
 
 /**
  * Evidence ledger at the journal saveNode point (GOAL.md 证据凭证法则):
@@ -18,21 +15,6 @@ import type { DwfJournalStore } from '../../../src/types.js';
 /** Fake, self-made token shapes — nothing here is a real credential. */
 const FAKE_GITHUB_TOKEN = 'ghp_0123456789abcdefghij0123456789abcd';
 
-function makeEngine(runId: string, store: SQLiteStateStore & DwfJournalStore, workspace: string): FacadeEngine {
-  return new FacadeEngine({
-    runId,
-    workspace,
-    store,
-    args: {},
-    approvedCommands: [],
-    onEvent: () => {},
-  });
-}
-
-function actorFrame(id: number, siteId: string, name: string): { t: 'call'; id: number; op: 'createActor'; siteId: string; payload: unknown[] } {
-  return { t: 'call', id, op: 'createActor', siteId, payload: [name] };
-}
-
 function callFrame(id: number, op: 'ask' | 'worldRead', siteId: string, payload: unknown[]): { t: 'call'; id: number; op: 'ask' | 'worldRead'; siteId: string; payload: unknown[] } {
   return { t: 'call', id, op, siteId, payload };
 }
@@ -40,14 +22,14 @@ function callFrame(id: number, op: 'ask' | 'worldRead', siteId: string, payload:
 test('engine evidence: asks record inferences with token usage, world reads observations, and hashes agree with dwf_nodes', async () => {
   const ws = fs.mkdtempSync(path.join(os.tmpdir(), 'dwf-evidence-'));
   fs.writeFileSync(path.join(ws, 'notes.txt'), 'hello evidence\n');
-  const store = createSQLiteStore(':memory:') as SQLiteStateStore & DwfJournalStore;
+  const store = makeStore();
   try {
-    const engine = makeEngine('dwfrun-evidence', store, ws);
+    const engine = makeEngine('dwfrun-evidence', store, { workspace: ws });
 
     // A deterministic world read (observation)…
     await engine.handleCall(callFrame(1, 'worldRead', 'glob#1', ['files.glob', '*.txt']));
     // …then an ask whose prompt carries a sensitive sample (inference).
-    const actor = await engine.handleCall(actorFrame(2, 'actor#1', 'inspector'));
+    const actor = await engine.handleCall(actorFrame(2, 'actor#1'));
     await engine.handleCall(callFrame(3, 'ask', 'ask#1', [actor, `inspect the service with api_key=super-secret-value-123`, null]));
 
     const entries = await store.getDwfEvidence('dwfrun-evidence');
@@ -86,9 +68,9 @@ test('engine evidence: asks record inferences with token usage, world reads obse
 });
 
 test('engine evidence: a failed node records an explicit unknown entry whose prose is redacted', async () => {
-  const store = createSQLiteStore(':memory:') as SQLiteStateStore & DwfJournalStore;
+  const store = makeStore();
   try {
-    const engine = makeEngine('dwfrun-evidence-failed', store, process.cwd());
+    const engine = makeEngine('dwfrun-evidence-failed', store, { workspace: process.cwd() });
 
     // files.grep with an invalid regex carrying a token: the call fails inside
     // journalled() — the node row is written as 'failed' and the ledger gets an

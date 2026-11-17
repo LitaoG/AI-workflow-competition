@@ -1,10 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { FacadeEngine } from '../../../src/dwf/engine.js';
-import { createSQLiteStore } from '../../../src/state/store.js';
-import type { SQLiteStateStore } from '../../../src/state/sqlite-store.js';
-import type { DwfJournalStore, DwfNode, LLMProvider, LLMRequest, LLMResponse } from '../../../src/types.js';
+import type { LLMProvider, LLMRequest, LLMResponse } from '../../../src/types.js';
 import { providerRegistry } from '../../../src/agent/provider.js';
+import { actorFrame, askFrame, makeNodeApprovedEngine, makeStore, warmCache } from './test-helpers.js';
 
 /**
  * Issue #63: the replay identity of a journalled ask is (siteId, inputHash) —
@@ -35,31 +33,6 @@ class ScriptedProvider implements LLMProvider {
   }
 }
 
-function makeEngine(runId: string, store: SQLiteStateStore & DwfJournalStore, overrides: Partial<ConstructorParameters<typeof FacadeEngine>[0]> = {}): FacadeEngine {
-  return new FacadeEngine({
-    runId,
-    workspace: process.cwd(),
-    store,
-    args: {},
-    approvedCommands: [{ name: 'node', source: 'explicit' as const }],
-    onEvent: () => {},
-    ...overrides,
-  });
-}
-
-function actorFrame(id: number, siteId: string): { t: 'call'; id: number; op: 'createActor'; siteId: string; payload: unknown[] } {
-  return { t: 'call', id, op: 'createActor', siteId, payload: ['inspector'] };
-}
-
-function askFrame(id: number, siteId: string, actor: unknown, prompt: string, schemaJson: string | null): { t: 'call'; id: number; op: 'ask'; siteId: string; payload: unknown[] } {
-  return { t: 'call', id, op: 'ask', siteId, payload: [actor, prompt, schemaJson] };
-}
-
-/** Build the amend warm cache from a prior run's journal rows (the runner's --amend import shape). */
-function warmCache(nodes: DwfNode[]): Map<string, DwfNode> {
-  return new Map(nodes.map((n) => [`${n.siteId}#${n.ordinal}`, n]));
-}
-
 test('replay schema guard: a same-script resume with a tightened schema re-executes the ask live instead of replaying a stale answer', async () => {
   const provider = new ScriptedProvider();
   providerRegistry.register(provider);
@@ -67,11 +40,11 @@ test('replay schema guard: a same-script resume with a tightened schema re-execu
   providerRegistry.setDefault('dwf-replay-schema-mock');
 
   try {
-    const store = createSQLiteStore(':memory:') as SQLiteStateStore & DwfJournalStore;
+    const store = makeStore();
     const runId = 'dwfrun-replay-schema-journal';
 
     // Run 1: typed ask records { v: 1 } under the number contract.
-    const engine1 = makeEngine(runId, store);
+    const engine1 = makeNodeApprovedEngine(runId, store);
     const actor1 = await engine1.handleCall(actorFrame(1, 'actor#1'));
     const first = await engine1.handleCall(askFrame(2, 'ask#1', actor1, 'same question', SCHEMA_NUMBER));
     assert.deepEqual(first, { v: 1 });
@@ -81,7 +54,7 @@ test('replay schema guard: a same-script resume with a tightened schema re-execu
     // The stale { v: 1 } must NOT replay — the node runs live once and the
     // fresh provider answer ({ v: "fresh" }) satisfies the new contract.
     const run2Events: Array<{ type: string; data: Record<string, unknown> }> = [];
-    const engine2 = makeEngine(runId, store, { onEvent: (e) => run2Events.push({ type: e.type, data: e.data }) });
+    const engine2 = makeNodeApprovedEngine(runId, store, { onEvent: (e) => run2Events.push({ type: e.type, data: e.data }) });
     const actor2 = await engine2.handleCall(actorFrame(3, 'actor#1'));
     const second = await engine2.handleCall(askFrame(4, 'ask#1', actor2, 'same question', SCHEMA_STRING));
     assert.equal(provider.calls, 2, 'the schema-invalid warm entry degrades to exactly one live call (not zero)');
@@ -101,10 +74,10 @@ test('replay schema guard on the amend path: a warm entry that fails the edited 
   providerRegistry.setDefault('dwf-replay-schema-mock');
 
   try {
-    const store = createSQLiteStore(':memory:') as SQLiteStateStore & DwfJournalStore;
+    const store = makeStore();
     const baseRun = 'dwfrun-replay-schema-amend-base';
 
-    const engine1 = makeEngine(baseRun, store);
+    const engine1 = makeNodeApprovedEngine(baseRun, store);
     const actor1 = await engine1.handleCall(actorFrame(1, 'actor#1'));
     const first = await engine1.handleCall(askFrame(2, 'ask#1', actor1, 'same question', SCHEMA_NUMBER));
     assert.deepEqual(first, { v: 1 });
@@ -113,7 +86,7 @@ test('replay schema guard on the amend path: a warm entry that fails the edited 
     // tightened schema. The warm entry is consumed but unusable → the actor
     // diverges (dwf_amend_diverged) and the ask runs live.
     const events: Array<{ type: string; data: Record<string, unknown> }> = [];
-    const engine2 = makeEngine('dwfrun-replay-schema-amend-fork', store, {
+    const engine2 = makeNodeApprovedEngine('dwfrun-replay-schema-amend-fork', store, {
       importedCache: warmCache(await store.getDwfNodes(baseRun)),
       onEvent: (e) => events.push({ type: e.type, data: e.data }),
     });
@@ -137,13 +110,13 @@ test('executedAsks restore: a resumed ledger past the size threshold does not re
   providerRegistry.setDefault('dwf-replay-schema-mock');
 
   try {
-    const store = createSQLiteStore(':memory:') as SQLiteStateStore & DwfJournalStore;
+    const store = makeStore();
 
     // A fresh engine crossing the 25-ask threshold emits the one-shot warning:
     // the count increments per completed ask, so the pre-execution gate of the
     // 26th ask is where executedAsks first reads >= 25.
     const freshEvents: Array<{ type: string; data: Record<string, unknown> }> = [];
-    const fresh = makeEngine('dwfrun-replay-schema-warn', store, { onEvent: (e) => freshEvents.push({ type: e.type, data: e.data }) });
+    const fresh = makeNodeApprovedEngine('dwfrun-replay-schema-warn', store, { onEvent: (e) => freshEvents.push({ type: e.type, data: e.data }) });
     const actor = await fresh.handleCall(actorFrame(1, 'actor#1'));
     for (let i = 0; i < 26; i++) {
       await fresh.handleCall(askFrame(i + 2, 'ask#1', actor, `question ${i}`, null));
@@ -154,7 +127,7 @@ test('executedAsks restore: a resumed ledger past the size threshold does not re
     // again on its first live ask (Issue #63: the restored count re-arms the
     // one-shot warning as already fired instead of restarting from zero).
     const resumedEvents: Array<{ type: string; data: Record<string, unknown> }> = [];
-    const resumed = makeEngine('dwfrun-replay-schema-warn-resumed', store, {
+    const resumed = makeNodeApprovedEngine('dwfrun-replay-schema-warn-resumed', store, {
       restoreExecutedAsks: 25,
       onEvent: (e) => resumedEvents.push({ type: e.type, data: e.data }),
     });
@@ -174,7 +147,7 @@ test('executedAsks restore: a resumed ledger past the size threshold does not re
 });
 
 test('executedAsks round-trips through the dwf_runs row', async () => {
-  const store = createSQLiteStore(':memory:') as SQLiteStateStore & DwfJournalStore;
+  const store = makeStore();
   await store.saveDwfRun({
     runId: 'dwfrun-replay-schema-row',
     scriptHash: 'deadbeef',

@@ -7,34 +7,12 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { FacadeEngine } from '../../../src/dwf/engine.js';
-import { createSQLiteStore } from '../../../src/state/store.js';
-import type { SQLiteStateStore } from '../../../src/state/sqlite-store.js';
-import type { DwfJournalStore, LLMProvider, LLMRequest, LLMResponse } from '../../../src/types.js';
+import type { LLMProvider, LLMRequest, LLMResponse } from '../../../src/types.js';
 import { providerRegistry } from '../../../src/agent/provider.js';
+import { CallFrame, makeEngine, makeRespond, makeStore } from './test-helpers.js';
 
-const respond = (content: string): LLMResponse => ({
-  content,
-  model: 'settle-abort-mock',
-  usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
-  latencyMs: 0,
-});
+const respond = makeRespond('settle-abort-mock');
 
-type EngineOptions = Partial<ConstructorParameters<typeof FacadeEngine>[0]>;
-
-function makeEngine(runId: string, store: SQLiteStateStore & DwfJournalStore, overrides: EngineOptions = {}): FacadeEngine {
-  return new FacadeEngine({
-    runId,
-    workspace: process.cwd(),
-    store,
-    args: {},
-    approvedCommands: [],
-    onEvent: () => {},
-    ...overrides,
-  });
-}
-
-type CallFrame = { t: 'call'; id: number; op: 'ask' | 'createActor'; siteId: string; payload: unknown[] };
 const actorFrame = (id: number): CallFrame => ({ t: 'call', id, op: 'createActor', siteId: 'actor#1', payload: ['settler', null] });
 const askFrame = (id: number, actor: unknown, prompt: string): CallFrame => ({
   t: 'call', id, op: 'ask', siteId: 'swarm#1', payload: [actor, prompt, null, true],
@@ -71,7 +49,7 @@ test('abortInFlight unwinds gated asks, empties the registry, and wakes seat wai
   providerRegistry.register(provider);
   const previous = providerRegistry.get().id;
   providerRegistry.setDefault(provider.id);
-  const store = createSQLiteStore(':memory:') as SQLiteStateStore & DwfJournalStore;
+  const store = makeStore();
   const events: Array<{ type: string; data?: { aborted?: number } }> = [];
   try {
     const engine = makeEngine('dwfrun-settle-abort', store, {

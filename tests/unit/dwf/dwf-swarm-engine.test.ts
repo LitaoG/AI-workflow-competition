@@ -14,19 +14,12 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { FacadeEngine } from '../../../src/dwf/engine.js';
-import { createSQLiteStore } from '../../../src/state/store.js';
-import type { SQLiteStateStore } from '../../../src/state/sqlite-store.js';
-import type { DwfJournalStore, LLMMessage, LLMProvider, LLMRequest, LLMResponse } from '../../../src/types.js';
+import type { LLMMessage, LLMProvider, LLMRequest, LLMResponse } from '../../../src/types.js';
 import { providerRegistry } from '../../../src/agent/provider.js';
 import { analyzeFacadeScript } from '../../../src/dwf/compile.js';
+import { CallFrame, makeEngine, makeRespond, makeStore } from './test-helpers.js';
 
-const respond = (content: string): LLMResponse => ({
-  content,
-  model: 'swarm-test-mock',
-  usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
-  latencyMs: 0,
-});
+const respond = makeRespond('swarm-test-mock');
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -52,22 +45,6 @@ class RecordingProvider implements LLMProvider {
     return respond(user.includes('slow') ? 'slow-ok' : user.includes('boom') ? 'boom-ok' : 'fast-ok');
   }
 }
-
-type EngineOptions = Partial<ConstructorParameters<typeof FacadeEngine>[0]>;
-
-function makeEngine(runId: string, store: SQLiteStateStore & DwfJournalStore, overrides: EngineOptions = {}): FacadeEngine {
-  return new FacadeEngine({
-    runId,
-    workspace: process.cwd(),
-    store,
-    args: {},
-    approvedCommands: [],
-    onEvent: () => {},
-    ...overrides,
-  });
-}
-
-type CallFrame = { t: 'call'; id: number; op: 'ask' | 'createActor'; siteId: string; payload: unknown[] };
 
 const actorFrame = (id: number, siteId: string): CallFrame => ({ t: 'call', id, op: 'createActor', siteId, payload: ['swarmer', null] });
 const askFrame = (id: number, siteId: string, actor: unknown, prompt: string, swarm = false): CallFrame => ({
@@ -95,7 +72,7 @@ test('a tuple-typed ask passes the dispatch lint and validates its reply (#126 F
   const tuple = new TupleProvider();
   providerRegistry.register(tuple);
   const restore = useDefault(tuple.id);
-  const store = createSQLiteStore(':memory:') as SQLiteStateStore & DwfJournalStore;
+  const store = makeStore();
   try {
     const engine = makeEngine('dwfrun-tuple-ask', store);
     const actor = await engine.handleCall(actorFrame(1, 'actor#1'));
@@ -117,7 +94,7 @@ test('swarm tasks carry no conversation; regular asks still accumulate history (
   const recorder = new RecordingProvider();
   providerRegistry.register(recorder);
   const restore = useDefault(recorder.id);
-  const store = createSQLiteStore(':memory:') as SQLiteStateStore & DwfJournalStore;
+  const store = makeStore();
   try {
     const engine = makeEngine('dwfrun-swarm-conversation', store);
     const actor = await engine.handleCall(actorFrame(1, 'actor#1'));
@@ -164,7 +141,7 @@ test('swarm tasks do not FIFO behind the actor chain — a held task does not bl
   };
   providerRegistry.register(gated);
   const restore = useDefault(gated.id);
-  const store = createSQLiteStore(':memory:') as SQLiteStateStore & DwfJournalStore;
+  const store = makeStore();
   try {
     const engine = makeEngine('dwfrun-swarm-fifo', store);
     const actor = await engine.handleCall(actorFrame(1, 'actor#1'));
@@ -203,7 +180,7 @@ test('swarm concurrency is bounded by the engine seat pool (maxConcurrency)', as
   };
   providerRegistry.register(prober);
   const restore = useDefault(prober.id);
-  const store = createSQLiteStore(':memory:') as SQLiteStateStore & DwfJournalStore;
+  const store = makeStore();
   try {
     const engine = makeEngine('dwfrun-swarm-seats', store, { maxConcurrency: 2 });
     const actor = await engine.handleCall(actorFrame(1, 'actor#1'));
@@ -234,7 +211,7 @@ test('swarm turns replay from the journal at zero model calls, regardless of com
   };
   providerRegistry.register(counting);
   const restore = useDefault(counting.id);
-  const store = createSQLiteStore(':memory:') as SQLiteStateStore & DwfJournalStore;
+  const store = makeStore();
   try {
     const engine1 = makeEngine('dwfrun-swarm-replay', store, { maxConcurrency: 3 });
     const actor1 = await engine1.handleCall(actorFrame(1, 'actor#1'));

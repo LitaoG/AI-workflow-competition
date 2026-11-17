@@ -7,15 +7,9 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { analyzeFacadeScript } from '../../../src/dwf/compile.js';
 import { lowerFacadeScript } from '../../../src/dwf/lower.js';
-import { FacadeEngine } from '../../../src/dwf/engine.js';
-import { createSQLiteStore } from '../../../src/state/store.js';
-import type { SQLiteStateStore } from '../../../src/state/sqlite-store.js';
-import type { DwfJournalStore, LLMProvider, LLMRequest, LLMResponse } from '../../../src/types.js';
 import { providerRegistry } from '../../../src/agent/provider.js';
-
-const compile = (body: string) => analyzeFacadeScript(`${body}\nreturn null;`);
+import { CallFrame, compile, makeEngine, makeStore, makeTap } from './test-helpers.js';
 
 test('compile records the tier literal; a non-literal or unknown tier is 9014', () => {
   const ok = compile(`const a = agent("x", { tier: "deep" });`);
@@ -44,44 +38,15 @@ test('lowering passes the tier as the fourth createActor argument', () => {
   assert.match(untiered.js, /createActor\([^)]*null\s*,\s*null\s*\)/s, 'an untiered actor lowers with a null tier');
 });
 
-const respond = (content: string): LLMResponse => ({
-  content,
-  model: 'tier-mock',
-  usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
-  latencyMs: 0,
-});
-
 /** A provider that records it was called — the routing assertion reads the taps. */
-function tap(id: string): LLMProvider & { hits: number } {
-  return {
-    id,
-    name: id,
-    hits: 0,
-    async generate(_request: LLMRequest): Promise<LLMResponse> {
-      this.hits += 1;
-      return respond(`ok from ${id}`);
-    },
-  };
-}
+const tap = makeTap('tier-mock');
 
-type CallFrame = { t: 'call'; id: number; op: 'ask' | 'createActor'; siteId: string; payload: unknown[] };
 const actorFrame = (id: number, opts: unknown[] = [null, null]): CallFrame => ({
   t: 'call', id, op: 'createActor', siteId: 'actor#1', payload: ['router', ...opts],
 });
 const askFrame = (id: number, actor: unknown, prompt: string): CallFrame => ({
   t: 'call', id, op: 'ask', siteId: 'ask#1', payload: [actor, prompt, null, true],
 });
-
-function makeEngine(runId: string, store: SQLiteStateStore & DwfJournalStore): FacadeEngine {
-  return new FacadeEngine({
-    runId,
-    workspace: process.cwd(),
-    store,
-    args: {},
-    approvedCommands: [],
-    onEvent: () => {},
-  });
-}
 
 const ENV_FAST = 'AI_WORKFLOW_FAST_PROVIDER';
 const ENV_DEEP = 'AI_WORKFLOW_DEEP_PROVIDER';
@@ -107,7 +72,7 @@ test('the engine routes asks through the tier: deep env beats default, explicit 
   providerRegistry.register(fast);
   providerRegistry.register(deep);
   const previous = providerRegistry.get().id;
-  const store = createSQLiteStore(':memory:') as SQLiteStateStore & DwfJournalStore;
+  const store = makeStore();
   try {
     await withEnv({ [ENV_FAST]: 'router-fast', [ENV_DEEP]: 'router-deep' }, async () => {
       // tier 'deep' → deep provider

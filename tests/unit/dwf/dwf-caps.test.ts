@@ -20,25 +20,10 @@ import { execSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { FacadeEngine } from '../../../src/dwf/engine.js';
 import { WorldBoundary } from '../../../src/dwf/host-boundary-dispatcher.js';
 import { isSchemaValidationError } from '../../../src/domain/errors.js';
 import type { DomainError } from '../../../src/domain/errors.js';
-import { createSQLiteStore } from '../../../src/state/store.js';
-import type { SQLiteStateStore } from '../../../src/state/sqlite-store.js';
-import type { DwfJournalStore } from '../../../src/types.js';
-
-function makeEngine(runId: string, workspace: string): FacadeEngine {
-  const store = createSQLiteStore(':memory:') as SQLiteStateStore & DwfJournalStore;
-  return new FacadeEngine({
-    runId,
-    workspace,
-    store,
-    args: {},
-    approvedCommands: [],
-    onEvent: () => {},
-  });
-}
+import { makeEngine, makeNodeApprovedEngine, makeStore } from './test-helpers.js';
 
 function makeWorkspace(prefix: string): { dir: string; cleanup: () => void } {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -54,7 +39,7 @@ function worldRead(siteId: string, op: string, args: unknown[]) {
 test('D8④ git.log: requesting more than 100 commits is a structured rejection, not a silent clamp', async () => {
   const ws = makeWorkspace('dwf-caps-gitlog-');
   try {
-    const engine = makeEngine('dwfcaps-gitlog', ws.dir);
+    const engine = makeEngine('dwfcaps-gitlog', makeStore(), { workspace: ws.dir });
     await assert.rejects(
       () => engine.handleCall(worldRead('worldread#1', 'git.log', [150])),
       (err: unknown) => {
@@ -77,7 +62,7 @@ test('D8④ git.log: 100 stays inside the cap (boundary open)', async () => {
   try {
     execSync('git init', { cwd: ws.dir, stdio: 'ignore' });
     execSync('git -c user.name=t -c user.email=t@example.com commit --allow-empty -m init', { cwd: ws.dir, stdio: 'ignore' });
-    const engine = makeEngine('dwfcaps-gitlog-boundary', ws.dir);
+    const engine = makeEngine('dwfcaps-gitlog-boundary', makeStore(), { workspace: ws.dir });
     const res = await engine.handleCall(worldRead('worldread#2', 'git.log', [100]));
     assert.ok(Array.isArray(res) && res.length === 1, 'the hermetic repo has exactly one commit');
   } finally {
@@ -90,7 +75,7 @@ test('D8④ git.log: 100 stays inside the cap (boundary open)', async () => {
 test('D8④ artifact id: ids outside [A-Za-z0-9_.-]{1,64} are a named rejection', async () => {
   const ws = makeWorkspace('dwf-caps-artid-');
   try {
-    const engine = makeEngine('dwfcaps-artid', ws.dir);
+    const engine = makeEngine('dwfcaps-artid', makeStore(), { workspace: ws.dir });
     const badIds = ['bad id!', 'a'.repeat(65), ''];
     for (let i = 0; i < badIds.length; i++) {
       const id = badIds[i]!;
@@ -111,7 +96,7 @@ test('D8④ artifact id: ids outside [A-Za-z0-9_.-]{1,64} are a named rejection'
 test('D8④ artifact id: a 64-char id is accepted and publishes', async () => {
   const ws = makeWorkspace('dwf-caps-artid-ok-');
   try {
-    const engine = makeEngine('dwfcaps-artid-ok', ws.dir);
+    const engine = makeEngine('dwfcaps-artid-ok', makeStore(), { workspace: ws.dir });
     const res = await engine.handleCall({ t: 'call', id: 1, op: 'artifact', siteId: 'artifact#1', payload: ['markdown', ['a'.repeat(64), 'hello']] }) as { id: string; version: number };
     assert.equal(res.version, 1);
   } finally {
@@ -125,7 +110,7 @@ test('D8④ files.grep: a corpus over 5000 files is a named rejection, not a sil
   const ws = makeWorkspace('dwf-caps-grep-');
   try {
     for (let i = 0; i < 5001; i++) fs.writeFileSync(path.join(ws.dir, `f${i}.txt`), 'needle here\n');
-    const engine = makeEngine('dwfcaps-grep', ws.dir);
+    const engine = makeEngine('dwfcaps-grep', makeStore(), { workspace: ws.dir });
     await assert.rejects(
       () => engine.handleCall(worldRead('worldread#1', 'files.grep', ['needle'])),
       (err: unknown) => {
@@ -148,7 +133,7 @@ test('D8④ grep bytes cap is 256 KiB: 259,740 matched bytes pass (the old decim
     const lines: string[] = [];
     for (let i = 0; i < 260; i++) lines.push('x'.repeat(999)); // 260 × 999 = 259,740 bytes
     fs.writeFileSync(path.join(ws.dir, 'lines.txt'), lines.join('\n'));
-    const engine = makeEngine('dwfcaps-grepbytes-ok', ws.dir);
+    const engine = makeEngine('dwfcaps-grepbytes-ok', makeStore(), { workspace: ws.dir });
     const res = await engine.handleCall(worldRead('worldread#1', 'files.grep', ['x'])) as Array<{ path: string; line: number }>;
     assert.equal(res.length, 260, 'all 260 lines matched under the new 256 KiB cap');
   } finally {
@@ -162,7 +147,7 @@ test('D8④ grep bytes cap is 256 KiB: 262,737 matched bytes is a named rejectio
     const lines: string[] = [];
     for (let i = 0; i < 263; i++) lines.push('x'.repeat(999)); // 263 × 999 = 262,737 bytes
     fs.writeFileSync(path.join(ws.dir, 'lines.txt'), lines.join('\n'));
-    const engine = makeEngine('dwfcaps-grepbytes-over', ws.dir);
+    const engine = makeEngine('dwfcaps-grepbytes-over', makeStore(), { workspace: ws.dir });
     await assert.rejects(
       () => engine.handleCall(worldRead('worldread#1', 'files.grep', ['x'])),
       (err: unknown) => {
@@ -183,7 +168,7 @@ test('D8④ grep bytes cap is 256 KiB: 262,737 matched bytes is a named rejectio
 test('D8④ caps are KiB/MiB-aligned: 256,001 chars now fit artifact.markdown (old decimal cap rejected it)', async () => {
   const ws = makeWorkspace('dwf-caps-kib-');
   try {
-    const engine = makeEngine('dwfcaps-kib', ws.dir);
+    const engine = makeEngine('dwfcaps-kib', makeStore(), { workspace: ws.dir });
     const md = await engine.handleCall({ t: 'call', id: 1, op: 'artifact', siteId: 'artifact#1', payload: ['markdown', ['md-big', 'x'.repeat(256_001)]] }) as { id: string; version: number };
     assert.equal(md.version, 1, 'the old decimal 256KB cap would have rejected this body');
   } finally {
@@ -195,7 +180,7 @@ test('D8④ caps are KiB/MiB-aligned: one byte/char over the binary caps is stil
   const ws = makeWorkspace('dwf-caps-kib-over-');
   try {
     fs.writeFileSync(path.join(ws.dir, 'over.txt'), 'x'.repeat(1024 * 1024 + 1));
-    const engine = makeEngine('dwfcaps-kib-over', ws.dir);
+    const engine = makeEngine('dwfcaps-kib-over', makeStore(), { workspace: ws.dir });
     await assert.rejects(
       () => engine.handleCall(worldRead('worldread#1', 'files.read', ['over.txt'])),
       (err: unknown) => {
@@ -204,7 +189,7 @@ test('D8④ caps are KiB/MiB-aligned: one byte/char over the binary caps is stil
         return true;
       },
     );
-    const engine2 = makeEngine('dwfcaps-kib-over-md', ws.dir);
+    const engine2 = makeEngine('dwfcaps-kib-over-md', makeStore(), { workspace: ws.dir });
     await assert.rejects(
       () => engine2.handleCall({ t: 'call', id: 1, op: 'artifact', siteId: 'artifact#1', payload: ['markdown', ['md-over', 'x'.repeat(256 * 1024 + 1)]] }),
       (err: unknown) => {
@@ -272,15 +257,8 @@ test('D8④ world.run: breaching the cap kills the child tree — a rejected wor
 test('D8④ world.run: stdout over the 16 MiB stream cap is a named rejection — the node journals as failed, never a truncated success', { timeout: 60_000 }, async () => {
   const ws = makeWorkspace('dwf-caps-worldrun-');
   try {
-    const store = createSQLiteStore(':memory:') as SQLiteStateStore & DwfJournalStore;
-    const engine = new FacadeEngine({
-      runId: 'dwfcaps-worldrun',
-      workspace: ws.dir,
-      store,
-      args: {},
-      approvedCommands: [{ name: 'node', source: 'explicit' as const }],
-      onEvent: () => {},
-    });
+    const store = makeStore();
+    const engine = makeNodeApprovedEngine('dwfcaps-worldrun', store, { workspace: ws.dir });
     await assert.rejects(
       () => engine.handleCall({ t: 'call', id: 1, op: 'worldRun', siteId: 'worldrun#1', payload: ['node', ['-e', 'process.stdout.write("x".repeat(17 * 1024 * 1024))'], undefined] }),
       (err: unknown) => {
