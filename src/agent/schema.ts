@@ -60,13 +60,3 @@ export function formatZodErrors(issues: z.ZodIssue[]): string {
     })
     .join('\n');
 }
-
-/**
- * Generate a simplified JSON Schema representation from a Zod schema to embed in prompts.
- */
-export function schemaToJsonSchema(schema: z.ZodType<any>): Record<string, unknown> {
-  if ((schema as any).description) {
-    return { description: (schema as any).description };
-  }
-  return { type: 'object', note: 'Conform strictly to schema specification.' };
-}

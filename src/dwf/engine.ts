@@ -1040,18 +1040,6 @@ export class FacadeEngine {
   }
 
   /**
-   * The engine's event seam — the second persistence channel. Journalled node
-   * rows reach SQLite directly via `store.saveDwfNode`; everything else (phase/
-   * log presentation, replay/amend hits, holes, escalations, budget telemetry)
-   * crosses this single seam to the runner's emit closure, which dual-writes
-   * each event into the authoritative `dwf_event` table AND the append-only
-   * `events.jsonl` mirror carrying byte-identical event ids/sequences. Masking
-   * is deliberately NOT centralized here: it is applied at the boundaries
-   * feeding this seam — the journalled value passes `redactValue` before
-   * saveDwfNode, and individual emit sites mask their own error and world-arg
-   * payloads with `redactText` (see redact.ts for the boundary discipline).
-   */
-  /**
    * Issue #39: consume the next imported ask for this actor (canonical
    * ImportedActorState.take parity): attached by (effective name + canonical
    * persona), consumed by per-actor position + site-independent content
@@ -1087,6 +1075,18 @@ export class FacadeEngine {
     return entry.resultJson;
   }
 
+  /**
+   * The engine's event seam — the second persistence channel. Journalled node
+   * rows reach SQLite directly via `store.saveDwfNode`; everything else (phase/
+   * log presentation, replay/amend hits, holes, escalations, budget telemetry)
+   * crosses this single seam to the runner's emit closure, which dual-writes
+   * each event into the authoritative `dwf_event` table AND the append-only
+   * `events.jsonl` mirror carrying byte-identical event ids/sequences. Masking
+   * is deliberately NOT centralized here: it is applied at the boundaries
+   * feeding this seam — the journalled value passes `redactValue` before
+   * saveDwfNode, and individual emit sites mask their own error and world-arg
+   * payloads with `redactText` (see redact.ts for the boundary discipline).
+   */
   private emit(type: WorkflowEventType, data: Record<string, unknown>): void {
     this.options.onEvent?.({ type, data });
   }

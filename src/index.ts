@@ -30,7 +30,7 @@ export {
 
 // Agent RPC
 export { agent } from './agent/rpc.js';
-export { extractJson, repairJsonString, formatZodErrors, schemaToJsonSchema } from './agent/schema.js';
+export { extractJson, repairJsonString, formatZodErrors } from './agent/schema.js';
 export { providerRegistry } from './agent/provider.js';
 export { MockProvider } from './agent/mock-provider.js';
 export { BedrockProvider } from './agent/bedrock-provider.js';

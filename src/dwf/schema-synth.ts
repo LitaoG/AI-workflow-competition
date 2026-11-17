@@ -271,8 +271,3 @@ export function synthesizeSchema(
     return schema;
   }
 }
-
-/** Wrap a synthesized schema as the full payload sent to the subagent. */
-export function asAskSchema(schema: JsonSchemaNode | Record<string, unknown>): Record<string, unknown> {
-  return { name: 'structured_result', strict: true, schema } as Record<string, unknown>;
-}
