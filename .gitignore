@@ -52,3 +52,6 @@ coverage/
 # Machine-local ZCode wiring (MCP stdio entry + skill junction); the
 # canonical skill lives in skills/ai-workflow/ and INTEGRATION.md documents setup
 /.zcode/
+
+# Gate failure-name archive (Issue #65): TAP transcript written by npm test
+.gate/
