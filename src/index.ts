@@ -70,7 +70,6 @@ export { ASCIIRenderer } from './dag/ascii-renderer.js';
 // MCP
 export { MCPClientManager } from './mcp/client.js';
 export { BuiltinWorkflowMCPServer } from './mcp/server.js';
-export { ToolRegistry, toolRegistry } from './mcp/registry.js';
 
 // Re-export Zod for workflow authoring convenience
 export { z };
