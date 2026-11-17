@@ -115,11 +115,11 @@ export async function executeDemo(options?: DemoCommandOptions): Promise<number>
 
   if (!options?.noOpen && options?.open !== false) {
     const url = pathToFileURL(htmlPath).href;
-    if (openInBrowser(url)) console.log(`  opened: ${url}`);
-    else console.log(`  open it manually: ${url}`);
+    if (openInBrowser(url)) console.log(`${T.opened}${url}`);
+    else console.log(`${T.manual}${url}`);
   }
-  console.log('\nNext steps:');
-  console.log('  workflow new my-flow --template code-review   # scaffold your own');
-  console.log('  workflow run my-flow.facade.ts --set key=value # run it');
+  console.log(T.next);
+  console.log(T.hint1);
+  console.log(T.hint2);
   return 0;
 }

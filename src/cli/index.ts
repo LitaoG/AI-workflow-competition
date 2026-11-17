@@ -37,10 +37,6 @@ function collect(value: string, previous: string[]): string[] {
   return previous;
 }
 
-function collectSet(value: string, previous: string[]): string[] {
-  return [...previous, value];
-}
-
 /**
  * The CLI banner version, read from the package manifest so the published
  * tarball, the docs and `workflow --version` can never drift apart (they used
@@ -130,7 +126,7 @@ Commands:
     // legacy behavior below.
     .option('-a, --args <json>', 'Script input as JSON (facade scripts; available inside as `args`)')
     .option('--args-file <file>', 'Read script input from a JSON file (facade scripts; PowerShell-safe, zero escaping)')
-    .option('--set <pair>', 'Set a script arg key=value with type inference (facade scripts; repeatable)', collectSet, [])
+    .option('--set <pair>', 'Set a script arg key=value with type inference (facade scripts; repeatable)', collect, [])
     .option('--resume <runId>', 'Resume a prior facade run: completed nodes replay from the journal at zero model calls')
     .option('--amend <runId>', 'Amend a prior facade run: fork a new run with an edited script; unchanged nodes replay warm')
     .option('--db <path>', 'Journal database path (facade scripts; default .workflow/dwf.sqlite)')
@@ -297,7 +293,7 @@ Commands:
     .description(dict.CMD_RUN_SCRIPT_DESC)
     .option('-a, --args <json>', 'Script input as JSON (available as `args`)')
     .option('--args-file <file>', 'Read script input from a JSON file (PowerShell-safe, zero escaping)')
-    .option('--set <pair>', 'Set a script arg key=value with type inference (repeatable)', collectSet, [])
+    .option('--set <pair>', 'Set a script arg key=value with type inference (repeatable)', collect, [])
     .option('--cwd <path>', 'Workspace the run executes in (journal resolution + sandbox child cwd)')
     .option('-r, --resume <runId>', 'Resume a prior run: completed nodes replay from the journal at zero model calls (script must be byte-identical)')
     .option('-m, --amend <runId>', 'Amend a prior run: fork a new run with an edited script; unchanged nodes replay from the warm cache')

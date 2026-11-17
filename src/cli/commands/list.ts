@@ -3,7 +3,6 @@ import * as path from 'node:path';
 import { SQLiteStateStore } from '../../state/sqlite-store.js';
 import { DwfJournalStore, DwfRunRow } from '../../types.js';
 import { resolveDwfJournalPath } from '../../dwf/runner.js';
-import { resolveLang } from '../i18n/index.js';
 
 export interface ListCommandOptions {
   limit?: number;
@@ -44,7 +43,6 @@ function facadeDisplayName(row: DwfRunRow): string {
 }
 
 export async function executeList(options?: ListCommandOptions): Promise<number> {
-  const _lang = resolveLang(options?.lang);
   const limit = options?.limit ? Number(options.limit) : 10;
   const query = { limit, status: options?.status };
 
