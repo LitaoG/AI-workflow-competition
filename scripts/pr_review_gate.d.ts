@@ -54,6 +54,17 @@ export interface NoCommentClaimsResult extends CheckResult {
   violations: string[];
 }
 
+export interface CiGateResult extends CheckResult {
+  violations: string[];
+}
+
+/**
+ * B③ (Issue #136): blocks when the head commit's CI `gate` check-run concluded
+ * `failure` — the mechanical prevention for red-gate merges (#119 class).
+ * null (pending / no check-run) does not block; enforce_admins covers that window.
+ */
+export function checkCiGateConclusion(conclusion: string | null | undefined): CiGateResult;
+
 export declare const FAST_MERGE_FLOOR_SECONDS = 600;
 export declare const DEFAULT_COOLING_SECONDS = 900;
 export declare const REVIEW_MARKERS: string[];

@@ -30,6 +30,7 @@ const {
   checkReviewComments,
   checkNoCommentClaims,
   checkWorktreeCleanliness,
+  checkCiGateConclusion,
   findOrphanWorktrees,
 } = await import(gateScriptUrl);
 const { parseTapSummary, formatRoundFingerprint } = await import(baselineSampleUrl);
@@ -788,6 +789,20 @@ not ok 2 - stdio e2e: real spawn lists all seven tools
     ];
     const res5 = checkReviewComments(comments5);
     assert.ok(res5.valid, 'Bracket-form supervisor comment with a later "已处理" reply should pass');
+  });
+
+  test('Tier 3: PR Review Gate script functionality - checkCiGateConclusion (Issue #136)', () => {
+    // B③ (#130 建议 3): a failure conclusion on the head commit's CI gate run is a
+    // mechanical merge block — the #119 red-gate merge class.
+    const failed = checkCiGateConclusion('failure');
+    assert.ok(!failed.valid, 'CI gate conclusion "failure" must block the merge');
+    assert.ok(failed.violations[0].includes('红门禁止合入'), 'the violation must name the red-gate rule');
+
+    // success / pending (null) / no check-run (null) must NOT block —
+    // enforce_admins covers the pending window on the GitHub side.
+    assert.ok(checkCiGateConclusion('success').valid, '"success" must pass');
+    assert.ok(checkCiGateConclusion(null).valid, 'null (pending / no run) must not block');
+    assert.ok(checkCiGateConclusion(undefined).valid, 'undefined must not block');
   });
 
   test('Tier 3: PR Review Gate script functionality - checkWorktreeCleanliness', () => {
