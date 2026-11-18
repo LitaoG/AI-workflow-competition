@@ -85,10 +85,10 @@ Measured end-to-end 2026-11-03 (Git Bash on Windows, Node v26.13.0, warm npm cac
 
 ### Reproducible quality-gate fingerprints
 
-All run 2026-11-18 on the v2.7.0 release tree (main @ `c05f68e` + the release commit's
-manifest/docs-only overlay — package.json/package-lock version fields and the CHANGELOG 2.7.0
-fold), Windows, Node v26.13.0, from a **fresh build** (fresh-build numbers are what a judge
-clone reproduces; full context in
+All run 2026-11-19 on the v2.7.0 release tree (PR #139 head: main @ `01a6c57` + the release
+overlay — package.json/package-lock version fields, the CHANGELOG 2.7.0 fold, this re-pin, and
+the issue-#140 sqlite busy-retry fix), Windows, Node v26.13.0, from a **fresh build**
+(fresh-build numbers are what a judge clone reproduces; full context in
 [README](README.md#reproducible-quality-gate-fingerprints)):
 
 ```text

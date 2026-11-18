@@ -12,6 +12,13 @@
   Tier 1 governance scanner bans drive-letter user profiles / `/Users/<name>/` / `/home/<name>/`
   shapes in every tracked text file (red-proven by injection), extended by a second pass that
   sanitizes the single-backslash path forms the first pass missed.
+- **state (SQLite init race, Issue #140)**: concurrent openers could die with `SQLITE_BUSY`
+  ("database is locked") inside the initSchema schema batch — SQLite returns BUSY immediately
+  (no busy_timeout wait) around the journal-mode switch window, and the #72 tolerance only
+  covered `duplicate column` ALTER races. Observed twice on Linux CI (PR #139 run 44338679305,
+  both attempts red). initSchema now retries bounded (5 attempts, 100→400ms backoff) on exactly
+  that error — every statement is idempotent (IF NOT EXISTS + guarded ALTERs), so a retry always
+  converges; exhausted BUSY and every other failure still propagate.
 - **dwf (composition lineage, Issue #62)**: composition lineage import goes recursive — nested
   (depth ≥ 2) subtrees now replay on resume at zero token cost instead of being re-billed; the
   depth-1-only import left grandchild runs live.
