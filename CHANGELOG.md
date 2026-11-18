@@ -1,4 +1,6 @@
-## Unreleased
+# Changelog
+
+## 2.7.0 (2026-11-18) — compliance scrub, R2 closeout, sharp-review series, mechanical red-gates
 
 - **compliance (private-path scrub, Issue #48)**: 15 tracked files carried machine-local
   absolute paths (`C:\Users\<user>\…`) while README's compliance section claims zero private data
@@ -8,8 +10,54 @@
   cross-engine scripts resolve the official checkout from `OFFICIAL_DWF` (fail-fast, no
   hard-coded author path) with reproduction steps in `tests/cross-engine/README.md`; and a
   Tier 1 governance scanner bans drive-letter user profiles / `/Users/<name>/` / `/home/<name>/`
-  shapes in every tracked text file (red-proven by injection).
-# Changelog
+  shapes in every tracked text file (red-proven by injection), extended by a second pass that
+  sanitizes the single-backslash path forms the first pass missed.
+- **state (SQLite init race, Issue #140)**: concurrent openers could die with `SQLITE_BUSY`
+  ("database is locked") inside the initSchema schema batch — SQLite returns BUSY immediately
+  (no busy_timeout wait) around the journal-mode switch window, and the #72 tolerance only
+  covered `duplicate column` ALTER races. Observed twice on Linux CI (PR #139 run 44338679305,
+  both attempts red). initSchema now retries bounded (5 attempts, 100→400ms backoff) on exactly
+  that error — every statement is idempotent (IF NOT EXISTS + guarded ALTERs), so a retry always
+  converges; exhausted BUSY and every other failure still propagate.
+- **dwf (composition lineage, Issue #62)**: composition lineage import goes recursive — nested
+  (depth ≥ 2) subtrees now replay on resume at zero token cost instead of being re-billed; the
+  depth-1-only import left grandchild runs live.
+- **dwf (ask replay, Issue #63)**: replayed asks revalidate against the current schema (a schema
+  edit between resumes no longer blesses stale asks) and `executedAsks` continues across resumes.
+- **honesty (prober + locks, Issues #88/#84)**: the prober reports missing npm/git as `undefined`
+  instead of fabricated values — measured facts only; the t1-10 Kiro compliance lock asserts
+  against real files with no synthetic fallback.
+- **tests (residue hygiene, Issues #86/#92)**: integration run outputs moved to `os.tmpdir` with
+  after-cleanup — no more gate-invisible residue leaking into the repo; 10 zero-reference residue
+  fixtures from the Issue #54 era removed (restore-ritual references synced).
+- **refactor (dead-code sweep, Issues #90/#94/#96/#98/#100/#110)**: dead MCP client classes
+  (177 lines, zero references), the dead Result monad + KanbanDashboard abstractions, the legacy
+  live projection superseded by the Studio snapshot, the write-only toolRegistry singleton with
+  its self-referential test, 20 dead i18n keys + dead template exports + unwired demo i18n +
+  dead assignments + duplicate collector, and small dead exports across
+  governor/schema-synth/agent-schema/engine/child-bootstrap.
+- **refactor (single-source, Issues #102/#104/#106/#114/#116)**: the MCP workflow_run/graph
+  module loader; the shared facade-run option face of run/run-script; `printDwfEvent` console
+  rendering shared by run-script/fill/answer/workflows; the TOOL_CATALOG→OpenAI tool array
+  mapping; `rowToDwfNode` shared between the singular and plural getters (per-actor identity
+  fields no longer dropped).
+- **tests (pbt, Issue #64)**: model-based DAG acyclicity, real typed-ask contract enforcement,
+  and a dist freshness guard.
+- **governance (behavior locks + red-gates, Issues #68/#118/#124/#128/#134/#136)**: Tier1
+  linkage, Tier4 orphan probe, and Tier3 vocabulary/projection became behavior locks; Kiro
+  integration docs synced with `.kiro` reality plus a manifest-tool-face governance lock;
+  bracket-form supervisor review markers mechanically detected (the #105 silent-skip class
+  closed); `pr_review_gate.d.ts` machine-checked against `.mjs` exports with 8 dead hook wrapper
+  scripts removed; `scripts/pr_merge.sh` makes the merge entry pipe-safe (exit codes can no
+  longer be swallowed); the merge gate blocks when the head CI gate conclusion is failure.
+- **gate (failure forensics, Issues #65/#67)**: `npm run gate` archives the failing run's TAP
+  output and prints not-ok test names on every red run; `--check-clean` names orphan worktree
+  shells — a shell fails the cleanliness gate.
+- **ci (win32-signal, Issue #66)**: build+unit signal job on demand — signal, not gate.
+- **docs (truth sync, Issues #120/#123/#132)**: TEST_INFRA F8/F9 stand-in coverage,
+  DEVELOPER_GUIDE demo/zcode, CLI setup help; parallel surfaces disclosed (core ReAct demo
+  subsystem, unwired worktree-pool, twin Studio shells); README/SUBMISSION double-writes
+  converged to a single authority and PROJECT.md registered.
 
 ## 2.6.0 (2026-11-17) — R2 closeout: engine hardening, demo integrity, governance batch
 
