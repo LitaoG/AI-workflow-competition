@@ -41,7 +41,34 @@ export class SQLiteStateStore implements StateStore {
     }
     this.db = new DatabaseSync(dbPath);
     this.db.exec('PRAGMA busy_timeout = 5000;');
-    this.initSchema();
+    this.initSchemaToleratingBusy();
+  }
+
+  /**
+   * Issue #140: initSchema is fully idempotent (CREATE TABLE IF NOT EXISTS +
+   * guarded, race-tolerant ALTERs), but under concurrent openers SQLite can
+   * return SQLITE_BUSY immediately — without entering the busy_timeout wait —
+   * around the journal-mode switch window and competing write locks. Observed
+   * twice on Linux CI inside the schema exec batch (PR #139 / run 44338679305,
+   * both attempts red on the issue-#72 race test; busy_timeout = 5000 does not
+   * cover the immediate-BUSY paths). Retry the whole schema init on exactly
+   * that error with a short backoff: every statement converges, so a retry is
+   * always safe; any other failure, or BUSY that outlasts the bounded retries,
+   * still propagates.
+   */
+  private initSchemaToleratingBusy(attempts = 5): void {
+    try {
+      this.initSchema();
+    } catch (err) {
+      const errcode = (err as { errcode?: number } | null)?.errcode;
+      const message = err instanceof Error ? err.message : String(err);
+      const isBusy = errcode === 5 || /database is locked|database table is locked/i.test(message);
+      if (!isBusy) throw err;
+      if (attempts <= 1) throw err;
+      // Synchronous backoff (the store opens on the sync path): 100→400ms.
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100 * (6 - attempts));
+      this.initSchemaToleratingBusy(attempts - 1);
+    }
   }
 
   private initSchema(): void {
@@ -201,7 +228,8 @@ export class SQLiteStateStore implements StateStore {
    * e2e tier-1 reds, both intermittent, main green on rerun). SQLite ALTERs are
    * transactional, so the losing statement's end state is identical to the
    * winner's: tolerate exactly that error and let store initialization finish.
-   * Any other failure (SQLITE_BUSY, corruption) still propagates.
+   * SQLITE_BUSY is handled one level up (initSchemaToleratingBusy, Issue #140);
+   * corruption and every other failure still propagates.
    */
   private addColumnToleratingRace(table: string, column: string, ddl: string): void {
     try {
