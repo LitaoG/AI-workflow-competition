@@ -507,7 +507,7 @@ node bin/workflow.js replay <runId>                                  # 两种运
 | `npm run test:unit` / `test:integration` | 单层执行 | integration 固定 `--test-concurrency=1`（含预算、failover、replay、MCP 等花钱与恢复路径） |
 | `npm run test:e2e` | 分层 E2E runner（`tests/e2e/runner.ts`） | type-stripping 直接跑 TS；Tier1 功能 → Tier2 边界 → Tier3 组合 → Tier4 场景 |
 | `npm run test:adversarial` | Tier-5 对抗压力套件（`tests/adversarial/`） | 含渗透 PoC 回归与演示压力脚本 |
-| `npm run test:pbt` | fast-check 性质测试（`tests/pbt/`） | DAG 拓扑、引擎不变式、NDJSON 往返、脱敏差分、重试分类 |
+| `npm run test:pbt` | fast-check 性质测试（`.kiro/pbt/`） | DAG 拓扑、引擎不变式、NDJSON 往返、脱敏差分、重试分类 |
 | `npm run test:governance` | 治理锁死测试（`tests/unit/workflow-governance.test.ts`） | 锁死文档措辞与流程要素 |
 | `npm run gate` | build → test → e2e → adversarial → pbt | 一键合入门禁：退出码 0 即全绿 |
 | `npm run coverage` | `c8` 覆盖 `npm test` | HTML 报告在 `coverage/`（gitignore）；关键模块设有逐文件 84% 行覆盖下限——只许上调不许下调 |
