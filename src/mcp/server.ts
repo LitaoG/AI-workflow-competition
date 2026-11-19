@@ -442,6 +442,10 @@ export class BuiltinWorkflowMCPServer {
               args: input.args,
               cwd,
               dbPath,
+              // Issue #142: honor resumeRunId so the resumeHint emitted below is
+              // actionable on this very face (previously zod stripped the key and
+              // the run silently started fresh at full price).
+              resumeRunId: input.resumeRunId,
               runTimeoutMs: input.runTimeoutMs,
               budgetTotal: input.budgetTotal,
               approvedCommands: input.approvedCommands,

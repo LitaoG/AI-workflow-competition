@@ -116,7 +116,7 @@ my-agent-pipeline/
 |------|------|
 | `workflow_script_check` | 编译检查 Facade 脚本，返回诊断、阶段图与站点表，不执行 |
 | `workflow_script_run` | 沙箱执行 Facade 脚本（确定性 journal；`resumeRunId` 重放零 Provider 调用），返回 runId、状态、结果与统计 |
-| `workflow_run_script` | 经沙箱引擎执行并返回逐站点摘要（siteId / ordinal / status / durationMs），受 `runTimeoutMs` 约束 |
+| `workflow_run_script` | 经沙箱引擎执行并返回逐站点摘要（siteId / ordinal / status / durationMs），受 `runTimeoutMs` 约束；`resumeRunId` 重放零 Provider 调用 |
 | `workflow_inspect_run` | 检查 journal：`dwf_runs` 状态行、脱敏后的 `dwf_nodes` 逐站点表与证据账本摘要 |
 | `workflow_get_run` | 获取 journal 短路统计：总 ask 数、重放命中、amend 命中、分叉数与 `world.run` 执行数 |
 

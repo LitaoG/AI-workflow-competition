@@ -3,7 +3,7 @@
     "type": "function",
     "function": {
       "name": "workflow_run",
-      "description": "Execute an AI-Workflow by file path with options, state persistence, and event logging",
+      "description": "[legacy — prefer the workflow_script_* facade tools] Execute an AI-Workflow by file path with options, state persistence, and event logging",
       "parameters": {
         "type": "object",
         "properties": {
@@ -38,7 +38,7 @@
     "type": "function",
     "function": {
       "name": "workflow_probe",
-      "description": "Execute deterministic system, git, and toolchain environment probing with secret redaction",
+      "description": "[legacy — prefer the workflow_script_* facade tools] Execute deterministic system, git, and toolchain environment probing with secret redaction",
       "parameters": {
         "type": "object",
         "properties": {
@@ -58,7 +58,7 @@
     "type": "function",
     "function": {
       "name": "workflow_inspect",
-      "description": "Inspect step checkpoints, events, and artifacts of a workflow run from SQLite store",
+      "description": "[legacy — prefer workflow_inspect_run] Inspect step checkpoints, events, and artifacts of a workflow run from SQLite store",
       "parameters": {
         "type": "object",
         "properties": {
@@ -89,7 +89,7 @@
     "type": "function",
     "function": {
       "name": "workflow_replay",
-      "description": "Replay or resume a workflow run from failure with zero re-token spend",
+      "description": "[legacy — prefer workflow_script_run with resumeRunId] Replay or resume a workflow run from failure with zero re-token spend",
       "parameters": {
         "type": "object",
         "properties": {
@@ -120,7 +120,7 @@
     "type": "function",
     "function": {
       "name": "workflow_graph",
-      "description": "Generate static DAG graph visualization without execution (HTML, Mermaid, or ASCII)",
+      "description": "[legacy — prefer the workflow_script_* facade tools] Generate static DAG graph visualization without execution (HTML, Mermaid, or ASCII)",
       "parameters": {
         "type": "object",
         "properties": {
@@ -210,6 +210,13 @@
           "budgetTotal": {
             "type": "number",
             "description": "Output-token budget for the run (read-only inside the script)"
+          },
+          "approvedCommands": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Externally authorized world.run command names (Issue #127: the script own command list no longer authorizes — pass the ones this run may execute; unlisted commands are refused in the non-TTY MCP context)"
           }
         },
         "required": [
@@ -224,6 +231,7 @@
       "name": "workflow_run_script",
       "description": "Run a facade script through the sandboxed engine (journal-backed deterministic replay) and return runId, final status, per-site summaries (siteId/ordinal/status/durationMs) and stats; bounded by runTimeoutMs",
       "parameters": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
           "scriptPath": {
@@ -232,38 +240,52 @@
             "description": "Path to the facade script (.ts) to run"
           },
           "args": {
+            "description": "Script input, available inside the script as `args`",
             "type": "object",
-            "additionalProperties": {},
-            "description": "Script input, available inside the script as `args`"
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          },
+          "resumeRunId": {
+            "description": "Resume a prior run — completed nodes replay from the journal at zero cost",
+            "type": "string"
           },
           "cwd": {
-            "type": "string",
-            "description": "Workspace root for world reads and world.run gates (default: process.cwd())"
+            "description": "Workspace root for world reads and world.run gates (default: process.cwd())",
+            "type": "string"
           },
           "dbPath": {
-            "type": "string",
-            "description": "Journal database path (default .workflow/dwf.sqlite under cwd)"
+            "description": "Journal database path (default .workflow/dwf.sqlite under cwd)",
+            "type": "string"
           },
           "runTimeoutMs": {
+            "description": "Whole-run wall clock; the sandbox child tree is killed on expiry (default 600000)",
             "type": "integer",
             "exclusiveMinimum": 0,
-            "description": "Whole-run wall clock; the sandbox child tree is killed on expiry (default 600000)"
+            "maximum": 9007199254740991
           },
           "budgetTotal": {
+            "description": "Output-token budget for the run (read-only inside the script)",
             "type": "integer",
             "exclusiveMinimum": 0,
-            "description": "Output-token budget for the run (read-only inside the script)"
+            "maximum": 9007199254740991
+          },
+          "approvedCommands": {
+            "description": "Externally authorized world.run command names (Issue #127: the script own command list no longer authorizes — pass the ones this run may execute; unlisted commands are refused in the non-TTY MCP context)",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "quiet": {
-            "type": "boolean",
-            "description": "When true (the default) the response omits the capped event log; the journal keeps every event"
+            "description": "When true (the default) the response omits the capped event log; the journal keeps every event",
+            "type": "boolean"
           }
         },
         "required": [
           "scriptPath"
-        ],
-        "additionalProperties": false,
-        "$schema": "http://json-schema.org/draft-07/schema#"
+        ]
       }
     }
   },
@@ -273,6 +295,7 @@
       "name": "workflow_inspect_run",
       "description": "Inspect a facade-script run in the journal: the dwf_runs status row, the per-site dwf_nodes table (redacted) and an evidence-ledger summary (counts and the latest entries)",
       "parameters": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
           "runId": {
@@ -281,15 +304,13 @@
             "description": "Facade-script run ID to inspect (dwf_runs.run_id)"
           },
           "dbPath": {
-            "type": "string",
-            "description": "Journal database path (default .workflow/dwf.sqlite under the server cwd)"
+            "description": "Journal database path (default .workflow/dwf.sqlite under the server cwd)",
+            "type": "string"
           }
         },
         "required": [
           "runId"
-        ],
-        "additionalProperties": false,
-        "$schema": "http://json-schema.org/draft-07/schema#"
+        ]
       }
     }
   },
@@ -299,6 +320,7 @@
       "name": "workflow_get_run",
       "description": "Fetch a facade-script run's journal short-circuit statistics — total asks, replay hits, amend hits, divergences and world.run executions (same accounting as the runner stats)",
       "parameters": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
           "runId": {
@@ -307,15 +329,13 @@
             "description": "Facade-script run ID (dwf_runs.run_id)"
           },
           "dbPath": {
-            "type": "string",
-            "description": "Journal database path (default .workflow/dwf.sqlite under the server cwd)"
+            "description": "Journal database path (default .workflow/dwf.sqlite under the server cwd)",
+            "type": "string"
           }
         },
         "required": [
           "runId"
-        ],
-        "additionalProperties": false,
-        "$schema": "http://json-schema.org/draft-07/schema#"
+        ]
       }
     }
   }

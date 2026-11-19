@@ -424,7 +424,7 @@ const result = await ctx.mcp.callTool('aws-cloudwatch', 'query_metrics', {
 **Facade 代（现行）**：
 1. `workflow_script_check`：编译期检查 facade 脚本（严格 TS、纯度禁令、字面量规则），返回诊断、阶段与站点表——不执行任何东西；
 2. `workflow_script_run`：在沙箱中运行 facade 脚本（确定性 journal；resume 零 Provider 调用重放已完成节点），返回 runId、状态、结果与统计（asks/replayHits）；
-3. `workflow_run_script`：同一沙箱引擎的等价入口，另返回逐站点摘要（siteId/ordinal/status/durationMs）；
+3. `workflow_run_script`：同一沙箱引擎的等价入口，另返回逐站点摘要（siteId/ordinal/status/durationMs）；同样支持 `resumeRunId` 零 Provider 调用重放；
 4. `workflow_inspect_run`：检视 journal 中的运行——`dwf_runs` 状态行、逐站点 `dwf_nodes`（已脱敏）与证据账本摘要；
 5. `workflow_get_run`：取一次运行的 journal 短路统计（总 asks、重放/amend 命中、分歧、world.run 执行数）。
 
