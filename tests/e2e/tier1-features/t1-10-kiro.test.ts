@@ -28,16 +28,21 @@ test('Tier 1 - Feature 10: Mandatory Kiro Integration (/.kiro)', async (t) => {
     assert.ok(files.length >= 1, 'specs directory must contain specification files');
   });
 
-  await t.test('T1_F10_03: /.kiro/hooks contains lifecycle.json with canonical Kiro lifecycle events', () => {
+  await t.test('T1_F10_03: /.kiro/hooks contains lifecycle.json in the Kiro native schema (trigger + action.command)', () => {
     const lifecyclePath = path.join(kiroDir, 'hooks', 'lifecycle.json');
     assert.ok(fs.existsSync(lifecyclePath), '.kiro/hooks/lifecycle.json must exist');
-    const lifecycle = JSON.parse(fs.readFileSync(lifecyclePath, 'utf-8'));
+    const lifecycle = JSON.parse(fs.readFileSync(lifecyclePath, 'utf-8')) as {
+      version: string;
+      hooks: Array<{ name: string; trigger?: string; event?: string; action?: { type?: string; command?: string }; enabled?: boolean }>;
+    };
     assert.strictEqual(lifecycle.version, 'v1');
     assert.ok(Array.isArray(lifecycle.hooks) && lifecycle.hooks.length >= 4, 'lifecycle.json must register the four canonical lifecycle hooks');
-    for (const event of ['AgentSpawn', 'PreToolUse', 'PostToolUse', 'Stop']) {
-      const hook = lifecycle.hooks.find((h: { event: string }) => h.event === event);
-      assert.ok(hook, `lifecycle.json must register a ${event} hook`);
-      assert.strictEqual(hook.enabled, true, `${event} hook must be enabled`);
+    for (const trigger of ['SessionStart', 'PreToolUse', 'PostToolUse', 'Stop']) {
+      const hook = lifecycle.hooks.find((h) => h.trigger === trigger);
+      assert.ok(hook, `lifecycle.json must register a ${trigger} hook`);
+      assert.strictEqual(hook.enabled, undefined, 'enabled is not a Kiro-schema field (Issue #145: the file must match kiro.dev/docs/hooks)');
+      assert.strictEqual(hook.action?.type, 'command', `${trigger} hook must carry a command action`);
+      assert.ok(typeof hook.action?.command === 'string' && hook.action.command.length > 0, `${trigger} hook action must name its gate script`);
     }
   });
 

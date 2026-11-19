@@ -22,11 +22,11 @@ AI-workflow/
     │   ├── state-replay-invariants.md
     │   └── ui-presentation-spec.md
     ├── hooks/                      # Kiro 生命周期钩子与确定性门禁脚本
-    │   ├── lifecycle.json
-    │   ├── pre-workflow-gate.cmd / .sh
-    │   ├── pre-step-gate.cmd / .sh
-    │   ├── post-step-audit.cmd / .sh
-    │   └── pre-commit.cmd / .sh
+    │   ├── lifecycle.json          # 按 trigger 绑定各 .js 门禁（Kiro 原生 schema）
+    │   ├── pre-workflow-gate.js    # SessionStart — 确定性环境探测
+    │   ├── pre-step-gate.js        # PreToolUse — 破坏性命令拦截（stdin JSON 协议）
+    │   ├── post-step-audit.js      # PostToolUse — 产物哈希审计（journal 才是权威审计流）
+    │   └── stop-workflow-gate.js   # Stop — 输出 Kiro stop 决策 JSON
     ├── steering/                   # Frontmatter 驱动的转向指导准则（inclusion: always）
     │   ├── guidelines.md
     │   ├── policy-guardrails.md
@@ -77,10 +77,10 @@ Kiro 原生支持 4 类生命周期事件，AI-Workflow 据此实现确定性门
 
 | 钩子事件 | 在 AI-Workflow 中的职责 | 调用脚本 | 退出码语义与行为 |
 |---|---|---|---|
-| `AgentSpawn` | 确定性环境探测 | `pre-workflow-gate` | 采集系统、Git 与脱敏环境指标，注入上下文 |
-| `PreToolUse` | 拦截高危或破坏性工具调用 | `pre-step-gate` | 拦截 `rm -rf`、磁盘格式化或泄露凭据（**退出码 2 执行阻断**） |
-| `PostToolUse` | 只追加事件流审计 | `post-step-audit` | 实时校验状态转换并刷盘写入 `events.jsonl` |
-| `Stop` | 会话退出前执行全局验收门禁 | `pre-commit` | 阻断未通过门禁的会话结束，确保交付质量 |
+| `SessionStart` | 确定性环境探测 | `pre-workflow-gate` | 采集系统、Git 与脱敏环境指标，注入上下文 |
+| `PreToolUse` | 拦截高危或破坏性工具调用 | `pre-step-gate` | 读取 stdin JSON 协议（`tool_input.command`），拦截 `rm -rf`、磁盘格式化或泄露凭据（**退出码 2 执行阻断**） |
+| `PostToolUse` | 产物审计 | `post-step-audit` | 每步对 `artifacts/` 文件做 SHA-256 哈希记录；不做事件序列校验——SQLite journal / `events.jsonl` 才是权威审计流 |
+| `Stop` | 会话完成门 | `stop-workflow-gate` | 输出 Kiro stop 决策 JSON；自动化环境可用 `KIRO_STOP_BLOCK=true` 触发阻断 |
 
 ### `lifecycle.json` 官方配置
 ```json
@@ -89,33 +89,25 @@ Kiro 原生支持 4 类生命周期事件，AI-Workflow 据此实现确定性门
   "hooks": [
     {
       "name": "deterministic-env-probe",
-      "event": "AgentSpawn",
-      "command": "node bin/workflow.js probe --strict",
-      "timeout": 30,
-      "enabled": true
+      "trigger": "SessionStart",
+      "action": { "type": "command", "command": "node .kiro/hooks/pre-workflow-gate.js" }
     },
     {
-      "name": "enforce-destructive-command-gate",
-      "event": "PreToolUse",
-      "matcher": "execute_bash*|run_command*",
-      "command": "node .kiro/hooks/pre-step-gate.js",
-      "timeout": 15,
-      "enabled": true
+      "name": "enforce-tool-gate",
+      "trigger": "PreToolUse",
+      "matcher": "execute_bash*",
+      "action": { "type": "command", "command": "node .kiro/hooks/pre-step-gate.js" }
     },
     {
       "name": "durable-journal-audit",
-      "event": "PostToolUse",
+      "trigger": "PostToolUse",
       "matcher": "*",
-      "command": "node .kiro/hooks/post-step-audit.js",
-      "timeout": 15,
-      "enabled": true
+      "action": { "type": "command", "command": "node .kiro/hooks/post-step-audit.js" }
     },
     {
-      "name": "pre-commit-verification",
-      "event": "Stop",
-      "command": "node .kiro/hooks/pre-commit.js",
-      "timeout": 60,
-      "enabled": true
+      "name": "workflow-completion-gate",
+      "trigger": "Stop",
+      "action": { "type": "command", "command": "node .kiro/hooks/stop-workflow-gate.js" }
     }
   ]
 }

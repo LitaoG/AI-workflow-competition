@@ -105,6 +105,33 @@ describe('Kiro Hooks Adversarial Stress Suite', () => {
     assert.ok(res2.stderr.includes('[GATE DENIED]'));
   });
 
+  test('Hook Gate 3b: pre-step-gate reads the Kiro STDIN protocol — tool_input.command is gated (Issue #145)', () => {
+    // The real Kiro wiring: session context JSON arrives on STDIN while argv
+    // and env carry nothing — the deny branch must fire from the stdin payload.
+    const evil = spawnSync(process.execPath, [preStepGatePath], {
+      cwd: projectRoot,
+      input: JSON.stringify({ tool_name: 'execute_bash', tool_input: { command: 'rm -rf /' } }),
+      encoding: 'utf8',
+    });
+    assert.equal(evil.status, 2, `stdin-protocol destructive command must be denied, got ${evil.status}`);
+    assert.ok(evil.stderr.includes('[GATE DENIED]'), `stderr must carry the deny marker, got: ${evil.stderr}`);
+
+    const benign = spawnSync(process.execPath, [preStepGatePath], {
+      cwd: projectRoot,
+      input: JSON.stringify({ tool_name: 'execute_bash', tool_input: { command: 'git status' } }),
+      encoding: 'utf8',
+    });
+    assert.equal(benign.status, 0, 'stdin-protocol benign command must be allowed');
+    assert.ok(benign.stdout.includes('[GATE ALLOWED]'));
+
+    // A silent open pipe (spawnSync without input) must not hang the gate:
+    // the bounded stdin wait resolves and the hook answers allow promptly.
+    const started = Date.now();
+    const silent = spawnSync(process.execPath, [preStepGatePath], { cwd: projectRoot, encoding: 'utf8' });
+    assert.equal(silent.status, 0);
+    assert.ok(Date.now() - started < 5000, 'the gate must not hang on a never-closing stdin pipe');
+  });
+
   test('Hook Gate 4: pre-step-gate approves safe and benign commands with exit code 0 and [GATE ALLOWED]', () => {
     const safeCommands = [
       'npm test',
@@ -142,7 +169,10 @@ describe('Kiro Hooks Adversarial Stress Suite', () => {
     });
 
     assert.equal(res.status, 0);
-    assert.ok(res.stdout.includes('[KIRO HOOK] Post-step audit passed'));
+    // Issue #145: the audit reports what it actually does — hash listing only,
+    // no sequence validation (the journal is the authoritative audit stream).
+    assert.ok(res.stdout.includes('[KIRO HOOK] Post-step audit recorded'));
+    assert.ok(res.stdout.includes('performs no event-sequence validation'));
 
     // 2. Audit on temporary isolated environment with synthetic artifacts
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'audit-test-'));
@@ -164,9 +194,9 @@ describe('Kiro Hooks Adversarial Stress Suite', () => {
     });
 
     assert.equal(resTemp.status, 0);
-    assert.ok(resTemp.stdout.includes('[AUDIT] Artifact verified: alpha.json'));
-    assert.ok(resTemp.stdout.includes('[AUDIT] Artifact verified: beta.txt'));
-    assert.ok(resTemp.stdout.includes('[KIRO HOOK] Post-step audit passed'));
+    assert.ok(resTemp.stdout.includes('[AUDIT] artifact hashed: alpha.json'));
+    assert.ok(resTemp.stdout.includes('[AUDIT] artifact hashed: beta.txt'));
+    assert.ok(resTemp.stdout.includes('[KIRO HOOK] Post-step audit recorded 2 artifact hashes'));
 
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
