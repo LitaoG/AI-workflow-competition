@@ -9,8 +9,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { toJsonSchemaCompat } from '@modelcontextprotocol/sdk/server/zod-json-schema-compat.js';
 
 import { BuiltinWorkflowMCPServer, TOOL_CATALOG } from '../../src/mcp/server.js';
+import { RunScriptArgs } from '../../src/mcp/tool-catalog.js';
 
 async function withSession<T>(fn: (client: Client) => Promise<T>): Promise<T> {
   const server = new BuiltinWorkflowMCPServer();
@@ -81,6 +83,35 @@ test('every cataloged tool dispatches: a call never answers "unknown tool" (no�
       assert.doesNotMatch(text, /unknown tool/i, `${tool.name} must be a dispatched tool, not a virtual listing`);
     }
   });
+});
+
+test('field-level: both run faces accept resumeRunId and each documents what its executor reads (Issue #142)', () => {
+  const byName = new Map(TOOL_CATALOG.map((t) => [t.name, t]));
+  const runScript = byName.get('workflow_run_script');
+  const scriptRun = byName.get('workflow_script_run');
+  assert.ok(runScript && scriptRun, 'both facade run faces are cataloged');
+
+  // The zod face derives its wire schema from RunScriptArgs — documentation and
+  // validation share one source, so the derivation must match verbatim.
+  assert.deepEqual(
+    runScript.inputSchema,
+    toJsonSchemaCompat(RunScriptArgs),
+    'workflow_run_script inputSchema must be the RunScriptArgs derivation (no hand-drifted copy)',
+  );
+
+  const propsOf = (t: { inputSchema: Record<string, unknown> }): string[] =>
+    Object.keys((t.inputSchema as { properties: Record<string, unknown> }).properties).sort();
+
+  // Both faces emit a resumeHint that tells the caller to re-run with
+  // resumeRunId — the field must be accepted on the face that emits it.
+  assert.ok(propsOf(runScript).includes('resumeRunId'), 'workflow_run_script must accept resumeRunId');
+  assert.ok(propsOf(scriptRun).includes('resumeRunId'), 'workflow_script_run must accept resumeRunId');
+
+  // The workflow_script_run executor reads approvedCommands (server.ts branch);
+  // quiet is workflow_run_script-only, so the hand-written face must not
+  // document a parameter its executor ignores.
+  assert.ok(propsOf(scriptRun).includes('approvedCommands'), 'workflow_script_run catalog must document approvedCommands');
+  assert.ok(!propsOf(scriptRun).includes('quiet'), 'workflow_script_run executor never reads quiet — catalog must not claim it');
 });
 
 test('a name outside the catalog is refused as unknown (negative control)', async () => {

@@ -16,6 +16,10 @@ import { toJsonSchemaCompat } from '@modelcontextprotocol/sdk/server/zod-json-sc
 export const RunScriptArgs = z.object({
   scriptPath: z.string().min(1).describe('Path to the facade script (.ts) to run'),
   args: z.record(z.string(), z.unknown()).optional().describe('Script input, available inside the script as `args`'),
+  // Issue #142: the resumeHint this face emits tells the caller to re-run with
+  // resumeRunId — the field must exist on the same face or the hint silently
+  // routes the caller into a full-price fresh run (zod stripped the unknown key).
+  resumeRunId: z.string().optional().describe('Resume a prior run — completed nodes replay from the journal at zero cost'),
   cwd: z.string().optional().describe('Workspace root for world reads and world.run gates (default: process.cwd())'),
   dbPath: z.string().optional().describe('Journal database path (default .workflow/dwf.sqlite under cwd)'),
   runTimeoutMs: z.number().int().positive().optional().describe('Whole-run wall clock; the sandbox child tree is killed on expiry (default 600000)'),
@@ -157,6 +161,9 @@ export const TOOL_CATALOG: McpToolDescriptor[] = [
         dbPath: { type: 'string', description: 'Journal database path (default .workflow/dwf.sqlite under cwd)' },
         runTimeoutMs: { type: 'number', description: 'Whole-run wall clock; the sandbox child tree is killed on expiry (default 600000)' },
         budgetTotal: { type: 'number', description: 'Output-token budget for the run (read-only inside the script)' },
+        // Issue #142: the executor reads approvedCommands (server.ts workflow_script_run
+        // branch) — the catalog must document what the executor actually reads.
+        approvedCommands: { type: 'array', items: { type: 'string' }, description: 'Externally authorized world.run command names (Issue #127: the script own command list no longer authorizes — pass the ones this run may execute; unlisted commands are refused in the non-TTY MCP context)' },
       },
       required: ['scriptPath'],
     },

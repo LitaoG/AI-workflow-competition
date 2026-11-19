@@ -146,6 +146,47 @@ test('MCP: workflow_script_run executes and resumes at zero asks', async () => {
   }
 });
 
+test('MCP: workflow_run_script executes and resumes at zero asks (Issue #142)', async () => {
+  const { client, cleanup } = await connectServer();
+  const ws = tempWorkspace();
+  try {
+    const scriptPath = path.join(ws.dir, 'run.facade.ts');
+    fs.writeFileSync(scriptPath, RUN_SCRIPT);
+
+    const first = await client.callTool({
+      name: 'workflow_run_script',
+      arguments: { scriptPath, cwd: ws.dir, dbPath: path.join(ws.dir, 'j.db') },
+    });
+    const firstText = JSON.parse((first.content as Array<{ text: string }>)[0]!.text);
+    assert.equal(firstText.status, 'completed', JSON.stringify(firstText));
+    assert.equal((firstText.value as { healthStatus: string }).healthStatus, 'HEALTHY');
+    assert.equal(firstText.stats.asks, 1);
+    assert.ok(firstText.resumeHint.includes(firstText.runId));
+
+    // Issue #142: following the resumeHint on this very face must reuse the
+    // runId — zod used to strip resumeRunId, so the hinted call silently minted
+    // a fresh full-price run while claiming zero-cost replay.
+    const second = await client.callTool({
+      name: 'workflow_run_script',
+      arguments: {
+        scriptPath,
+        cwd: ws.dir,
+        dbPath: path.join(ws.dir, 'j.db'),
+        resumeRunId: firstText.runId,
+      },
+    });
+    const secondText = JSON.parse((second.content as Array<{ text: string }>)[0]!.text);
+    assert.equal(secondText.status, 'completed');
+    assert.equal(secondText.runId, firstText.runId, 'resumeRunId must reuse the run, not mint a fresh one');
+    assert.deepEqual(secondText.value, firstText.value);
+    assert.equal(secondText.stats.asks, 0, 'resume must replay at zero asks');
+    assert.equal(secondText.stats.replayHits, 1);
+  } finally {
+    ws.cleanup();
+    await cleanup();
+  }
+});
+
 test('MCP: the skill example script stays facade-clean (doc guard)', async () => {
   const { client, cleanup } = await connectServer();
   try {

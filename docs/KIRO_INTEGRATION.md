@@ -171,7 +171,7 @@ The served catalog is the full ten-tool face, locked to `TOOL_CATALOG` by the go
 5. `workflow_graph` *(legacy)*: Generates static DAG graph visualization without execution (HTML, Mermaid, or ASCII).
 6. `workflow_script_check`: Compile-checks a facade script (strict TS against the workflow facade, purity bans, literal rules) and returns diagnostics, phases, and the site table — without executing anything.
 7. `workflow_script_run`: Runs a facade script in the sandbox (deterministic journal; `--resume` replays completed nodes at zero provider calls).
-8. `workflow_run_script`: Runs a facade script through the sandboxed engine and returns runId, final status, per-site summaries, and stats.
+8. `workflow_run_script`: Runs a facade script through the sandboxed engine and returns runId, final status, per-site summaries, and stats. Accepts `resumeRunId` to replay completed nodes at zero provider calls.
 9. `workflow_inspect_run`: Inspects a facade-script run's journal — the status row, the per-site nodes table (redacted), and an evidence-ledger summary.
 10. `workflow_get_run`: Fetches a run's journal short-circuit statistics — asks, replay hits, amend hits, divergences, and `world.run` executions.
 
