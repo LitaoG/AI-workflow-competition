@@ -2,10 +2,28 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { FacadeEngine } from '../../../src/dwf/engine.js';
 import type { LLMProvider, LLMRequest } from '../../../src/types.js';
+import type { DwfNode } from '../../../src/domain/workflow-types.js';
 import { providerRegistry } from '../../../src/agent/provider.js';
 import { CountingProvider, actorFrame, askFrame, makeNodeApprovedEngine, makeStore } from './test-helpers.js';
+import type { DwfTestStore } from './test-helpers.js';
 
 const makeCounting = (): CountingProvider => new CountingProvider('dwf-counting-mock', 'Counting mock');
+
+/**
+ * Wrap the store so the Nth saveDwfNode call throws AFTER a successful
+ * execute — the Issue #144 scenario: a journalled node whose row write fails
+ * mid-run, leaving the journal without that row while the world already moved.
+ */
+function failSaveOnCall(store: DwfTestStore, failOnCall: number): DwfTestStore {
+  let saveCalls = 0;
+  const wrapped = Object.create(store) as DwfTestStore;
+  wrapped.saveDwfNode = async (node: DwfNode) => {
+    saveCalls++;
+    if (saveCalls === failOnCall) throw new Error('injected journal write failure (Issue #144)');
+    return store.saveDwfNode(node);
+  };
+  return wrapped;
+}
 
 test('engine replay: second engine on the same journal short-circuits asks at zero model calls', async () => {
   const counting = makeCounting();
@@ -57,6 +75,51 @@ test('engine replay: second engine on the same journal short-circuits asks at ze
   } finally {
     providerRegistry.setDefault(previousDefault);
   }
+});
+
+test('issue #144: a non-ask journal row lost to a write failure must not oscillate on resume', async () => {
+  const store = makeStore();
+  const runId = 'dwfrun-ordinal-converge';
+
+  // Run 1: worldRead A records row #1; worldRead B's row write fails (injected
+  // saveDwfNode failure after a successful read) → the run fails, leaving the
+  // journal with ONLY row #1 at the site.
+  const engine1 = makeNodeApprovedEngine(runId, failSaveOnCall(store, 2));
+  const readA = await engine1.handleCall({ t: 'call', id: 1, op: 'worldRead', siteId: 'wr#1', payload: ['files.read', ['package.json']] });
+  await assert.rejects(
+    () => engine1.handleCall({ t: 'call', id: 2, op: 'worldRead', siteId: 'wr#1', payload: ['files.read', ['tsconfig.json']] }),
+    /injected journal write failure/,
+  );
+  const rowsAfterRun1 = (await store.getDwfNodes(runId)).filter((n) => n.siteId === 'wr#1');
+  assert.equal(rowsAfterRun1.length, 1, 'the failed write must leave exactly one surviving row');
+  assert.equal(rowsAfterRun1[0]!.ordinal, 1);
+
+  // Resume 1: A replays; B runs live and must allocate ordinal 2 — past the
+  // surviving pool row — instead of upsert-overwriting row #1 with B's value.
+  const engine2 = makeNodeApprovedEngine(runId, store);
+  const hitA = await engine2.handleCall({ t: 'call', id: 3, op: 'worldRead', siteId: 'wr#1', payload: ['files.read', ['package.json']] });
+  assert.equal(hitA, readA, 'the surviving row replays verbatim');
+  const liveB = await engine2.handleCall({ t: 'call', id: 4, op: 'worldRead', siteId: 'wr#1', payload: ['files.read', ['tsconfig.json']] });
+  assert.notEqual(liveB, readA, 'B executed live against its own input');
+  const rowsAfterResume1 = (await store.getDwfNodes(runId)).filter((n) => n.siteId === 'wr#1');
+  assert.deepEqual(
+    rowsAfterResume1.map((n) => n.ordinal).sort((a, b) => a - b),
+    [1, 2],
+    'the live call must claim a FRESH ordinal, never overwrite the surviving row',
+  );
+
+  // Resume 2: both rows replay — the journal converged. Pre-fix, rows #1/#2
+  // swapped ownership on every resume and the run never settled.
+  const events: Array<{ type: string }> = [];
+  const engine3 = makeNodeApprovedEngine(runId, store, { onEvent: (e) => events.push({ type: e.type }) });
+  const hitA2 = await engine3.handleCall({ t: 'call', id: 5, op: 'worldRead', siteId: 'wr#1', payload: ['files.read', ['package.json']] });
+  const hitB2 = await engine3.handleCall({ t: 'call', id: 6, op: 'worldRead', siteId: 'wr#1', payload: ['files.read', ['tsconfig.json']] });
+  assert.equal(hitA2, readA);
+  assert.equal(hitB2, liveB, 'row #2 replays B — not a swapped value');
+  assert.equal(events.filter((e) => e.type === 'dwf_replay_hit').length, 2, 'both calls short-circuit from the journal');
+  assert.equal((await store.getDwfNodes(runId)).filter((n) => n.siteId === 'wr#1').length, 2, 'the journal is stable across resumes');
+
+  store.close();
 });
 
 test('ask seat gate bounds concurrency across actors; per-actor asks run FIFO', async () => {

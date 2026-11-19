@@ -402,3 +402,75 @@ test('SQLite Store: listDwfRuns lists facade rows newest-first with status filte
     store.close();
   }
 });
+
+// ---------------------------------------------------------------------------
+// Issue #140 deterministic regressions: initSchemaToleratingBusy branches.
+// The production trigger is a real concurrent-opener race (twice on CI), so
+// these tests inject BUSY-shaped failures through the virtual initSchema seam
+// instead of trying to win the race — every retry branch is locked as data.
+// ---------------------------------------------------------------------------
+
+test('SQLite Store: initSchemaToleratingBusy retries bounded on BUSY and converges (#140)', () => {
+  const proto = SQLiteStateStore.prototype as unknown as { initSchema: () => void };
+  const original = proto.initSchema;
+  let calls = 0;
+  proto.initSchema = function (this: unknown): void {
+    calls++;
+    if (calls === 1) {
+      const err = new Error('database is locked');
+      (err as { errcode?: number }).errcode = 5; // SQLITE_BUSY primary code branch
+      throw err;
+    }
+    if (calls === 2) {
+      throw new Error('database table is locked'); // message-regex branch only
+    }
+    original.call(this);
+  };
+  try {
+    const store = new SQLiteStateStore(':memory:');
+    try {
+      assert.equal(calls, 3, 'two BUSY failures then the converging init');
+      assert.deepEqual(store.listRuns(), [], 'the retried store is fully usable');
+    } finally {
+      store.close();
+    }
+  } finally {
+    proto.initSchema = original;
+  }
+});
+
+test('SQLite Store: non-BUSY init failures propagate immediately without retry (#140)', () => {
+  const proto = SQLiteStateStore.prototype as unknown as { initSchema: () => void };
+  const original = proto.initSchema;
+  let calls = 0;
+  proto.initSchema = function (): void {
+    calls++;
+    const err = new Error('malformed schema input');
+    (err as { errcode?: number }).errcode = 11;
+    throw err;
+  };
+  try {
+    assert.throws(() => new SQLiteStateStore(':memory:'), /malformed schema input/);
+    assert.equal(calls, 1, 'non-BUSY errors must not be retried');
+  } finally {
+    proto.initSchema = original;
+  }
+});
+
+test('SQLite Store: BUSY that outlasts the bounded retries still propagates (#140)', () => {
+  const proto = SQLiteStateStore.prototype as unknown as { initSchema: () => void };
+  const original = proto.initSchema;
+  let calls = 0;
+  proto.initSchema = function (): void {
+    calls++;
+    const err = new Error('database is locked');
+    (err as { errcode?: number }).errcode = 5;
+    throw err;
+  };
+  try {
+    assert.throws(() => new SQLiteStateStore(':memory:'), /database is locked/);
+    assert.equal(calls, 5, 'five bounded attempts (100→400ms backoff), then the error propagates');
+  } finally {
+    proto.initSchema = original;
+  }
+});
