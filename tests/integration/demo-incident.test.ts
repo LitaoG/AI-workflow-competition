@@ -156,6 +156,7 @@ test('Integration Suite: Demo 1 — Incident Triage & Automated Remediation', as
     // stale other-scenario content (gate round 1).
     const postMortemCandidates = [
       path.join(outputDir, 'PostMortem.md'),
+      path.join(tempDir, 'artifacts', 'incident-triage', 'PostMortem.md'),
       path.join(tempDir, 'artifacts', 'PostMortem.md'),
     ];
 
@@ -179,6 +180,7 @@ test('Integration Suite: Demo 1 — Incident Triage & Automated Remediation', as
     // Only this run's own exports (cwd sandboxed above) — see TEST 3.
     const postMortemCandidates = [
       path.join(outputDir, 'PostMortem.md'),
+      path.join(tempDir, 'artifacts', 'incident-triage', 'PostMortem.md'),
       path.join(tempDir, 'artifacts', 'PostMortem.md'),
     ];
 
@@ -205,6 +207,7 @@ test('Integration Suite: Demo 1 — Incident Triage & Automated Remediation', as
     // 2. Verify Kanban board JSON — only this suite's own exports
     const kanbanCandidates = [
       path.join(outputDir, 'kanban.json'),
+      path.join(tempDir, 'artifacts', 'incident-triage', 'kanban.json'),
       path.join(tempDir, 'artifacts', 'kanban.json'),
     ];
     const kanbanPath = kanbanCandidates.find(p => fs.existsSync(p));
