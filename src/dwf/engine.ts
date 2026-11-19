@@ -927,11 +927,16 @@ export class FacadeEngine {
     // A LIVE node allocates its ordinal by arrival (fresh runs and genuinely new
     // calls); replayed nodes keep their original journal ordinal via the pool.
     let ordinal = (this.ordinals.get(siteId) ?? 0) + 1;
-    // Same-script asks must never claim an ordinal the journal already holds —
+    // Same-script resumes must never claim an ordinal the journal already holds —
     // saveDwfNode upserts on (runId, siteId, ordinal), so a colliding live row
     // would silently overwrite a journal row. Allocate past every row the pool
     // carries, consumed or not (a not-yet-replayed sibling keeps its ordinal).
-    if (kind === 'ask' && this.sameScriptResume && this.options.replayEnabled !== false) {
+    // Issue #144: this guard used to run for asks only. A non-ask row lost to a
+    // saveDwfNode write failure (row missing in the journal) then re-allocated
+    // the missing ordinal on the next resume and upsert-overwrote the surviving
+    // row — every further resume cascaded the swap and the journal never
+    // converged (worldRun nodes even re-executed, repeating side effects).
+    if (this.sameScriptResume && this.options.replayEnabled !== false) {
       const pool = this.settlePools.peekJournalPool(siteId);
       if (pool) {
         for (const n of pool.values()) {
