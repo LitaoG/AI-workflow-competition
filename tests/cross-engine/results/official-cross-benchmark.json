@@ -2,7 +2,7 @@
   "benchmark": "cross-engine-deliverable-4",
   "track": "official",
   "engine": "ZCode apps/zcode-cli/packages/dynamic-workflow (dist)",
-  "pkgRoot": "$OFFICIAL_DWF (the official ZCode checkout; see tests/cross-engine/README.md)",
+  "pkgRoot": "$OFFICIAL_DWF",
   "node": "v26.13.0",
   "mission": "cross-benchmark-mission.facade.ts (planner -> 4-way fanout -> verifier self-heal -> report/complete; common-subset facade)",
   "facadeSurfaceUsed": [
@@ -13,9 +13,9 @@
     "log(text)"
   ],
   "compile": {
-    "coldCompileMs": 66.444,
-    "coldLowerMs": 217.611,
-    "warmCompileMeanMs": 51.072,
+    "coldCompileMs": 49.125,
+    "coldLowerMs": 158.067,
+    "warmCompileMeanMs": 38.634,
     "diagnostics": 0,
     "loweredSiteIds": [
       "actor#1",
@@ -45,7 +45,7 @@
   "runs": [
     {
       "runId": "cross-official-run-1",
-      "wallMs": 167.271,
+      "wallMs": 165.948,
       "artifact": {
         "plan": {
           "steps": [
@@ -189,7 +189,78 @@
         "ask:ask#10@2",
         "ask:ask#10@3"
       ],
-      "journalEventSequence": [],
+      "journalEventSequence": [
+        "run-started",
+        "phase-entered",
+        "actor-created",
+        "node-queued",
+        "node-dispatched",
+        "usage-updated",
+        "node-settled",
+        "log",
+        "report",
+        "phase-entered",
+        "actor-created",
+        "actor-created",
+        "actor-created",
+        "actor-created",
+        "node-queued",
+        "node-queued",
+        "node-queued",
+        "node-queued",
+        "node-dispatched",
+        "node-dispatched",
+        "node-dispatched",
+        "node-dispatched",
+        "usage-updated",
+        "node-settled",
+        "usage-updated",
+        "node-settled",
+        "usage-updated",
+        "node-settled",
+        "usage-updated",
+        "node-settled",
+        "log",
+        "report",
+        "phase-entered",
+        "node-queued",
+        "node-queued",
+        "node-queued",
+        "node-queued",
+        "node-dispatched",
+        "node-dispatched",
+        "node-dispatched",
+        "node-dispatched",
+        "usage-updated",
+        "node-settled",
+        "usage-updated",
+        "node-settled",
+        "usage-updated",
+        "node-settled",
+        "usage-updated",
+        "node-settled",
+        "log",
+        "report",
+        "phase-entered",
+        "actor-created",
+        "node-queued",
+        "node-dispatched",
+        "usage-updated",
+        "node-settled",
+        "log",
+        "node-queued",
+        "node-dispatched",
+        "usage-updated",
+        "node-settled",
+        "log",
+        "node-queued",
+        "node-dispatched",
+        "usage-updated",
+        "node-settled",
+        "report",
+        "log",
+        "run-settled"
+      ],
       "phasesEntered": [
         "Plan",
         "Research",
@@ -201,9 +272,9 @@
       "instanceTimings": [
         {
           "instance": "ask#1@1",
-          "queueWaitMs": 0.183,
-          "occupancyMs": 26.265,
-          "totalMs": 26.448
+          "queueWaitMs": 0.314,
+          "occupancyMs": 24.111,
+          "totalMs": 24.425
         },
         {
           "instance": "report#1@1",
@@ -213,27 +284,27 @@
         },
         {
           "instance": "ask#2@1",
-          "queueWaitMs": 0.159,
-          "occupancyMs": 45.658,
-          "totalMs": 45.817
+          "queueWaitMs": 0.177,
+          "occupancyMs": 45.741,
+          "totalMs": 45.918
         },
         {
           "instance": "ask#3@1",
-          "queueWaitMs": 0.167,
-          "occupancyMs": 30.403,
-          "totalMs": 30.569
+          "queueWaitMs": 0.166,
+          "occupancyMs": 30.284,
+          "totalMs": 30.45
         },
         {
           "instance": "ask#4@1",
-          "queueWaitMs": 0.156,
-          "occupancyMs": 45.472,
-          "totalMs": 45.628
+          "queueWaitMs": 0.154,
+          "occupancyMs": 45.598,
+          "totalMs": 45.753
         },
         {
           "instance": "ask#5@1",
-          "queueWaitMs": 0.14,
-          "occupancyMs": 30.003,
-          "totalMs": 30.144
+          "queueWaitMs": 0.143,
+          "occupancyMs": 30.174,
+          "totalMs": 30.317
         },
         {
           "instance": "report#2@1",
@@ -243,27 +314,27 @@
         },
         {
           "instance": "ask#6@1",
-          "queueWaitMs": 0.119,
-          "occupancyMs": 45.804,
-          "totalMs": 45.923
+          "queueWaitMs": 0.1,
+          "occupancyMs": 46.967,
+          "totalMs": 47.067
         },
         {
           "instance": "ask#7@1",
-          "queueWaitMs": 0.141,
-          "occupancyMs": 30.382,
-          "totalMs": 30.523
+          "queueWaitMs": 0.103,
+          "occupancyMs": 30.627,
+          "totalMs": 30.73
         },
         {
           "instance": "ask#8@1",
-          "queueWaitMs": 0.137,
-          "occupancyMs": 45.643,
-          "totalMs": 45.781
+          "queueWaitMs": 0.099,
+          "occupancyMs": 46.741,
+          "totalMs": 46.84
         },
         {
           "instance": "ask#9@1",
-          "queueWaitMs": 0.147,
-          "occupancyMs": 30.215,
-          "totalMs": 30.361
+          "queueWaitMs": 0.095,
+          "occupancyMs": 30.506,
+          "totalMs": 30.601
         },
         {
           "instance": "report#3@1",
@@ -273,21 +344,21 @@
         },
         {
           "instance": "ask#10@1",
-          "queueWaitMs": 0.031,
-          "occupancyMs": 15.002,
-          "totalMs": 15.033
+          "queueWaitMs": 0.033,
+          "occupancyMs": 15.306,
+          "totalMs": 15.339
         },
         {
           "instance": "ask#10@2",
-          "queueWaitMs": 0.015,
-          "occupancyMs": 15.73,
-          "totalMs": 15.746
+          "queueWaitMs": 0.014,
+          "occupancyMs": 15.25,
+          "totalMs": 15.264
         },
         {
           "instance": "ask#10@3",
-          "queueWaitMs": 0.015,
-          "occupancyMs": 15.443,
-          "totalMs": 15.457
+          "queueWaitMs": 0.011,
+          "occupancyMs": 15.434,
+          "totalMs": 15.445
         },
         {
           "instance": "report#4@1",
@@ -313,7 +384,7 @@
     },
     {
       "runId": "cross-official-run-2",
-      "wallMs": 155.256,
+      "wallMs": 157.88,
       "artifact": {
         "plan": {
           "steps": [
@@ -457,7 +528,78 @@
         "ask:ask#10@2",
         "ask:ask#10@3"
       ],
-      "journalEventSequence": [],
+      "journalEventSequence": [
+        "run-started",
+        "phase-entered",
+        "actor-created",
+        "node-queued",
+        "node-dispatched",
+        "usage-updated",
+        "node-settled",
+        "log",
+        "report",
+        "phase-entered",
+        "actor-created",
+        "actor-created",
+        "actor-created",
+        "actor-created",
+        "node-queued",
+        "node-queued",
+        "node-queued",
+        "node-queued",
+        "node-dispatched",
+        "node-dispatched",
+        "node-dispatched",
+        "node-dispatched",
+        "usage-updated",
+        "node-settled",
+        "usage-updated",
+        "node-settled",
+        "usage-updated",
+        "node-settled",
+        "usage-updated",
+        "node-settled",
+        "log",
+        "report",
+        "phase-entered",
+        "node-queued",
+        "node-queued",
+        "node-queued",
+        "node-queued",
+        "node-dispatched",
+        "node-dispatched",
+        "node-dispatched",
+        "node-dispatched",
+        "usage-updated",
+        "node-settled",
+        "usage-updated",
+        "node-settled",
+        "usage-updated",
+        "node-settled",
+        "usage-updated",
+        "node-settled",
+        "log",
+        "report",
+        "phase-entered",
+        "actor-created",
+        "node-queued",
+        "node-dispatched",
+        "usage-updated",
+        "node-settled",
+        "log",
+        "node-queued",
+        "node-dispatched",
+        "usage-updated",
+        "node-settled",
+        "log",
+        "node-queued",
+        "node-dispatched",
+        "usage-updated",
+        "node-settled",
+        "report",
+        "log",
+        "run-settled"
+      ],
       "phasesEntered": [
         "Plan",
         "Research",
@@ -469,9 +611,9 @@
       "instanceTimings": [
         {
           "instance": "ask#1@1",
-          "queueWaitMs": 0.025,
-          "occupancyMs": 14.168,
-          "totalMs": 14.193
+          "queueWaitMs": 0.019,
+          "occupancyMs": 14.977,
+          "totalMs": 14.995
         },
         {
           "instance": "report#1@1",
@@ -481,27 +623,27 @@
         },
         {
           "instance": "ask#2@1",
-          "queueWaitMs": 0.12,
-          "occupancyMs": 47.087,
-          "totalMs": 47.207
+          "queueWaitMs": 0.162,
+          "occupancyMs": 47.952,
+          "totalMs": 48.115
         },
         {
           "instance": "ask#3@1",
-          "queueWaitMs": 0.125,
-          "occupancyMs": 31.443,
-          "totalMs": 31.568
+          "queueWaitMs": 0.154,
+          "occupancyMs": 32.164,
+          "totalMs": 32.318
         },
         {
           "instance": "ask#4@1",
-          "queueWaitMs": 0.116,
-          "occupancyMs": 46.996,
-          "totalMs": 47.112
+          "queueWaitMs": 0.147,
+          "occupancyMs": 47.877,
+          "totalMs": 48.024
         },
         {
           "instance": "ask#5@1",
-          "queueWaitMs": 0.096,
-          "occupancyMs": 31.355,
-          "totalMs": 31.451
+          "queueWaitMs": 0.131,
+          "occupancyMs": 32.117,
+          "totalMs": 32.249
         },
         {
           "instance": "report#2@1",
@@ -511,27 +653,27 @@
         },
         {
           "instance": "ask#6@1",
-          "queueWaitMs": 0.082,
-          "occupancyMs": 46.992,
-          "totalMs": 47.074
+          "queueWaitMs": 0.057,
+          "occupancyMs": 47.107,
+          "totalMs": 47.164
         },
         {
           "instance": "ask#7@1",
-          "queueWaitMs": 0.123,
-          "occupancyMs": 30.43,
-          "totalMs": 30.552
+          "queueWaitMs": 0.081,
+          "occupancyMs": 31.427,
+          "totalMs": 31.508
         },
         {
           "instance": "ask#8@1",
-          "queueWaitMs": 0.129,
-          "occupancyMs": 46.831,
-          "totalMs": 46.96
+          "queueWaitMs": 0.081,
+          "occupancyMs": 47.026,
+          "totalMs": 47.107
         },
         {
           "instance": "ask#9@1",
-          "queueWaitMs": 0.121,
-          "occupancyMs": 30.331,
-          "totalMs": 30.453
+          "queueWaitMs": 0.08,
+          "occupancyMs": 31.349,
+          "totalMs": 31.429
         },
         {
           "instance": "report#3@1",
@@ -541,21 +683,21 @@
         },
         {
           "instance": "ask#10@1",
-          "queueWaitMs": 0.03,
-          "occupancyMs": 15.369,
-          "totalMs": 15.398
+          "queueWaitMs": 0.018,
+          "occupancyMs": 16.418,
+          "totalMs": 16.436
         },
         {
           "instance": "ask#10@2",
-          "queueWaitMs": 0.015,
-          "occupancyMs": 14.948,
-          "totalMs": 14.963
+          "queueWaitMs": 0.01,
+          "occupancyMs": 15.268,
+          "totalMs": 15.277
         },
         {
           "instance": "ask#10@3",
-          "queueWaitMs": 0.018,
-          "occupancyMs": 15.278,
-          "totalMs": 15.296
+          "queueWaitMs": 0.013,
+          "occupancyMs": 15.128,
+          "totalMs": 15.141
         },
         {
           "instance": "report#4@1",
@@ -636,7 +778,7 @@
           "risk": "low"
         }
       },
-      "wallMs": 92.899
+      "wallMs": 92.595
     },
     "nudge": {
       "turnEndedWithoutSubmit": true,
@@ -674,13 +816,13 @@
       "hole-reached",
       "hole-filled"
     ],
-    "parkToFillMs": 0.635,
+    "parkToFillMs": 0.244,
     "note": "HoleFill payload constructed per engine-holes.ts: code = the effective script's lowering holeBodies[siteId]; specs/phases = the effective script's superset tables. The parked promise resolves with { code } in one synchronous fillHole step."
   },
   "memory": {
-    "heapUsedPeakBytes": 105045104,
-    "heapUsedPeakMB": 100.18,
-    "rssMB": 235.88,
+    "heapUsedPeakBytes": 79392720,
+    "heapUsedPeakMB": 75.71,
+    "rssMB": 195.99,
     "sampling": "process.memoryUsage().heapUsed every 5ms during both mission runs"
   },
   "fakeModel": {
