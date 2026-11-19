@@ -235,6 +235,7 @@ test('Integration Suite: Demo 2 — Multi-Agent Repo Migration Engine', async (t
     // tracked repo dirs under mock mode)
     const kanbanCandidates = [
       path.join(outputDir, 'kanban.json'),
+      path.join(tempDir, 'artifacts', 'repo-migration', 'kanban.json'),
       path.join(tempDir, 'artifacts', 'kanban.json'),
     ];
     const kanbanPath = kanbanCandidates.find(p => fs.existsSync(p));
@@ -246,6 +247,7 @@ test('Integration Suite: Demo 2 — Multi-Agent Repo Migration Engine', async (t
     // 3. Verify PULL_REQUEST.md — same per-run candidate chain
     const prCandidates = [
       path.join(outputDir, 'PULL_REQUEST.md'),
+      path.join(tempDir, 'artifacts', 'repo-migration', 'PULL_REQUEST.md'),
       path.join(tempDir, 'artifacts', 'PULL_REQUEST.md'),
     ];
     const prPath = prCandidates.find(p => fs.existsSync(p));

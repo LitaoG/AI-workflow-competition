@@ -53,8 +53,8 @@ This automated migration converts legacy monolithic `aws-sdk` v2 clients to modu
 Measured from `fixtures/legacy-aws-sdk-app/src` on disk vs the `transformedCode` each worker produced in this run. In mock mode the transformation is the documented deterministic substitution, so no git-style `-N +M` diff is claimed.
 
 ## 6. Durable Replay & Provenance
-- **Workflow Run ID**: `run-1794854317283-mk4ahn`
-- **Event Journal**: All step transitions recorded to event log — inspect with `workflow view run-1794854317283-mk4ahn`.
+- **Workflow Run ID**: `run-1795121226360-yiiwvo`
+- **Event Journal**: All step transitions recorded to event log — inspect with `workflow view run-1795121226360-yiiwvo`.
 
 ## 7. Rollback Runbook
 1. Revert this pull request: `git revert -m 1 HEAD`
@@ -62,4 +62,4 @@ Measured from `fixtures/legacy-aws-sdk-app/src` on disk vs the `transformedCode`
 3. Re-run baseline verification: `npm test`
 
 ---
-*Generated autonomously by AI-Workflow on 2026-11-16T18:38:37.852Z*
+*Generated autonomously by AI-Workflow on 2026-11-19T20:47:06.657Z*
