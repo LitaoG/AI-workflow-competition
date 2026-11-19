@@ -1,5 +1,6 @@
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
+import { maskUriCredentials } from './sanitizer.js';
 import { GitProbe } from '../types.js';
 
 const execAsync = promisify(exec);
@@ -38,7 +39,12 @@ export async function probeGit(cwd = process.cwd()): Promise<GitProbe> {
       isDirty = dirtyFilesCount > 0;
     }
 
-    const remoteUrl = remoteRes.status === 'fulfilled' ? remoteRes.value.stdout.trim() : undefined;
+    // Issue #146: CI remotes commonly embed credentials
+    // (https://x-access-token:ghp_…@host/org/repo.git) and the CLI probe
+    // prints remoteUrl verbatim — mask through the same redaction layer the
+    // MCP face uses (server.ts already routes probe results through
+    // redactValue; the CLI face had no such call).
+    const remoteUrl = remoteRes.status === 'fulfilled' ? maskUriCredentials(remoteRes.value.stdout.trim()) : undefined;
 
     return {
       isGitRepo: true,

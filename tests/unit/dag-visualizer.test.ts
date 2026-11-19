@@ -123,3 +123,42 @@ test('DAG Visualizer: translates labels according to selected language', () => {
   assert.ok(enHtml.includes('subagents active'));
   assert.ok(zhHtml.includes('个智能体并行执行中'));
 });
+
+// Issue #146: the mermaid face interpolated phase/node names and ids raw —
+// a hostile `"` closed the label and injected executable statement structure.
+import { MermaidRenderer } from '../../src/dag/mermaid-renderer.js';
+import type { DAGGraph } from '../../src/types.js';
+
+test('MermaidRenderer: hostile names/ids cannot inject mermaid statements (Issue #146)', () => {
+  const graph: DAGGraph = {
+    workflowName: 'injection-probe',
+    runId: 'dwfrun-injection',
+    status: 'running',
+    phases: [{ id: 'phase-0', name: 'P1", url = "https://evil', order: 0 }],
+    nodes: [{
+      id: 'n1", text = "boom',
+      name: 'x"]; click A "javascript:alert(1)',
+      phaseId: 'phase-0',
+      phaseName: 'P1',
+      role: 'worker',
+      type: 'action',
+      status: 'running',
+      dependsOn: [],
+    }],
+    edges: [{ fromNodeId: 'n1", text = "boom', toNodeId: 'n2' }],
+    activeSubagents: 0,
+    totalPhases: 1,
+    currentPhaseIndex: 0,
+    startedAt: '2026-01-01T00:00:00.000Z',
+  };
+  const mermaid = new MermaidRenderer().render(graph);
+
+  // The hostile payload's `click` text may survive INSIDE the quoted label —
+  // what must not survive is new statement STRUCTURE: one line per element.
+  const lines = mermaid.split('\n');
+  assert.equal(lines.length, 11, `no extra statement lines may be injected:\n${mermaid}`);
+  assert.ok(!mermaid.includes('"];'), 'the quote-escape signature must be gone');
+  assert.ok(mermaid.includes('&quot;'), 'label quotes must be escaped');
+  assert.ok(!mermaid.includes('n1"'), 'ids must be clamped to the mermaid-safe charset');
+  assert.ok(mermaid.includes(' --> n2'), 'edges must reference the clamped ids');
+});
