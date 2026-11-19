@@ -39,6 +39,18 @@ export interface CleanlinessResult {
 
 export function checkIssueLinkage(content: string): IssueLinkResult;
 export function checkFingerprint(content: string): CheckResult;
+
+export interface TapLogBindingResult extends CheckResult {
+  /** The .gate/tap.log TAP summary when it could be parsed; undefined otherwise. */
+  tap?: { tests: number; pass: number; fail: number };
+}
+
+/**
+ * Issue #158: binds the PR body's fingerprint numbers to the real npm-test TAP
+ * summary in .gate/tap.log — a shape that never faced the run proves nothing.
+ */
+export function checkTapLogBinding(content: string, tapLogPath?: string): TapLogBindingResult;
+
 export function checkCoolingPeriod(
   createdAtIso: string,
   options?: { now?: Date; minSeconds?: number; bypassReason?: string | null }

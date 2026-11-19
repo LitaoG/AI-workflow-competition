@@ -176,7 +176,7 @@
    - 绕过 Worktree 物理隔离直接在主仓修改源码或直接 push main 属于严重违纪。
 4. **严禁未测先合与假绿提交**：
    - 严禁在未通过本机全量验证前发起合入；
-   - PR 正文必须附带真实的构建与测试输出指纹（`Ran N tests` / `pass N, fail 0`），严禁使用占位符。
+   - PR 正文必须附带真实的构建与测试输出指纹（`pass N, fail 0`，取自 `npm test` 的 `.gate/tap.log` 并与之三数一致——交叉绑定见 `docs/WORKFLOW.md` §4.1，Issue #158），严禁使用占位符。
 5. **依赖版本锁死与供应链安全**：
    - 新增或更新依赖必须通过 `package.json` 显式声明并提交 `package-lock.json`，严禁随意引入未审计的第三方模块。
 

@@ -5,7 +5,8 @@
  * 规则本体：AGENTS.md §1.9、§1.10 与 docs/WORKFLOW.md §1、§7、§8。
  * 核心职责：
  * 1. 校验 PR 正文是否明确关联有效 Issue（如 Closes #123），严禁无 Issue 孤立开工或合入；
- * 2. 校验 PR 正文是否包含真实运行的测试指纹（Ran N tests / pass N, fail 0），且无未替换占位符；
+ * 2. 校验 PR 正文是否包含真实运行的测试指纹（pass N, fail 0 / node:test 分行摘要，且与 .gate/tap.log
+ *    三数交叉绑定——Issue #158；「Ran N tests」无 fail 记账已废弃），且无未替换占位符；
  * 3. 校验 PR 创建时间是否满足 15 分钟（900 秒）合并冷却期（FAST_MERGE_FLOOR_SECONDS=600 仅为
  *    文档化的事后审计红线，尚无自动审计实现，Issue #147）；
  * 4. 校验 PR 评论与 Review 流中的审查意见是否均已获得作者明确的三态回复（已处理 / 刻意不改+理由 / 需人拍板）；
@@ -100,27 +101,82 @@ export function checkFingerprint(content) {
   }
 
   // 2. 检查是否包含测试指纹（Issue #109：删掉 /passed/i 与 100% passed 兜底——
-  // 任何含 "passed" 一词的正文都算有指纹等于没有校验）。认三种真实输出形状，
-  // 且用例数必须 > 0：
-  //   - `Ran N tests`（node:test 的摘要行，N ≥ 1）
-  //   - `pass N, fail 0`（同行的全绿摘要，N ≥ 1）
+  // 任何含 "passed" 一词的正文都算有指纹等于没有校验。Issue #158：删掉
+  // 「Ran N tests」形状——它没有 fail 记账，一行手打即过，是伪造的最优载体；
+  // 只认带 fail 记账的全绿形状，且用例数必须 > 0：
+  //   - `pass N, fail 0`（同行的全绿摘要，N ≥ 1；分隔符 , / | 与 TAP 注释前缀
+  //     `#` 皆可——npm test 的原样输出就是 "# pass 838 / # fail 0" 形状）
   //   - node:test 的分行摘要：`pass N` 与 `fail 0` 各占一行（ℹ 前缀可有可无）
-  const ranTests = /Ran\s+(\d+)\s+tests/i.exec(content);
-  const passFail = /pass\s+(\d+),\s*fail\s+0/i.exec(content);
+  // 形状只是下限——数值真伪由 checkTapLogBinding 对照 .gate/tap.log 交叉绑定。
+  const passFail = /pass\s+(\d+)\s*[,/|]\s*(?:#\s*)?fail\s+0/i.exec(content);
   const passLine = /^\s*(?:ℹ\s+)?pass\s+(\d+)\s*$/m.exec(content);
   const failZeroLine = /^\s*(?:ℹ\s+)?fail\s+0\s*$/m.exec(content);
   const hasFingerprint =
-    (ranTests !== null && Number(ranTests[1]) > 0) ||
     (passFail !== null && Number(passFail[1]) > 0) ||
     (passLine !== null && Number(passLine[1]) > 0 && failZeroLine !== null);
 
   if (!hasFingerprint) {
-    violations.push('PR 正文中缺少真实的测试输出指纹（需包含 "Ran N tests" 或 "pass N, fail 0"，且 N > 0；裸 "passed" 一词不算）');
+    violations.push('PR 正文中缺少真实的测试输出指纹（需包含 "pass N, fail 0" 或 node:test 分行摘要 "pass N"+"fail 0"，且 N > 0；"Ran N tests" 无 fail 记账自 Issue #158 起不再认可，裸 "passed" 一词不算）');
   }
 
   return {
     valid: violations.length === 0,
     violations,
+  };
+}
+
+/**
+ * Issue #158 指纹交叉绑定：PR 正文的指纹数字必须与 .gate/tap.log（npm test
+ * 落盘的真实 TAP 汇总）三数一致——形状正则挡不住手打的 "pass 500, fail 0"，
+ * 绑定后才要求作者真的跑过全量套件并如实引用其输出。
+ *
+ * 路径解析：AI_WORKFLOW_TAP_LOG 环境变量优先（worktree 工作流：指纹描述的是 PR 分支的运行，合入时把该变量指向 worktree 的 .gate/tap.log），缺省为当前工作目录的 .gate/tap.log。
+ * 规则：
+ *   - .gate/tap.log 缺失 → 拦（先跑 npm test 产出 TAP 指纹）；
+ *   - tap 汇总缺 # tests/# pass/# fail 任一行 → 拦（重跑 npm test）；
+ *   - tap fail > 0 → 拦（带失败不得合入，诚实失败走 not ok 行名留痕而非合入）；
+ *   - 正文须含 "tests <T>" 与 "pass <P>, fail <F>" 且与 TAP 三数一致，否则拦。
+ */
+export function checkTapLogBinding(content, tapLogPath = process.env.AI_WORKFLOW_TAP_LOG || path.join(process.cwd(), '.gate', 'tap.log')) {
+  const violations = [];
+
+  if (!fs.existsSync(tapLogPath)) {
+    violations.push(`缺少 ${tapLogPath} —— 先运行 npm test 产出 TAP 指纹（指纹与真实运行交叉绑定，Issue #158）`);
+    return { valid: false, violations, tap: undefined };
+  }
+
+  const tap = fs.readFileSync(tapLogPath, 'utf-8');
+  const t = /^\s*#\s+tests\s+(\d+)\s*$/m.exec(tap);
+  const p = /^\s*#\s+pass\s+(\d+)\s*$/m.exec(tap);
+  const f = /^\s*#\s+fail\s+(\d+)\s*$/m.exec(tap);
+  if (t === null || p === null || f === null) {
+    violations.push(`${tapLogPath} 缺少 TAP 汇总行（# tests / # pass / # fail）——重新运行 npm test 产出完整指纹`);
+    return { valid: false, violations, tap: undefined };
+  }
+
+  const tests = Number(t[1]);
+  const pass = Number(p[1]);
+  const fail = Number(f[1]);
+  if (fail > 0) {
+    violations.push(`.gate/tap.log 显示 fail ${fail}（pass ${pass} / tests ${tests}）——带失败的运行不得合入；失败用例名按 P-TEST-3 留痕后修复重跑`);
+  }
+
+  // 三个数字分别匹配、分隔符任意（逗号/斜杠/TAP 的 " / # " 均可）——npm test
+  // 的原样输出是 "# tests 841 / # pass 838 / # fail 0"，绑定不该强迫作者把
+  // 真实输出改写成门禁偏爱的形状（监督席 #159 互审落差一）。
+  const hasTests = new RegExp(`tests\\s+${tests}(?!\\d)`).test(content);
+  const hasPass = new RegExp(`pass\\s+${pass}(?!\\d)`).test(content);
+  const hasFail = new RegExp(`fail\\s+${fail}(?!\\d)`).test(content);
+  if (!hasTests || !hasPass || !hasFail) {
+    violations.push(
+      `PR 正文指纹与 .gate/tap.log 不一致：正文须含 "tests ${tests}"、"pass ${pass}" 与 "fail ${fail}" 三数（TAP 实测 tests ${tests} / pass ${pass} / fail ${fail}）`,
+    );
+  }
+
+  return {
+    valid: violations.length === 0,
+    violations,
+    tap: { tests, pass, fail },
   };
 }
 
@@ -423,12 +479,16 @@ PR Review & Cooling Period Gate CLI (pr_review_gate.mjs)
     }
     const content = fs.readFileSync(filePath, 'utf-8');
     const result = checkFingerprint(content);
-    if (!result.valid) {
+    // Issue #158: standalone mode binds to .gate/tap.log as well — a shape
+    // that never faced the real run proves nothing.
+    const tapResult = checkTapLogBinding(content);
+    const allViolations = [...result.violations, ...tapResult.violations];
+    if (allViolations.length > 0) {
       console.error('[门禁失败] 测试指纹或占位符校验不通过:');
-      result.violations.forEach(v => console.error(` - ${v}`));
+      allViolations.forEach(v => console.error(` - ${v}`));
       process.exit(1);
     } else {
-      console.log('[门禁通过] PR 测试指纹合规且无占位符。');
+      console.log('[门禁通过] PR 测试指纹合规且与 .gate/tap.log 一致，无占位符。');
     }
     return;
   }
@@ -502,6 +562,9 @@ PR Review & Cooling Period Gate CLI (pr_review_gate.mjs)
     const issueRes = checkIssueLinkage(prData.body || '');
     const fpRes = checkFingerprint(prData.body || '');
     const fnRes = checkFailureNaming(prData.body || '');
+    // Issue #158: the fingerprint numbers must match the real npm-test TAP
+    // summary — shape regexes alone are hand-forgeable.
+    const tapRes = checkTapLogBinding(prData.body || '');
     const coolRes = checkCoolingPeriod(prData.createdAt, { bypassReason: ackReason });
 
     // 合并普通 comments 与 review comments（reviews 用 submittedAt 统一时间轴），
@@ -575,6 +638,7 @@ PR Review & Cooling Period Gate CLI (pr_review_gate.mjs)
       ...issueRes.violations,
       ...fpRes.violations,
       ...fnRes.violations,
+      ...tapRes.violations,
       ...coolRes.violations,
       ...commRes.violations,
       ...claimRes.violations,

@@ -1,6 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -25,6 +26,7 @@ const baselineSampleUrl = pathToFileURL(path.join(REPO_ROOT, 'scripts/baseline_s
 const {
   checkIssueLinkage,
   checkFingerprint,
+  checkTapLogBinding,
   checkFailureNaming,
   checkCoolingPeriod,
   checkReviewComments,
@@ -535,10 +537,10 @@ describe('Workflow & Governance Specification Suite Invariant Locks', () => {
   });
 
   test('Tier 3: PR Review Gate script functionality - checkFingerprint', () => {
-    // Valid fingerprint without placeholders
+    // Valid fingerprint without placeholders (fail-accounted shape only —
+    // Issue #158 dropped the fail-blind "Ran N tests" shape)
     const validContent = `
 # Title
-Ran 42 tests
 pass 42, fail 0
 All verified cleanly.
 `;
@@ -554,16 +556,71 @@ Code changes completed.
     assert.ok(!res2.valid, 'Missing fingerprint should fail checkFingerprint');
     assert.ok(res2.violations.some((v: string) => v.includes('测试输出指纹')));
 
+    // Issue #158: the fail-blind "Ran N tests" shape is hand-forgable and no
+    // longer accepted — a lone forged line must be rejected.
+    const forgedContent = `
+# Title
+Ran 500 tests
+`;
+    const forged = checkFingerprint(forgedContent);
+    assert.ok(!forged.valid, 'the fail-blind "Ran N tests" shape must be rejected');
+    assert.ok(forged.violations.some((v: string) => v.includes('Ran N tests')));
+
     // Invalid: contains placeholder
     const placeholderContent = `
 # Title
-Ran 10 tests
 pass 10, fail 0
 {{PLACEHOLDER_DESCRIPTION}}
 `;
     const res3 = checkFingerprint(placeholderContent);
     assert.ok(!res3.valid, 'Contains placeholder should fail checkFingerprint');
     assert.ok(res3.violations.some((v: string) => v.includes('占位符')));
+  });
+
+  test('Tier 3: PR Review Gate script functionality - checkTapLogBinding (Issue #158)', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gov-tap-binding-'));
+    try {
+      const tapPath = path.join(dir, 'tap.log');
+      // Missing tap.log: the gate refuses to trust a body that never faced a run.
+      const missing = checkTapLogBinding('tests 42\npass 42, fail 0', tapPath);
+      assert.ok(!missing.valid, 'a missing .gate/tap.log must block the fingerprint');
+      assert.ok(missing.violations.some((v: string) => v.includes('npm test')));
+
+      fs.writeFileSync(tapPath, [
+        'TAP version 13',
+        '# Subtest: something',
+        'ok 1 - something',
+        '# tests 42',
+        '# pass 42',
+        '# fail 0',
+        '',
+      ].join('\n'));
+
+      // Matching numbers pass; a mismatched or forged body is refused.
+      const bound = checkTapLogBinding('# Title\n\ntests 42 / pass 42, fail 0\n', tapPath);
+      assert.ok(bound.valid, `a body matching the TAP summary must pass: ${JSON.stringify(bound.violations)}`);
+      assert.ok(bound.tap && bound.tap.tests === 42 && bound.tap.fail === 0);
+      const tapForm = checkTapLogBinding('# Title\n\n# tests 42 / # pass 42 / # fail 0\n', tapPath);
+      assert.ok(tapForm.valid, `the verbatim npm-test TAP output form must pass: ${JSON.stringify(tapForm.violations)}`);
+
+      const mismatch = checkTapLogBinding('# Title\n\ntests 500 / pass 500, fail 0\n', tapPath);
+      assert.ok(!mismatch.valid, 'hand-forged numbers that disagree with the TAP must be refused');
+      assert.ok(mismatch.violations.some((v: string) => v.includes('不一致')));
+
+      fs.writeFileSync(tapPath, [
+        'TAP version 13',
+        'not ok 1 - something failed',
+        '# tests 42',
+        '# pass 41',
+        '# fail 1',
+        '',
+      ].join('\n'));
+      const red = checkTapLogBinding('# Title\n\ntests 42 / pass 41, fail 1\n', tapPath);
+      assert.ok(!red.valid, 'a failing run must not be merged');
+      assert.ok(red.violations.some((v: string) => v.includes('fail 1')));
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   test('Tier 3: PR Review Gate script functionality - checkFailureNaming (Issue #32)', () => {
