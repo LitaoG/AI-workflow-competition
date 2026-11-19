@@ -109,7 +109,7 @@ node bin/workflow.js setup --target all    # 生成 Claude Code + OpenCode + Cod
 | `workflow check <file>` | 编译检查（✔ facade script compiled clean 才跑） |
 | `workflow run <file>` | 统一执行入口（自动识别 facade/builder） |
 | `workflow run <file> --ui` | 跑完自动弹 Studio 看板 |
-| `workflow serve <runId>` | 实时看板（SSE）+ 网页内回答/填孔续跑 |
+| `workflow serve <runId>` | 实时看板（SSE）+ 网页内回答/填孔续跑；仅绑回环，跨源与非回环 Host 请求一律 403（Issue #143） |
 | `workflow view <runId>` | 导出静态 Studio HTML |
 | `workflow inspect <runId>` | 终端查看运行详情 |
 | `workflow setup --target all` | 一键生成三助手互通配置 |

@@ -84,7 +84,7 @@ of the demo below. Write a new facade script in any domain and the same skeleton
 | Sandbox | Child process + `node:vm` realm, NDJSON IPC, process supervision (POSIX process groups / Windows tree-kill / sanitized child env) | `src/dwf/runner.ts`, `src/process-supervision.ts` |
 | Deterministic journal | SQLite WAL: `(runId, siteId, ordinal, inputHash)` short-circuit replay; loud hash-mismatch failures; escalation/hole parking; amend lineage | `workflow run-script --resume/--amend`; `src/dwf/engine.ts` |
 | Runtime Q&A | `escalate()` parks the run with a `dwfq-` id; `workflow answer` resumes at zero cost; `hole<T>()` grows the workflow mid-run | `tests/integration/dwf-escalation.test.ts`, `dwf-holes.test.ts` |
-| Human surface | `workflow view <runId>` (journal-rendered HTML report), `workflow serve` (live, self-refreshing), ASCII/HTML DAG | `src/dwf/view.ts`, `src/dwf/live.ts` |
+| Human surface | `workflow view <runId>` (journal-rendered HTML report), `workflow serve` (live, self-refreshing; loopback-only — cross-origin and non-loopback-Host requests are refused, Issue #143), ASCII/HTML DAG | `src/dwf/view.ts`, `src/dwf/live.ts` |
 | Integration | MCP tools (`workflow_script_check/run`), agent skill (`skills/ai-workflow/`), CLI providers (`AI_WORKFLOW_PROVIDER=codex\|gemini\|opencode`) | `docs/INTEGRATION.md` |
 
 ---

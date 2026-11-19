@@ -333,6 +333,11 @@ export interface WebSocketEndpointOptions {
   onText?: (conn: WebSocketConnection, text: string) => void;
   /** Reject upgrades that fail validation with this HTTP status (default 400). */
   rejectStatus?: number;
+  /**
+   * Issue #143: extra handshake gate — return an error message to reject the
+   * upgrade with 403, or null to accept. Runs after the RFC 6455 checks.
+   */
+  verifyRequest?: (req: IncomingMessage) => string | null;
 }
 
 export interface WebSocketEndpoint {
@@ -360,6 +365,13 @@ export function attachWebSocketEndpoint(server: Server, opts: WebSocketEndpointO
       const pathname = new URL(req.url ?? '/', 'http://127.0.0.1').pathname;
       if (pathname !== opts.path) {
         rejectUpgrade(socket, 404, `websocket endpoint is ${opts.path}`);
+        return;
+      }
+    }
+    if (opts.verifyRequest) {
+      const verdict = opts.verifyRequest(req);
+      if (verdict) {
+        rejectUpgrade(socket, 403, verdict);
         return;
       }
     }
