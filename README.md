@@ -150,9 +150,10 @@ AI-Workflow treats Kiro not as a chat window but as a governance surface. The ro
 - **Specs** (`.kiro/specs/`) — formal workflow-engine semantics (state machine, Kahn-algorithm DAG
   invariant, typed `agent(name).ask<T>(prompt, schema)` RPC contract) plus machine-readable JSON
   schemas and state-replay invariants (`State(k) = Fold(Events[0..k])`).
-- **Hooks** (`.kiro/hooks/`) — lifecycle gates on `AgentSpawn` (deterministic environment probe),
-  `PreToolUse` (destructive-command interception, exit-code-2 blocking), `PostToolUse`
-  (append-only event-stream audit) and `Stop` (no session exit until verification gates pass).
+- **Hooks** (`.kiro/hooks/`) — lifecycle gates on `SessionStart` (deterministic environment probe),
+  `PreToolUse` (destructive-command interception from the stdin JSON protocol, exit-code-2
+  blocking), `PostToolUse` (artifact hash audit — the journal itself is the authoritative event
+  stream) and `Stop` (emits the Kiro stop decision JSON; block available via `KIRO_STOP_BLOCK=true`).
 - **Steering** (`.kiro/steering/`) — frontmatter (`inclusion: always`) guardrails: "code, not
   conversation" philosophy, security policy (destructive shell syntax banned, credentials
   sanitized, sandbox isolation), workflow conventions, bilingual presentation.

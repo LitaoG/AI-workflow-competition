@@ -20,11 +20,11 @@ AI-workflow/
     │   ├── state-replay-invariants.md
     │   └── ui-presentation-spec.md
     ├── hooks/                      # Kiro lifecycle hooks & deterministic shell gates
-    │   ├── lifecycle.json          # the live hook surface: binds the .js gates by event
-    │   ├── pre-workflow-gate.js    # AgentSpawn — deterministic environment probe
-    │   ├── pre-step-gate.js        # PreToolUse — destructive-command interception
-    │   ├── post-step-audit.js      # PostToolUse — append-only event-stream audit
-    │   └── stop-workflow-gate.js   # Stop — verification gates before session exit
+    │   ├── lifecycle.json          # the live hook surface: binds the .js gates by trigger (Kiro native schema)
+    │   ├── pre-workflow-gate.js    # SessionStart — deterministic environment probe
+    │   ├── pre-step-gate.js        # PreToolUse — destructive-command interception (stdin JSON protocol)
+    │   ├── post-step-audit.js      # PostToolUse — artifact hash audit (the journal is the authoritative stream)
+    │   └── stop-workflow-gate.js   # Stop — emits the Kiro stop decision JSON
     ├── steering/                   # Frontmatter-driven steering guardrails (inclusion: always)
     │   ├── guidelines.md
     │   ├── policy-guardrails.md
@@ -80,10 +80,10 @@ Kiro provides native lifecycle event triggers that automate verification gates a
 
 | Hook Event | Purpose in AI-Workflow | Script Invoked | Behavior & Exit Code Semantics |
 |---|---|---|---|
-| `AgentSpawn` | Deterministic environment probing | `pre-workflow-gate` | Probes OS, Git, and sanitized env; injects into turn context |
-| `PreToolUse` | Intercept dangerous tool executions | `pre-step-gate` | Intercepts `rm -rf`, raw disk writes, or unsanitized tokens (**exit code 2 blocks**) |
-| `PostToolUse` | Append-only event stream audit | `post-step-audit` | Audits state transitions and flushes to `events.jsonl` |
-| `Stop` | Enforce completion gates | `stop-workflow-gate` | Blocks session exit until all verification gates pass |
+| `SessionStart` | Deterministic environment probing | `pre-workflow-gate` | Probes OS, Git, and sanitized env; injects into turn context |
+| `PreToolUse` | Intercept dangerous tool executions | `pre-step-gate` | Reads the stdin JSON protocol (`tool_input.command`) and intercepts `rm -rf`, raw disk writes, or unsanitized tokens (**exit code 2 blocks**) |
+| `PostToolUse` | Artifact audit trail | `post-step-audit` | Hashes `artifacts/` files after each step; performs no sequence validation — the SQLite journal / `events.jsonl` is the authoritative audit stream |
+| `Stop` | Session completion gate | `stop-workflow-gate` | Emits the Kiro stop decision JSON; block is available to automated harnesses via `KIRO_STOP_BLOCK=true` |
 
 ### `lifecycle.json` Configuration
 
@@ -97,33 +97,25 @@ hook is `stop-workflow-gate.js`):
   "hooks": [
     {
       "name": "deterministic-env-probe",
-      "event": "AgentSpawn",
-      "command": "node .kiro/hooks/pre-workflow-gate.js",
-      "timeout": 30,
-      "enabled": true
+      "trigger": "SessionStart",
+      "action": { "type": "command", "command": "node .kiro/hooks/pre-workflow-gate.js" }
     },
     {
       "name": "enforce-tool-gate",
-      "event": "PreToolUse",
+      "trigger": "PreToolUse",
       "matcher": "execute_bash*",
-      "command": "node .kiro/hooks/pre-step-gate.js",
-      "timeout": 15,
-      "enabled": true
+      "action": { "type": "command", "command": "node .kiro/hooks/pre-step-gate.js" }
     },
     {
       "name": "durable-journal-audit",
-      "event": "PostToolUse",
+      "trigger": "PostToolUse",
       "matcher": "*",
-      "command": "node .kiro/hooks/post-step-audit.js",
-      "timeout": 15,
-      "enabled": true
+      "action": { "type": "command", "command": "node .kiro/hooks/post-step-audit.js" }
     },
     {
       "name": "workflow-completion-gate",
-      "event": "Stop",
-      "command": "node .kiro/hooks/stop-workflow-gate.js",
-      "timeout": 30,
-      "enabled": true
+      "trigger": "Stop",
+      "action": { "type": "command", "command": "node .kiro/hooks/stop-workflow-gate.js" }
     }
   ]
 }
