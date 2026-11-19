@@ -252,7 +252,7 @@ git push -u origin feat/issue-<issue-id>-<desc>
 
 ### 7.1 合并冷却期（15 分钟）与评审机制
 
-- **冷却期硬约束（两级判据，勿混淆）**：PR 创建后必须等待 **满 15 分钟**——机器执行的是**合入前冷却**：`scripts/pr_review_gate.mjs` 实测 `now - createdAt ≥ 900s`（`DEFAULT_COOLING_SECONDS = 900`；门禁运行于合入前，物理上测不到 `mergedAt`）；**600 秒**（`FAST_MERGE_FLOOR_SECONDS = 600`）仅为**事后审计判据**（`mergedAt - createdAt < 600s` 且无评审即违规，不参与合入前拦截）。确需提前合入时走人工豁免通道：`--ack <理由>` / `--bypass-cooling <理由>`（同一账号自我豁免，理由登记后跳过冷却检查）。两级合用，杜绝闪电合入；
+- **冷却期硬约束（两级判据，勿混淆）**：PR 创建后必须等待 **满 15 分钟**——机器执行的是**合入前冷却**：`scripts/pr_review_gate.mjs` 实测 `now - createdAt ≥ 900s`（`DEFAULT_COOLING_SECONDS = 900`；门禁运行于合入前，物理上测不到 `mergedAt`）；**600 秒**（`FAST_MERGE_FLOOR_SECONDS = 600`）为**文档化的事后审计红线**——截至 2026-11-20 尚无自动化脚本实现该判据（唯一引用是 pr_review_gate.mjs 的报错文案；锐评坐实项 governance-cicd-supplychain-0），合入拦截完全依赖合入前的 900s 冷却与 pr_merge.sh 的门禁/CI/评论三段校验，补审计脚本属后续独立议题。确需提前合入时走人工豁免通道：`--ack <理由>` / `--bypass-cooling <理由>`（同一账号自我豁免，理由登记后跳过冷却检查）。两级合用，杜绝闪电合入；
 - **主动回看评论并逐条甄别**：作者在合入前必须主动调用：
   ```powershell
   gh pr view <pr_number> --comments

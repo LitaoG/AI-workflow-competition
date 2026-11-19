@@ -98,6 +98,11 @@ npm install && npm run build
 bash scripts/demo.sh
 ```
 
+> **Install reality check:** this repository is NOT published to npm — the `ai-workflow` name on the registry
+> is an unrelated 2021 placeholder (v0.1.19). Install from source as above, or from a release tarball:
+> `npm install ./ai-workflow-<version>.tgz` — the `./` prefix matters (a bare relative path is parsed as a
+> registry spec and fails). Verified 2026-11-20 (Issue #147).
+
 Offline, deterministic, **no API keys** — the script self-verifies and exits non-zero if any act
 fails. Measured end-to-end on this machine (2026-11-03, Git Bash on Windows, Node v26.13.0, warm
 npm cache; fresh `node_modules`/`dist`): **42 seconds, exit 0, `ALL NINE ACTS COMPLETE`** — well

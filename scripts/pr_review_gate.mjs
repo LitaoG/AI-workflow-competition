@@ -6,7 +6,8 @@
  * 核心职责：
  * 1. 校验 PR 正文是否明确关联有效 Issue（如 Closes #123），严禁无 Issue 孤立开工或合入；
  * 2. 校验 PR 正文是否包含真实运行的测试指纹（Ran N tests / pass N, fail 0），且无未替换占位符；
- * 3. 校验 PR 创建时间是否满足 15 分钟（900秒，硬红线 600秒）合并冷却期；
+ * 3. 校验 PR 创建时间是否满足 15 分钟（900 秒）合并冷却期（FAST_MERGE_FLOOR_SECONDS=600 仅为
+ *    文档化的事后审计红线，尚无自动审计实现，Issue #147）；
  * 4. 校验 PR 评论与 Review 流中的审查意见是否均已获得作者明确的三态回复（已处理 / 刻意不改+理由 / 需人拍板）；
  * 5. 支持大厂级审查自检、人工授权豁免 (--ack / --bypass-cooling) 与工作区洁净度检查；
  * 6. 校验失败汇总必附 not ok 行名（失败即失名禁止，Issue #32 / AI-PITFALLS P-TEST-3）。
@@ -151,7 +152,7 @@ export function checkFailureNaming(content) {
 }
 
 /**
- * 校验合并冷却期 (默认 900 秒 / 15 分钟，硬红线 600 秒)
+ * 校验合并冷却期 (默认 900 秒 / 15 分钟；600 秒红线仅为文档化的事后审计判据，未自动执行)
  */
 export function checkCoolingPeriod(createdAtIso, options = {}) {
   const {
@@ -188,7 +189,7 @@ export function checkCoolingPeriod(createdAtIso, options = {}) {
       elapsedSeconds,
       remainingSeconds: remaining,
       violations: [
-        `PR 创建冷却期未满 15 分钟: 已过 ${elapsedSeconds} 秒，还需等待 ${remaining} 秒 (硬红线: ${FAST_MERGE_FLOOR_SECONDS}秒)`,
+        `PR 创建冷却期未满 15 分钟: 已过 ${elapsedSeconds} 秒，还需等待 ${remaining} 秒 (冷却阈值: ${minSeconds}秒)`,
       ],
     };
   }

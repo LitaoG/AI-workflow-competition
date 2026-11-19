@@ -106,7 +106,7 @@
 - 代价：`ctx.mcp.callTool` 在真实模式下每次都报 `MCP Server "x" is not connected`，所有外部 MCP 调用必然失败；唯一调用它的测试以 `--mock` 运行，CI 一直是绿的。
 - 根因：`MCPClientManager` 的 mock 分支在连接检查之前就返回伪结果，真实分支（读配置 → 连接 → 关闭）没有任何测试走到；「测试通过」只证明了 mock 分支。另一半根因是 `ExecutionContext.mcp` 每次调用都新建一个从未连接的客户端，没有任何代码调用 `connectServer`。
 - 正确做法：每个对外适配器（MCP、模型 Provider、子进程）至少保留一条走真实传输的测试——例如经 stdio 启动真实子进程、断言调用成功，并断言 run 结束后该进程已退出；mock 只用来隔离 LLM 等不可控依赖，不能替代适配器自身的真实路径。
-- 门禁：`tests/unit/mcp-lazy-connect.test.ts`（真实 stdio 子进程调用 + 退出校验 + `.mcp.json` 解析）、`tests/pbt/mcp-lazy-connect.test.ts`（单次握手性质）。已修 + 门禁（随 Issue #106 分支合入生效）。
+- 门禁：`tests/unit/mcp-lazy-connect.test.ts`（真实 stdio 子进程调用 + 退出校验 + `.mcp.json` 解析）、`.kiro/pbt/mcp-lazy-connect.test.ts`（单次握手性质）。已修 + 门禁（随 Issue #106 分支合入生效）。
 - 原位置：Issue #106、`docs/absorbed-capabilities.md` CAP-001、`src/mcp/client.ts`。
 
 #### P-BUILD-1 跨分支事件类型定义冲突导致 TypeScript 构建报错

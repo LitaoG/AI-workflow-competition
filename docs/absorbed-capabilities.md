@@ -2,6 +2,8 @@
 
 > 本文件记录 Project Y 中每一项外部能力的**吸收或拒收决策**：来源、原理、四级过滤（T1–T4）结论、落地模块、对应 Issue / PR 与验证证据。
 >
+> - **勘误注记（Issue #147）**：下方快照中出现的 `tests/pbt/…` 是 2026-11-15 目录搬迁前的历史命令记录（当时真实路径），现行 PBT 套件位于 `.kiro/pbt/`——历史证据保持原样不回写。
+>
 > - **四大技术谱系来源**：
 >   1. **ZCode 官方 Dynamic Workflow**：动态 LLM DAG 编排与类型推导；
 >   2. **Claude Code 原生 Dynamic Workflow**：VM 沙箱纯度封印与上下文预算硬约束；
@@ -48,7 +50,7 @@
   - `npm run test:integration` 不在 CI 里（复核 F8，跟进 #113）；本能力相关的集成用例只在本机跑过，见下方证据。
   - 步骤配了 `retryPolicy` 时，`McpToolError` 这类确定性错误也会让整个步骤重跑：`withRetry`（`src/core/error.ts`）只看 `retryableErrorFilter`，不看 `isRecoverable`，步骤里排在前面的 agent 调用每次都重新付费（PR 审查 F9，跟进 #120）。**已由 CAP-002 修复（#120）。**
   - 并行步骤用 `Promise.all` 执行（`src/core/workflow.ts` 的 `executePhaseSteps`），一个步骤失败就 reject；`Workflow.run()` 的 `finally` 随即关闭全部 MCP 连接，兄弟步骤正在执行的工具调用（包括写类工具）可能只做了一半，兄弟步骤的模型调用也会继续花钱（PR 审查 F10，跟进 #120）。**已由 CAP-002 修复（#120）。**
-- **落地模块**：`src/mcp/client.ts`、`src/core/context.ts`、`src/core/workflow.ts`、`src/core/error.ts`、`src/domain/workflow-types.ts`、`src/index.ts`；测试 `tests/unit/mcp-lazy-connect.test.ts`、`tests/pbt/mcp-lazy-connect.test.ts`。
+- **落地模块**：`src/mcp/client.ts`、`src/core/context.ts`、`src/core/workflow.ts`、`src/core/error.ts`、`src/domain/workflow-types.ts`、`src/index.ts`；测试 `tests/unit/mcp-lazy-connect.test.ts`、`.kiro/pbt/mcp-lazy-connect.test.ts`。
 - **对应 Issue & PR**：Issue #106（含预审、复核与 PR 审查意见 F1–F10）；跟进 Issue #112、#113、#117、#120；PR #119（分支 `fix/issue-106-mcp-real-connect` → `main`）。
 - **验证证据**（审计快照，2026-11-06，基线 `bbd26ff`，Windows / Node 26.13.0）：
   - 第 1 个提交 `c786dda`（预审前）：
@@ -103,7 +105,7 @@
   - `agent().ask` 的 schema 校验失败目前抛普通对象，没有 `isRecoverable`，配了 `retryPolicy` 时仍会重试（#110 跟踪）。
   - dwf runner 的同类问题不在本能力范围（#107 跟踪）。
   - 只等不杀：在途的长工具调用或长命令会拖慢失败的上报。
-- **落地模块**：`src/core/workflow.ts`、`src/core/context.ts`、`src/core/error.ts`、`src/agent/rpc.ts`、`src/domain/workflow-types.ts`；测试 `tests/unit/step-failure-paths.test.ts`、`tests/pbt/retry-classification.test.ts`。
+- **落地模块**：`src/core/workflow.ts`、`src/core/context.ts`、`src/core/error.ts`、`src/agent/rpc.ts`、`src/domain/workflow-types.ts`；测试 `tests/unit/step-failure-paths.test.ts`、`.kiro/pbt/retry-classification.test.ts`。
 - **对应 Issue & PR**：Issue #120；PR 由分支 `fix/issue-120-retry-sibling-cancel` 发往 `main`（编号以 GitHub 为准）。
 - **验证证据**（审计快照，2026-11-06，基线 `c969216`，Windows / Node 26.13.0）：
   - 修复前（只加测试、未改代码）：`node --test --test-reporter=tap dist/tests/unit/step-failure-paths.test.js` → `tests 5, pass 2, fail 3`：

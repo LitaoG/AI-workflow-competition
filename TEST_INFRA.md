@@ -6,13 +6,13 @@
 
 ## 分层目录结构与验证命令
 
-测试代码位于 `tests/`，PBT 套件位于 `tests/pbt/`。各层与 `package.json` scripts 的对应关系：
+测试代码位于 `tests/`，PBT 套件位于 `.kiro/pbt/`。各层与 `package.json` scripts 的对应关系：
 
 | 层 | 目录 | 运行命令 |
 |---|---|---|
 | 单元测试 | `tests/unit/`（agent / cli / context / core / dwf / execution / state / visualizer 等子目录；保持纯隔离语义，禁止 async 子进程树——Issue #198） | `npm.cmd run test:unit` |
 | 集成测试（预算、failover、replay、MCP 等花钱与恢复路径；runner 级真实子进程树/进程守护用例） | `tests/integration/`（串行 `--test-concurrency=1`） | `npm.cmd run test:integration` |
-| 基于属性的测试（PBT） | `tests/pbt/` | `npm.cmd run test:pbt` |
+| 基于属性的测试（PBT） | `.kiro/pbt/` | `npm.cmd run test:pbt` |
 | E2E 场景测试 | `tests/e2e/`（`runner.ts` + `helpers/` + tier1～tier4 四层） | `npm.cmd run test:e2e`（即 `node --experimental-strip-types tests/e2e/runner.ts`） |
 | 对抗性测试 | `tests/adversarial/` | `npm.cmd run test:adversarial` |
 | 跨引擎回归 | `tests/cross-engine/` | 纳入全量门禁执行 |

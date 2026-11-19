@@ -83,6 +83,13 @@ Measured end-to-end 2026-11-03 (Git Bash on Windows, Node v26.13.0, warm npm cac
 | 8 | **budget hard enforcement** | `WorkflowBudgetExceededError` caught by the script |
 | 9 | journal-rendered report + live attach | `.workflow/views/demo.html` + `workflow serve <runId>` |
 
+### Install reality check (npm)
+
+This repository is **not published to npm** — the `ai-workflow` name on the registry is an unrelated 2021
+placeholder (v0.1.19). Supported installs: from source (`git clone` + `npm install && npm run build`, the
+three-minute judge path) or from a release tarball: `npm install ./ai-workflow-<version>.tgz` — keep the
+`./` prefix (a bare relative path is parsed as a registry spec). Verified 2026-11-20 (Issue #147).
+
 ### Reproducible quality-gate fingerprints
 
 All run 2026-11-19 on the v2.7.0 release tree (PR #139 head: main @ `01a6c57` + the release
