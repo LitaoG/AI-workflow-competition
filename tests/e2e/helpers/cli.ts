@@ -13,6 +13,10 @@ export interface CLIResult {
   stdout: string;
   stderr: string;
   durationMs: number;
+  /** Issue #148: true when the run fell back to the reference MOCK engine. */
+  usedMock: boolean;
+  /** The resolved CLI target (bin, dist, AI_WORKFLOW_CLI override, or mock). */
+  cliPath: string;
   json<T = unknown>(): T;
 }
 
@@ -73,6 +77,17 @@ function normalizeCLIArgs(args: string[]): string[] {
  */
 export function runCLI(args: string[], options: CLIOptions = {}): CLIResult {
   const cliPath = resolveCLIPath();
+  // Issue #148: the mock fallback used to be silent — with bin and dist both
+  // missing, all 121 cases would run against the 576-line reference mock and
+  // go green while proving nothing about the real CLI. Make the fallback loud
+  // and observable on every result.
+  const usedMock = cliPath.endsWith('mock-engine.ts');
+  if (usedMock) {
+    console.error(
+      '[E2E WARNING] production CLI not found (bin/workflow.js AND dist/src/cli/index.js missing) — ' +
+        'running against the REFERENCE MOCK ENGINE; these results prove nothing about the real CLI (Issue #148).',
+    );
+  }
   const startTime = Date.now();
   const normalizedArgs = normalizeCLIArgs(args);
 
@@ -109,6 +124,8 @@ export function runCLI(args: string[], options: CLIOptions = {}): CLIResult {
     stdout,
     stderr,
     durationMs,
+    usedMock,
+    cliPath,
     json<T = unknown>(): T {
       try {
         return JSON.parse(stdout) as T;

@@ -27,7 +27,7 @@
  *   (default: OFFICIAL_DWF env var, or the research checkout path)
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { fileURLToPath } from "node:url";
 
@@ -209,8 +209,12 @@ async function runMission(runId, maxConcurrency) {
     totalMs: r.settledAt !== undefined && r.queuedAt !== undefined ? +(r.settledAt - r.queuedAt).toFixed(3) : null,
   }));
 
+  // Issue #148: the caller used to pass a `limit: "all"` sentinel the official
+  // journal API types as number|undefined — Math.max(0,"all")=NaN → slice(0,NaN)
+  // = [] — so journalEventSequence compared two empty arrays and the determinism
+  // signal was vacuously true. Omitting limit reads the full sequence (default).
   const journalEvents = driver.journal
-    .listEvents(runId, { types: "all", reportItems: { limit: 0 }, limit: "all" })
+    .listEvents(runId, { types: "all", reportItems: { limit: 0 } })
     .map((s) => s.event.type);
 
   return {
@@ -439,7 +443,18 @@ const out = {
 };
 
 mkdirSync(dirname(OUT_PATH), { recursive: true });
-writeFileSync(OUT_PATH, JSON.stringify(out, null, 2));
+// Issue #148 companion: sanitize machine paths before the baseline lands in
+// git — the README documents the $OFFICIAL_DWF / $AI_WORKFLOW_WORKSPACE
+// placeholders; previously applying them was a manual pre-commit step.
+const workspaceRoot = resolve(HERE, "..", "..", "..");
+const jsonEsc = (s) => s.replaceAll("\\", "\\\\");
+const sanitized =
+  JSON.stringify(out, null, 2)
+    .replaceAll(jsonEsc(pkgRoot), "$OFFICIAL_DWF")
+    .replaceAll(pkgRoot.replaceAll("\\", "/"), "$OFFICIAL_DWF")
+    .replaceAll(jsonEsc(workspaceRoot), "$AI_WORKFLOW_WORKSPACE")
+    .replaceAll(workspaceRoot.replaceAll("\\", "/"), "$AI_WORKFLOW_WORKSPACE");
+writeFileSync(OUT_PATH, sanitized);
 console.log(`official track written: ${OUT_PATH}`);
 console.log(
   JSON.stringify(
