@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as http from 'node:http';
+import * as net from 'node:net';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { createSQLiteStore } from '../../src/state/store.js';
@@ -218,5 +219,123 @@ test('A2UI POST endpoints answer 501 when the server was started without resume 
   } finally {
     await live.close();
     store.close();
+  }
+});
+
+/** POST with caller-controlled headers (Origin/Host drive-by probes, Issue #143). */
+function httpPostWithHeaders(
+  port: number,
+  pathname: string,
+  headers: Record<string, string>,
+  body: Record<string, unknown>,
+): Promise<{ status: number; json: Record<string, unknown> }> {
+  return new Promise((resolve, reject) => {
+    const payload = JSON.stringify(body);
+    const req = http.request(
+      { host: '127.0.0.1', port, path: pathname, method: 'POST', headers: { ...headers, 'content-type': 'application/json', 'content-length': Buffer.byteLength(payload) } },
+      (res) => {
+        let raw = '';
+        res.on('data', (c) => (raw += c.toString()));
+        res.on('end', () => resolve({ status: res.statusCode ?? 0, json: JSON.parse(raw || '{}') }));
+      },
+    );
+    req.on('error', reject);
+    req.end(payload);
+  });
+}
+
+/** GET with a caller-controlled Host header (DNS-rebinding probe, Issue #143). */
+function httpGetWithHost(port: number, pathname: string, hostHeader: string): Promise<{ status: number }> {
+  return new Promise((resolve, reject) => {
+    const req = http.request({ host: '127.0.0.1', port, path: pathname, method: 'GET', headers: { host: hostHeader } }, (res) => {
+      res.resume();
+      res.on('end', () => resolve({ status: res.statusCode ?? 0 }));
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+/** Raw RFC 6455 handshake probe; resolves with the status line (Issue #143). */
+function wsHandshakeStatus(port: number, origin?: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const socket = net.connect(port, '127.0.0.1', () => {
+      socket.write(
+        `GET /ws HTTP/1.1\r\nHost: 127.0.0.1:${port}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n` +
+          `Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n` +
+          (origin ? `Origin: ${origin}\r\n` : '') +
+          '\r\n',
+      );
+    });
+    let head = '';
+    socket.on('data', (d) => {
+      head += d.toString();
+      if (head.includes('\r\n\r\n')) {
+        socket.destroy();
+        resolve(head.split('\r\n')[0] ?? head);
+      }
+    });
+    socket.on('error', reject);
+  });
+}
+
+test('loopback guard: evil Origin POSTs, non-loopback Hosts and cross-origin WS upgrades are refused (Issue #143)', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dwf-live-guard-'));
+  const dbPath = path.join(dir, '.workflow', 'dwf.sqlite');
+  try {
+    // Real run in the journal: the GET /state leg must be able to 200 on the legit Host.
+    const scriptPath = path.join(dir, 'script.facade.ts');
+    fs.writeFileSync(scriptPath, SCRIPT);
+    const run = await runFacadeScript({ scriptPath, cwd: dir, dbPath });
+    assert.equal(run.status, 'completed', run.error);
+    const store = createSQLiteStore(dbPath) as SQLiteStateStore & DwfJournalStore;
+
+    const calls: string[] = [];
+    const live = await startLiveServer(
+      store,
+      run.runId,
+      0,
+      '127.0.0.1',
+      {
+        fill: async () => {
+          calls.push('fill');
+          return { ok: true, message: 'captured' };
+        },
+      },
+      { studio: true }, // /ws must be attached — the handshake legs exercise its Origin gate
+    );
+    try {
+      // Drive-by形态：跨源页面发出的 no-cors POST（evil Origin）必须 403 且不触达 action。
+      const evil = await httpPostWithHeaders(live.port, '/api/fill', { origin: 'https://evil.example.com' }, { holeName: 'approval', body: 'await world.run("whoami");' });
+      assert.equal(evil.status, 403, JSON.stringify(evil.json));
+      assert.equal(calls.length, 0, 'cross-origin fill must not reach the resume action');
+
+      // 同源浏览器页面（Origin = 本服务自身）必须放行。
+      const sameOrigin = await httpPostWithHeaders(live.port, '/api/fill', { origin: `http://127.0.0.1:${live.port}` }, { holeName: 'approval', body: 'ok' });
+      assert.equal(sameOrigin.status, 200);
+      assert.deepEqual(sameOrigin.json, { ok: true, message: 'captured' });
+
+      // 非浏览器工具（无 Origin 头，curl/脚本/测试）保持原有可用性。
+      const noOrigin = await httpPostWithHeaders(live.port, '/api/fill', {}, { holeName: 'approval', body: 'ok' });
+      assert.equal(noOrigin.status, 200);
+      assert.equal(calls.length, 2, 'same-origin and Origin-less POSTs reach the action');
+
+      // DNS rebinding：非回环 Host 头一律 403（GET /state 是数据读取面）。
+      const rebound = await httpGetWithHost(live.port, '/state', 'evil.example.com');
+      assert.equal(rebound.status, 403);
+      const legitHost = await httpGetWithHost(live.port, '/state', `127.0.0.1:${live.port}`);
+      assert.equal(legitHost.status, 200);
+
+      // /ws 广播原始 journal 事件：跨源 upgrade 拒绝（403），回环 upgrade 放行（101）。
+      const evilWs = await wsHandshakeStatus(live.port, 'https://evil.example.com');
+      assert.ok(evilWs.startsWith('HTTP/1.1 403'), `evil WS handshake must be refused, got: ${evilWs}`);
+      const loopbackWs = await wsHandshakeStatus(live.port, `http://127.0.0.1:${live.port}`);
+      assert.ok(loopbackWs.startsWith('HTTP/1.1 101'), `loopback WS handshake must upgrade, got: ${loopbackWs}`);
+    } finally {
+      await live.close();
+      store.close();
+    }
+  } finally {
+    rmTempDir(dir);
   }
 });

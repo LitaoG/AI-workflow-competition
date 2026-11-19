@@ -206,6 +206,42 @@ function sendJson(res: ServerResponse, status: number, payload: unknown): void {
   res.end(JSON.stringify(payload));
 }
 
+// ---------------------------------------------------------------------------
+// Issue #143 loopback guard
+// ---------------------------------------------------------------------------
+//
+// Binding 127.0.0.1 stops off-machine clients but not the operator's own
+// browser: any web page they visit can fire no-cors cross-origin POSTs at the
+// parked run (`/api/fill` body = arbitrary compilable TS that a forked amend
+// executes) and read the snapshot/WS broadcast. Browsers cannot forge Origin
+// or Host, so the guard is two header checks:
+//  - every request must carry a loopback Host header (DNS-rebinding shield);
+//  - state-changing POSTs and `/ws` upgrades must carry no Origin at all
+//    (operator tooling, curl, tests) or an Origin equal to this loopback
+//    server (same-origin browser page) — anything else is a drive-by.
+
+function isLoopbackHostname(hostname: string): boolean {
+  return hostname === '127.0.0.1' || hostname === 'localhost' || hostname === '[::1]';
+}
+
+function hostHeaderIsLoopback(hostHeader: string): boolean {
+  try {
+    return isLoopbackHostname(new URL(`http://${hostHeader}`).hostname);
+  } catch {
+    return false;
+  }
+}
+
+function originIsLoopbackSelf(origin: string, localPort: number): boolean {
+  try {
+    const parsed = new URL(origin);
+    const port = parsed.port === '' ? '80' : parsed.port;
+    return isLoopbackHostname(parsed.hostname) && port === String(localPort);
+  } catch {
+    return false;
+  }
+}
+
 /** Issue #156 studio mode: SVG canvas page + zero-dep WebSocket push/time travel. */
 export interface StartLiveServerOptions {
   /** Serve the SVG-canvas Studio page and attach the `/ws` WebSocket hub. */
@@ -243,6 +279,16 @@ export function startLiveServer(
       path: '/ws',
       eventsJsonlPath: opts?.eventsJsonlPath,
       loadEvents: () => store.getEvents(runId),
+      // Issue #143: the /ws hub broadcasts raw journal events — a cross-origin
+      // browser page must not read them. Same rule as the POST guard: no
+      // Origin (non-browser client) or this loopback server's own origin.
+      verifyRequest: (req) => {
+        const origin = req.headers.origin;
+        if (origin === undefined) return null;
+        return originIsLoopbackSelf(String(origin), req.socket.localPort ?? 0)
+          ? null
+          : 'refused: cross-origin websocket handshake (Issue #143 loopback guard)';
+      },
     });
   }
 
@@ -309,6 +355,13 @@ async function handleRequest(
   const runId = parsed.searchParams.get('run') || boundRunId;
   const method = req.method ?? 'GET';
 
+  // Issue #143: refuse any non-loopback Host before touching the journal —
+  // browsers send Host verbatim, so a rebound name never reaches the data.
+  if (!hostHeaderIsLoopback(String(req.headers.host ?? ''))) {
+    sendJson(res, 403, { error: 'refused: non-loopback Host header (Issue #143 loopback guard)' });
+    return;
+  }
+
   if (method === 'GET' && path === '/state') {
     try {
       const snap = await buildStudioSnapshot(store, runId, { live: true });
@@ -371,6 +424,16 @@ async function handleRequest(
   }
 
   if (method === 'POST' && (path === '/api/answer' || path === '/api/fill')) {
+    // Issue #143: a cross-origin browser POST is a drive-by — the Origin
+    // header cannot be forged by a browser, so anything that is not this
+    // loopback server (or absent, i.e. non-browser tooling) is refused
+    // before the body is even read.
+    const origin = req.headers.origin;
+    const localPort = req.socket.localPort ?? 0;
+    if (origin !== undefined && !originIsLoopbackSelf(String(origin), localPort)) {
+      sendJson(res, 403, { ok: false, message: 'refused: cross-origin request (Issue #143 loopback guard)' });
+      return;
+    }
     const action = path === '/api/answer' ? actions?.answer : actions?.fill;
     if (!action) {
       sendJson(res, 501, { ok: false, message: 'A2UI resume actions are not wired for this server (start it via `workflow serve` or `run --ui`)' });

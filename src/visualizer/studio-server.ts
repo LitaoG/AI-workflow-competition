@@ -88,6 +88,8 @@ export interface StudioWebSocketOptions {
   eventsJsonlPath?: string;
   /** Fallback event source when the mirror is absent (e.g. SQLite journal). */
   loadEvents?: () => Promise<WorkflowEvent[]>;
+  /** Issue #143: extra handshake gate — return an error message to reject with 403, null to accept. */
+  verifyRequest?: (req: IncomingMessage) => string | null;
 }
 
 export interface StudioWebSocketHub {
@@ -151,6 +153,7 @@ export function attachStudioWebSocket(server: Server, opts: StudioWebSocketOptio
 
   const endpoint = attachWebSocketEndpoint(server, {
     path: opts.path ?? '/ws',
+    verifyRequest: opts.verifyRequest,
     onText: (conn, text) => void handleClientMessage(conn, text),
     onConnection: (conn) => {
       connections.add(conn);
