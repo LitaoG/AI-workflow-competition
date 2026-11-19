@@ -3,7 +3,7 @@
  * journal-backed deterministic replay.
  */
 import * as path from 'node:path';
-import { runFacadeScript } from '../../dwf/runner.js';
+import { resolveDwfJournalPath, runFacadeScript } from '../../dwf/runner.js';
 import { createProgressPrinter } from '../../dwf/progress.js';
 import { printDwfEvent } from '../console-events.js';
 import { resolveLang } from '../i18n/index.js';
@@ -145,6 +145,11 @@ export async function executeRunScript(
   }
 
   const seconds = ((Date.now() - started) / 1000).toFixed(2);
+  // Issue #146: the journal lives under the RUN's cwd (--cwd), not the CLI
+  // process's — resolve it through the same helper the runner used, or the
+  // --ui Studio opened a journal at the wrong path and reported
+  // "run … not found in the journal" for its own run.
+  const journalPath = resolveDwfJournalPath(path.resolve(options.cwd ?? process.cwd()), options.dbPath);
 
   if (result.status === 'compile_failed') {
     console.error(`✖ facade script failed compilation — ${result.diagnostics?.length ?? 0} diagnostic(s):`);
@@ -169,7 +174,7 @@ export async function executeRunScript(
     }
     if (options.ui) {
       console.log('  --ui: opening the Studio — submit the answer / hole body right in the browser.');
-      return serveRunUntilStopped(result.runId, options.dbPath ?? path.join('.workflow', 'dwf.sqlite'));
+      return serveRunUntilStopped(result.runId, journalPath);
     }
     return 0;
   }
@@ -178,9 +183,9 @@ export async function executeRunScript(
     console.log(`\n✔ run ${result.runId} completed in ${seconds}s`);
     console.log(`  asks: ${result.stats.asks} (replayed from journal: ${result.stats.replayHits})`);
     console.log(`  result: ${JSON.stringify(result.value)}`);
-    console.log(`  journal: ${options.dbPath ?? path.join('.workflow', 'dwf.sqlite')}`);
+    console.log(`  journal: ${journalPath}`);
     if (options.ui) {
-      return serveRunUntilStopped(result.runId, options.dbPath ?? path.join('.workflow', 'dwf.sqlite'));
+      return serveRunUntilStopped(result.runId, journalPath);
     }
     return 0;
   }
@@ -188,7 +193,7 @@ export async function executeRunScript(
   console.error(`\n✖ run ${result.runId} failed in ${seconds}s: ${result.error}`);
   console.error(`  resume with: /workflow run-script ${scriptPath} --resume ${result.runId}`);
   if (options.ui) {
-    return serveRunUntilStopped(result.runId, options.dbPath ?? path.join('.workflow', 'dwf.sqlite'));
+    return serveRunUntilStopped(result.runId, journalPath);
   }
   return 1;
 }

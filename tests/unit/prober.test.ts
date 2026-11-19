@@ -80,3 +80,25 @@ test('Prober: redacts the IGCCSVC_DB DPAPI blob carried in plaintext env (Issue 
   assert.equal(sanitized.NODE_ENV, 'production');
 });
 
+
+// Issue #146: the CLI probe face printed remoteUrl verbatim — CI remotes
+// commonly embed credentials (https://x-access-token:ghp_…@host/org/repo.git).
+import * as child_process from 'node:child_process';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+
+test('Prober: probeGit masks credentials embedded in the origin remote URL (Issue #146)', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'prober-git-mask-'));
+  try {
+    child_process.execSync('git init', { cwd: dir });
+    child_process.execSync('git remote add origin https://x-access-token:ghp_issuetoken146@example.com/org/repo.git', { cwd: dir });
+    const probe = await probeGit(dir);
+    assert.equal(probe.isGitRepo, true);
+    assert.ok(probe.remoteUrl, 'a configured remote must surface in the probe');
+    assert.ok(!probe.remoteUrl.includes('ghp_issuetoken146'), 'the raw token must never reach the probe result');
+    assert.ok(probe.remoteUrl.includes('***'), 'credentials must be masked by maskUriCredentials');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

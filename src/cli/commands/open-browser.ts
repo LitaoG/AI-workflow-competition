@@ -5,6 +5,10 @@
 import { spawn } from 'node:child_process';
 
 export function openInBrowser(url: string): boolean {
+  // Issue #146 test affordance: automated harnesses (the integration suite
+  // drives `run --ui` end-to-end) set AI_WORKFLOW_NO_OPEN=1; default behavior
+  // is unchanged.
+  if (process.env.AI_WORKFLOW_NO_OPEN === '1') return false;
   try {
     if (process.platform === 'win32') {
       // `start` treats its first quoted argument as the window title — pass an
