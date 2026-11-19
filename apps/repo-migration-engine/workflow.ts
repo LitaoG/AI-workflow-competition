@@ -734,11 +734,14 @@ export const workflow = defineWorkflow({
         // tree: parallel integration suites raced writes on that shared
         // directory and its stale committed content poisoned assertions
         // (gate round 1) — mock runs export to the run cwd only (P-TEST-2).
+        // Issue #149: both Builder demos dumped `kanban.json` into the SAME
+        // cwd artifacts dir — running both README commands from the repo root
+        // made the second run overwrite the first; bucket per app.
         const artifactDirs = ctx.isMock
-          ? [path.join(process.cwd(), 'artifacts')]
+          ? [path.join(process.cwd(), 'artifacts', 'repo-migration')]
           : [
               path.join(__dirname, 'artifacts'),
-              path.join(process.cwd(), 'artifacts'),
+              path.join(process.cwd(), 'artifacts', 'repo-migration'),
             ];
 
         const cliOutDir = getCliOutputDir();

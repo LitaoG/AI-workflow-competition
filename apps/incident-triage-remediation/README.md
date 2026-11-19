@@ -50,7 +50,7 @@ The workflow executes across **5 distinct phases** with **ZCode UI Parity**:
                              ▼
 ┌── Phase 5: Post-Mortem Synthesis & Live Dashboard Export ──────────┐
 │  └── [✔] 📦 Coordinator: PostMortemSynthesizer (110ms)             │
-│          Exported: artifacts/PostMortem.md & artifacts/kanban.json │
+│       Exported: artifacts/incident-triage/{PostMortem.md, kanban.json, …} │
 └────────────────────────────────────────────────────────────────────┘
 ```
 

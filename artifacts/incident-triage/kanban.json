@@ -1,0 +1,100 @@
+{
+  "workflow": "incident-triage-remediation",
+  "runId": "run-1795121225179-krblj9",
+  "timestamp": "2026-11-19T20:47:05.832Z",
+  "status": "completed",
+  "metrics": {
+    "totalPhases": 5,
+    "activeSubagents": 3,
+    "scenario": "p1_db_pool_exhaustion",
+    "mttrSeconds": 12
+  },
+  "columns": [
+    {
+      "id": "probe",
+      "title": "🔍 Ingested Alerts & Probes",
+      "cards": [
+        {
+          "id": "art-telemetry-01",
+          "stepId": "step-1-probe",
+          "title": "alert_telemetry.json",
+          "type": "probe",
+          "status": "done",
+          "contentSnippet": "{\"service\":\"order-checkout-api\",\"status\":\"UNHEALTHY\",\"errorRate\":\"38.5%\",\"activeDbConnections\":100}"
+        }
+      ]
+    },
+    {
+      "id": "triage",
+      "title": "🧠 Triage & Root Cause Analysis",
+      "cards": [
+        {
+          "id": "art-triage-01",
+          "stepId": "step-2-triage",
+          "title": "triage_assessment.json",
+          "type": "patch",
+          "status": "done",
+          "contentSnippet": "{\"incidentId\":\"INC-20261031-DB100\",\"severity\":\"P1\",\"failureDomain\":\"DATABASE_EXHAUSTION\",\"confidence\":0.98}"
+        }
+      ]
+    },
+    {
+      "id": "plan",
+      "title": "🛡️ Synthesized Runbooks & Safety Audit",
+      "cards": [
+        {
+          "id": "art-plan-01",
+          "stepId": "step-3a-planner",
+          "title": "remediation_plan.json",
+          "type": "patch",
+          "status": "done",
+          "contentSnippet": "{\"strategy\":\"EXPAND_CONNECTION_POOL\",\"actions\":3,\"risk\":\"LOW\"}"
+        },
+        {
+          "id": "art-safety-01",
+          "stepId": "step-3b-reviewer",
+          "title": "safety_review.json",
+          "type": "patch",
+          "status": "done",
+          "contentSnippet": "{\"approved\":true,\"safetyScore\":0.98,\"compliance\":\"PASS\"}"
+        }
+      ]
+    },
+    {
+      "id": "gate",
+      "title": "⚡ Execution & Gate Logs",
+      "cards": [
+        {
+          "id": "art-gate-01",
+          "stepId": "step-4-gate",
+          "title": "recovery_healthz_gate.log",
+          "type": "gate",
+          "status": "done",
+          "contentSnippet": "[GateRunner] Mode: post-remediation | Scenario: p1_db_pool_exhaustion | Mock: true\n[GateRunner] ✔ Post-remediation health check PASSED:\n  - HTTP 200 OK on /healthz (Latency: 28ms)\n  - HTTP 5xx Error Rate: 0.00%\n  - Active DB Pool: 42 / 250 connections (16.8% saturation)\n  - Service Status: HEALTHY"
+        }
+      ]
+    },
+    {
+      "id": "deliverable",
+      "title": "📦 Final Deliverables",
+      "cards": [
+        {
+          "id": "art-postmortem-01",
+          "stepId": "step-5-post-mortem",
+          "title": "PostMortem.md",
+          "type": "deliverable",
+          "status": "done",
+          "contentSnippet": "Incident Post-Mortem: Database Connection Pool Exhaustion on Checkout Service"
+        },
+        {
+          "id": "art-dag-01",
+          "stepId": "step-5-post-mortem",
+          "title": "incident_dag.html",
+          "type": "deliverable",
+          "status": "done",
+          "contentSnippet": "Standalone SVG DAG Canvas"
+        }
+      ]
+    }
+  ]
+}
