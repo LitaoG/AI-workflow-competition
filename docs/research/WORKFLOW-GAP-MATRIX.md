@@ -376,7 +376,7 @@
 | 跨 realm 逃逸探针 | `xrealm2.facade.ts`——临时探针（§3.2/§四 引用），未入库、审计后已删（2026-11-01 修订轮 `find . -maxdepth 2 -name "xrealm2*"` 零命中）；复现：将 §3.2 所引单行脚本存为 facade 文件后 `node bin/workflow.js run-script xrealm2.facade.ts --args '{"a":1}'` | 已删（本行 2026-11-01 修订补记） |
 | 不变量1 journal | `.workflow/inv1.db`、`.workflow/inv1-v5.db` | ✅ 存在 |
 | 不变量2/5 分诊 journal | `.workflow/inv2-schemaheal.db`、`.workflow/inv5-baseline.db`、`.workflow/inv5-replay.db`、`.workflow/inv5-view-resume.html` | ✅ 存在 |
-| 不变量3 NDJSON 复现材料 | `scratch-pentest/ndjson/{ndjson-probe.facade.ts,verify.mjs,driver.mjs,gen-payload.mjs,payload-100kb.txt}`；`.workflow/ndjson-inv.db` | ✅ 目录与 db 存在 |
+| 不变量3 NDJSON 复现材料 | `scratch-pentest/ndjson/{ndjson-probe.facade.ts,verify.mjs,driver.mjs,gen-payload.mjs,payload-100kb.txt}`；`.workflow/ndjson-inv.db` | 已随原逆向 worktree 清理、第三方不可达；结论以本文与测试套件为准（2026-11-20 清洁室修订） |
 | 不变量6 副产物 | `.scratch-inv6/`、`.workflow/inv6.db`、`.workflow/inv6b.db` | ✅ 存在 |
 | GAP-01 探针/journal | `.scratch-gap01/gap01-logreport.facade.ts`、`.workflow/triage-fix-1.db` | ✅ 存在 |
 | GAP-03 journal | 自建 triage-fix-3*.db 已删除（证据以本文与测试文件为准） | — |

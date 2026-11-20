@@ -126,7 +126,7 @@ fixture：4 个独立本地 repo（`contracts-repo`、`pricing-repo`、`orders-r
 - stalled：`Mi=90000ms` 无进展判定，最多 `Xr=5` 次重试，重发 `${label} (retry N)`。
 - reply lost：响应流静默结束、Claude Code 放弃等待，与 stalled 分开文案。
 - usage-limit：基于结构化 `quotaLimits.resetsAt` 最多等待 2 次。
-- 源码：`workflow-module-pretty.js:1563,1568,2862-2899`。
+- 源码：官方解包件（语义锚：重试上限与停滞超时常量、throttle/retry/abandon 文案段）。
 
 ### 3.2 本仓机制（测试级）`[已验证]`
 
@@ -165,7 +165,7 @@ runId dwfrun-mvzxvgxy-cc9bda
 
 ### 4.1 官方 `[已验证]`（源码）
 
-- 重放键 `Xn` 结构哈希（slot/fork/join/replaced），`jr` 把 prompt + 7 字段 opts 哈希成 `v2:` 键（`workflow-module-pretty.js:928-947`）。
+- 重放键结构哈希（slot/fork/join/replaced 语义），把 prompt + 7 字段 opts 哈希成 `v2:` 键（语义锚：官方解包件重放键实现段）。
 - 前序步骤微调 → 后续链式键全量失效；无本仓式局部 amend `[推断，基于结构哈希的链式 prev]`。
 
 ### 4.2 本仓 `[已验证]`（测试）
@@ -220,7 +220,7 @@ workflow() cannot be called from within a child workflow — nesting is limited 
 Inline the inner script or call its agents directly.
 ```
 
-官方源码 `workflow-module-pretty.js:733` 把子上下文的 `workflow` 替换为拒绝 stub。
+官方解包件把子上下文的 `workflow` 替换为拒绝 stub。
 
 ### 5.2 本仓实机 `[已验证]`
 
@@ -318,6 +318,6 @@ node --experimental-strip-types tests/unit/workflow-governance.test.ts
 ## 10. 证据索引
 
 - 白皮书：`docs/research/CLAUDE-CODE-DYNAMIC-WORKFLOW-WHITEPAPER.md`
-- 官方行号：`workflow-module-pretty.js:733,928-947,1563,1568,2862-2899`
+- 官方锚点：解包件语义锚（重试/停滞/文案段、重放键实现段、子脚本拒绝 stub 段）——行号自清洁室修订（2026-11-20）起不录
 - 本仓：`src/dwf/engine.ts`、`src/agent/rpc.ts`、`src/dwf/attempt-classifier.ts`
 - Issue：#55（Date/Intl）、#57（多级组合）、#59（stallMs）、#61（Claude Code 挂载）

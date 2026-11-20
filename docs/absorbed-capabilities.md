@@ -122,7 +122,7 @@
 
 ### [CAP-003] 蜂群派发策略与 Git Worktree 物理隔离（swarm dispatcher + worktree pool）
 
-- **汲取来源**：官方 runner-core 并发窗口公式 `min(16, max(2, cores−2))` 与 agent cap 1000 熔断；官方子代理 worktree 契约「无变更自动清理、有变更保留待审 + worktreePath/Branch 回传」（workflow-module-pretty.js:2291-2305）；UltraCode detached worktree@HEAD 与 runtime.js 窗口/预算参数。
+- **汲取来源**：官方 runner-core 并发窗口公式 `min(16, max(2, cores−2))` 与 agent cap 1000 熔断；官方子代理 worktree 契约「无变更自动清理、有变更保留待审 + worktreePath/Branch 回传」（语义锚：官方解包件 worktree 管理段）；UltraCode detached worktree@HEAD 与 runtime.js 窗口/预算参数。
 - **原理解析**：每任务一棵独立分支+物理工作区（同级目录纪律），干净树释放即删（零残留）、脏树保留并回传路径/分支/状态供人审；并发窗口单一来源化（option > env > 公式，非法覆盖回退防 NaN 毒化座位门）；token 预算超限在 `__swarm` 侧落 null（drop-slot，运行级事实不连坐任务）。
 - **4-Tier 评估**：T1: PASS（千级并发底座 + 物理隔离杜绝脏工作区），T2: PASS（`src/execution/` 独立模块，向内依赖），T3: PASS（纯 TypeScript 控制流），T4: PASS（生命周期/并发窗口/预算 drop-slot 全测试锁死）。
 - **落地模块**：`src/execution/{worktree-pool,swarm-dispatcher}.ts`；测试 `tests/unit/execution/`、`tests/unit/dwf/dwf-swarm-budget.test.ts`。
@@ -161,7 +161,7 @@
 ### [CAP-007] 动态工作流未 Await 挂起 Promise / Agent 自动审计防御（Unawaited Promise & Agent Leak Audit）
 
 - **汲取来源**：
-  - Google Antigravity 原生动态工作流（run-workflow Prelude 注入运行时 `antigravity_workflow_prelude.py:470-476, 1315-1329`）中的 `_tracked` 与 `_agents` 扫描器；
+  - Google Antigravity 原生动态工作流（run-workflow Prelude 注入运行时，语义锚：在途注册表与终态审计段）中的 `_tracked` 与 `_agents` 扫描器；
   - 详见权威对标白皮书 [ANTIGRAVITY-RUN-WORKFLOW-WHITEPAPER.md](research/ANTIGRAVITY-RUN-WORKFLOW-WHITEPAPER.md) §2.5 与 §4.1。
 - **原理解析**（实现以本节为准，随 Issue #279 修正登记与实现的脱节）：
   1. 在动态代码编排（Code as Workflow）中，LLM 或开发者书写异步脚本时极易遗漏 `await`（如写出裸 `agent(...).ask(...)`）。标准 Node.js / V8 事件循环不会将未等待的 Promise 视为致命语法错误，任务结果被静默丢弃，导致工作流在结果未被消费的情况下报出 `dwf_done`（假绿，Fake Green）；
