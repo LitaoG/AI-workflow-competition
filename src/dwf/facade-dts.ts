@@ -70,6 +70,25 @@ declare function log(message: unknown): void;
  */
 declare function report(item: unknown, artifactId?: string): void;
 
+/**
+ * Adjust the live plan graph mid-run (Issue #171): declare PENDING nodes ("boxes")
+ * and dependency edges ("lines") that the run's graph.html shows immediately, before
+ * (or instead of) their execution. Node ids are script-chosen runtime values; edges
+ * may reference plan ids OR real site ids (the compile-time site table that
+ * "workflow check" prints, e.g. "ask#5") — an edge whose endpoint has not appeared yet renders once that
+ * node exists. Nodes that are never executed stay pending, exactly like the opening
+ * plan skeleton. Re-declaring an existing id is a no-op (idempotent).
+ *
+ * Unlike the other primitives, "plan" may be SHADOWED by a local binding (workflow
+ * scripts constantly bind "plan"): only the direct call plan({...}) reaches the
+ * engine, and a call against a shadowing local typechecks against that local —
+ * the ambiguity is guarded by the type checker, not a shadow ban.
+ */
+declare function plan(update: {
+  nodes?: Array<{ id: string; name?: string; phase?: string }>;
+  edges?: Array<{ from: string; to: string }>;
+}): void;
+
 /** The run's arguments (from --args JSON). Unknown at compile time; narrow before use. */
 declare const args: Record<string, unknown>;
 

@@ -464,9 +464,10 @@ export function analyzeFacadeScript(source: string): FacadeAnalysis {
       sites.push({ siteId: `hole#${++siteCounter}`, kind: 'hole', line: lineOf(node), holeName, typed });
       return;
     }
-    // log(...) / report(...) — report(item, tag?) carries a preset artifact tag
-    if (ts.isIdentifier(expr) && (expr.text === 'log' || expr.text === 'report')) {
-      sites.push({ siteId: `${expr.text}#${++siteCounter}`, kind: expr.text as 'log' | 'report', line: lineOf(node) });
+    // log(...) / report(...) / plan(...) — report(item, tag?) carries a preset artifact tag;
+    // plan(update) is the mid-run plan-graph adjustment (Issue #171), sited for observability
+    if (ts.isIdentifier(expr) && (expr.text === 'log' || expr.text === 'report' || expr.text === 'plan')) {
+      sites.push({ siteId: `${expr.text}#${++siteCounter}`, kind: expr.text as 'log' | 'report' | 'plan', line: lineOf(node) });
       if (expr.text === 'report' && node.arguments[1] !== undefined) {
         const tagArg = node.arguments[1];
         if (!ts.isStringLiteral(tagArg) || (tagArg as ts.StringLiteral).text.length === 0) {

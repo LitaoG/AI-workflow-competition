@@ -378,6 +378,8 @@ facade 引擎的对应物是 journal 短路：身份 = `(runId, siteId, ordinal)
 
 **计划先行骨架（Issue #168）**：facade run 的 fresh stream 启动时，runner 把编译期 site table 作为 `dwf_plan` 事件写入 journal（只携带运行时事件会真正翻转的 ask / hole / escalation 三类站点；worldRead 活跑零事件、worldRun/artifact 按 site-less key `gate:<cmd>`/`artifact:<id>` 动态入图，均不入计划）。投影器把计划折叠为全量 pending 节点，后续运行事件按 siteId 原地翻状态——计划中从未执行的分支节点保持 pending 可见。watch 视图（每事件重写 run 目录 `graph.html`）自此**默认开启**（`--no-watch-graph` 显式关闭），活跑与冷回放的"同一投影、字节一致"不变式由 dwf_plan 作为普通 journal 事件参与折叠而自动保持。
 
+**计划图 mid-run 演进（Issue #171）**：脚本可用一等原语 `plan({ nodes, edges })` 实时调整当前 run 的计划图——新 id 折叠为 pending 节点（默认入当前阶段列，声明新阶段名即建列；重复 id 幂等），`edges` 为任意依赖边（可连真实 siteId）。悬空端点的边**缓冲重放**：投影器逐事件冲刷 pendingEdges，端点出现即显形，mermaid 不产生幽灵隐式节点。引擎侧形状校验响亮失败（PlanUpdateMalformed / PlanCapExceeded），声明环不做检测（渲染器有回边分支，声明环属作者错误、图中可见）。另一条"中途调整方案"原生路径——hole 填充（`fillHoleAndRun`）fork 出的 amend 新 run 是 fresh stream，#168 的重发机制使其 graph.html 天然就是调整后的计划图。
+
 依赖步骤间的连接线以 SVG 三次贝塞尔曲线（cubic Bézier）平滑绘制（`html-renderer.ts`、`visualizer/svg-canvas.ts`）：
 
 $$C(t) = (1-t)^3 P_0 + 3(1-t)^2 t P_1 + 3(1-t) t^2 P_2 + t^3 P_3, \quad t \in [0, 1]$$

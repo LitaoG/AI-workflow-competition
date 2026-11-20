@@ -49,6 +49,7 @@
  * | Event                                              | Effect                                                       |
  * | -------------------------------------------------- | ------------------------------------------------------------ |
  * | `dwf_plan`                                         | plan skeleton (Issue #168): phase columns + pending site nodes in declaration order; runtime events later flip the SAME nodes |
+ * | `dwf_plan_update`                                  | mid-run plan adjustment (Issue #171, plan(update)): new ids → pending nodes (default column = current phase), re-declared ids are no-ops; arbitrary edges added only when BOTH endpoints exist (dangling skipped — no mermaid ghost nodes) |
  * | `dwf_phase`                                        | phase column, first-appearance order, deduped by name         |
  * | `dwf_ask_start`                                    | ask node (keyed by siteId) → running; prompt stored (redacted)|
  * | `dwf_ask_complete`                                 | ask node → completed; durationMs from the two timestamps      |
@@ -110,6 +111,7 @@ const KIND_SHAPE: Record<string, { role: string; type: StepType }> = {
   artifact: { role: 'coordinator', type: 'action' },
   hole: { role: 'gate', type: 'gate' },
   escalation: { role: 'gate', type: 'gate' },
+  plan: { role: 'coordinator', type: 'action' },
 };
 
 /** Host-call op → journalled-node kind (for `dwf_call_error`, which carries the op, not a kind). */
@@ -120,6 +122,7 @@ const OP_KIND: Record<string, string> = {
   artifact: 'artifact',
   hole: 'hole',
   escalate: 'escalation',
+  plan: 'plan',
 };
 
 interface PhaseColumn {
@@ -151,6 +154,13 @@ interface ProjectionState {
   /** Overall last created node key — wires inter-phase sequential handoffs. */
   lastNodeOverall?: string;
   edges: DAGEdge[];
+  /**
+   * Declared-but-dangling edges (Issue #171): a plan_update edge whose endpoint
+   * has not appeared yet is buffered here and retried after EVERY event, so an
+   * edge to a future site renders the moment that node exists. Bounded by the
+   * engine's per-call plan caps; the pure fold replays them deterministically.
+   */
+  pendingEdges: DAGEdge[];
 }
 
 /** Narrow an event payload to a record (events written by older hosts may carry anything). */
@@ -229,6 +239,28 @@ function settleRunning(state: ProjectionState, to: StepStatus): void {
   }
 }
 
+/**
+ * Materialize buffered plan edges whose BOTH endpoints now exist (Issue #171):
+ * called after every event so an edge declared toward a future node renders the
+ * moment that node appears. Materialization is deduped against the current edge
+ * set (a declared edge identical to the creation-order chain edge collapses) and
+ * stays in declaration order; still-dangling edges keep buffering.
+ */
+function flushPendingEdges(state: ProjectionState): void {
+  if (state.pendingEdges.length === 0) return;
+  const stillPending: DAGEdge[] = [];
+  for (const edge of state.pendingEdges) {
+    if (!state.sites.has(edge.fromNodeId) || !state.sites.has(edge.toNodeId)) {
+      stillPending.push(edge);
+      continue;
+    }
+    if (!state.edges.some((e) => e.fromNodeId === edge.fromNodeId && e.toNodeId === edge.toNodeId)) {
+      state.edges.push({ ...edge });
+    }
+  }
+  state.pendingEdges = stillPending;
+}
+
 /** Apply one event to the fold state. Unknown/ignored types fall through harmlessly. */
 function applyEvent(state: ProjectionState, event: WorkflowEvent): void {
   if (state.runId === '' && event.runId) state.runId = event.runId;
@@ -268,6 +300,58 @@ function applyEvent(state: ProjectionState, event: WorkflowEvent): void {
           status: 'pending',
         });
         state.currentPhase = declared;
+      }
+      break;
+    }
+    case 'dwf_plan_update': {
+      // A mid-run plan adjustment declared by the script (Issue #171, plan(update)).
+      // New ids become PENDING nodes in their (existing or newly declared) phase —
+      // the default column is the fold's current phase, because the declaration
+      // happens mid-run. Re-declaring an existing id is a no-op (skeleton sites and
+      // earlier updates are reused, never duplicated). Edges are arbitrary: accepted
+      // only when BOTH endpoints already exist in the fold, so an edge pointing at a
+      // not-yet-started site renders the moment that node appears — and mermaid
+      // never ghosts an implicit node for a dangling endpoint.
+      const rawNodes = Array.isArray(data.nodes) ? data.nodes : [];
+      const rawEdges = Array.isArray(data.edges) ? data.edges : [];
+      for (const raw of rawNodes) {
+        const rec = asRecord(raw);
+        const id = field(rec, 'id');
+        if (!id || state.sites.has(id)) continue;
+        const shape = KIND_SHAPE['plan']!;
+        const declaredPhase = field(rec, 'phase');
+        const phase = declaredPhase
+          ? ensurePhase(state, declaredPhase)
+          : state.currentPhase ?? ensurePhase(state, START_PHASE_NAME);
+        const declared = state.currentPhase;
+        state.currentPhase = phase;
+        createNode(state, id, {
+          id,
+          name: field(rec, 'name') || id,
+          phaseId: phase.id,
+          phaseName: phase.name,
+          role: shape.role,
+          type: shape.type,
+          status: 'pending',
+        });
+        state.currentPhase = declared;
+      }
+      for (const raw of rawEdges) {
+        const rec = asRecord(raw);
+        const from = field(rec, 'from');
+        const to = field(rec, 'to');
+        if (!from || !to || from === to) continue;
+        if (state.sites.has(from) && state.sites.has(to)) {
+          if (!state.edges.some((e) => e.fromNodeId === from && e.toNodeId === to)) {
+            state.edges.push({ fromNodeId: from, toNodeId: to });
+          }
+        } else {
+          // Dangling NOW does not mean dangling forever — buffer it; the flush
+          // after every event materializes it the moment both endpoints exist.
+          if (!state.pendingEdges.some((e) => e.fromNodeId === from && e.toNodeId === to)) {
+            state.pendingEdges.push({ fromNodeId: from, toNodeId: to });
+          }
+        }
       }
       break;
     }
@@ -422,6 +506,9 @@ function applyEvent(state: ProjectionState, event: WorkflowEvent): void {
       // the core-builder vocabulary belongs to a different runtime.
       break;
   }
+  // Issue #171: any event may have created the endpoint a buffered plan edge was
+  // waiting for — the flush after EVERY event keeps declared edges converging.
+  flushPendingEdges(state);
 }
 
 /**
@@ -448,6 +535,7 @@ export function projectEventsToGraph(events: readonly WorkflowEvent[]): DAGGraph
     order: [],
     lastNodeByPhase: new Map(),
     edges: [],
+    pendingEdges: [],
   };
   for (const event of events) applyEvent(state, event);
 

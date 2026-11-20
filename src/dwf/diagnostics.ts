@@ -20,6 +20,7 @@ export type FacadeSiteKind =
   | 'phase'
   | 'log'
   | 'report'
+  | 'plan'
   | 'artifact'
   | 'worldRead'
   | 'worldRun'

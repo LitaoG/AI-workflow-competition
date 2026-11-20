@@ -11,7 +11,12 @@
  */
 import ts from 'typescript';
 
-/** Facade identifiers a script must never shadow. */
+/** Facade identifiers a script must never shadow. NOTE: `plan` is deliberately
+ * absent (Issue #171) — "plan" is a workflow script's most natural local name (the
+ * e2e fixtures, hole-fill bodies and demo scripts all bind it), plan() carries no
+ * replay keying a shadow could desync, and call-site ambiguity is guarded by the
+ * type checker (a shadowed local that is not callable fails typechecking; a
+ * callably-shadowed plan() call resolves to the LOCAL at runtime, loudly). */
 export const FACADE_IDENTIFIERS = new Set(['agent', 'phase', 'log', 'report', 'args', 'budget', 'files', 'git', 'world', 'artifact', 'Node', 'Agent', 'sessions', 'fanout', 'swarm', 'run', 'workflow', 'channel', 'future', 'Channel', 'Future']);
 
 /**

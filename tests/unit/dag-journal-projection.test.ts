@@ -290,3 +290,117 @@ test('plan-first: a fresh run journals the plan skeleton and graph.html exists w
   const watched = fs.readFileSync(result.graphPath, 'utf-8');
   assert.ok(watched.includes('ask#4'), 'the rendered graph.html carries the pending plan node');
 });
+
+test('projection: dwf_plan_update grows the plan mid-run — boxes, lines, idempotence, dangling-edge skip (Issue #171)', () => {
+  const stream = [
+    ev('dwf_phase', { phase: 'Triage' }, '2026-11-01T10:00:00.000Z'),
+    ev('dwf_ask_start', { siteId: 'ask#2', actor: 'scout', prompt: 'triage' }, '2026-11-01T10:00:01.000Z'),
+    ev('dwf_ask_complete', { siteId: 'ask#2', actor: 'scout' }, '2026-11-01T10:00:02.000Z'),
+    // The script adjusts the plan mid-run: one node in a NEW phase column, one in the
+    // current (default) column, a genuine back edge, and junk edges that must not ghost.
+    ev('dwf_plan_update', {
+      siteId: 'plan#1',
+      nodes: [
+        { id: 'deep-dive', name: 'Deep-dive root cause', phase: 'Deep-dive' },
+        { id: 'follow-up', name: 'Follow-up' },
+      ],
+      edges: [
+        { from: 'follow-up', to: 'ask#2' },
+        { from: 'ask#2', to: 'deep-dive' },   // duplicates the creation-order chain edge
+        { from: 'deep-dive', to: 'follow-up' }, // duplicates the chain edge too
+        { from: 'deep-dive', to: 'future-ask' }, // dangling: endpoint never declared → skipped
+        { from: 'follow-up', to: 'follow-up' }, // self-loop → skipped
+        { from: 'follow-up', to: 'ask#2' }, // exact duplicate of the first → skipped
+      ],
+    }, '2026-11-01T10:00:03.000Z'),
+    ev('dwf_completed', { status: 'completed' }, '2026-11-01T10:00:04.000Z'),
+  ];
+  const graph = projectEventsToGraph(stream);
+
+  assert.deepEqual(graph.phases.map((p) => p.name), ['Triage', 'Deep-dive'], 'a new phase column is created on declaration');
+  const deep = graph.nodes.find((n) => n.id === 'deep-dive');
+  const follow = graph.nodes.find((n) => n.id === 'follow-up');
+  assert.ok(deep && follow, 'both declared boxes exist');
+  assert.equal(deep!.status, 'pending', 'declared plan nodes start pending — settle never flips pending');
+  assert.equal(deep!.phaseName, 'Deep-dive');
+  assert.equal(follow!.phaseName, 'Triage', 'default column is the fold’s current phase');
+  assert.ok(graph.edges.some((e) => e.fromNodeId === 'follow-up' && e.toNodeId === 'ask#2'), 'the declared back edge renders');
+  const dupCount = graph.edges.filter((e) => e.fromNodeId === 'ask#2' && e.toNodeId === 'deep-dive').length;
+  assert.equal(dupCount, 1, 'a declared edge duplicating the chain edge stays single');
+  assert.ok(!graph.edges.some((e) => e.toNodeId === 'future-ask' || e.fromNodeId === 'future-ask'), 'dangling endpoints never enter the fold');
+  assert.equal(graph.edges.filter((e) => e.fromNodeId === 'follow-up' && e.toNodeId === 'ask#2').length, 1, 'exact duplicate declarations are idempotent');
+
+  // An edge to a LATER real site renders once the node appears.
+  const later = projectEventsToGraph([
+    ...stream.slice(0, -1),
+    ev('dwf_ask_start', { siteId: 'future-ask', actor: 'scout', prompt: 'now exists' }, '2026-11-01T10:00:03.500Z'),
+    ev('dwf_completed', { status: 'completed' }, '2026-11-01T10:00:04.000Z'),
+  ]);
+  assert.ok(later.edges.some((e) => e.fromNodeId === 'deep-dive' && e.toNodeId === 'future-ask'), 'the declared edge renders once the endpoint exists');
+  assert.equal(later.nodes.find((n) => n.id === 'future-ask')!.status, 'completed', 'the real site still runs its own lifecycle');
+
+  // Prefix folds stay deep-equal to the one-shot fold.
+  const oneShot = projectEventsToGraph(stream);
+  let last = projectEventsToGraph(stream.slice(0, 2));
+  for (let end = 3; end <= stream.length; end += 1) last = projectEventsToGraph(stream.slice(0, end));
+  assert.deepEqual(last, oneShot);
+});
+
+const PLAN_UPDATE_SCRIPT = `
+phase("Inspect");
+const health = await agent("inspector").ask<Health>("inspect the service");
+// Mid-run plan adjustment: the script decides the follow-up structure at runtime.
+const focus = health.healthStatus.split(" ")[0] || "root-cause";
+plan({
+  nodes: [
+    { id: "deep-dive", name: "Deep-dive " + focus, phase: "Deep-dive" },
+    { id: "writeup", name: "Write the note" },
+  ],
+  edges: [
+    { from: "deep-dive", to: "writeup" },
+    { from: "writeup", to: "ask#2" },
+  ],
+});
+report({ health: health.healthStatus });
+return { healthStatus: health.healthStatus, focus };
+
+interface Health {
+  /** Deterministic mock health verdict. */
+  healthStatus: string;
+}
+`;
+
+test('plan-update: plan() mid-run journals the adjustment and graph.html grows boxes/lines (Issue #171)', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dwf-plan-update-'));
+  after(() => {
+    try {
+      fs.rmSync(dir, { recursive: true, force: true });
+    } catch {
+      /* the sandbox child may briefly hold the dir on Windows */
+    }
+  });
+  const scriptPath = path.join(dir, 'script.facade.ts');
+  fs.writeFileSync(scriptPath, PLAN_UPDATE_SCRIPT);
+
+  const result = await runFacadeScript({ scriptPath, cwd: dir });
+  assert.equal(result.status, 'completed', `run failed: ${result.error ?? JSON.stringify(result.diagnostics)}`);
+  const runDir = path.join(dir, '.workflow', 'runs', result.runId);
+  assert.ok(result.graphPath, 'the default-on watch view surfaces the graph path');
+
+  const events = await EventLogReader.readAll(path.join(runDir, 'events.jsonl'));
+  const updates = events.filter((e) => e.type === 'dwf_plan_update');
+  assert.equal(updates.length, 1, 'exactly one plan_update event per plan() call');
+  assert.ok(
+    events.findIndex((e) => e.type === 'dwf_plan_update') > events.findIndex((e) => e.type === 'dwf_ask_start'),
+    'the adjustment lands after the ask that informed it',
+  );
+
+  const graph = projectEventsToGraph(events);
+  const deep = graph.nodes.find((n) => n.id === 'deep-dive');
+  assert.ok(deep, 'the declared box exists in the graph');
+  assert.equal(deep!.status, 'pending', 'the declared box stays pending — nothing executed it');
+  assert.equal(deep!.phaseName, 'Deep-dive', 'the declared phase column was created');
+  assert.ok(graph.edges.some((e) => e.fromNodeId === 'writeup' && e.toNodeId === 'ask#2'), 'the declared line to the real site renders');
+  const watched = fs.readFileSync(result.graphPath!, 'utf-8');
+  assert.ok(watched.includes('deep-dive'), 'the rendered graph.html carries the declared box');
+});

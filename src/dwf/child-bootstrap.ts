@@ -108,7 +108,7 @@ export const BOOTSTRAP = `"use strict";
     // finally (await included) flips awaited. Settlement alone never does —
     // an ok frame arriving while nobody consumes the promise leaves the
     // descriptor unawaited, and the final audit fails the run.
-    var tracked = op !== 'enterPhase' && op !== 'log' && op !== 'report' && op !== 'declareArtifact';
+    var tracked = op !== 'enterPhase' && op !== 'log' && op !== 'report' && op !== 'plan' && op !== 'declareArtifact';
     var desc = tracked ? { siteId: siteId, op: op, awaited: false } : null;
     if (tracked) __trackedCalls.push(desc);
     var promise = new __AwaitTrackedPromise(function (resolve, reject) {
@@ -221,6 +221,11 @@ export const BOOTSTRAP = `"use strict";
     },
     report: function (siteId, item, artifactId) {
       return __call('report', siteId, [item, artifactId === undefined ? null : artifactId]);
+    },
+    // Issue #171: plan(update) — a declaration, not an effect; fire-and-forget like
+    // log/report. The engine validates the shape and journals dwf_plan_update.
+    plan: function (siteId, update) {
+      return __call('plan', siteId, [update]);
     },
     // Issue #38 D8-③ preset family: declaration, not effect — fire-and-forget;
     // the engine validates the id/spec and journals the declaration.
@@ -743,7 +748,7 @@ export const BOOTSTRAP = `"use strict";
   __deliver.getPending = function (all) {
     var list = [];
     __pending.forEach(function (val) {
-      if (!val.cancelled && (all || (val.op !== 'enterPhase' && val.op !== 'log' && val.op !== 'report' && val.op !== 'declareArtifact'))) {
+      if (!val.cancelled && (all || (val.op !== 'enterPhase' && val.op !== 'log' && val.op !== 'report' && val.op !== 'plan' && val.op !== 'declareArtifact'))) {
         list.push({ siteId: val.siteId, op: val.op });
       }
     });
