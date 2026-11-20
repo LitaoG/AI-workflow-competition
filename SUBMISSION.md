@@ -92,19 +92,19 @@ three-minute judge path) or from a release tarball: `npm install ./ai-workflow-<
 
 ### Reproducible quality-gate fingerprints
 
-All run 2026-11-19 on the v2.7.0 release tree (PR #139 head: main @ `01a6c57` + the release
-overlay — package.json/package-lock version fields, the CHANGELOG 2.7.0 fold, this re-pin, and
-the issue-#140 sqlite busy-retry fix), Windows, Node v26.13.0, from a **fresh build**
+All run 2026-11-20 on the v2.8.0 release tree (PR #160 head: main @ `80dbeaa` + the release
+overlay — package.json/package-lock version fields, the CHANGELOG 2.8.0 fold, this re-pin, and
+the R4 sharp-review fix series), Windows, Node v26.13.0, from a **fresh build**
 (fresh-build numbers are what a judge clone reproduces; full context in
 [README](README.md#reproducible-quality-gate-fingerprints)):
 
 ```text
-npm test                                            → 829 tests, 826 pass, 3 skipped, 0 fail
-npm run test:integration (serial)                   → 211 tests, 211 pass, 0 skipped, 0 fail
+npm test                                            → 841 tests, 838 pass, 3 skipped, 0 fail
+npm run test:integration (serial)                   → 215 tests, 215 pass, 0 skipped, 0 fail
 npm run test:pbt                                    →  18 tests,  18 pass, 0 fail
 node --experimental-strip-types tests/e2e/runner.ts → 118/118 passed
-npm run test:adversarial                            → 197 tests, 197 pass, 0 fail
-npm run test:governance                             →  42 tests,  42 pass, 0 fail
+npm run test:adversarial                            → 198 tests, 198 pass, 0 fail
+npm run test:governance                             →  43 tests,  43 pass, 0 fail
 bash scripts/demo.sh                                → exit 0, all nine acts OK
 ```
 
