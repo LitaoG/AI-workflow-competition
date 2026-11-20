@@ -67,7 +67,7 @@ my-agent-pipeline/
 
 | 分组 | 命令 | 用途 | 关键选项 |
 |------|------|------|---------|
-| **执行** | `run <file>` | 统一执行入口，自动识别 Facade 脚本与 Builder 定义 | `-m --mock`、`--set <k=v>`（可重复）、`--args-file <file>`、`-a --args <json>`、`--resume <runId>`、`--amend <runId>`、`--ui`、`--live <path>`、`--watch-graph`、`--cwd <path>`、`-c --max-concurrency <n>`、`--budget-total <n>`、`--run-timeout <ms>`、`--failover <ids>`、`-r --resume-from-failed <runId>`（Builder）、`--dry-run`、`-o --out <dir>`、`-l --lang en\|zh` |
+| **执行** | `run <file>` | 统一执行入口，自动识别 Facade 脚本与 Builder 定义 | `-m --mock`、`--set <k=v>`（可重复）、`--args-file <file>`、`-a --args <json>`、`--resume <runId>`、`--amend <runId>`、`--ui`、`--live <path>`、`--watch-graph`（默认开启，Issue #168）、`--no-watch-graph`、`--cwd <path>`、`-c --max-concurrency <n>`、`--budget-total <n>`、`--run-timeout <ms>`、`--failover <ids>`、`-r --resume-from-failed <runId>`（Builder）、`--dry-run`、`-o --out <dir>`、`-l --lang en\|zh` |
 | | `check <file>` | 编译检查 Facade 脚本，打印诊断、阶段图与站点表（不执行） | `-j --json` |
 | | `run-script <file>` | 以沙箱引擎执行 Facade 脚本（journal 重放） | `run` 全部 Facade 选项，另加 `--rerun <runId> --from <siteId>`、`--approve-cmd <name>`（可重复） |
 | | `demo` | 一键旗舰演示：离线 mock 运行 incident-triage facade、渲染 Studio 看板并打开浏览器 | `--lang en\|zh`、`--no-open`、`--open` |
@@ -171,7 +171,7 @@ node bin/workflow.js run-script workflow.ts --args '{"repo":"."}'
 | `--budget-total <n>` | 运行的输出 Token 预算（脚本内只读） |
 | `--approve-cmd <name>` | 为本次运行批准一条 `world.run` 命令（可重复；脚本自带清单不再自行授权） |
 | `--failover <ids>` | ask 失败时的换道 Provider 链（逗号分隔，如 `mock,gemini-cli`） |
-| `--live <path>` / `--watch-graph` / `--ui` | 运行中自刷新 HTML / 每事件重写 graph.html / 落定后启动 Studio 并开浏览器 |
+| `--live <path>` / `--watch-graph` / `--no-watch-graph` / `--ui` | 运行中自刷新 HTML / 每事件重写 run 目录 graph.html（**默认开启**：run 启动即写出全量 pending 计划骨架 `dwf_plan`，随执行实时点亮，冷回放与活跑字节一致，Issue #168）/ 显式关闭 watch 视图 / 落定后启动 Studio 并开浏览器 |
 | `--db <path>` | journal 数据库路径（默认 `.workflow/dwf.sqlite`） |
 
 ### 3.2 Facade 原语全景（`src/dwf/facade-dts.ts`）

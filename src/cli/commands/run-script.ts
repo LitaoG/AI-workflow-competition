@@ -34,8 +34,11 @@ export async function executeRunScript(
     /**
      * Rewrite `<runDir>/graph.html` after every emitted event by re-folding the
      * accumulated stream through the same pure journal projection the cold
-     * replay uses (GOAL.md 阶段 7.3). A failed write degrades to one warning
-     * and never fails the run (mirror semantics, see runner.ts).
+     * replay uses (GOAL.md 阶段 7.3). ON by default since Issue #168 — the
+     * graph opens as the full pending plan (dwf_plan skeleton) and lights up
+     * as the run goes; `--no-watch-graph` / explicit false disables it. A
+     * failed write degrades to one warning and never fails the run (mirror
+     * semantics, see runner.ts).
      */
     watchGraph?: boolean;
     /**

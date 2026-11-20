@@ -266,7 +266,7 @@
 - 原位置：私有仓 Issue #312、`tests/integration/dwf-live.test.ts` / `dwf-failover.test.ts`（rmTempDir helper）。
 
 #### P-TEST-9 测试/演示运行重写受跟踪文件——门禁链跑完工作区必脏
-- 复发性：G1 反复（churn 两连事故 494ab86 / 2efaa6a+74e13a0 同根因，Issue #60 收录配方；PR #61 合入后监督席证伪其归因，Issue #69② 按实证收窄）
+- 复发性：G1 反复（churn 两连事故 494ab86 / 2efaa6a+74e13a0 同根因，Issue #60 收录配方；PR #61 合入后监督席证伪其归因，Issue #69② 按实证收窄；**第 3 次（2026-11-21，Issue #168 实施期）：本轮测试改动尚未提交就执行第 7 级还原配方——`git restore tests/` 把未提交的 4 个测试文件改动一并还原丢失，被迫重做。执行顺序必须为「先提交全部改动，再跑还原配方」，否则还原会吞掉本轮未提交的测试产物**）
 - 代价：门禁链或演示跑完后 `git status --porcelain` 非空——`git add -A` 会把运行副产物混入提交；`pr_review_gate.mjs --check-clean` 洁净度门禁假红，阻塞收尾。
 - 根因（实证口径，2026-11-16 收窄）：① `tests/adversarial/fixtures/cli-stress/init-cli/*` 的**被跟踪模板**被对抗套件运行重写（PR #61 初版把 `artifacts/` 归因到 `tests/integration/demo-migration.test.ts` 系误报——该测试自述 mock 下从不写跟踪目录，`git grep -nE "artifacts/" -- tests/ scripts/` 仅注释命中，监督席逐行证伪）；② 手工演示链（`bash scripts/demo.sh` 等，不在门禁链内）重写 `artifacts/` 看板与 DAG 产物；③ 历史脏源 `tests/unit/cli.test.ts`（写 `tests/unit/fixtures/`）与 adversarial stress 临时目录已由 PR #55 根因修复（改写 `os.tmpdir()`）。
 - 正确做法：**门禁链跑完、提交与发起 PR 前，无条件执行还原配方**：`git restore tests/ artifacts/`，随后 `git status --porcelain` 核对为空；配方写入 `docs/WORKFLOW.md` §4 第 7 级与 AGENTS.md §四 第 7 步，**必须先于 `--check-clean`（第 8 级/第 8 步）执行——顺序倒置会使第 7 级必红、洁净门永远轮不到（Issue #69①）**。

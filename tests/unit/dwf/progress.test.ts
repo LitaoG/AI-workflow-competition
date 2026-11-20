@@ -36,6 +36,14 @@ test('gate / artifact / failure / human-in-the-loop lines are exact', () => {
   assert.equal(line('dwf_hole_open', { name: 'retry-budget' }), '[wf] HOLE ⌘ retry-budget');
 });
 
+test('the plan skeleton announces its shape up front (Issue #168)', () => {
+  assert.equal(
+    line('dwf_plan', { phases: ['inspect', 'verify'], sites: [{ siteId: 'ask#2' }, { siteId: 'ask#4' }] }),
+    '[wf] PLAN ◇ 2 sites · 2 phases (graph.html live)',
+  );
+  assert.equal(line('dwf_plan', {}), '[wf] PLAN ◇ 0 sites · 0 phases (graph.html live)');
+});
+
 test('terminal lines are stable and unknown events stay quiet', () => {
   assert.equal(line('dwf_completed', {}), '[wf] DONE ✔ run completed');
   assert.equal(line('dwf_failed', {}), '[wf] DONE ✖ run failed');

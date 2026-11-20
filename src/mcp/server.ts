@@ -404,6 +404,10 @@ export class BuiltinWorkflowMCPServer {
               value: result.value ?? null,
               error: result.error,
               stats: result.stats,
+              // Live plan/execution graph path (Issue #168): the watch view is
+              // on by default, so the host can point the user at the file that
+              // lights up while the run goes.
+              graphPath: result.graphPath,
               resumeHint:
                 result.status === 'completed'
                   ? `re-run with resumeRunId "${result.runId}" to replay completed nodes at zero provider calls`
@@ -462,6 +466,9 @@ export class BuiltinWorkflowMCPServer {
               amendedFrom: result.amendedFrom,
               parkedAt: result.parkedAt,
               stats: result.stats,
+              // Live plan/execution graph path (Issue #168) — same default-on
+              // watch view as the legacy face above.
+              graphPath: result.graphPath,
               sites,
               ...(sitesError !== undefined ? { sitesError } : {}),
               resumeHint:

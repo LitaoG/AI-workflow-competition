@@ -56,7 +56,8 @@ function registerFacadeRunOptions(cmd: Command): Command {
     .option('--budget-total <n>', 'Output-token budget for the run (read-only inside the script)')
     .option('--failover <ids>', 'Comma-separated failover provider ids for actor asks (e.g. mock,gemini-cli)')
     .option('--live <path>', 'Write a self-refreshing HTML execution view while the run goes')
-    .option('--watch-graph', 'Rewrite the run dir graph.html after every event (same journal projection as `workflow graph` cold replay)')
+    .option('--watch-graph', 'Rewrite the run dir graph.html after every event (same journal projection as `workflow graph` cold replay; ON by default — the graph opens as the full pending plan, Issue #168)')
+    .option('--no-watch-graph', 'Disable the live graph.html watch view for this run')
     .option('--ui', 'When the run settles, serve the AI-Workflow Studio (SSE + A2UI resume) and open the browser')
     .option('--run-timeout <ms>', 'Whole-run wall clock in ms (default 600000; env AI_WORKFLOW_RUN_TIMEOUT_MS)');
 }
@@ -182,7 +183,11 @@ Commands:
               ? opts.failover.split(',').map((x: string) => x.trim()).filter(Boolean)
               : undefined,
           live: opts.live,
-          watchGraph: opts.watchGraph || opts.watch,
+          // Issue #168: opts.watchGraph is three-state (undefined = default ON,
+          // false = --no-watch-graph, true = explicit) — `||` would collapse the
+          // explicit false back into the default. The --watch alias only ever
+          // turns the view ON.
+          watchGraph: opts.watch ? true : opts.watchGraph,
           progress: opts.progress,
           ui: opts.ui,
           runTimeoutMs: opts.runTimeout,

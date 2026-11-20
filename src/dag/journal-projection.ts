@@ -48,6 +48,7 @@
  *
  * | Event                                              | Effect                                                       |
  * | -------------------------------------------------- | ------------------------------------------------------------ |
+ * | `dwf_plan`                                         | plan skeleton (Issue #168): phase columns + pending site nodes in declaration order; runtime events later flip the SAME nodes |
  * | `dwf_phase`                                        | phase column, first-appearance order, deduped by name         |
  * | `dwf_ask_start`                                    | ask node (keyed by siteId) → running; prompt stored (redacted)|
  * | `dwf_ask_complete`                                 | ask node → completed; durationMs from the two timestamps      |
@@ -235,6 +236,41 @@ function applyEvent(state: ProjectionState, event: WorkflowEvent): void {
   const data = asRecord(event.data);
 
   switch (event.type) {
+    case 'dwf_plan': {
+      // The runner's opening plan event (Issue #168): the compile-time site
+      // table journalled at fresh-run start. Phase columns and PENDING site
+      // nodes are created up front in declaration order — the causal chain
+      // (createNode) is wired exactly like runtime creation, so a fold of any
+      // prefix shows the whole plan from its first render. Later runtime
+      // events flip the very same nodes: ensureSiteNode reuses by siteId, and
+      // a planned-but-never-executed node simply stays pending. Site-less
+      // runtime keys (`gate:<cmd>`, `artifact:<id>`) keep appearing
+      // dynamically — the plan never carries them.
+      for (const raw of Array.isArray(data.phases) ? data.phases : []) {
+        ensurePhase(state, String(raw));
+      }
+      for (const raw of Array.isArray(data.sites) ? data.sites : []) {
+        const rec = asRecord(raw);
+        const siteId = field(rec, 'siteId');
+        const kind = field(rec, 'kind');
+        if (!siteId || state.sites.has(siteId)) continue;
+        const shape = KIND_SHAPE[kind] ?? KIND_SHAPE['ask']!;
+        const phase = ensurePhase(state, field(rec, 'phase'));
+        const declared = state.currentPhase;
+        state.currentPhase = phase;
+        createNode(state, siteId, {
+          id: siteId,
+          name: field(rec, 'name') || siteId,
+          phaseId: phase.id,
+          phaseName: phase.name,
+          role: shape.role,
+          type: shape.type,
+          status: 'pending',
+        });
+        state.currentPhase = declared;
+      }
+      break;
+    }
     case 'dwf_phase': {
       state.currentPhase = ensurePhase(state, field(data, 'phase'));
       break;
@@ -243,6 +279,11 @@ function applyEvent(state: ProjectionState, event: WorkflowEvent): void {
       const siteId = field(data, 'siteId');
       if (!siteId) break;
       const entry = ensureSiteNode(state, siteId, 'ask', field(data, 'actor'));
+      // A plan-created node carries the bare siteId as its display name (the
+      // compile table knows no static actor name for asks) — adopt the actor
+      // the moment the run announces it, matching the no-plan naming.
+      const actor = field(data, 'actor');
+      if (actor && entry.node.name === siteId) entry.node.name = actor;
       entry.node.status = 'running';
       entry.startedAtMs = msOf(event.timestamp);
       const prompt = field(data, 'prompt');
@@ -347,6 +388,10 @@ function applyEvent(state: ProjectionState, event: WorkflowEvent): void {
       const siteId = field(data, 'siteId');
       if (!siteId) break;
       const entry = ensureSiteNode(state, siteId, 'escalation', field(data, 'questionId') || siteId);
+      // Same plan-name upgrade as dwf_ask_start: the plan only knows the bare
+      // escalate#N siteId — adopt the questionId when it arrives.
+      const questionId = field(data, 'questionId');
+      if (questionId && entry.node.name === siteId) entry.node.name = questionId;
       entry.node.status = 'running'; // parked, waiting for a human answer
       const question = field(data, 'question');
       if (question) entry.node.inputs = { question: cappedRedacted(question) };

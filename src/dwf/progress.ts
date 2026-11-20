@@ -9,6 +9,7 @@
  *
  * Output contract (grep-able, one line per event):
  *   [wf] PHASE 2 · Triage & Root Cause Analysis
+ *   [wf] PLAN ◇ 6 sites · 3 phases (graph.html live)
  *   [wf] AGENT + inspector
  *   [wf] ASK ▶ coordinator (ask#27)
  *   [wf] ASK ✓ ask#27
@@ -42,6 +43,13 @@ export function formatProgressEvent(e: ProgressEvent, counters: ProgressCounters
   const d = e.data || {};
   const str = (k: string): string => (d[k] === undefined || d[k] === null ? '' : String(d[k]));
   switch (e.type) {
+    case 'dwf_plan': {
+      // Issue #168: the opening plan skeleton — one line announcing the whole
+      // plan's shape so the mirroring agent can relay the live graph up front.
+      const sites = Array.isArray(d.sites) ? d.sites.length : 0;
+      const phases = Array.isArray(d.phases) ? d.phases.length : 0;
+      return `[wf] PLAN ◇ ${sites} sites · ${phases} phases (graph.html live)`;
+    }
     case 'dwf_phase':
       counters.phase += 1;
       return `[wf] PHASE ${counters.phase} · ${str('phase')}`;

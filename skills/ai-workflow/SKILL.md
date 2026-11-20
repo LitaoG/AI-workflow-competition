@@ -111,6 +111,7 @@ Run facade scripts with `--progress` and the run prints one grep-able
 
 ```bash
 workflow run examples/review.facade.ts --cwd <workspace> --progress
+# [wf] PLAN ◇ 6 sites · 2 phases (graph.html live)
 # [wf] PHASE 1 · Scan
 # [wf] AGENT + inspector
 # [wf] ASK ▶ coordinator (ask#27)
@@ -121,12 +122,16 @@ workflow run examples/review.facade.ts --cwd <workspace> --progress
 ```
 
 As the driving agent, mirror that stream into your own progress surface
-instead of making the user watch a dashboard: start with one todo item per
+instead of making the user watch a dashboard. The opening
+`[wf] PLAN ◇ N sites · M phases (graph.html live)` line announces the whole
+plan and where the live graph is: point the user at that `graph.html` path —
+it exists from the run's first moment as the full pending plan and lights up
+node by node as execution proceeds. Start with one todo item per
 `[wf] PHASE` line, tick items off as later phases appear, and paste
 `FAIL ✖` / `QUESTION ❓` / `HOLE ⌘` lines into the conversation the moment
 they print — those are the only three kinds that need a human decision.
-The HTML views (Studio / graph) remain the post-hoc deliverable; while the
-run is live, this channel is the workflow view.
+While the run is live, the graph.html watch view plus this channel ARE the
+workflow view; the Studio remains the post-run deep dive.
 
 ## When NOT to reach for this
 

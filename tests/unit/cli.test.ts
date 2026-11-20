@@ -72,6 +72,11 @@ test('CLI Run: --watch alias parses like --watch-graph (an unregistered option w
   assert.equal(exitCode, 2);
 });
 
+test('CLI Run: --no-watch-graph parses (Issue #168: explicit opt-out of the default-on watch view must be a registered option)', async () => {
+  const exitCode = await runCLI(['node', 'bin/workflow.js', 'run', './non-existent-file-404.ts', '--no-watch-graph']);
+  assert.equal(exitCode, 2);
+});
+
 test('CLI Graph: exports standalone HTML to specified path', async (t) => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-graph-'));
   t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));

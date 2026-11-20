@@ -376,6 +376,8 @@ facade 引擎的对应物是 journal 短路：身份 = `(runId, siteId, ordinal)
 
 `dag/journal-projection.ts` 是**唯一**的事件→图投影器：运行视图、冷重放、Studio 时间旅行共用同一状态机，任何第二实现都无从漂移。
 
+**计划先行骨架（Issue #168）**：facade run 的 fresh stream 启动时，runner 把编译期 site table 作为 `dwf_plan` 事件写入 journal（只携带运行时事件会真正翻转的 ask / hole / escalation 三类站点；worldRead 活跑零事件、worldRun/artifact 按 site-less key `gate:<cmd>`/`artifact:<id>` 动态入图，均不入计划）。投影器把计划折叠为全量 pending 节点，后续运行事件按 siteId 原地翻状态——计划中从未执行的分支节点保持 pending 可见。watch 视图（每事件重写 run 目录 `graph.html`）自此**默认开启**（`--no-watch-graph` 显式关闭），活跑与冷回放的"同一投影、字节一致"不变式由 dwf_plan 作为普通 journal 事件参与折叠而自动保持。
+
 依赖步骤间的连接线以 SVG 三次贝塞尔曲线（cubic Bézier）平滑绘制（`html-renderer.ts`、`visualizer/svg-canvas.ts`）：
 
 $$C(t) = (1-t)^3 P_0 + 3(1-t)^2 t P_1 + 3(1-t) t^2 P_2 + t^3 P_3, \quad t \in [0, 1]$$
