@@ -23,6 +23,7 @@ export type HostOp =
   | 'enterPhase'
   | 'log'
   | 'report'
+  | 'plan'
   | 'artifact'
   | 'declareArtifact'
   | 'worldRead'

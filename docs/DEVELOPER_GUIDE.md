@@ -184,6 +184,7 @@ node bin/workflow.js run-script workflow.ts --args '{"repo":"."}'
 | `p.ask<T>(instructions)` | `Node<T>` | 带类型参数时按编译期合成的 JSON Schema 校验答案；无类型参数时返回最终回复文本 |
 | `phase(name)` | 字面量必填 | 标记阶段起点（展示标记；无依赖语义） |
 | `log(message)` / `report(item)` / `report(item, presetId)` | | 进度消息 / 发布中间结果 / 带标签的中间结果（喂给已声明的 preset；标签必须指向已声明的 chart/table/metrics/board id） |
+| `plan(update)` | `update?: { nodes?: [{ id; name?; phase? }]; edges?: [{ from; to }] }` | **mid-run 计划图演进（Issue #171）**：实时给 graph.html 加框（pending 计划节点，id 为脚本自选运行时值）加线（任意依赖边，可连真实 siteId——端点未出现时先缓冲、出现即显形）；重复 id 幂等；从不执行的节点保持 pending，与启动骨架同语义 |
 | `args` | `Record<string, unknown>` | 运行输入（来自 `--args`），编译期未知，使用前先收窄 |
 | `run` | `{ id; resumedFrom? }` | 运行身份（落款产物与账目；`resumedFrom` 指向 amend 的父运行） |
 | `budget` | `{ total; spent(); remaining() }` | 输出 Token 预算，**只读**（运行配置注入，脚本不能自抬上限） |

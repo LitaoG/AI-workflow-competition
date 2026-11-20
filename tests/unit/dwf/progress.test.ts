@@ -44,6 +44,14 @@ test('the plan skeleton announces its shape up front (Issue #168)', () => {
   assert.equal(line('dwf_plan', {}), '[wf] PLAN ◇ 0 sites · 0 phases (graph.html live)');
 });
 
+test('plan updates announce the graph growth (Issue #171)', () => {
+  assert.equal(
+    line('dwf_plan_update', { nodes: [{ id: 'a' }, { id: 'b' }], edges: [{ from: 'a', to: 'b' }] }),
+    '[wf] PLAN+ ◇ +2 nodes · +1 edges (graph.html live)',
+  );
+  assert.equal(line('dwf_plan_update', {}), '[wf] PLAN+ ◇ +0 nodes · +0 edges (graph.html live)');
+});
+
 test('terminal lines are stable and unknown events stay quiet', () => {
   assert.equal(line('dwf_completed', {}), '[wf] DONE ✔ run completed');
   assert.equal(line('dwf_failed', {}), '[wf] DONE ✖ run failed');

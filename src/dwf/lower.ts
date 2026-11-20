@@ -173,8 +173,9 @@ function rewriteCall(node: ts.CallExpression, ctx: ts.TransformationContext, vis
     return host('hole', f.createStringLiteral(site.siteId), args[0] ?? f.createStringLiteral(''), args[1] ?? f.createStringLiteral(''));
   }
 
-  // log(...) / report(...) — report carries its siteId for per-item journaling
-  if (ts.isIdentifier(expr) && (expr.text === 'log' || expr.text === 'report')) {
+  // log(...) / report(...) / plan(...) — report carries its siteId for per-item journaling;
+  // plan carries its siteId for observability (the adjustment itself rides the update payload)
+  if (ts.isIdentifier(expr) && (expr.text === 'log' || expr.text === 'report' || expr.text === 'plan')) {
     const site = nextSite(expr.text);
     return host(expr.text, f.createStringLiteral(site.siteId), ...visitArgs());
   }

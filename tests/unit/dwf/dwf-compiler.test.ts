@@ -65,6 +65,33 @@ test('imports are banned (closed world)', () => {
   assert.ok(r.diagnostics.some((d) => d.code === 9006));
 });
 
+test('plan(update) is an accepted primitive: sited, runtime values legal, no literal rule (Issue #171)', () => {
+  // The whole point of plan() is the RUNTIME decision — computed node ids/edges
+  // must compile exactly like literal ones (unlike phase(), which is literal-only).
+  const src = `
+phase("Gather");
+const shape = { nextId: "deep-dive", label: "root cause" };
+plan({
+  nodes: [{ id: shape.nextId, name: "Deep-dive " + shape.label, phase: "Deep-dive" }],
+  edges: [{ from: "ask#2", to: shape.nextId }],
+});
+return null;
+`;
+  const r = analyzeFacadeScript(src);
+  assert.equal(r.ok, true, JSON.stringify(r.diagnostics));
+  const planSite = r.sites.find((s) => s.kind === 'plan');
+  assert.ok(planSite, 'the plan() call is sited for observability');
+  assert.ok(planSite!.siteId.startsWith('plan#'), planSite!.siteId);
+});
+
+test('plan() is deliberately shadowable — workflow scripts commonly bind "plan" (Issue #171)', () => {
+  // No 9004 shadow ban and no 9001 siting ban for plan: the e2e fixtures, hole-fill
+  // bodies and demo scripts all declare `const plan = ...`; plan() carries no replay
+  // keying a shadow could desync, and call-site ambiguity is TS-guarded instead.
+  const r = analyzeFacadeScript('const plan = 3;\nreturn plan;');
+  assert.equal(r.ok, true, JSON.stringify(r.diagnostics));
+});
+
 test('ask<T> synthesizes a JSON schema with JSDoc descriptions', () => {
   const r = analyzeFacadeScript(CLEAN);
   assert.equal(r.ok, true);

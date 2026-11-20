@@ -47,6 +47,8 @@ export const WORKFLOW_EVENT = {
   // —— facade-script (dwf) engine events ——
   /** The runner journalled the compile-time site table as the stream's plan skeleton (Issue #168). */
   DWF_PLAN: 'dwf_plan',
+  /** A facade plan(update) adjusted the live plan graph mid-run (Issue #171). */
+  DWF_PLAN_UPDATE: 'dwf_plan_update',
   /** Facade script entered a named phase. */
   DWF_PHASE: 'dwf_phase',
   /** Facade script emitted a log line. */

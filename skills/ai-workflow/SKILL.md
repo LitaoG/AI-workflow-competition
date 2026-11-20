@@ -71,6 +71,13 @@ if (gate.exitCode !== 0) throw new Error(`gate failed: ${gate.stderr}`);
 await artifact.markdown('report', '# Findings\n...', { title: 'Review report' });
 await artifact.file('profile', 'out/profile.html', { title: 'Profile' });
 
+// adjust the live plan graph mid-run (Issue #171): new pending boxes + edges render
+// immediately in graph.html; ids are runtime values, edges may point at real site ids
+plan({
+  nodes: [{ id: 'deep-dive', name: 'Deep-dive root cause', phase: 'Deep-dive' }],
+  edges: [{ from: 'ask#3', to: 'deep-dive' }],
+});
+
 // input, passed via --set key=value | --args-file <file.json> | --args '<json>'
 const question = (args.question as string | undefined) ?? 'default';
 

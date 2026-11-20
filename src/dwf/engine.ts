@@ -326,6 +326,10 @@ export class FacadeEngine {
         return this.log(p[0]);
       case 'report':
         return this.report(String(frame.siteId), p[0], p[1] === null || p[1] === undefined ? undefined : String(p[1]));
+      case 'plan':
+        // Issue #171: a declaration, not an effect — validate the shape, journal
+        // dwf_plan_update, answer immediately (the script never awaits a value).
+        return this.plan(String(frame.siteId), p[0]);
       case 'declareArtifact':
         // Issue #38 D8-③ preset family: a declaration, not an effect — validate,
         // journal once, and answer immediately (the script never awaits a value).
@@ -562,6 +566,75 @@ export class FacadeEngine {
       });
     }
     this.emit('dwf_log', { message: text });
+    return null;
+  }
+
+  /** Per-call caps for plan(update) declarations — same named-failure philosophy as report(). */
+  static readonly PLAN_NODE_CAP = 1_000;
+  static readonly PLAN_EDGE_CAP = 2_000;
+
+  /**
+   * plan(update) — mid-run plan-graph adjustment (Issue #171). A DECLARATION, not
+   * an effect: the shape is validated here with named failures, then journalled as
+   * dwf_plan_update so every fold (live watch, cold replay, Studio) grows the plan
+   * in place — new pending nodes ("boxes") and dependency edges ("lines") render
+   * immediately; node ids are script-chosen runtime values and re-declaring an id
+   * is a projection-level no-op. Edge endpoints may reference real site ids (the
+   * compile-time site table `workflow check` prints), so a declared edge to a
+   * future ask renders once that node exists. Cycles are NOT rejected here: the
+   * HTML renderer has a back-edge branch, and a declared cycle is an author error
+   * visible in the graph itself.
+   */
+  private plan(siteId: string, update: unknown): null {
+    // A function DECLARATION (not a const arrow) — TS narrows control flow after a
+    // call only to functions declared with an explicit never return type.
+    function fail(message: string): never {
+      throw domainError('AgentError', `plan() ${message}`, {
+        details: { siteId, errorName: 'PlanUpdateMalformed' },
+      });
+    }
+    if (update === null || typeof update !== 'object' || Array.isArray(update)) {
+      fail('requires a single object argument: { nodes?: [{ id, name?, phase? }], edges?: [{ from, to }] }');
+    }
+    const rec = update as Record<string, unknown>;
+    const rawNodes = rec.nodes === undefined ? [] : rec.nodes;
+    const rawEdges = rec.edges === undefined ? [] : rec.edges;
+    if (!Array.isArray(rawNodes)) fail('nodes must be an array of { id, name?, phase? }');
+    if (!Array.isArray(rawEdges)) fail('edges must be an array of { from, to }');
+    if (rawNodes.length > FacadeEngine.PLAN_NODE_CAP) {
+      throw domainError('AgentError', `plan() declares ${rawNodes.length} nodes, over the ${FacadeEngine.PLAN_NODE_CAP}-node per-call cap`, {
+        details: { siteId, errorName: 'PlanCapExceeded' },
+      });
+    }
+    if (rawEdges.length > FacadeEngine.PLAN_EDGE_CAP) {
+      throw domainError('AgentError', `plan() declares ${rawEdges.length} edges, over the ${FacadeEngine.PLAN_EDGE_CAP}-edge per-call cap`, {
+        details: { siteId, errorName: 'PlanCapExceeded' },
+      });
+    }
+    const nodes: Array<{ id: string; name?: string; phase?: string }> = [];
+    for (const raw of rawNodes) {
+      if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) fail('every node must be an object { id, name?, phase? }');
+      const node = raw as Record<string, unknown>;
+      if (typeof node.id !== 'string' || node.id.length === 0) fail('every node needs a non-empty string id');
+      if (node.name !== undefined && (typeof node.name !== 'string' || node.name.length === 0)) fail(`node "${node.id}" name must be a non-empty string when present`);
+      if (node.phase !== undefined && (typeof node.phase !== 'string' || node.phase.length === 0)) fail(`node "${node.id}" phase must be a non-empty string when present`);
+      nodes.push({
+        id: node.id,
+        ...(node.name !== undefined ? { name: node.name } : {}),
+        ...(node.phase !== undefined ? { phase: node.phase } : {}),
+      });
+    }
+    const edges: Array<{ from: string; to: string }> = [];
+    for (const raw of rawEdges) {
+      if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) fail('every edge must be an object { from, to }');
+      const edge = raw as Record<string, unknown>;
+      if (typeof edge.from !== 'string' || edge.from.length === 0 || typeof edge.to !== 'string' || edge.to.length === 0) {
+        fail('every edge needs non-empty string from and to endpoints');
+      }
+      if (edge.from === edge.to) fail(`self-loop edge "${edge.from}" → "${edge.to}" is not a dependency`);
+      edges.push({ from: edge.from, to: edge.to });
+    }
+    this.emit('dwf_plan_update', { siteId, nodes, edges });
     return null;
   }
 
