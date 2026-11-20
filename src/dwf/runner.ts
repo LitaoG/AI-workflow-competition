@@ -180,6 +180,11 @@ export interface RunFacadeResult {
   diagnostics?: Array<{ line: number; column: number; code: number; category: string; message: string; hint?: string }>;
   /** When this run amended a prior run: the parent run id (lineage). */
   amendedFrom?: string;
+  /** Path of the run dir's live plan/execution graph (graph.html) when the
+   * watch view is enabled — the default since Issue #168: the file exists from
+   * the run's first event (the plan skeleton) and is rewritten after every
+   * emit. Undefined when the caller explicitly disabled the watch view. */
+  graphPath?: string;
   /** When status === 'parked': the hole or escalation the run is waiting on. */
   parkedAt?: { siteId: string; name: string; prompt: string; kind: 'hole' | 'escalation' };
   /** Terminal snapshot: the last 256 report() items (deduplicated). */
@@ -353,8 +358,14 @@ async function runInner(
   });
 
   // ---- Dual persistence + watch-graph view (run-events.ts) ----
+  // Plan-first live graph (Issue #168): the watch view is the DEFAULT — the
+  // run dir's graph.html exists from the stream's first event (the plan
+  // skeleton) and is rewritten after every emit, so the user watches the plan
+  // light up instead of waiting for a post-hoc render. Callers opt OUT
+  // explicitly (--no-watch-graph / watchGraph: false).
+  const watchGraph = options.watchGraph ?? true;
   let settled = false;
-  const stream = new RunEventStream(store, runId, runDir, options.onEvent, options.watchGraph, () => settled);
+  const stream = new RunEventStream(store, runId, runDir, options.onEvent, watchGraph, () => settled);
   await stream.seedSequence(options.resumeRunId);
   const emit = (type: WorkflowEventType, data: Record<string, unknown>): void => stream.emit(type, data);
 
@@ -378,6 +389,43 @@ async function runInner(
   if (process.platform === 'win32') {
     const guard = queryJobGuardStatus();
     emit('dwf_job_guard', { mode: guard.mode, ...(guard.reason !== undefined ? { reason: guard.reason } : {}) });
+  }
+
+  // ---- Plan skeleton (Issue #168): journal the compile-time site table ----
+  // The compile-time site table IS the plan, and its siteIds are exactly what
+  // the journal keys nodes on — so a fresh stream opens by journalling it as
+  // dwf_plan. Only the kinds a runtime event actually flips are carried
+  // (ask / hole / escalation): actor declarations and phases are not steps,
+  // log/report are telemetry, worldReads emit no live event, and
+  // world.run/artifact land as their SITE-LESS runtime keys (`gate:<cmd>` /
+  // `artifact:<id>`) — planning those would grow never-settling pending nodes.
+  // Resumed runs skip this: their journal prefix already holds the plan
+  // (amend/rerun fork a NEW runId, so they are fresh streams and re-plan). The
+  // projection folds plan nodes as pending — a planned-but-never-executed node
+  // stays visible, and executed ones flip in place.
+  if (options.resumeRunId === undefined) {
+    const PLAN_NODE_KINDS: Partial<Record<string, string>> = {
+      ask: 'ask',
+      hole: 'hole',
+      escalate: 'escalation',
+    };
+    const planSites: Array<{ siteId: string; kind: string; name: string; phase: string }> = [];
+    let currentPhase = '';
+    for (const site of analysis.sites) {
+      if (site.kind === 'phase') {
+        currentPhase = site.phaseName ?? '';
+        continue;
+      }
+      const kind = PLAN_NODE_KINDS[site.kind];
+      if (kind === undefined) continue;
+      planSites.push({
+        siteId: site.siteId,
+        kind,
+        name: site.holeName ?? site.siteId,
+        phase: currentPhase,
+      });
+    }
+    emit('dwf_plan', { phases: analysis.phases, sites: planSites });
   }
 
   const live = options.liveHtmlPath ? new LiveGraph(options.liveHtmlPath, runId) : undefined;
@@ -831,6 +879,7 @@ async function runInner(
     value: result.value,
     error: safeError,
     amendedFrom,
+    graphPath: watchGraph ? path.join(runDir, 'graph.html') : undefined,
     parkedAt: result.status === 'parked' ? parkedAt : undefined,
     stats: { asks, replayHits, amendHits, diverged, phases: analysis.phases },
     // The documented terminal snapshot of report() items (interface contract

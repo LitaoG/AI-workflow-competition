@@ -192,3 +192,101 @@ test('watch-graph: a live run rewrites runs/<runId>/graph.html byte-identically 
   );
   assert.equal(watched, cold);
 });
+
+test('projection: dwf_plan seeds the full pending skeleton; runtime events flip the same nodes in place (Issue #168)', () => {
+  const plan = ev('dwf_plan', {
+    phases: ['inspect', 'verify'],
+    sites: [
+      { siteId: 'ask#1', kind: 'ask', name: 'inspector', phase: 'inspect' },
+      { siteId: 'hole#1', kind: 'hole', name: 'retry-budget', phase: 'inspect' },
+      { siteId: 'ask#2', kind: 'ask', name: 'ask#2', phase: 'verify' },
+    ],
+  }, '2026-11-01T10:00:00.000Z');
+
+  const graph = projectEventsToGraph([plan]);
+  assert.deepEqual(graph.phases.map((p) => p.name), ['inspect', 'verify'], 'plan phase columns land in declaration order');
+  assert.deepEqual(
+    graph.nodes.map((n) => `${n.id}:${n.status}`),
+    ['ask#1:pending', 'hole#1:pending', 'ask#2:pending'],
+    'every planned site starts pending',
+  );
+  assert.deepEqual(graph.nodes[2].dependsOn, ['hole#1'], 'declaration order is the causal chain, across phases too');
+
+  // Runtime events flip the SAME nodes — the plan is a skeleton, not a
+  // parallel state machine: no duplicates, no dead second copy.
+  const live = projectEventsToGraph([
+    plan,
+    ev('dwf_ask_start', { siteId: 'ask#1', actor: 'inspector', prompt: 'go' }, '2026-11-01T10:00:01.000Z'),
+    ev('dwf_ask_complete', { siteId: 'ask#1', actor: 'inspector' }, '2026-11-01T10:00:02.000Z'),
+  ]);
+  assert.equal(live.nodes.length, 3, 'the fold reuses plan nodes — no duplicates');
+  assert.equal(live.nodes.find((n) => n.id === 'ask#1')!.status, 'completed', 'the executed plan node flips in place');
+  assert.equal(live.nodes.find((n) => n.id === 'ask#2')!.status, 'pending', 'a planned-but-never-executed node stays pending');
+
+  // Prefix folds stay deep-equal to the one-shot fold (the byte-identity
+  // contract of the live watch vs the cold replay holds with plans in stream).
+  const stream = [plan, ...sampleStream()];
+  const oneShot = projectEventsToGraph(stream);
+  let last = projectEventsToGraph(stream.slice(0, 2));
+  for (let end = 3; end <= stream.length; end += 1) {
+    last = projectEventsToGraph(stream.slice(0, end));
+  }
+  assert.deepEqual(last, oneShot);
+});
+
+const PLAN_BRANCH_SCRIPT = `
+phase("Inspect");
+const health = await agent("inspector").ask<Health>("inspect the service");
+if (health.healthStatus === "impossible-verdict") {
+  const extra = await agent("inspector").ask<Health>("extra probe");
+}
+report({ health: health.healthStatus });
+return { healthStatus: health.healthStatus };
+
+interface Health {
+  /** Deterministic mock health verdict. */
+  healthStatus: string;
+}
+`;
+
+test('plan-first: a fresh run journals the plan skeleton and graph.html exists with never-executed branches pending (Issue #168)', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dwf-plan-'));
+  after(() => {
+    try {
+      fs.rmSync(dir, { recursive: true, force: true });
+    } catch {
+      /* the sandbox child may briefly hold the dir on Windows */
+    }
+  });
+  const scriptPath = path.join(dir, 'script.facade.ts');
+  fs.writeFileSync(scriptPath, PLAN_BRANCH_SCRIPT);
+
+  // No watchGraph option — the watch view is the DEFAULT now; the result
+  // surfaces the live graph path so hosts can point the user at it.
+  const result = await runFacadeScript({ scriptPath, cwd: dir });
+  assert.equal(result.status, 'completed', `run failed: ${result.error ?? JSON.stringify(result.diagnostics)}`);
+  const runDir = path.join(dir, '.workflow', 'runs', result.runId);
+  assert.ok(result.graphPath, 'the result carries the live graph path by default');
+  assert.equal(result.graphPath, path.join(runDir, 'graph.html'));
+
+  const events = await EventLogReader.readAll(path.join(runDir, 'events.jsonl'));
+  const plans = events.filter((e) => e.type === 'dwf_plan');
+  assert.equal(plans.length, 1, 'exactly one plan event per fresh run');
+  const firstAskIndex = events.findIndex((e) => e.type === 'dwf_ask_start');
+  assert.ok(firstAskIndex > events.findIndex((e) => e.type === 'dwf_plan'), 'the plan precedes every runtime node event');
+  const planData = plans[0]!.data as { phases: string[]; sites: Array<{ siteId: string; kind: string; name: string; phase: string }> };
+  assert.deepEqual(planData.phases, ['Inspect']);
+  // Site ids share one compile counter, and the .ask() call is visited before
+  // its receiver agent() declaration: phase#1, ask#2, actor#3, ask#4, actor#5…
+  assert.ok(planData.sites.some((s) => s.siteId === 'ask#2'), 'the executed ask is planned');
+  const branchAsk = planData.sites.find((s) => s.siteId === 'ask#4');
+  assert.ok(branchAsk, 'the conditional-branch ask is planned even though it never runs');
+
+  // The live graph shows the whole plan: the branch body stays pending.
+  const graph = projectEventsToGraph(events);
+  const pendingBranch = graph.nodes.find((n) => n.id === 'ask#4');
+  assert.ok(pendingBranch, 'the never-executed plan node exists in the graph');
+  assert.equal(pendingBranch!.status, 'pending');
+  const watched = fs.readFileSync(result.graphPath, 'utf-8');
+  assert.ok(watched.includes('ask#4'), 'the rendered graph.html carries the pending plan node');
+});

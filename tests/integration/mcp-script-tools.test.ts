@@ -125,6 +125,10 @@ test('MCP: workflow_script_run executes and resumes at zero asks', async () => {
     assert.equal((firstText.value as { healthStatus: string }).healthStatus, 'HEALTHY');
     assert.equal(firstText.stats.asks, 1);
     assert.ok(firstText.resumeHint.includes(firstText.runId));
+    // Issue #168: the watch view is on by default — the result surfaces the
+    // live plan/execution graph and the file exists on disk.
+    assert.ok(firstText.graphPath, 'workflow_script_run surfaces graphPath');
+    assert.ok(fs.existsSync(firstText.graphPath as string), 'the live graph.html exists after the run');
 
     const second = await client.callTool({
       name: 'workflow_script_run',
@@ -162,6 +166,7 @@ test('MCP: workflow_run_script executes and resumes at zero asks (Issue #142)', 
     assert.equal((firstText.value as { healthStatus: string }).healthStatus, 'HEALTHY');
     assert.equal(firstText.stats.asks, 1);
     assert.ok(firstText.resumeHint.includes(firstText.runId));
+    assert.ok(firstText.graphPath, 'workflow_run_script surfaces graphPath too (Issue #168)');
 
     // Issue #142: following the resumeHint on this very face must reuse the
     // runId — zod used to strip resumeRunId, so the hinted call silently minted

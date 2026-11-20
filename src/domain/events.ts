@@ -45,6 +45,8 @@ export const WORKFLOW_EVENT = {
   /** An artifact was recorded for a run. */
   ARTIFACT_EMITTED: 'artifact_emitted',
   // —— facade-script (dwf) engine events ——
+  /** The runner journalled the compile-time site table as the stream's plan skeleton (Issue #168). */
+  DWF_PLAN: 'dwf_plan',
   /** Facade script entered a named phase. */
   DWF_PHASE: 'dwf_phase',
   /** Facade script emitted a log line. */
