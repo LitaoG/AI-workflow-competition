@@ -1,5 +1,53 @@
 # Changelog
 
+## 2.8.0 (2026-11-20) — R4 sharp-review series: security hardening, journal convergence, real Kiro wiring, self-verifying fingerprints
+
+- **mcp (resume hint honesty, Issue #142)**: `workflow_run_script` now accepts `resumeRunId` —
+  zod used to strip the field while the tool's own resumeHint routed callers into a full-price
+  fresh run at "zero cost" (end-to-end A/B verified); the hand-written `workflow_script_run`
+  catalog schema documents `approvedCommands` (the executor reads it) and stops drifting from
+  the zod-derived twin, locked by field-level catalog consistency tests.
+- **studio (loopback guard, Issue #143)**: the live server refused nothing — any web page the
+  operator visited could fire no-cors cross-origin POSTs at a parked run (`/api/fill` body =
+  arbitrary compilable TS that a forked amend executes) and read raw journal broadcasts.
+  Now: a non-loopback Host header → 403 (DNS-rebinding shield); POST `/api/fill`|`/api/answer`
+  and `/ws` upgrades validate Origin (same-origin page or origin-less tooling only).
+- **dwf (journal convergence, Issue #144)**: the resume ordinal collision guard ran for asks
+  only — a non-ask row lost to a `saveDwfNode` write failure re-allocated the missing ordinal
+  on the next resume and upsert-overwrote the surviving row, oscillating the journal forever
+  (world nodes even re-executed, repeating side effects). The guard now covers all four node
+  kinds; deterministic busy-retry regressions lock the #140 branches (converge / non-BUSY
+  rethrow / bounded exhaustion).
+- **kiro (real wiring, Issue #145)**: `pre-step-gate` read only argv/env — under the real
+  PreToolUse protocol (stdin JSON) the deny branch never fired (`rm -rf /` on stdin printed
+  GATE ALLOWED). It reads `tool_input.command` now (bounded wait, silent pipes cannot hang
+  it); `lifecycle.json` rewritten to the Kiro-native schema (trigger + action.command,
+  AgentSpawn→SessionStart); `post-step-audit` stopped printing fabricated "monotonic sequence
+  verified" claims; en/zh docs synced (including the stale pre-commit ghost).
+- **review batch (Issue #146)**: `probeGit` masks credentials in the origin remote URL (CI
+  token URLs no longer reach the CLI probe output); mermaid labels/ids are escaped (a hostile
+  node name can no longer inject mermaid statements — the HTML renderer already escaped);
+  `run --ui` serves from the run's own journal (`--cwd` + `--ui` used to 404 on its own
+  runId); `AI_WORKFLOW_NO_OPEN` test affordance for automated `--ui` harnesses.
+- **docs (truth sync, Issue #147)**: the `tests/pbt/` → `.kiro/pbt/` drift fixed across four
+  docs; the 600s post-merge audit claim marked as documented-but-unimplemented (only the 900s
+  pre-merge gate is real); npm install reality documented — the registry `ai-workflow` name is
+  an unrelated 2021 placeholder, tarball installs need the `./` prefix.
+- **tests (truth, Issue #148)**: cross-engine `journalEventSequence` was vacuously empty (a
+  `limit: "all"` sentinel sliced the real sequence away on read); the official benchmark now
+  records 70 real events per run with identical sequences; the e2e mock fallback is loud
+  (console warning + `usedMock` on the result) instead of silently grading 121 cases against
+  the reference mock engine.
+- **demo (artifact buckets, Issue #149)**: the two Builder demos wrote the same `kanban.json`
+  into one cwd artifacts dir — running both README commands overwrote the first demo's board;
+  bucketed per app (`artifacts/incident-triage/`, `artifacts/repo-migration/`), root showcase
+  regenerated.
+- **governance (self-verifying fingerprints, Issue #158)**: the merge gate accepted a
+  hand-typed `Ran 500 tests` while an honest failing summary was blocked — the fail-blind
+  shape is gone and fingerprint numbers are cross-bound to the real npm-test TAP summary in
+  `.gate/tap.log` (`AI_WORKFLOW_TAP_LOG` for worktree merges); the gate caught its own
+  author's inconsistent PR body on its first merge attempt.
+
 ## 2.7.0 (2026-11-18) — compliance scrub, R2 closeout, sharp-review series, mechanical red-gates
 
 - **compliance (private-path scrub, Issue #48)**: 15 tracked files carried machine-local
