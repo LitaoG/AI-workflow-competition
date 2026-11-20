@@ -88,10 +88,10 @@
   |  TOP BAR: DEMO 1 — AUTONOMOUS DEVOPS INCIDENT TRIAGE & REMEDIATION     |
   +------------------------------------+------------------------------------+
   | LEFT HALF: TERMINAL STREAM (50%)   | RIGHT HALF: LIVE TIMELINE DAG (50%)|
-  | $ /workflow incident-triage        | Phase 1: Detection [Probe]         |
-  | [00:00.2] Telemetry: 5xx spike 42% | Phase 2: Triage [Inspector]        |
+  | $ bash scripts/demo.sh (Act 2)     | Phase 1: Detection [Probe]         |
+  | [00:00.2] Telemetry: 500 spike 38.5% | Phase 2: Triage [Inspector]      |
   | [00:01.1] Root Cause: DB pool leak | Phase 3: Plan [Fixer + Reviewer]   |
-  | [00:02.8] Gate: curl /healthz 200  | Phase 4: Gate [Shell Check] ⚡     |
+  | [00:02.8] Gate: deterministic check exit 0 | Phase 4: Gate [Shell Check] ⚡ |
   | [00:03.6] Post-Mortem synthesized  | Phase 5: Synthesis [Coordinator]   |
   +------------------------------------+------------------------------------+
   | BOTTOM: LIVE KANBAN DASHBOARD (Probe Context | Patches | Gates | Report)|
@@ -100,7 +100,7 @@
 - **Camera Focus & Motion**:
   - `0:55 - 1:10`: Split view tracking terminal execution and Phase 1-2 node activations.
   - `1:10 - 1:22`: Zoom in on Phase 3: Paired Agents. Fixer card outputs proposed pool scaling; Reviewer card attaches safety signature.
-  - `1:22 - 1:30`: Tight focus on Phase 4: Deterministic Shell Gate. Diamond node pulses purple, executes `curl -sSf http://localhost:8080/healthz`, and turns glowing emerald green on `exit 0`.
+  - `1:22 - 1:30`: Tight focus on Phase 4: Deterministic Shell Gate. Diamond node pulses purple, executes its offline mock healthcheck, and turns glowing emerald green on `exit 0`.
   - `1:30 - 1:35`: Camera tilts down to reveal the live Kanban board populating `PostMortem.md` and metrics.
 - **Visual Elements**:
   - Node status badges: `pending` (⏳), `running` (amber pulsing ring), `completed` (green ✔ with duration e.g. `412ms`).
@@ -151,10 +151,10 @@
   +-------------------------------------------------------------------------+
   |  ROOT /.kiro/ (100% GIT TRACKED — NOT IN .gitignore)                    |
   |  ├── specs/    : Formal State Machine & Zod Schema Contracts            |
-  |  ├── hooks/    : lifecycle.json (AgentSpawn, PreToolUse, PostToolUse)   |
+  |  ├── hooks/    : lifecycle.json (SessionStart, PreToolUse, PostToolUse) |
   |  ├── steering/ : Always-on Security Guardrails & Exfiltration Bans      |
-  |  ├── mcp/      : 5 Core Workflow Tools (run, probe, replay, dag, kanban)|
-  |  ├── pbt/      : Fast-Check Property Tests (1,000 runs / invariant)     |
+  |  ├── mcp/      : 10 Engine Tools (5 legacy + 5 facade script tools)     |
+  |  ├── pbt/      : Fast-Check Property Tests (18 tests / 8-3,000 runs)    |
   |  └── crew/     : Skeleton Crew Roster & Principle of Least Privilege   |
   +-------------------------------------------------------------------------+
   | LOWER OVERLAY: Terminal running `git status` + `npm run test:pbt` PASS  |
@@ -162,7 +162,7 @@
   ```
 - **Camera Focus & Motion**:
   - `2:15 - 2:25`: 3D isometric camera flies through the 6 directory branches of `/.kiro/`. Each folder illuminates as the narrator introduces its role.
-  - `2:25 - 2:35`: Camera drops into the terminal running `npm run test:pbt`. Counter spins rapidly to 1,000 runs per property, flashing green: `✔ 5 Invariants Proven`.
+  - `2:25 - 2:35`: Camera drops into the terminal running `npm run test:pbt`. Counter spins rapidly through the 18-test suite (8–3,000 randomized cases per property), flashing green: `✔ 18 tests, 0 fail`.
   - `2:35 - 2:45`: Camera pivots to `crew/permissions.json` showing least-privilege tool ceilings for the Skeleton Crew.
 - **Visual Elements**:
   - High-res vector icons for Specs (📜), Hooks (🪝), Steering (🛡️), MCP (🔌), PBT (🧪), and Skeleton Crew (💀).

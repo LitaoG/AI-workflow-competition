@@ -92,9 +92,9 @@ three-minute judge path) or from a release tarball: `npm install ./ai-workflow-<
 
 ### Reproducible quality-gate fingerprints
 
-All run 2026-11-20 on the v2.8.0 release tree (PR #160 head: main @ `80dbeaa` + the release
-overlay — package.json/package-lock version fields, the CHANGELOG 2.8.0 fold, this re-pin, and
-the R4 sharp-review fix series), Windows, Node v26.13.0, from a **fresh build**
+All run 2026-11-20 on the v2.8.0 release tree (Issue #160, merged via PR #161 — main @ `80dbeaa`
+plus the release overlay: package.json/package-lock version fields, the CHANGELOG 2.8.0 fold,
+this re-pin, and the R4 sharp-review fix series), Windows, Node v26.13.0, from a **fresh build**
 (fresh-build numbers are what a judge clone reproduces; full context in
 [README](README.md#reproducible-quality-gate-fingerprints)):
 
@@ -133,7 +133,7 @@ raw measurements: [`tests/cross-engine/results/`](tests/cross-engine/results/).
 | `scripts/` | `demo.sh` (the nine-act self-verifying demo) and install/bootstrap helpers |
 | `skills/` | `skills/ai-workflow/` — agent skill packaging |
 | `.kiro/` | Fully git-tracked Kiro governance root — see §6 |
-| `tests/` | Unit + integration, fast-check PBT, 118-case opaque-box E2E suite |
+| `tests/` | Unit + integration, 118-case opaque-box E2E suite (fast-check PBT lives in [`.kiro/pbt/`](.kiro/pbt)) |
 
 **The two applications** (independent facade scripts, pipelines and artifacts — zero shared demo
 logic):
@@ -190,7 +190,7 @@ directory is **fully tracked in Git** and carries five subsystems — the comple
 - **Specs** (`.kiro/specs/`) — formal workflow-engine semantics: state machine, Kahn-algorithm DAG
   invariant, typed `agent(name).ask<T>(prompt, schema)` RPC contract, machine-readable JSON
   schemas, state-replay invariants (`State(k) = Fold(Events[0..k])`).
-- **Hooks** (`.kiro/hooks/`) — lifecycle gates: `AgentSpawn` (deterministic environment probe),
+- **Hooks** (`.kiro/hooks/`) — lifecycle gates: `SessionStart` (deterministic environment probe),
   `PreToolUse` (destructive-command interception, exit-code-2 blocking), `PostToolUse`
   (append-only event-stream audit), `Stop` (no exit until verification gates pass).
 - **Steering** (`.kiro/steering/`) — frontmatter (`inclusion: always`) guardrails: "code, not
@@ -230,4 +230,5 @@ Concretely, during development:
    — the same server surface ZCode consumes.
 5. **PBT as proof, not vibes** (`.kiro/pbt/`): fast-check property suites (wired into
    `npm run test:pbt`) prove DAG acyclicity, idempotent zero-token replay, typed-RPC soundness,
-   monotonic event ordering and credential redaction — 50–100 randomized cases per property.
+   monotonic event ordering and credential redaction — 8–3,000 randomized cases per property
+   (tuned per property).

@@ -8,8 +8,8 @@
 ## 0. 前置（10 秒）
 
 - Node.js ≥ 22
-- 本仓库根目录下依赖已装好（`npm install` 一次性；Windows 用户等价形式 `npm.cmd install`）
-- **本包未发布到 npm**——npm 上的 `ai-workflow` 是无关的 2021 占位包（0.1.19）；安装只走源码（上方 `git clone` + `npm install`）或发布 tarball：`npm install ./ai-workflow-<ver>.tgz`（`./` 前缀不可省，裸相对路径会被当作 registry spec 解析而报 git 错误；Issue #147 已验证）
+- 本仓库根目录下依赖已装好（`npm install` 一次性）
+- **本包未发布到 npm**——npm 上的 `ai-workflow` 是无关的 2021 占位包（0.1.19）；安装只走源码（`git clone` 本仓库后于仓库根 `npm install`）或发布 tarball：`npm install ./ai-workflow-<ver>.tgz`（`./` 前缀不可省，裸相对路径会被当作 registry spec 解析而报 git 错误；Issue #147 已验证）
 
 ```shell
 node bin/workflow.js doctor   # 环境自检：runtime/compiler/journal/sandbox 全绿即就绪

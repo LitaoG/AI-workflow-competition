@@ -198,7 +198,7 @@ flowchart TB
 
 **站点表（site table）**：编译同时捕获 `actor`/`phase`/`hole`/`ask`/`worldRun` 等调用点为站点（`siteId`），它是重放键控（§6.5）、审批面（§5.3）与 `workflow check` 输出的共同基础。
 
-**前置 AST Codemod 与解构自愈**（`src/dwf/ast-codemod.ts`，Issue #300）：大模型动态生成脚本时常习惯性写出命名空间解构（`const { glob, read } = files`）或 Agent 方法解构（`const { ask } = agent('foo')`），直接分析会因提取中间变量而触发 9001 误用拦截，增加反思延迟与 Token 成本。编译器流水线在 `compileFacadeScript` 入口引入轻量 AST Codemod 变换：
+**前置 AST Codemod 与解构自愈**（`src/dwf/ast-codemod.ts`，上游 Issue #300）：大模型动态生成脚本时常习惯性写出命名空间解构（`const { glob, read } = files`）或 Agent 方法解构（`const { ask } = agent('foo')`），直接分析会因提取中间变量而触发 9001 误用拦截，增加反思延迟与 Token 成本。编译器流水线在 `compileFacadeScript` 入口引入轻量 AST Codemod 变换：
 - 语法分析前将常见解构自动改写为符合规范的直接属性调用（`files.glob(...)`、`agent('foo').ask(...)`）并移除中间解构声明；
 - 具备严格的作用域感知与遮蔽保护（不误伤局部同名变量或对象属性），且保留原始注释与线性结构；
 - 已合规脚本无损零改动（`modified: false`），透明提升首次编译成功率。
@@ -278,7 +278,7 @@ messages.push({
 
 facade 面的 `ask<T = string>(instructions: string): Node<T>` 不接收 schema 参数——类型参数 $T$ 的 JSON Schema 在**编译期**从类型合成（§4），运行时按同一 Zod 兼容路径校验（`json-schema-zod.ts`）；无类型参数时答案是子代理的最终回复文本。`Agent` 是**持续会话**：ask #2 承接 ask #1 的上下文；忙碌期间的新 ask 按 FIFO 排队。`agent()` 的 `opts.provider` 指定注册提供方（如 `"mock"`、`"bedrock"`），`opts.tier`（`'fast' | 'deep'`，#151 双轨）分别取 `AI_WORKFLOW_FAST_PROVIDER` / `AI_WORKFLOW_DEEP_PROVIDER`，二者都未配置时回落注册表默认；无 tier 时带 schema 或大 prompt 的 ask 自动路由 deep。失败 ask 按 failover 链换道并发出 `dwf_failover`。
 
-### 6.4 统一 Provider 契约与 Thinking 流式事件（Issue #304）
+### 6.4 统一 Provider 契约与 Thinking 流式事件（上游 Issue #304）
 
 Provider 抽象层（`src/agent/provider-contract.ts`）定义了标准统一的模型交互契约：`chat`、`complete`、`stream`、`structured`、`checkHealth`。
 - **Thinking 流式增量**：流式通道 `stream` 扩充 `StreamChunk` 联合类型（`{ type: 'content' | 'thinking', delta: string }`），配合 `normalizeStreamChunk` 提供 100% 裸字符串向后兼容能力；
@@ -395,7 +395,7 @@ $$C(t) = (1-t)^3 P_0 + 3(1-t)^2 t P_1 + 3(1-t) t^2 P_2 + t^3 P_3, \quad t \in [0
 - **平移缩放**：纯 CSS/SVG 矩阵变换，滚轮与拖拽导航；
 - **节点检查抽屉**：点击步骤滑出抽屉，渲染 JSON 输入输出、运行时长、角色与错误堆栈；
 - **AI-Workflow Studio**（`visualizer/studio-renderer.ts` + `studio-server.ts`）：单文件自包含 SPA（AffectUI 风格拓扑画布、抽屉式实时事件终端与节点检查器，`file://` 离线可用；默认 Canvas-First 全屏展示工作流全貌，点击节点或切换按钮平滑展开右侧抽屉；阶段标题自适应换行，卡片采用意图摘要与状态指标多行布局，跨阶段节点以 SVG 贝塞尔带箭头导向连线贯通）。服务端在零 npm 依赖前提下手写 RFC 6455 WebSocket：`broadcastEvent` 向所有连接实时推帧；客户端 `{"op":"seek","ordinal":N}` 触发**时间旅行**——把 `events.jsonl` 前 N 条事件折叠为状态快照回放（复用同一投影器 `projectEventsToGraph`），新连接以全量折叠开场，画布直接落在"现在"；
-- **Live SSE 与 Thinking 思考流**（`src/dwf/live.ts`，Issue #304）：除 WebSocket 外，Live 引擎提供标准 `/events` Server-Sent Events 通道，将 raw journal 事件以 `event: event` 实时推流；当推理模型产生思考过程时，专有 `dwf_thinking_delta` 事件同时以 `event: thinking` 频道多路广播，支持 Studio 看板与外部终端低延迟呈现实时思维链；
+- **Live SSE 与 Thinking 思考流**（`src/dwf/live.ts`，上游 Issue #304）：除 WebSocket 外，Live 引擎提供标准 `/events` Server-Sent Events 通道，将 raw journal 事件以 `event: event` 实时推流；当推理模型产生思考过程时，专有 `dwf_thinking_delta` 事件同时以 `event: thinking` 频道多路广播，支持 Studio 看板与外部终端低延迟呈现实时思维链；
 - **多格式导出**：单文件 HTML/SVG、Mermaid markdown 图、终端 ASCII 树（`workflow graph --format html|mermaid|ascii`）。
 
 ---

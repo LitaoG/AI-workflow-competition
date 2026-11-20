@@ -146,7 +146,7 @@
 - **原理解析**：逐文件顶层导出符号表 + 相对导入边（按真实标识符使用次数加权）→ 目标文件的「导入方 ∪ 被导入」邻域按权重排名；切片保留相关声明优先、其余补位，硬字符预算封顶且截断标记计入预算内（文本永不超限、截断必带内声明）。经 facade 只读口 `files.map(target)` 暴露，journal 可重放。
 - **4-Tier 评估**：T1: PASS（上下文预算的机械化为支柱二核心目标物），T2: PASS（`src/context/` 新域，仅依赖 ts+node），T3: PASS（确定性建图），T4: PASS（真实临时工作区符号图/切片预算/引擎端到端 4 例）。
 - **落地模块**：`src/context/{repomap,slice}.ts`；`src/dwf/{facade-dts,compile,engine}.ts` 接线；测试 `tests/unit/context/repomap.test.ts`。
-- **对应 Issue & PR**：Issue #157（y.md 支柱二）；PR #160。
+- **对应 Issue & PR**：私有仓 Issue #157（y.md 支柱二）；私有仓 PR #160。
 - **验证证据**（审计快照，2026-11-07，head `499a886`）：build exit 0；unit `tests 452, pass 452, fail 0`（448→452）；PBT 9/9；E2E `pass 121, fail 0`；governance 24/24；check-clean 通过。
 
 ### [CAP-006] Studio 双语表面 + stdio 看门狗收养 + world.run 外部审批（第三波三件）

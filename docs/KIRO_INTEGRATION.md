@@ -13,7 +13,7 @@ AI-Workflow integrates natively with **Kiro** via a root `/.kiro/` governance di
 
 ```
 AI-workflow/
-└── .kiro/                          # R3: Mandatory Kiro root configuration (TRACKED IN GIT)
+└── .kiro/                          # Requirement R3 (official checklist item 3): mandatory Kiro root configuration (TRACKED IN GIT)
     ├── specs/                      # Formal specifications & JSON schemas
     │   ├── workflow-engine-spec.md
     │   ├── typed-rpc-schemas.json

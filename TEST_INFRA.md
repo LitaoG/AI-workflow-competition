@@ -10,7 +10,7 @@
 
 | 层 | 目录 | 运行命令 |
 |---|---|---|
-| 单元测试 | `tests/unit/`（agent / cli / context / core / dwf / execution / state / visualizer 等子目录；保持纯隔离语义，禁止 async 子进程树——Issue #198） | `npm.cmd run test:unit` |
+| 单元测试 | `tests/unit/`（agent / cli / context / core / dwf / execution / state / visualizer 等子目录；保持纯隔离语义，禁止 async 子进程树——上游 Issue #198） | `npm.cmd run test:unit` |
 | 集成测试（预算、failover、replay、MCP 等花钱与恢复路径；runner 级真实子进程树/进程守护用例） | `tests/integration/`（串行 `--test-concurrency=1`） | `npm.cmd run test:integration` |
 | 基于属性的测试（PBT） | `.kiro/pbt/` | `npm.cmd run test:pbt` |
 | E2E 场景测试 | `tests/e2e/`（`runner.ts` + `helpers/` + tier1～tier4 四层） | `npm.cmd run test:e2e`（即 `node --experimental-strip-types tests/e2e/runner.ts`） |

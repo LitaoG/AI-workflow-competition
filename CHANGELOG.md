@@ -1,5 +1,9 @@
 # Changelog
 
+> Scope note: entries below may mention an "upstream" or "private" repo — that always refers
+> to this project's own private development repository (the pre-public-history mirror), never
+> third-party code. All engine code in this repository is clean-room original work.
+
 ## 2.8.0 (2026-11-20) — R4 sharp-review series: security hardening, journal convergence, real Kiro wiring, self-verifying fingerprints
 
 - **mcp (resume hint honesty, Issue #142)**: `workflow_run_script` now accepts `resumeRunId` —

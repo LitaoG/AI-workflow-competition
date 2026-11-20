@@ -236,22 +236,22 @@ For the **AWS Kiroween 2026 Hackathon**, projects in the **Skeleton Crew** categ
 ```
 .kiro/
 ├── specs/          # Formal specifications (workflow-engine-spec, typed-rpc-schemas)
-├── hooks/          # Lifecycle hooks (AgentSpawn, PreToolUse, PostToolUse, Stop)
+├── hooks/          # Lifecycle hooks (SessionStart, PreToolUse, PostToolUse, Stop)
 ├── steering/       # Frontmatter steering rules (inclusion: always)
-├── mcp/            # MCP server configuration (5 core workflow tools)
+├── mcp/            # MCP server configuration (ten-tool face: 5 legacy + 5 facade)
 ├── pbt/            # Fast-check Property-Based Testing suite
 └── crew/           # Skeleton Crew agent roster & least-privilege permission ceilings
 ```
 
 ### 4.1 Lifecycle Hooks as Deterministic Safety Nets
 Kiro's hook architecture allows us to intercept tool use before execution:
-- **`AgentSpawn`**: Executes deterministic environment probing and injects hardware and Git metrics into the agent's turn context.
+- **`SessionStart`**: Executes deterministic environment probing and injects hardware and Git metrics into the agent's turn context.
 - **`PreToolUse`**: Enforces strict security boundaries. Any attempt to execute dangerous shell commands (`rm -rf /`, raw disk formatting, or `DROP TABLE`) is intercepted with **exit code 2**, cleanly blocking execution with an actionable warning.
 - **`PostToolUse`**: Automatically audits step state and commits journal hashes to `events.jsonl`.
 - **`Stop`**: Validates that all deterministic verification gates have passed before permitting session termination.
 
 ### 4.2 Property-Based Testing (PBT) with `fast-check`
-Unit tests only verify anticipated inputs. To prove that AI-Workflow possesses true software engineering rigor, we implemented a Property-Based Testing suite in `.kiro/pbt/engine-invariants.test.ts` using `fast-check`. We formally verified 5 mathematical invariants over 1,000 randomized iterations each:
+Unit tests only verify anticipated inputs. To prove that AI-Workflow possesses true software engineering rigor, we implemented a Property-Based Testing suite in `.kiro/pbt/` (six property files, 18 tests) using `fast-check`. Every property runs 8–3,000 randomized iterations (tuned per property); the core invariants include:
 1. **DAG Acyclicity Invariant**: Kahn's algorithm terminates and correctly sorts or catches cycles for 100% of generated graphs.
 2. **Replay Idempotency Invariant**: Replaying cached events produces identical system state with zero secondary side-effects.
 3. **RPC Soundness Invariant**: Arbitrary randomized JSON payloads either validate to schema $T$ or return typed error envelopes; the engine never crashes with untyped exceptions.
