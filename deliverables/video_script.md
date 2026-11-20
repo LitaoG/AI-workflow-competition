@@ -17,7 +17,7 @@
 | **2** | 0:25 - 0:55 | 30s | Core Architecture: 3 Pillars of Rigor | Probes → Typed Agent RPCs → Dual-Layer SQLite WAL Checkpoints | 68 words |
 | **3** | 0:55 - 1:35 | 40s | Demo 1: Autonomous DevOps Incident Triage | P1 DB pool alert, Inspector, Paired Fixer/Reviewer, `curl /healthz` gate | 82 words |
 | **4** | 1:35 - 2:15 | 40s | Demo 2: AWS SDK v2->v3 & Zero-Token Replay | Parallel Fan-Out (S3/Dynamo/SQS), crash simulation, SQLite resume | 84 words |
-| **5** | 2:15 - 2:45 | 30s | Mandatory Kiro Integration & Skeleton Crew | Root `/.kiro` specs, hooks, steering, 5 MCP tools, fast-check PBT | 69 words |
+| **5** | 2:15 - 2:45 | 30s | Mandatory Kiro Integration & Skeleton Crew | Root `/.kiro` specs, hooks, steering, ten-tool MCP face, fast-check PBT | 69 words |
 | **6** | 2:45 - 3:00 | 15s | Conclusion & Open Source Release | GitHub repo, Apache 2.0, Devpost sign-off, bilingual toggle | 32 words |
 | **TOTAL** | **0:00 - 3:00** | **180s** | **Full Demonstration** | **End-to-End Visual & Technical Walkthrough** | **393 words** |
 
