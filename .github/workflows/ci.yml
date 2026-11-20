@@ -56,6 +56,32 @@ jobs:
       - name: Nine-act demo (offline, self-verifying)
         run: bash scripts/demo.sh
 
+  # Issue #173 (DoD 3, fulfilling the #124 "mechanical closure" promise): the
+  # §1.9 review-adjudication trio (issue linkage + review-comment replies + S2
+  # no-comment claims) now runs as a REQUIRED CI job on every PR update, so an
+  # unanswered supervision finding is visibly RED on GitHub — not just at
+  # merge time via pr_merge.sh. The job intentionally runs the gate script
+  # from MAIN (this checkout), never from the PR head: PR-author-controlled
+  # gate code would be self-certifying. Merge-time-only checks (cooling,
+  # fingerprint/tap binding, failure naming) stay with pr_merge.sh's bare
+  # [1/5] run — a WIP PR legitimately has no final fingerprint yet.
+  # NOTE: this job's checks are advisory against the last push; comments that
+  # land after CI are caught mechanically by review-comments-status.yml
+  # (issue_comment → HEAD sha status flip) plus pr_merge.sh at merge time.
+  review-comments:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: §1.9 adjudication (linkage + review replies + no-comment claims)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/pr_review_gate.mjs "${{ github.event.pull_request.number }}" --ci-comments
+
   # Issue #66: a SIGNAL job, not a gate. Quantified at triage: 9
   # `process.platform === 'win32'` branches across src/ plus 2 win32/ps1/
   # jobhelper tracked files (scripts/win32-jobhelper.cs,
