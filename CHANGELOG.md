@@ -4,6 +4,29 @@
 > to this project's own private development repository (the pre-public-history mirror), never
 > third-party code. All engine code in this repository is clean-room original work.
 
+## 2.9.0 (2026-11-21) — plan-first live graph series: the DAG view becomes a run-long cockpit
+
+- **feat (Issue #168, PR #169)**: plan-first visualization — a facade run journals its compile-time
+  site table as the stream's opening `dwf_plan` event, so the run dir's `graph.html` exists from the
+  run's first moment as the FULL pending plan (phase columns + ask/hole/escalation nodes) and lights
+  up node by node as execution proceeds; planned-but-never-executed branch nodes stay visible as
+  pending. The watch view (per-event `graph.html` rewrite through the same pure projection the cold
+  replay folds) is now **on by default** (`--no-watch-graph` disables), and both MCP run faces
+  surface the live `graphPath`. The live==cold byte-identical projection invariant holds by
+  construction — the plan is an ordinary journal event.
+- **feat (Issue #171, PR #174)**: `plan(update)` primitive — mid-run plan-graph evolution. Scripts
+  declare pending nodes ("boxes") and dependency edges ("lines") at runtime (ids are script-chosen
+  runtime values; edges may reference real site ids, e.g. a future `ask#N`); `dwf_plan_update` folds
+  into every view immediately. Dangling endpoints buffer and materialize the moment the node appears
+  (no mermaid ghost nodes). Engine-side shape validation fails loudly (`PlanUpdateMalformed`,
+  per-call 1000-node / 2000-edge caps `PlanCapExceeded`). `plan` is deliberately NOT shadow-banned —
+  workflow scripts constantly bind `const plan = ...`, plan() carries no replay keying a shadow
+  could desync, and call-site ambiguity is type-checker-guarded. The `[wf]` progress channel grows
+  `PLAN ◇ N sites · M phases` and `PLAN+ ◇ +N nodes · +M edges` lines. The other mid-run redirect
+  door — hole fill — already re-plans automatically on its forked amend run via the #168 mechanism.
+- fingerprints re-pinned on the v2.9.0 release tree (+9 tests vs the 2.8.1 pin: 4 from the
+  plan-first graph, 5 from the plan() primitive).
+
 ## 2.8.1 (2026-11-21) — pre-submission audit fold: submission-fact sync, research-corpus sanitization, ask-provider observability
 
 - **docs (submission-fact sync, Issue #162)**: 16 judge/npm-facing facts synced to the actual
