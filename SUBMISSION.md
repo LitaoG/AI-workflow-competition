@@ -92,14 +92,14 @@ three-minute judge path) or from a release tarball: `npm install ./ai-workflow-<
 
 ### Reproducible quality-gate fingerprints
 
-All run 2026-11-21 on the v2.8.1 release tree (Issue #170 — main @ `5ddb6bb` plus the release
-overlay: package.json/package-lock version fields, the CHANGELOG 2.8.1 fold, this re-pin —
-folding the #162/#163/#164 audit fix batches), Windows, Node v26.13.0, from a **fresh build**
+All run 2026-11-21 on the v2.9.0 release tree (Issue #175 — main @ `563e5bf` plus the release
+overlay: package.json/package-lock version fields, the CHANGELOG 2.9.0 fold, this re-pin —
+folding the plan-first live graph series #168/#171), Windows, Node v26.13.0, from a **fresh build**
 (fresh-build numbers are what a judge clone reproduces; full context in
 [README](README.md#reproducible-quality-gate-fingerprints)):
 
 ```text
-npm test                                            → 842 tests, 839 pass, 3 skipped, 0 fail
+npm test                                            → 851 tests, 848 pass, 3 skipped, 0 fail
 npm run test:integration (serial)                   → 215 tests, 215 pass, 0 skipped, 0 fail
 npm run test:pbt                                    →  18 tests,  18 pass, 0 fail
 node --experimental-strip-types tests/e2e/runner.ts → 118/118 passed
