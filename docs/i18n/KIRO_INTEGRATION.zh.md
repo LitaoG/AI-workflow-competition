@@ -148,8 +148,8 @@ AI-Workflow 通过 `mcp-server.json` 将引擎核心能力开放给 Kiro 宿主�
 1. `workflow_run`：执行动态工作流并管理持久化状态。
 2. `workflow_probe`：执行确定性系统、Git 与工具链依赖探测。
 3. `workflow_replay`：基于历史检查点执行断点续跑与历史重放。
-4. `workflow_render_dag`：将工作流图编译为独立的交互式 HTML/SVG。
-5. `workflow_list_artifacts`：实时查询 Kanban 产物看板指标。
+4. `workflow_graph`：将工作流图编译为独立的交互式 HTML/Mermaid/ASCII。
+5. `workflow_inspect`：实时查询运行检查点、事件与产物。
 
 ---
 

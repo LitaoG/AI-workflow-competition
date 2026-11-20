@@ -191,5 +191,5 @@ const result = await ctx.mcp?.callTool('aws-cloudwatch', 'query_metrics', {
 1. `workflow_run`：执行动态工作流并管理持久化状态。
 2. `workflow_probe`：执行确定性环境指标与依赖探测。
 3. `workflow_replay`：针对指定运行历史执行断点重放。
-4. `workflow_render_dag`：将工作流图结构渲染为交互式 HTML/SVG。
-5. `workflow_list_artifacts`：查询实时 Kanban 产物看板指标。
+4. `workflow_graph`：将工作流图结构渲染为交互式 HTML/Mermaid/ASCII。
+5. `workflow_inspect`：查询运行检查点、事件与产物。

@@ -4,6 +4,29 @@
 > to this project's own private development repository (the pre-public-history mirror), never
 > third-party code. All engine code in this repository is clean-room original work.
 
+## 2.8.1 (2026-11-21) — pre-submission audit fold: submission-fact sync, research-corpus sanitization, ask-provider observability
+
+- **docs (submission-fact sync, Issue #162)**: 16 judge/npm-facing facts synced to the actual
+  release tree — wrong issue/PR anchors (#160 is the Issue, #161 the merge PR), fabricated
+  demo commands in the video deliverables replaced with the real `bash scripts/demo.sh`
+  entry, fabricated MCP tool names replaced with the real ten-tool face, stale numbers
+  re-pinned from live gate output (38.5% HTTP 500 spike, PBT 18 tests / 8–3,000 runs,
+  841→current test counts, 4 runtime deps), `AgentSpawn`→`SessionStart`, dangling
+  QUICKSTART reference fixed, PROJECT.md given its historical-archive banner, upstream/
+  private issue anchors labeled as such.
+- **docs (research-corpus sanitization, Issue #163)**: the verbatim closed-source excerpts in
+  `docs/research/` (Antigravity prelude Python blocks with original line anchors) are rewritten
+  as behavior-level reconstructions; the two Claude Code reverse-engineering notes drop verbatim
+  proprietary messages, internal symbol names, telemetry event names and binary offsets in favor
+  of behavior descriptions; "同文案/逐字一致" claims recast as semantic equivalence; the leaked-mirror
+  name list replaced by a one-line clean-room statement. All conclusions and absorption decisions
+  preserved; no filenames renamed (docs/README.md registry untouched).
+- **agent (observability, Issue #164)**: `SchemaValidationError` now surfaces the routed provider
+  id — the message carries `(routed provider: "<id>")` and `details.provider` is populated; on the
+  unconfigured default path (registry fallback to `mock`) the message adds the "set
+  AI_WORKFLOW_PROVIDER" hint instead of masking a canned-mock contract failure as a model-output
+  failure. One new locking unit test (npm test count 841 → 842).
+
 ## 2.8.0 (2026-11-20) — R4 sharp-review series: security hardening, journal convergence, real Kiro wiring, self-verifying fingerprints
 
 - **mcp (resume hint honesty, Issue #142)**: `workflow_run_script` now accepts `resumeRunId` —

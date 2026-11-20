@@ -124,7 +124,7 @@ placeholder and recording recipe live in [`SUBMISSION.md`](SUBMISSION.md).
 
 Current quality-gate fingerprints are pinned in one place only:
 [`SUBMISSION.md` § Reproducible quality-gate fingerprints](SUBMISSION.md#reproducible-quality-gate-fingerprints)
-(re-pinned 2026-11-20 on the v2.8.0 release tree, Issue #160 / PR #161 — fresh-build
+(re-pinned on the v2.8.1 release tree, Issue #170 — fresh-build
 numbers are what a judge clone reproduces).
 
 Both demo applications also run standalone (offline mock mode, `--lang zh` for Chinese
