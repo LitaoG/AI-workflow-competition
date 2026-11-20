@@ -41,15 +41,28 @@ export class SchemaValidationError extends Error {
   readonly rawText: string;
   readonly attemptCount: number;
 
-  constructor(stepId: string, rawText: string, issues: z.ZodIssue[], attemptCount: number) {
-    super(`Schema validation failed for step "${stepId}" after ${attemptCount} repair attempts`);
+  constructor(
+    stepId: string,
+    rawText: string,
+    issues: z.ZodIssue[],
+    attemptCount: number,
+    /** Routed provider id (Issue #164) — makes "which backend answered" observable at the failure surface. */
+    providerId?: string,
+  ) {
+    const providerSuffix = providerId
+      ? ` (routed provider: "${providerId}"` +
+        (providerId === 'mock'
+          ? ' — the built-in offline mock only returns canned demo responses; set AI_WORKFLOW_PROVIDER to run against a real model)'
+          : ')')
+      : '';
+    super(`Schema validation failed for step "${stepId}" after ${attemptCount} repair attempts${providerSuffix}`);
     this.name = 'SchemaValidationError';
     this.stepId = stepId;
     this.rawText = rawText;
     this.zodErrors = issues;
     this.attemptCount = attemptCount;
     const tagged = domainError('SchemaValidationError', this.message, {
-      details: { stepId, attemptCount, issueCount: issues.length },
+      details: { stepId, attemptCount, issueCount: issues.length, ...(providerId ? { provider: providerId } : {}) },
     });
     this.tag = tagged.tag as 'SchemaValidationError';
     this.details = tagged.details ?? {};

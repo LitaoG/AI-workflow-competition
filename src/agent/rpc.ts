@@ -382,7 +382,7 @@ export function agent(name: string, defaults?: { signal?: AbortSignal }): AgentR
       // persistence-safe details (stepId / attemptCount / issueCount) for the
       // engine's failure accounting, plus the process-only rawText (the last
       // raw model output) and zodErrors (field paths) the caller paid for.
-      throw new SchemaValidationError(name, lastRawOutput, lastIssues, maxRetries);
+      throw new SchemaValidationError(name, lastRawOutput, lastIssues, maxRetries, provider.id);
     },
   };
 }

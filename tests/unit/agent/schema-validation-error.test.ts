@@ -49,6 +49,36 @@ test('schema-invalid asks throw an Error-instance SchemaValidationError with raw
         assert.equal(e.tag, 'SchemaValidationError');
         assert.ok(isSchemaValidationError(e), 'the tag predicate still accepts the class instance');
         assert.equal((e.details as { issueCount?: number }).issueCount, e.zodErrors.length);
+        assert.equal((e.details as { provider?: string }).provider, 'issue-110-provider');
+        assert.ok(e.message.includes('routed provider: "issue-110-provider"'), `message names the routed provider: ${e.message}`);
+        return true;
+      },
+    );
+  } finally {
+    providerRegistry.setDefault(previous);
+  }
+});
+
+test('unconfigured-provider asks surface the routed mock provider and the configuration hint (Issue #164)', async () => {
+  const previous = providerRegistry.get().id;
+  providerRegistry.setDefault('mock');
+  try {
+    const client = agent('issue-164-agent');
+    const schema = z.object({ reply: z.string() });
+    await assert.rejects(
+      client.ask('Reply with exactly: OK', schema, { maxRetries: 2 }),
+      (err: unknown) => {
+        assert.ok(err instanceof SchemaValidationError, 'instanceof SchemaValidationError');
+        const e = err as SchemaValidationError;
+        assert.ok(
+          e.message.includes('routed provider: "mock"'),
+          `the failure names the actually-routed provider instead of masking it: ${e.message}`,
+        );
+        assert.ok(
+          e.message.includes('AI_WORKFLOW_PROVIDER'),
+          'the mock path carries the "configure a real provider" hint (Issue #164 diagnosis cost)',
+        );
+        assert.equal((e.details as { provider?: string }).provider, 'mock');
         return true;
       },
     );
