@@ -64,7 +64,7 @@
 - `phase()` / `log()` / `console` / `setTimeout` / `clearTimeout`：可用。
 - `workflow(name | {scriptPath})`：组合另一个已注册/可读脚本；**子脚本内的 `workflow` 被替换为拒绝 stub**。
 
-`[已验证]` 官方 `workflow-module-pretty.js:590` 的预算对象构造为 `freeze({ __proto__: null, total, spent, remaining })`；`[已验证]` 实机 `Object.isFrozen(budget) === true`、`Object.getPrototypeOf(budget) === null`、`budget.total === null`、`Reflect.set(budget,'total',12345) === false`、严格模式下赋值抛 `TypeError: Attempted to assign to readonly property.`。
+`[已验证]` 官方解包件的预算对象构造为 `freeze({ __proto__: null, total, spent, remaining })`；`[已验证]` 实机 `Object.isFrozen(budget) === true`、`Object.getPrototypeOf(budget) === null`、`budget.total === null`、`Reflect.set(budget,'total',12345) === false`、严格模式下赋值抛 `TypeError: Attempted to assign to readonly property.`。
 
 **任务书校正 ①**：A.md 阶段 2 的示例 `export default workflow("official-bench", async ({ parallel, ... }) => {...})` 不是本会话真实 Workflow 工具 API。真实 API 是 `export const meta = {...}` + 脚本体直接 `await agent(...)`；`budget` 也不是脚本可写对象。`[已验证]` 严格模式下对 `budget.total` 赋值直接抛错。
 
@@ -83,7 +83,7 @@ Xn(prev, label, event):
 - 重试 prompt 加 `(retry N)` 后缀，**故意让键失效**，保证重试必然实跑；
 - 命中 `results.get(key)` 即返回缓存。
 
-`[已验证]` 官方 `workflow-module-pretty.js:934`（`Xn`）、`:928`（`jr`）、`:947`（`Fo`）。
+`[已验证]` 官方解包件（语义锚：重放键结构哈希实现段）。
 
 **评价**：结构哈希对“代码挪位置”鲁棒（结构不变则键不变），但**缺乏局部 amend**：前序步骤微调会导致后续链式键全部失效。本仓的 `(siteId, ordinal, inputHash)` 显式键在 amend 场景可以做到局部失效与原地重放，这是本仓的结构性优势 `[已验证]`（见 `docs/research/WORKFLOW-GAP-MATRIX.md` 与 `tests/integration/dwf-run.test.ts` 的 replay/amend 断言）。
 
@@ -98,9 +98,9 @@ Xn(prev, label, event):
    - `RealDate.prototype.constructor = ShimDate`
    - `Object.freeze(RealDate)`
    从而封死 `(new Date(x)).constructor.now()` 与 `Object.getPrototypeOf(Date).now()` 两条构造器链回退路径。
-4. 值消毒：`sanitizeVMValue`、`bindVMAwait`、`sealSyncHooksInVM`、`withLanesInert` 控制跨 realm 值与同步钩子。
+4. 值消毒：跨界值消毒、跨 realm await 绑定、VM 内同步钩子封印、lanes 惰性化（行为级描述，内部符号名不录）。
 
-`[已验证]` 官方 `workflow-module-pretty.js:311-336`（纯度封印）、`:682`（`codeGeneration`）、`:733`（子脚本 `workflow` 拒绝 stub）。
+`[已验证]` 官方解包件（语义锚：纯度封印段、VM `codeGeneration` 配置段、子脚本 `workflow` 拒绝 stub 段）。
 
 **实机验证** `[已验证]`（official-purity-escape-probe）：
 
@@ -126,7 +126,7 @@ Xn(prev, label, event):
   - 默认 `capMs = si = 5000ms`；`DISABLE_PROMPT_CACHING` 关闭；`CLAUDE_CODE_WORKFLOW_PREFIX_STAGGER_MS` 覆盖；
   - 等待日志：`workflow agent [label] held Nms for a same-prefix sibling's first response (prompt-cache warm-up)`。
 
-`[已验证]` 官方 `workflow-module-pretty.js:1124-1200`（`Br` 类）、`:1203-1208`（`Hr()`/默认值）、`:2311`（`Os` 键）、`:2828-2833`（`enter` 与日志）、`:1491`/`:1770`（`Si=50` 槽门）、`:1767`（agent 门公式）。
+`[已验证]` 官方解包件（语义锚：预算账本类与默认值段、缓存键构造与日志入口段、50 槽门常量、agent 门公式）。
 
 **评价**：官方钥匙包含 model/effort/agentType/tools/schema/cwd，**不包含 prompt 正文**；因此同一 run 内不同 prompt 的兄弟也会被 stagger，共享的稳定前缀（系统提示+工具）得以先写缓存。本仓的 actor 系统提示包含 agent 名（`You are specialized agent "name".`），不同 actor 的前缀从第 27 个字符起就分叉，**直接照搬 warm gate 收益有限**。本白皮书把它列为“需先统一系统提示前缀再评估”的候选，而非本轮落地项 `[推断]`（推断链：官方键不含 prompt → 官方系统提示固定 → 本仓系统提示按 actor 名变化 → 同 run 多 actor 前缀不共享）。
 
@@ -141,7 +141,7 @@ Xn(prev, label, event):
 - **StructuredOutput 重试上限**：`MAX_STRUCTURED_OUTPUT_RETRIES`（默认值由模块常量给出），超限抛专用错误。
 - **Usage-limit 自动等待**：基于结构化 `quotaLimits.resetsAt`，最多等待 2 次（`Uo/jo`），超过则 decline/abort。
 
-`[已验证]` 官方 `workflow-module-pretty.js:1563`（`Xr=5`）、`:1568`（`Mi=90000`）、`:2862-2899`（throttle/retry/abandon 文案）、`:1281-1332`（usage-limit 等待）。
+`[已验证]` 官方解包件（语义锚：结构化输出重试上限与停滞超时常量、throttle/retry/abandon 文案段、usage-limit 等待段）。
 
 **本仓现状**：`src/agent/rpc.ts:67-78` 支持 `stallMs` 竞速超时；`src/dwf/attempt-classifier.ts:28-30` 识别 `StallError`；但 `src/dwf/engine.ts` 的 ask 调度**没有传 `stallMs`**，因此该能力目前是“有实现、未接线” `[已验证]`。这与官方 90s 停滞判定存在真实差距，列为后续 P2（需先评估非流式 provider 下 90s 是否会误杀长调用）。
 
@@ -152,9 +152,9 @@ Xn(prev, label, event):
 - `WorkflowAgentCapError`：1000 次调用上限，防 `budget.remaining() === Infinity` 的死循环。
 - `parallel`/`pipeline` 对预算丢弃槽计数并汇总，不逐条报错。
 
-`[已验证]` 官方 `workflow-module-pretty.js:590`、预算/上限文案见 `markers-report.txt` 的 `WorkflowBudgetExceededError`/`WorkflowAgentCapError` 片段。
+`[已验证]` 官方解包件（语义锚：预算对象构造段；上限异常类型名 `WorkflowBudgetExceededError`/`WorkflowAgentCapError` 为公开异常类名）。
 
-**本仓现状**：同语义、同文案；**Issue #73（2026-11-03）已改为官方同款只读注入**（`--budget-total` / MCP `budgetTotal`），脚本内对 `budget.total` 的赋值在编译期被拒。旧的可写设计保留为历史记录。
+**本仓现状**：同语义（错误文案为本仓自有措辞）；**私有仓 Issue #73（2026-11-03）已改为官方同款只读注入**（`--budget-total` / MCP `budgetTotal`），脚本内对 `budget.total` 的赋值在编译期被拒。旧的可写设计保留为历史记录。
 
 ### 2.7 子工作流组合与单层嵌套
 
@@ -165,7 +165,7 @@ workflow() cannot be called from within a child workflow — nesting is limited 
 Inline the inner script or call its agents directly.
 ```
 
-`[已验证]` 官方 `workflow-module-pretty.js:733`（`DRo()` 拒绝 stub）；实机 child 脚本尝试组合 grandchild，返回同一文案（official-nesting-probe）。
+`[已验证]` 官方解包件（语义锚：子脚本 `workflow` 拒绝 stub 段）；实机 child 脚本尝试组合 grandchild，返回同一拒绝文案（official-nesting-probe）。
 
 **本仓现状**：`src/dwf/engine.ts:168-200` 已实现 `workflow()` 组合（子 run 有独立 runId、lineage、独立沙箱），但同样在 `workflowDepth >= 1` 时拒绝。即：**双方都只支持单层组合** `[已验证]`（`tests/integration/dwf-composition.test.ts:61-68`）。任务书把“官方单层嵌套”列为我方超越点，但当前代码尚未超越；本白皮书将其列为待立项的 D 类建议，而不是已交付能力。
 
@@ -196,7 +196,7 @@ Inline the inner script or call its agents directly.
 |---|---|---|---|
 | 1 | VM 全局 | `process/require/fetch/queueMicrotask/WebAssembly/Buffer` 均 `undefined`；`setTimeout/console/log/globalThis/args` 存在 | official-runtime-probe |
 | 2 | 预算 | `isFrozen=true`、`proto=null`、`total=null`、`Reflect.set=false`；严格赋值抛 `TypeError` | official-runtime-probe / official-nesting-probe |
-| 3 | `parallel([Promise])` | 抛 `TypeError: parallel() expects an array of functions, not promises. Wrap each call: () => agent(...)` | official-runtime-probe |
+| 3 | `parallel([Promise])` | 抛 `TypeError`（官方文案提示 thunk 包装写法；本仓自有措辞实现同语义） | official-runtime-probe |
 | 4 | `parallel` thunk 抛错 | 该槽 `null`，其余槽正常完成（`[null, 42]`） | official-runtime-probe |
 | 5 | `pipeline` null 截断 | `pipeline([1,null,3], x=>x*2)` → `[2,null,6]`；null 项下游不执行 | official-runtime-probe |
 | 6 | `pipeline` 非函数 stage | 抛 `TypeError: pipeline() stages must be functions...` | official-runtime-probe |
@@ -248,7 +248,7 @@ Inline the inner script or call its agents directly.
 
 | 探针 | 我方结果 | 官方结果 | 判定 |
 |---|---|---|---|
-| `parallel([1,2])` | `TypeError: parallel() expects an array of functions, not promises...` | 同文案 | 逐字一致 `[已验证]` |
+| `parallel([1,2])` | `TypeError`（官方文案提示 thunk 包装写法；本仓自有措辞实现同语义） | 同语义 | 语义一致 `[已验证]` |
 | thunk 抛错 | `[42,"NULL"]` | `["NULL",42]`（顺序按数组） | 语义一致 |
 | `pipeline` null | `[2,null,6]` | `[2,null,6]` | 逐字一致 |
 | `budget` | `total:null, spent:0, remaining:null, frozen:false, protoNull:false` | frozen, null-proto | Issue #73 已对齐（只读注入） |

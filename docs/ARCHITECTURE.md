@@ -460,7 +460,7 @@ AI-Workflow 的核心机制是有据可查的工程选择，追溯至三条成�
 吸收的发现：
 
 1. **预算是硬执行而非遥测**：`agent()` 调用硬上限 1000（`WorkflowAgentCapError`，官方反死循环文案）；Token 预算以 `agent()` 调用粒度执行（`WorkflowBudgetExceededError`）。本引擎实现同一上限与同一失败文案（`AGENT_CALL_CAP`，§6.4）。
-2. **VM 执行同构**：Claude Code 同样在 VM 中运行工作流脚本（`bindVMAwait`/`sanitizeVMValue`）并配 `workflow_phase` 进度投影——与 ZCode 及本引擎沙箱是趋同设计。
+2. **VM 执行同构**：Claude Code 同样在 VM 中运行工作流脚本（跨 realm await 绑定 + 跨界值消毒）并配 `workflow_phase` 进度投影——与 ZCode 及本引擎沙箱是趋同设计。
 3. **重放键设计对比**：见 §6.5。
 4. **停顿与重启语义**：90 秒停顿超时、5 次结构化输出重试上限、`stalled`/`replyLost` 区分为独立状态。本引擎的 `ask` 是带超时 + 瞬态重试分类的原子 Provider 调用——覆盖等价，无流式重启概念（停顿行为锁定于 `tests/unit/dwf/dwf-stall.test.ts`）。
 5. **环境旋钮对齐**：`AI_WORKFLOW_MAX_CONCURRENT_AGENTS` 镜像 `CLAUDE_CODE_WORKFLOW_MAX_CONCURRENT_AGENTS`。

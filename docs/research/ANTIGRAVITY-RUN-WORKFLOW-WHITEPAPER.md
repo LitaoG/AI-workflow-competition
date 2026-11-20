@@ -97,33 +97,17 @@ sequenceDiagram
     Go->>Py: 关闭 RPC 管道 / 终止进程
 ```
 
-`[已验证]` 源码依据：`antigravity_workflow_prelude.py:451-464` 与 `:1261-1330`。
+`[已验证]` 语义锚：prelude 初始化段（FD 劫持）与终态审计段。（清洁室注：被逆向文件不随本仓分发，本文一律以**行为级还原**承载结论，不收录逐字源码。）
 
 ### 2.2 文件描述符劫持与物理级 RPC 管道隔离
 
 在多进程通信中，子进程中的第三方代码、未被捕获的 `print()`、或者外部命令（通过 `subprocess.run` 派生）直接向标准输出（`fd 1`）打印诊断日志，是导致 NDJSON 协议解析崩溃（JSON Parse Error）甚至协议投毒的头号元凶（本仓 D4 漏洞根因）。
 
-Antigravity 在脚本加载前，通过微内核级的 FD 劫持技术彻底解决了这一难题：
+Antigravity 在脚本加载前，通过微内核级的 FD 劫持技术彻底解决了这一难题。行为级还原（非逐字源码）：
 
-```python
-# antigravity_workflow_prelude.py:455-464 [已验证]
-# Library workflows are loaded from sources sent by Go; don't write .pyc files.
-sys.dont_write_bytecode = True
-
-# The RPC uses private, non-inheritable copies of fd 0 and 1. Fd 0 becomes
-# /dev/null and fd 1 a copy of stderr, so neither the script nor its child
-# processes can corrupt the RPC.
-_rpc_in = os.fdopen(os.dup(0), "r", encoding="utf-8")
-_rpc_out = os.fdopen(os.dup(1), "w", encoding="utf-8")
-_null = os.open(os.devnull, os.O_RDONLY)
-os.dup2(_null, 0)
-os.close(_null)
-os.dup2(2, 1)
-
-# Keep scripts off the RPC pipes; stdin reads fail fast with EOFError.
-sys.stdin = open(os.devnull)
-sys.stdout = sys.stderr
-```
+1. **零磁盘残留前置**：装载期全局禁写字节码（不产生 `.pyc`）；
+2. **RPC 管道私有化**：为 RPC 通道取 fd 0 / fd 1 的私有、不可继承副本（`dup` 系），原标准流随后整体重定向——fd 0 → `/dev/null`、fd 1 → stderr 副本。此后脚本本体与其子进程对标准流的任何写入都**物理上不可能**混入 RPC 协议帧；
+3. **标准流去功能性**：`sys.stdin` 指向 `/dev/null`（读即快速 EOF 失败），`sys.stdout` 并入 stderr——诊断日志与协议流量从此分轨。
 
 #### 内核级文件描述符表重定向拓扑
 
@@ -172,7 +156,7 @@ graph TD
 | **Response** | Go → Python | `{"id": int, "result": any, "error": str, "denied": bool}` | 请求响应，`id` 严格回显；支持 `denied` 权限拒绝标记 |
 | **Notification** | Python → Go | `{"op": str, ...payload}` | 单向通知，不分配 `id`：`"log"`, `"phase"`, `"start"`, `"kill"`, `"cancel"`, `"done"`, `"error"` |
 
-`[已验证]` 异步 Future 协调机制（`antigravity_workflow_prelude.py:508-545`）：
+`[已验证]` 异步 Future 协调机制（语义锚：RPC 回读守护线程段）：
 - Python 端主线程持有 `_pending = {}` 字典，映射 `rid -> asyncio.Future`；
 - 后台专用守护线程（`threading.Thread(target=_read_replies, daemon=True)`）阻塞读取 `_rpc_in`；每读到一行，通过 `loop.call_soon_threadsafe(_resolve, reply)` 线程安全地跨线程唤醒事件循环；
 - 若 Go 侧主动关闭管道，`_read_replies` 读到 EOF，立即调用 `os._exit(1)` 退出子进程，防止孤儿进程游离；
@@ -217,8 +201,8 @@ stateDiagram-v2
     Destroyed --> [*]
 ```
 
-`[已验证]` 源码级精妙设计（`antigravity_workflow_prelude.py:706-857`）：
-1. **模式互斥锁死**：若已被 `await`（`_mode == "single"`），后续若被当作函数调用 `a(...)` 立即抛出 `TypeError: ... was awaited, which ran it once and ended it; it cannot be called for turns`；反之，若已作为多轮 Agent 调用（`_mode == "multi"`），再次 `await a` 亦抛出 `TypeError`；
+`[已验证]` 源码级精妙设计（语义锚：Agent 多轮会话生命周期段）：
+1. **模式互斥锁死**：若已被 `await`（`_mode == "single"`），后续若被当作函数调用 `a(...)` 立即抛出 `TypeError`（提示该 Agent 已被 await 消费、不可再作为多轮会话调用）；反之，若已作为多轮 Agent 调用（`_mode == "multi"`），再次 `await a` 亦抛出 `TypeError`；
 2. **弱引用防泄漏（Weakref）**：`_TurnPromise` 对 `_Agent` 实例仅持有弱引用（`self._agent = weakref.ref(agent)`），并在 `_run()` 内部执行 `del a` 解除本地栈帧强引用，防止闭包或 Promise 链式引用导致 Agent 无法被垃圾回收；
 3. **GC 挂钩与远端资源释放**：`_Agent.__del__` 触发时，若处于 `multi` 模式，通过 `_loop.call_soon_threadsafe(_notify_kill, self._id)` 向 Go 发送 `op: "kill"` 通知，确保 Go 语言服务器端即时注销多轮会话上下文，释放内存与模型连接池。
 
@@ -238,27 +222,7 @@ def process_data(items):
 
 在标准的异步事件循环中，此类代码会正常退出（Exit 0），工作流显示执行成功，但实际关键逻辑被完全跳过，造成极其隐蔽的**假绿（Fake Green）**。
 
-Antigravity 在 Prelude 层面构建了严密的自动审计防御网：
-
-```python
-# antigravity_workflow_prelude.py:1315-1329 [已验证]
-# 终态未 Await 挂起 Promise / Agent 扫描器
-unused = [p._label() for p in _tracked if not p._awaited]
-for ref in _agents:
-  a = ref()
-  if a is not None and a._mode is None and a._spec["prompt"] is not None:
-    unused.append(a._label())
-if unused or _unused:
-  _end({
-      "op": "error",
-      "error": (
-          "workflow execution failed: %s was never awaited"
-          % (unused + _unused)[0]
-      ),
-  })
-  return
-_end({"op": "done"})
-```
+Antigravity 在 Prelude 层面构建了严密的自动审计防御网。行为级还原（非逐字源码）：终态时扫描全局在途注册表，收集所有未被 `await` 消费的 Promise 标签，以及仍处未消费态且持有显式 prompt 的孤儿 Agent（经弱引用表核对）；一旦发现泄漏即以失败终态结束并指明首个未 await 对象，否则发出 `done` 终态帧。
 
 `[已验证]` 审计逻辑运作机制：
 1. **全局 Promise 溯源**：所有 `_ToolPromise` 和 `_TurnPromise` 在 `__init__` 时自动追加至全局 `_tracked` 数组；当其实际被 `await` 时，基类 `_Promise.__await__` 会将其标示为 `self._awaited = True`；
@@ -267,29 +231,10 @@ _end({"op": "done"})
 
 ### 2.6 基于 `contextvars` 的分层预算控制体系
 
-Antigravity 提供了原生 `with_budget(awaitable, max_tokens=None, max_agents=None, max_seconds=None)` 预算隔离原语。其利用 Python 3.7+ 的 `contextvars` 模块实现了真正的协程级上下文继承与隔离：
+Antigravity 提供了原生 `with_budget(awaitable, max_tokens=None, max_agents=None, max_seconds=None)` 预算隔离原语。其利用 Python 3.7+ 的 `contextvars` 模块实现了真正的协程级上下文继承与隔离。行为级还原（非逐字源码）：
 
-```python
-# antigravity_workflow_prelude.py:649-674, 1015-1089 [已验证]
-_ACTIVE_BUDGET_SCOPES = contextvars.ContextVar("workflow_budget_scopes", default=())
-
-async def with_budget(awaitable, max_tokens=None, max_agents=None, max_seconds=None, *, timeout=None):
-    scope = _BudgetScope(max_tokens=max_tokens, max_agents=max_agents, max_seconds=seconds)
-    
-    async def _exec():
-        # 将当前预算作用域入栈（支持级联嵌套）
-        token = _ACTIVE_BUDGET_SCOPES.set((*_ACTIVE_BUDGET_SCOPES.get(), scope))
-        try:
-            target = awaitable(scope) if callable(awaitable) else awaitable
-            return await target
-        finally:
-            _ACTIVE_BUDGET_SCOPES.reset(token)
-            
-    # 墙钟超时与 Token 超限双重校验
-    if seconds is None:
-        return await _exec()
-    return await asyncio.wait_for(_exec(), timeout=seconds)
-```
+1. **作用域栈**：以 contextvar 保存「活动预算作用域栈」，进入 `with_budget` 时压栈、`finally` 中以 reset token 出栈——异常路径同样不泄漏作用域；
+2. **双重上限**：设置了墙钟上限时外层再套 `asyncio.wait_for`，墙钟与 Token 双重校验。
 
 `[已验证]` 架构亮点：
 1. **多级嵌套预算下渗**：子协程内部若再次调用 `with_budget`，新旧 scope 会在 tuple 中按层级堆叠；每次 Agent 启动（`_charge_active_agent`）或 Token 消耗产生（`_charge_active_tokens`），会逆序遍历所有活动 scope，任一层级超限立即抛出 `BudgetExceeded`；
@@ -302,7 +247,7 @@ async def with_budget(awaitable, max_tokens=None, max_agents=None, max_seconds=N
 Antigravity 引入了原生的 `trajectory()` 内省接口：
 
 ```python
-# run-workflow/SKILL.md:137-165 & antigravity_workflow_prelude.py:1091-1141 [已验证]
+# 行为级示例（依据 run-workflow 技能文档语义整理，非逐字源码）
 steps = await trajectory(tools=["run_command"], last=20)
 errors = [s.output for s in steps if s.status == "ERROR" and s.output]
 log(f"Found {len(errors)} failed command(s)")
@@ -314,31 +259,11 @@ log(f"Found {len(errors)} failed command(s)")
 
 ### 2.8 基于 `MetaPathFinder` 的纯内存动态模块装载
 
-为了支持跨工作流的公共库复用，同时杜绝本地文件系统注入与磁盘残留，Antigravity 实现了一套纯内存模块加载器：
+为了支持跨工作流的公共库复用，同时杜绝本地文件系统注入与磁盘残留，Antigravity 实现了一套纯内存模块加载器。行为级还原（非逐字源码）：
 
-```python
-# antigravity_workflow_prelude.py:1156-1196, 1303 [已验证]
-class _LibraryFinder(importlib.abc.MetaPathFinder, importlib.abc.Loader):
-    def __init__(self, libraries, primitives):
-        self._libraries = libraries  # dict: lib_name -> {file_name: file_content_str}
-        self._primitives = primitives
-
-    def find_spec(self, fullname, path=None, target=None):
-        # 动态解析库名与子模块
-        ...
-        return spec
-
-    def exec_module(self, module):
-        name, file = module.__spec__.loader_state
-        # 将工作流核心原语自动注入到被加载的第三方库模块命名空间中
-        module.__dict__.update(self._primitives)
-        filename = "<workflow library %s/%s>" % (name, file)
-        # 内存编译并执行，不产生任何本地 .pyc 或磁盘文件
-        exec(compile(self._libraries[name][file], filename, "exec"), module.__dict__)
-
-# 注册至 Python 模块搜索链最末端，防止遮蔽标准库
-sys.meta_path.append(_LibraryFinder(init.get("libraries") or {}, dict(scope)))
-```
+1. **注册位置**：自定义 MetaPathFinder/Loader 追加到 `sys.meta_path` 链末端，不遮蔽标准库；
+2. **库源码来源**：由 Go 宿主经 Init Frame 的 `libraries` 字段整包下发（库名 → 文件名 → 内容 的字典）；
+3. **装载语义**：`find_spec` 动态解析库名与子模块；`exec_module` 先把工作流核心原语注入被载入模块的命名空间，再在内存中 `compile` + `exec`——全程零磁盘读写（配合禁写字节码，工作区绝对零残留）。
 
 `[已验证]` 安全特性：
 - 库源码由 Go 宿主直接打包在 Init Frame 的 `libraries` 字段中下发；
@@ -438,16 +363,7 @@ sys.meta_path.append(_LibraryFinder(init.get("libraries") or {}, dict(scope)))
 
 ### 5.1 Antigravity Prelude 源码核查
 
-被逆向的 Prelude 注入源（`antigravity_workflow_prelude.py`，共 1334 行）是本机 Antigravity 安装的 brain/scratch 会话产物（UUID 临时目录），**不随本仓分发、第三方无法按路径复现**（Issue #279 F6 修正：本节此前给出机器本地绝对路径复现命令，第三方不可达）。第三方复核以本文内已摘录的源码片段为锚：
-
-| 核查点 | 来源行锚（已核verify） | 本文摘录位置 |
-|---|---|---|
-| FD 劫持代码段 | `antigravity_workflow_prelude.py:455-464` | §2.x 摘录代码块（「antigravity_workflow_prelude.py:455-464」标注块） |
-| `_tracked`/`_agents` 在途注册表 | `:470-476` | §2.5 |
-| `__await__` 置 `_awaited=True` 的消费语义 | `:556,559,990-991` | §2.5 消费标记说明 |
-| 未 Await 终态审计扫描（`if not p._awaited`） | `:1315-1329` | §2.x 摘录代码块（「antigravity_workflow_prelude.py:1315-1329」标注块） |
-
-上述行锚已由逆向会话核对存在；如需独立获取源文件，请在自行安装的 Antigravity 环境的对应会话 brain/scratch 目录检索同名文件（行号以 1334 行版本为基准，版本漂移时以语义锚点定位）。本仓的吸收实现见 `src/dwf/child-bootstrap.ts` / `src/dwf/child-main.ts` 与 `docs/absorbed-capabilities.md` CAP-007。
+被逆向的 Prelude 注入源（`antigravity_workflow_prelude.py`，共 1334 行）是本机 Antigravity 安装的 brain/scratch 会话产物（UUID 临时目录），**不随本仓分发、第三方无法按路径复现**（私有仓 Issue #279 F6 修正：本节此前给出机器本地绝对路径复现命令，第三方不可达）。**清洁室修订（私有仓 Issue #163 批次）**：本文不再收录逐字源码摘录，全部改为上文的**行为级还原**；第三方复核以行为级还原与其语义锚点为基准。如需独立核验原始行为，请在自行安装的 Antigravity 环境的对应会话目录检索同名文件，按语义锚点定位（版本漂移时行号不可复用，以行为为准）。本仓的吸收实现见 `src/dwf/child-bootstrap.ts` / `src/dwf/child-main.ts` 与 `docs/absorbed-capabilities.md` CAP-007。
 
 ### 5.2 治理与防腐验证
 
