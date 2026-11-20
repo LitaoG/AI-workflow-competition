@@ -66,25 +66,25 @@
 - **On-Screen Title**: DEMO 1: AUTONOMOUS DEVOPS INCIDENT TRIAGE & REMEDIATION
 - **Visual Composition**:
   - Full-screen side-by-side execution display:
-    - **Left Side (Terminal)**: Command executed: `npm run workflow -- incident-triage --service=payment-gateway`. Terminal logs stream with timestamped step events:
-      - `[00:00.2] Detection`: Telemetry probe flags 42% HTTP 5xx error rate and 100/100 exhausted DB connections.
+    - **Left Side (Terminal)**: Command executed: `bash scripts/demo.sh` (Act 2 — the incident-triage demo). Terminal logs stream with timestamped step events:
+      - `[00:00.2] Detection`: Telemetry probe flags a 38.5% HTTP 500 spike and 100/100 exhausted DB connections.
       - `[00:01.1] Triage`: Single Inspector Agent correlates logs with commit `a8f9b2` (missing connection pool release).
       - `[00:01.9] Plan & Review`: Paired Fixer agent drafts a pool size increase and timeout fix; Paired Reviewer agent audits safety parameters.
-      - `[00:02.8] Recovery Gate`: Shell script executes `curl -sSf http://localhost:8080/healthz`. Exit code: 0!
+      - `[00:02.8] Recovery Gate`: The deterministic shell gate runs its offline mock healthcheck. Exit code: 0!
       - `[00:03.6] Synthesis`: Coordinator writes `PostMortem.md` and updates live Kanban dashboard.
-    - **Right Side (Live Bézier DAG Visualizer)**: Multi-phase timeline DAG animating nodes from gray (`pending`) to glowing amber (`running`) to emerald green (`completed`). The purple diamond shell gate flashes green as `curl /healthz` succeeds.
+    - **Right Side (Live Bézier DAG Visualizer)**: Multi-phase timeline DAG animating nodes from gray (`pending`) to glowing amber (`running`) to emerald green (`completed`). The purple diamond shell gate flashes green as the deterministic gate exits 0.
     - **Bottom Drawer**: Live Kanban board columns (`Probe Context` → `Agent Patches` → `Gate Logs` → `Deliverables`) populating cards in real time.
 - **On-Screen Callout Badges**:
   - `Topology`: Single Inspector + Paired Fixer/Reviewer + Shell Gate
-  - `Verification Gate`: `curl /healthz` (Deterministic Shell Script)
+  - `Verification Gate`: deterministic shell gate (offline mock healthcheck)
   - `Outcome`: Incident diagnosed, patched, verified & post-mortem written in 3.6s!
 - **Audio Track & SFX**:
   - `[0:55 - 1:05]`: Urgent P1 alert klaxon, quickly transitioning to focused driving synth bass.
   - `[1:05 - 1:18]`: High-tech dual ping as paired agents review the remediation plan.
-  - `[1:18 - 1:26]`: Heavy mechanical switch "click" as the shell gate tests the endpoint, followed by an authoritative green success chime.
+  - `[1:18 - 1:26]`: Heavy mechanical switch "click" as the deterministic gate passes, followed by an authoritative green success chime.
   - `[1:26 - 1:35]`: Smooth slide-out sound as the Kanban dashboard and `PostMortem.md` are exported.
 - **Actor Voiceover (EN)**:
-  > *"Watch Demo 1 resolve an active production P1 incident. Automated telemetry probing catches a database connection exhaustion causing a 42% HTTP 5xx spike. The Inspector agent correlates telemetry with recent commits. Next, a paired Fixer and Reviewer synthesize a safe remediation patch. But instead of blindly deploying, execution pauses at a deterministic shell gate that runs a live healthcheck. Only when `curl /healthz` returns 200 does the gate unlock, generating a verified post-mortem."* (82 words)
+  > *"Watch Demo 1 resolve an active production P1 incident. Automated telemetry probing catches a database connection exhaustion causing a 38.5% HTTP 500 spike. The Inspector agent correlates telemetry with recent commits. Next, a paired Fixer and Reviewer synthesize a safe remediation patch. But instead of blindly deploying, execution pauses at a deterministic shell gate that runs a healthcheck. Only when the gate exits 0 does it unlock, generating a verified post-mortem."* (82 words)
 
 ---
 
@@ -121,20 +121,20 @@
 - **Visual Composition**:
   - Dynamic 3D camera pan entering the root `/.kiro` directory structure:
     - `specs/`: Markdown specifications and typed JSON schemas defining engine state machines.
-    - `hooks/`: Official Kiro `lifecycle.json` with triggers (`AgentSpawn`, `PreToolUse`, `PostToolUse`, `Stop`) binding to deterministic cross-platform scripts.
+    - `hooks/`: Official Kiro `lifecycle.json` with triggers (`SessionStart`, `PreToolUse`, `PostToolUse`, `Stop`) binding to deterministic cross-platform scripts.
     - `steering/`: Policy guardrails with frontmatter `inclusion: always`, enforcing secret exfiltration bans and safe bash execution.
-    - `mcp/`: Exposing 5 core workflow tools (`workflow_run`, `workflow_probe`, `workflow_replay`, `workflow_render_dag`, `workflow_list_artifacts`).
-    - `pbt/`: Terminal runs `npm run test:pbt`. `fast-check` executes 1,000 property-based testing runs in milliseconds, mathematically verifying replay idempotency, DAG acyclicity, and schema soundness.
+    - `mcp/`: Exposing the ten-tool MCP face — five legacy tools (`workflow_run`, `workflow_probe`, `workflow_inspect`, `workflow_replay`, `workflow_graph`) plus five facade tools (`workflow_script_check`, `workflow_script_run`, `workflow_run_script`, `workflow_inspect_run`, `workflow_get_run`).
+    - `pbt/`: Terminal runs `npm run test:pbt`. `fast-check` executes 8–3,000 randomized cases per property (18 property tests across six suites) in seconds, mathematically verifying replay idempotency, DAG acyclicity, and schema soundness.
     - `crew/`: Skeleton Crew team roster (`roster.json`) and role-based permissions (`permissions.json`) enforcing least-privilege tool ceilings.
   - **Git Status Window**: Runs `git status`. Confirms root `/.kiro/` is 100% tracked in git and explicitly preserved in `.gitignore` (`!/.kiro/`, `!/.kiro/**`).
 - **On-Screen Callout Badges**:
   - `Tracked in Git`: 100% compliant with Kiroween R3 rules
   - `Kiro Hooks & Steering`: Deterministic `PreToolUse` gates & security boundaries
-  - `Fast-Check PBT`: 5 formal invariants verified over 1,000 runs
+  - `Fast-Check PBT`: 18 property tests, 8–3,000 randomized cases each, 0 failures
   - `Skeleton Crew`: Principle of least privilege enforced across agent roles
 - **Audio Track & SFX**:
   - `[2:15 - 2:25]`: Deep, resonant electronic bass drop; focused, authoritative tempo.
-  - `[2:25 - 2:35]`: Ultra-fast mechanical ticker sound as 1,000 PBT property runs flash green.
+  - `[2:25 - 2:35]`: Ultra-fast mechanical ticker sound as the 18-test PBT suite flashes green.
   - `[2:35 - 2:45]`: Six ascending pure crystal tones as all six Kiro subsystems illuminate with green checkmarks.
 - **Actor Voiceover (EN)**:
   > *"AI-Workflow is engineered specifically for AWS Kiroween's Skeleton Crew category. Inside root `/.kiro`—tracked 100% in git—formal specifications govern engine state machines, lifecycle hooks gate tool execution, and steering guardrails prevent credential exfiltration. Our fast-check Property-Based Testing suite mathematically proves replay idempotency across thousands of randomized runs, while our Skeleton Crew roster enforces least-privilege security ceilings across every agent role."* (69 words)

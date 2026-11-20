@@ -3,8 +3,8 @@
 # Restored 2026-11-14 by user decision (Issue #7): the competition repo is
 # PUBLIC, so GitHub Actions usage is free (runner minutes are billed for
 # private repositories only) and Linux-side verification had zero coverage.
-# The original removal (2026-11-09, Issue #203) was driven by private-repo
-# quota exhaustion; that constraint no longer applies here.
+# The original removal (2026-11-09, private-repo Issue #203) was driven by
+# private-repo quota exhaustion; that constraint no longer applies here.
 #
 # Merge admission is still governed by the local gates + pr_review_gate.mjs;
 # this workflow is the public trust signal and the cross-platform check.

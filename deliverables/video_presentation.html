@@ -603,8 +603,8 @@
           <div class="terminal-box" style="margin-top: 14px; border-color: var(--accent);">
             <div class="terminal-bar"><span class="terminal-dot dot-green"></span><span style="font-size: 10px; color: var(--accent);">AI-WORKFLOW DETERMINISTIC ENGINE</span></div>
             <div class="terminal-content">
-              $ /workflow run ./incident-triage.ts --mock<br>
-              <span style="color: #10b981;">[PROBE]: Win32 x64 · Node v22.23.2 · Git: clean (commit: e4b81c)</span><br>
+              $ bash scripts/demo.sh<br>
+              <span style="color: #10b981;">[PROBE]: Win32 x64 · Node v26.13.0 · Git: clean (commit: pinned at recording)</span><br>
               <span style="color: #38bdf8;">[DAG]: Compiled 5 phases · 8 nodes · Bézier graph ready</span><br>
               <span style="color: #10b981;">[STATUS]: Deterministic execution started · 0 conversational bloat</span>
             </div>
@@ -761,11 +761,11 @@
           <div class="terminal-box" style="flex: 1;">
             <div class="terminal-bar"><span class="terminal-dot dot-green"></span><span>INCIDENT TRIAGE EXECUTION LOG</span></div>
             <div class="terminal-content" id="d1-term-log">
-              [00:00.1] Telemetry: 5xx spike at 42.0%, DB Pool 100/100 active connections.<br>
+              [00:00.1] Telemetry: HTTP 500 spike at 38.5%, DB Pool 100/100 active connections.<br>
               [00:01.0] Triage Inspector: Root cause identified in commit a8f9b2 (unclosed connection pool).<br>
               [00:01.9] Fixer + Reviewer: Paired agents synthesize patch with pool max=250 & 5s timeout.<br>
-              <span style="color: #8b5cf6;">[00:02.8] Shell Recovery Gate: Executing `curl -sSf http://localhost:8080/healthz`...</span><br>
-              <span style="color: #10b981;">[00:02.9] Gate Passed! HTTP 200 OK (exit code: 0).</span><br>
+              <span style="color: #8b5cf6;">[00:02.8] Shell Recovery Gate: deterministic gate-runner executing (offline mock healthcheck)...</span><br>
+              <span style="color: #10b981;">[00:02.9] Gate Passed! exit code: 0.</span><br>
               <span style="color: #38bdf8;">[00:03.6] Synthesis: Generated PostMortem.md & updated live Kanban dashboard. Total time: 3.6s.</span>
             </div>
           </div>
@@ -867,7 +867,7 @@
       <div class="slide-header">
         <div class="slide-title-group">
           <h2 id="s5-title">Scene 5: Mandatory Kiro Integration & The Skeleton Crew</h2>
-          <p id="s5-sub">Root /.kiro 100% Tracked in Git, Specs, Hooks, Steering, 5 MCP Tools, Fast-Check PBT, and Role Ceilings.</p>
+          <p id="s5-sub">Root /.kiro 100% Tracked in Git, Specs, Hooks, Steering, 10-Tool MCP Face, Fast-Check PBT, and Role Ceilings.</p>
         </div>
         <div class="slide-badge">2:15 - 2:45 (30s)</div>
       </div>
@@ -885,17 +885,17 @@
 
         <div class="card">
           <h3>🪝 Lifecycle Hooks & MCP</h3>
-          <p>Kiro lifecycle triggers & 5 exposed MCP tools:</p>
+          <p>Kiro lifecycle triggers & the ten exposed MCP tools:</p>
           <ul style="margin: 8px 0 0 16px; font-size: 11px; color: var(--text-muted); line-height: 1.6;">
-            <li><code>lifecycle.json</code>: Triggers <code>AgentSpawn</code>, <code>PreToolUse</code>, <code>PostToolUse</code>, <code>Stop</code></li>
-            <li><code>pre-tool.js</code>: Exit code 0 allows, exit code 2 blocks</li>
-            <li>5 MCP Tools: <code>workflow_run</code>, <code>workflow_probe</code>, <code>workflow_replay</code>, <code>workflow_render_dag</code>, <code>workflow_list_artifacts</code></li>
+            <li><code>lifecycle.json</code>: Triggers <code>SessionStart</code>, <code>PreToolUse</code>, <code>PostToolUse</code>, <code>Stop</code></li>
+            <li><code>pre-step-gate.js</code>: Exit code 0 allows, exit code 2 blocks</li>
+            <li>10 MCP Tools: 5 legacy (<code>workflow_run</code>, <code>workflow_probe</code>, <code>workflow_inspect</code>, <code>workflow_replay</code>, <code>workflow_graph</code>) + 5 facade (<code>workflow_script_check</code>, <code>workflow_script_run</code>, <code>workflow_run_script</code>, <code>workflow_inspect_run</code>, <code>workflow_get_run</code>)</li>
           </ul>
         </div>
 
         <div class="card">
           <h3>🧪 Fast-Check PBT & Crew</h3>
-          <p>1,000 runs per invariant & least-privilege team:</p>
+          <p>8–3,000 randomized cases per property & least-privilege team:</p>
           <ul style="margin: 8px 0 0 16px; font-size: 11px; color: var(--text-muted); line-height: 1.6;">
             <li>Property 1: Replay Idempotency</li>
             <li>Property 2: Typed RPC Soundness</li>
@@ -910,7 +910,7 @@
         <div class="terminal-bar"><span class="terminal-dot dot-green"></span><span>KIRO TEST VERIFICATION TRACE</span></div>
         <div class="terminal-content">
           $ npm run test:pbt<br>
-          <span style="color: #10b981;">✔ 5/5 Formal Invariants Proven (1,000 fast-check runs each, 0 counterexamples).</span><br>
+          <span style="color: #10b981;">✔ PBT suite green: 18 property tests across 6 files (8–3,000 fast-check cases each), 0 counterexamples.</span><br>
           <span style="color: #38bdf8;">✔ Root `/.kiro` verified: 100% tracked in git (Preserved in .gitignore via !/.kiro/ and !/.kiro/**).</span>
         </div>
       </div>
@@ -1047,7 +1047,7 @@
         name: 'Root Cause Classification (Inspector)',
         role: '[INSPECTOR]',
         status: 'Completed · 840ms',
-        inputs: { telemetry: 'http5xx=42%, dbPool=100/100', recentCommits: ['a8f9b2: add async connection'] },
+        inputs: { telemetry: 'http500=38.5%, dbPool=100/100', recentCommits: ['a8f9b2: add async connection'] },
         outputs: { severity: 'P1', failureDomain: 'database_pool', rootCauseCommit: 'a8f9b2', confidence: 0.96 }
       },
       'd1-plan': {
@@ -1065,11 +1065,11 @@
         outputs: { safetyApproved: true, riskScore: 'LOW', auditSignature: 'sha256:7f3a9b1c' }
       },
       'd1-gate': {
-        name: 'Deterministic Healthz Recovery Gate',
+        name: 'Deterministic Recovery Gate',
         role: '[SHELL GATE]',
         status: 'Completed · 110ms (exit code 0)',
-        inputs: { testCommand: 'curl -sSf http://localhost:8080/healthz' },
-        outputs: { httpStatus: 200, response: '{"status":"UP"}', passed: true }
+        inputs: { testCommand: 'node -e "process.exit(0)" (offline mock healthcheck)' },
+        outputs: { gateExit: 0, passed: true }
       },
       'd1-post': {
         name: 'Post-Mortem Synthesis (Coordinator)',
@@ -1213,7 +1213,7 @@
     function simulateDemo1Execution() {
       const log = document.getElementById('d1-term-log');
       log.innerHTML = '<span style="color: #f59e0b;">▶ Launching /workflow run incident-triage.ts...</span>';
-      setTimeout(() => { log.innerHTML += '<br>[Probe]: Telemetry probe detected 42% HTTP 5xx error rate.'; }, 600);
+      setTimeout(() => { log.innerHTML += '<br>[Probe]: Telemetry probe detected 38.5% HTTP 500 error rate.'; }, 600);
       setTimeout(() => { log.innerHTML += '<br>[Triage]: Inspector agent classified incident as P1 DB pool exhaustion.'; }, 1200);
       setTimeout(() => { log.innerHTML += '<br>[Plan/Review]: Paired Fixer/Reviewer synthesized validated patch.'; }, 1800);
       setTimeout(() => { log.innerHTML += '<br><span style="color: #8b5cf6;">[Gate]: curl /healthz returned 200 OK!</span>'; }, 2400);

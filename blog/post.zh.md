@@ -236,22 +236,22 @@ $$P_1 = (x_1 + \Delta x, y_1), \quad P_2 = (x_2 - \Delta x, y_2)$$
 ```
 .kiro/
 ├── specs/          # 形式化规格（工作流状态机、RPC 模式与重放数学模型）
-├── hooks/          # 生命周期钩子（AgentSpawn, PreToolUse, PostToolUse, Stop）
+├── hooks/          # 生命周期钩子（SessionStart, PreToolUse, PostToolUse, Stop）
 ├── steering/       # 带 Frontmatter 的转向指导规则（inclusion: always）
-├── mcp/            # MCP 服务配置（对外开放 5 项工作流核心工具）
+├── mcp/            # MCP 服务配置（十工具面：5 个 legacy + 5 个 facade）
 ├── pbt/            # 基于 fast-check 的基于属性测试套件
 └── crew/           # Skeleton Crew 团队花名册与最小权限隔离配置
 ```
 
 ### 4.1 生命周期钩子构筑的安全底座
 Kiro 的钩子机制为工作流提供了确定性的拦截能力：
-- **`AgentSpawn`**：执行环境探测，将经过脱敏的系统指标注入首轮对话上下文。
+- **`SessionStart`**：执行环境探测，将经过脱敏的系统指标注入首轮对话上下文。
 - **`PreToolUse`**：充当安全看门狗。任何破坏性 Shell 指令（如 `rm -rf /` 或未脱敏密钥）均被以 **退出码 2** 立即拦截。
 - **`PostToolUse`**：审计每一步状态并刷盘写入 `events.jsonl`。
 - **`Stop`**：在会话退出前验证全局测试门禁是否已全部通过。
 
 ### 4.2 基于 fast-check 的基于属性测试 (PBT)
-单元测试只能覆盖预期的用例，而无法覆盖无限的未知边界。我们在 `.kiro/pbt/engine-invariants.test.ts` 中基于 `fast-check` 构建了高强度的数学不变量证明，每项不变量经历 1,000 次随机生成的极端用例考验：
+单元测试只能覆盖预期的用例，而无法覆盖无限的未知边界。我们在 `.kiro/pbt/` 中基于 `fast-check` 构建了高强度的性质测试套件（6 个性质文件、18 项测试），每项性质经历 8–3,000 次随机生成的极端用例考验（按性质调档）：
 1. **DAG 无环性不变量**：Kahn 算法在 100% 随机图用例中均能正确拓扑排序或捕获循环。
 2. **幂等状态重放不变量**：重放已完成的前缀步骤产生与原生执行完全一致的系统状态。
 3. **RPC 契约完备性不变量**：任意随机 JSON 载荷均能被正确解析或以类型化错误拦截，绝无未捕获运行时崩溃。

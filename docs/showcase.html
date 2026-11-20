@@ -37,10 +37,10 @@
 <h1>AI<span class="accent">-</span>Workflow</h1>
 <p class="tagline">A deterministic dynamic-workflow engine — the plan lives in <b>compiled code</b>, not in one agent's context window.</p>
 <div class="badges">
-  <span>Apache-2.0</span><span>Node 22+</span><span>zero runtime deps</span><span>810+ tests green</span><span>MCP native</span><span>offline demo, no network</span>
+  <span>Apache-2.0</span><span>Node 22+</span><span>4 runtime deps</span><span>841 tests green</span><span>MCP native</span><span>offline demo, no network</span>
 </div>
 
-<h2>The three agentic failure modes — structurally fixed</h2>
+<h2>The four agentic failure modes — structurally fixed</h2>
 <div class="mode"><b>Agentic laziness</b> — "35 of 50 done" <span class="fix">→ the script owns the worklist: fan-outs, loops and gates are code, so coverage is structural.</span></div>
 <div class="mode"><b>Self-preferential bias</b> — grading its own work <span class="fix">→ every transform is reviewed by a different agent; verdicts need independent reproduction.</span></div>
 <div class="mode"><b>Goal drift</b> — fidelity erodes across turns <span class="fix">→ each ask gets a fresh narrow context; the plan lives in the script, immune to compaction.</span></div>

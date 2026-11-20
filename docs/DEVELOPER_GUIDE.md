@@ -76,7 +76,7 @@ my-agent-pipeline/
 | **观测** | `list` | 历史运行列表 | `-n --limit`、`-s --status`、`-j --json`、`--db <path>` |
 | | `inspect <runId>` | 节点级遥测、检查点与事件流 | `-e --events`、`-s --step`、`-j --json` |
 | | `graph <file>` | DAG 可视化 | `-f --format html\|mermaid\|ascii`、`-o --output <path>` |
-| | `serve <runId>` | 实时 Studio 看板（SSE / WebSocket 推送） | `--studio`（SVG 画布 + 时间旅行）、`-p --port`（默认 4649）、`--no-open` |
+| | `serve <runId>` | 实时 Studio 看板（SSE / WebSocket 推送） | `--studio`（SVG 画布 + 时间旅行）、`-p --port`（默认 4649）、`--no-open`、`--db <path>`（journal 路径，默认 `.workflow/dwf.sqlite`） |
 | | `view <runId>` | 导出独立 HTML 运行报告 | `-o --out <path>`（默认 `.workflow/views/<runId>.html`） |
 | **人机协作** | `fill <runId> <holeName> [bodyFile]` | 为停靠的 hole 补洞，分叉续跑 | `-b --body <statements>` |
 | | `answer <runId> <questionId> <text...>` | 回答停靠的 escalate 提问并恢复运行 | `--approve-cmd <name>`（可重复） |

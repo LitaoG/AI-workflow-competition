@@ -1,5 +1,11 @@
 # Project: AI-workflow Multi-Agent Development Workflow Governance System
 
+> **[Historical archive]** This document preserves the private-repo era M1 milestone survey
+> (frozen 2026-11-14, registered in [docs/README.md](docs/README.md)). The current authority
+> lives in [AGENTS.md](AGENTS.md), [README.md](README.md) and [SUBMISSION.md](SUBMISSION.md).
+> Private commit hashes cited below are intentionally unresolvable in this repository —
+> that is expected, not an error.
+
 ## Architecture
 - **Governance Framework**: Two-tier governance: Root governance charter (mandatory session discipline & P0 red lines) + `docs/WORKFLOW.md` (standard 8-step engineering lifecycle).
 - **Documentation Single Source of Truth**: `docs/README.md` index + anti-corruption lookup table.
