@@ -343,7 +343,7 @@ export interface ProberResult {
    - 引擎事件的**第二持久化通道**：journalled 节点行经 `store.saveDwfNode` 直写 SQLite；其余事件（phase/log 呈现、重放/amend 命中、hole、escalation、预算遥测）经唯一接缝 `FacadeEngine.emit` 交给 runner 的 emit 闭包**双写**——权威 SQLite `events` 表与 `events.jsonl` 镜像，两者事件 id/sequence 字节一致，可直接比对，续跑在两条流上无缝继续；
    - 即使未处理的 OS 信号终止了 Node 进程，事件流也不损坏（SQLite 保持权威；镜像降级本身也是事件 `dwf_event_log_write_failed`）。
 
-**脱敏边界**：journalled 值落盘前必过 `redactValue`（`src/dwf/redact.ts`）——journal 即脱敏边界，重放确定性继承掩码形态。值形状掩码 `CREDENTIAL_TOKEN_SHAPES` 覆盖 AWS `AKIA…`、GitHub `ghp_`/`github_pat_`、OpenAI `sk-…`、Slack `xox…`、JWT `eyJ…` 等；错误路径另有 KV 形状与 URI 形状掩码（`postgres://***:***@host`），`dwf_failed` 事件不携带裸值。
+**脱敏边界**：journalled 值落盘前必过 `redactValue`（`src/dwf/redact.ts`）——journal 即脱敏边界，重放确定性继承掩码形态。值形状掩码 `CREDENTIAL_TOKEN_SHAPES` 覆盖 AWS `AKIA…`、GitHub `ghp_`/`github_pat_`、OpenAI `sk-…`、Slack `xox…`、JWT `eyJ…` 等；错误路径另有 KV 形状与 URI 形状掩码（`postgres://***:***@host`），`dwf_failed` 事件不携带裸值。**双档 profile（Issue #219）**：`worldRead` 结果（files.read / files.grep / files.map / git.diff——即任意工作区文件内容）走 `content` 档，按键名 KV 掩码收窄为「敏感键名 + token 形值」——无条件按键名掩码会把良性字段（package.json 的 `"keywords"`/`"private"`）打坏并打断脚本内 `JSON.parse`；命令输出、错误文本与 ask 结果保持 `full` 档（宁过掩不泄漏），两档共享 URI 凭据、裸凭据形状、Bearer 与整值掩码。
 
 ### 8.2 事件词汇表（`src/domain/events.ts`）
 
@@ -523,7 +523,7 @@ AI-Workflow 的核心机制是有据可查的工程选择，追溯至三条成�
 - **`CREDENTIAL_TOKEN_SHAPES` 值形状掩码**（`src/dwf/redact.ts`）：AWS `AKIA…`、GitHub `ghp_`/`github_pat_`、OpenAI `sk-…`、Slack `xox…`、JWT `eyJ…` 一律掩码为 `***REDACTED***`；journal 持久化落盘前先过 `redactValue`；
 - 错误路径：KV 形状与 URI 形状掩码（`postgres://***:***@host`）——`dwf_failed` 事件无裸值。
 
-诚实历史与残余：矢量 3 在审计当时是真实泄漏——原始 `.env`（含 `postgres://app:hunter2@…` URI）落入 CLI 结果与 journal——已通过持久化前 `redactValue` 关闭；被跳过的泄漏测试提升为真断言，5/5 通过（PEN §5.6）。残余：运行输入 `args_json` 仍明文存储（GAP-MATRIX R2）；Windows/libuv 会向显式设置的环境再注入 7 个众所周知键，白名单在 OS 层不是字节精确的（PEN §5.1 注）。
+诚实历史与残余：矢量 3 在审计当时是真实泄漏——原始 `.env`（含 `postgres://app:hunter2@…` URI）落入 CLI 结果与 journal——已通过持久化前 `redactValue` 关闭；被跳过的泄漏测试提升为真断言，5/5 通过（PEN §5.6）。矢量 3 的反向事故（Issue #219）：同一个按键名 KV 掩码无差别作用于 `files.read` 的任意文件内容，把 package.json 的 `"keywords"`/`"private"` 打坏并打断脚本内 `JSON.parse`（R7 锐评 2026-11-21 活体复现）——已通过 worldRead 专属 `content` 档（键名规则收窄为「敏感键名 + token 形值」，形状掩码全保留）关闭，ADV3 泄漏断言与 package.json 保真断言双向锁定。残余：运行输入 `args_json` 仍明文存储（GAP-MATRIX R2）；Windows/libuv 会向显式设置的环境再注入 7 个众所周知键，白名单在 OS 层不是字节精确的（PEN §5.1 注）。
 
 ### 12.5 纵深防御模型与红蓝互评结论
 
