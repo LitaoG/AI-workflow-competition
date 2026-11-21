@@ -15,11 +15,18 @@
   provider self-registers (region/model via `AWS_REGION` / `BEDROCK_MODEL_ID`, defaults
   `us-east-1` / `anthropic.claude-3-5-sonnet-20241022-v2:0`); the registry default remains the
   offline mock — asks reach bedrock only via an explicit `providerId`, no silent failover. 15 new
-  unit tests including the AWS official SigV4 test vectors (+10 net → 867).
+  unit tests including the AWS official SigV4 test vectors (+10 net).
 - **docs (Issue #214)**: SUBMISSION's "90 seconds to a real model" gains the env-credential direct
   path (ANTHROPIC_API_KEY / OPENAI_API_KEY / AWS_ACCESS_KEY_ID → anthropic / openai / bedrock) and
   docs/INTEGRATION.md §4 documents the bedrock registration — closing the doc-sync debt that
   PR #213's "no doc impact" adjudication left on record.
+- **perf (Issue #210, PR #217)**: the facade compiler gains in-memory standard-library AST and text
+  caching — repeated compiles in one process stop re-parsing the bundled lib files, cutting warm
+  compile cost further (`src/dwf/compile.ts`); also lands `npm run demo:studio` as a package-script
+  alias for the one-command demo.
+- **docs (Issue #211, PR #218)**: README and SUBMISSION highlight the judge's 3-minute golden path
+  (clone → build → `node bin/workflow.js demo`), so the fastest reproducible route is the first
+  thing a judge sees.
 
 ## 2.11.0 (2026-11-21) — presentation-facts batch: judge-surface truth purge, doctor install-integrity & release tarball assets
 
