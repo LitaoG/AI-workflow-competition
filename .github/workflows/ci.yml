@@ -72,12 +72,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     if: github.event_name == 'pull_request'
+    permissions:
+      statuses: write
+      pull-requests: read
+      issues: read
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
 
       - name: §1.9 adjudication (linkage + review replies + no-comment claims)
+        id: gate
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -93,7 +98,33 @@ jobs:
             echo "[bootstrap] main's gate script predates --ci-comments (Issue #173) —"
             echo "  §1.9 adjudication deferred to pr_merge.sh's merge-time bare run;"
             echo "  this job adjudicates for real on every PR created after this merge."
+            echo "deferred=true" >> "$GITHUB_OUTPUT"
           fi
+
+      # Issue #195: the required `review-gate-comments` context must exist on a
+      # fresh PR's HEAD sha — otherwise GitHub treats the never-reported
+      # required check as pending and the PR is BLOCKED until someone happens
+      # to comment (measured on PR #188: green CI + BLOCKED merge). This is
+      # the initial report; the comment-triggered review-comments-status.yml
+      # owns every subsequent flip.
+      - name: Initial report of review-gate-comments on the PR HEAD sha
+        if: steps.gate.outputs.deferred != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ steps.gate.outcome }}" = "success" ]; then
+            STATE=success
+            DESC="§1.9 adjudication clean on push (initial report, Issue #195)"
+          else
+            STATE=failure
+            DESC="Unanswered review findings on push — reply with 已处理/刻意不改/需人拍板 (Issue #195)"
+          fi
+          gh api \
+            repos/${{ github.repository }}/statuses/${{ github.event.pull_request.head.sha }} \
+            -f state="$STATE" \
+            -f context=review-gate-comments \
+            -f description="$DESC" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
   # Issue #66: a SIGNAL job, not a gate. Quantified at triage: 9
   # `process.platform === 'win32'` branches across src/ plus 2 win32/ps1/
