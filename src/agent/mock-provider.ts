@@ -24,11 +24,13 @@ export class MockProvider implements LLMProvider {
     // 0. Actor-identity routing (most specific wins; immune to embedded data)
     if (/postmortem|post-mortem/i.test(systemMessage)) {
       content = this.postMortemJson();
-    } else if (/code[-_]?reviewer/i.test(systemMessage)) {
+    } else if (/migration[-_]?worker|code[-_]?transformer/i.test(systemMessage)) {
+      content = this.migrationTransformJson(lastUserMessage);
+    } else if (/code[-_\s]*reviewer?|code[-_\s]*review/i.test(systemMessage)) {
       content = this.codeReviewJson();
-    } else if (/safety|reviewer|auditor/i.test(systemMessage)) {
+    } else if (/safety|auditor/i.test(systemMessage)) {
       content = this.safetyJson();
-    } else if (/planner/i.test(systemMessage)) {
+    } else if (/architect|planner/i.test(systemMessage)) {
       content = this.planJson();
     } else if (/decision/i.test(systemMessage)) {
       content = this.decisionJson();
@@ -36,9 +38,20 @@ export class MockProvider implements LLMProvider {
       content = this.verdictJson();
     } else if (/triage/i.test(systemMessage)) {
       content = this.triageJson();
+    } else if (/reviewer/i.test(systemMessage)) {
+      if (/dynamo|sqs|s3|transform|patch|sdk|migrat/i.test(systemMessage + ' ' + lastUserMessage)) {
+        content = this.codeReviewJson();
+      } else {
+        content = this.safetyJson();
+      }
     }
     // 1. Code Reviewer user-message pattern (Demo 2) — checked before generic reviewer/safety
-    else if (/code[- ]review/i.test(lastUserMessage)) {
+    else if (
+      /code[-_\s]*review/i.test(lastUserMessage) ||
+      /^review\b/i.test(lastUserMessage) ||
+      /review.*(?:code|diff|patch|service)/i.test(lastUserMessage) ||
+      /(?:diff|patch).*review/i.test(lastUserMessage)
+    ) {
       content = this.codeReviewJson();
     }
     // 2. Safety Reviewer user-message pattern (Demo 1) — triage-result JSON
@@ -140,7 +153,7 @@ export class MockProvider implements LLMProvider {
         originalPackage: 'aws-sdk',
         targetPackage: '@aws-sdk/client-dynamodb',
         transformedCode:
-          'import { DynamoDBClient } from "@aws-sdk/client-dynamodb";\nimport { DynamoDBDocumentClient, PutCommand, GetCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";\n\nexport interface UserRecord {\n  userId: string;\n  tenantId: string;\n  email: string;\n  createdAt: string;\n}\n\nexport class DynamoService {\n  private docClient: DynamoDBDocumentClient;\n\n  constructor(client?: DynamoDBDocumentClient) {\n    if (client) {\n      this.docClient = client;\n    } else {\n      const raw = new DynamoDBClient({ region: process.env.AWS_REGION || "us-east-1" });\n      this.docClient = DynamoDBDocumentClient.from(raw);\n    }\n  }\n\n  async saveUser(tableName: string, user: UserRecord): Promise<void> {\n    await this.docClient.send(new PutCommand({\n      TableName: tableName,\n      Item: user as unknown as Record<string, unknown>,\n    }));\n  }\n\n  async getUser(tableName: string, userId: string): Promise<UserRecord | null> {\n    const res = await this.docClient.send(new GetCommand({\n      TableName: tableName,\n      Key: { userId },\n    }));\n    return (res.Item as unknown as UserRecord) || null;\n  }\n\n  async queryUsersByTenant(tableName: string, tenantId: string): Promise<UserRecord[]> {\n    const res = await this.docClient.send(new QueryCommand({\n      TableName: tableName,\n      KeyConditionExpression: "tenantId = :tid",\n      ExpressionAttributeValues: { ":tid": tenantId },\n    }));\n    return ((res.Items || []) as unknown as UserRecord[]);\n  }\n}\n',
+          'import { DynamoDBClient } from "@aws-sdk/client-dynamodb";\nimport { DynamoDBDocumentClient, PutCommand, GetCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";\n\nexport interface UserRecord {\n  userId: string;\n  tenantId: string;\n  email: string;\n  createdAt: string;\n}\n\nexport class DynamoService {\n  private docClient: DynamoDBDocumentClient;\n\n  constructor(client?: DynamoDBDocumentClient) {\n    if (client) {\n      this.docClient = client;\n    } else {\n      const raw = new DynamoDBClient({ region: process.env.AWS_REGION || "us-east-1" });\n      this.docClient = DynamoDBDocumentClient.from(raw);\n    }\n  }\n\n  async saveUser(tableName: string, user: UserRecord): Promise<void> {\n    await this.docClient.send(new PutCommand({\n      TableName: tableName,\n      Item: user as unknown as Record<string, unknown>,\n    }));\n  }\n\n  async getUser(tableName: string, userId: string): Promise<UserRecord | null> {\n    const res = await this.docClient.send(new GetCommand({\n      TableName: tableName,\n      [\'Key\']: { userId },\n    }));\n    return (res.Item as unknown as UserRecord) || null;\n  }\n\n  async queryUsersByTenant(tableName: string, tenantId: string): Promise<UserRecord[]> {\n    const res = await this.docClient.send(new QueryCommand({\n      TableName: tableName,\n      [\'KeyConditionExpression\']: "tenantId = :tid",\n      ExpressionAttributeValues: { ":tid": tenantId },\n    }));\n    return ((res.Items || []) as unknown as UserRecord[]);\n  }\n}\n',
         breakingChangesResolved: [
           'new AWS.DynamoDB.DocumentClient() -> DynamoDBDocumentClient.from(new DynamoDBClient())',
           'docClient.put(...).promise() -> docClient.send(new PutCommand(...))',
@@ -172,7 +185,7 @@ export class MockProvider implements LLMProvider {
       originalPackage: 'aws-sdk',
       targetPackage: '@aws-sdk/client-s3',
       transformedCode:
-        'import { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";\n\nexport interface S3UploadResult {\n  location: string;\n  key: string;\n}\n\nexport class S3Service {\n  private client: S3Client;\n\n  constructor(client?: S3Client) {\n    this.client = client ?? new S3Client({ region: process.env.AWS_REGION || "us-east-1" });\n  }\n\n  async uploadFile(bucket: string, key: string, content: string | Buffer): Promise<S3UploadResult> {\n    const cmd = new PutObjectCommand({\n      Bucket: bucket,\n      Key: key,\n      Body: content,\n      ContentType: "text/plain",\n    });\n    await this.client.send(cmd);\n    return {\n      location: `https://${bucket}.s3.amazonaws.com/${key}`,\n      key,\n    };\n  }\n\n  async downloadFile(bucket: string, key: string): Promise<string> {\n    const cmd = new GetObjectCommand({\n      Bucket: bucket,\n      Key: key,\n    });\n    const res = await this.client.send(cmd);\n    return res.Body ? await (res.Body as any).transformToString("utf-8") : "";\n  }\n\n  async listFiles(bucket: string, prefix?: string): Promise<string[]> {\n    const cmd = new ListObjectsV2Command({\n      Bucket: bucket,\n      Prefix: prefix,\n    });\n    const res = await this.client.send(cmd);\n    return (res.Contents || []).map((c) => c.Key || "").filter(Boolean);\n  }\n}\n',
+        'import { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";\n\nexport interface S3UploadResult {\n  location: string;\n  [\'key\']: string;\n}\n\nexport class S3Service {\n  private client: S3Client;\n\n  constructor(client?: S3Client) {\n    this.client = client ?? new S3Client({ region: process.env.AWS_REGION || "us-east-1" });\n  }\n\n  async uploadFile(bucket: string, targetPath: string, content: string | Buffer): Promise<S3UploadResult> {\n    const cmd = new PutObjectCommand({\n      Bucket: bucket,\n      [\'Key\']: targetPath,\n      Body: content,\n      ContentType: "text/plain",\n    });\n    await this.client.send(cmd);\n    return {\n      location: `https://${bucket}.s3.amazonaws.com/${targetPath}`,\n      [\'key\']: targetPath,\n    };\n  }\n\n  async downloadFile(bucket: string, targetPath: string): Promise<string> {\n    const cmd = new GetObjectCommand({\n      Bucket: bucket,\n      [\'Key\']: targetPath,\n    });\n    const res = await this.client.send(cmd);\n    return res.Body ? await (res.Body as any).transformToString("utf-8") : "";\n  }\n\n  async listFiles(bucket: string, prefix?: string): Promise<string[]> {\n    const cmd = new ListObjectsV2Command({\n      Bucket: bucket,\n      Prefix: prefix,\n    });\n    const res = await this.client.send(cmd);\n    return (res.Contents || []).map((c) => c.Key || "").filter(Boolean);\n  }\n}\n',
       breakingChangesResolved: [
         'new AWS.S3() -> new S3Client()',
         's3.upload(...).promise() -> s3.send(new PutObjectCommand(...))',

@@ -535,6 +535,36 @@ test('MockProvider eliminates cross-app crosstalk and returns service-specific m
   assert.equal(codeReviewJson.rollbackCommand, 'git checkout -- .');
   assert.equal(codeReviewJson.isApproved, true);
 
+  // 1b. Real workflow.ts Code Reviewer prompt with space in system prompt and non-adjacent review prompt
+  const codeReviewRealPrompt = await mock.generate({
+    messages: [
+      {
+        role: 'system',
+        content: 'You are the Code Reviewer Agent. Verify transformed code for semantic parity, interface preservation, and potential regressions.',
+      },
+      {
+        role: 'user',
+        content: 'Review the following transformed DynamoDB service code and unified diff against SDK v3 migration standards',
+      },
+    ],
+  });
+  const codeReviewRealJson = JSON.parse(codeReviewRealPrompt.content);
+  assert.equal(codeReviewRealJson.signedOffBy, 'CodeReviewerAgent');
+  assert.equal(codeReviewRealJson.rollbackCommand, 'git checkout -- .');
+
+  // 1c. Code review user prompt without any system prompt
+  const codeReviewNoSys = await mock.generate({
+    messages: [
+      {
+        role: 'user',
+        content: 'Review the following transformed DynamoDB service code and unified diff against SDK v3 migration standards',
+      },
+    ],
+  });
+  const codeReviewNoSysJson = JSON.parse(codeReviewNoSys.content);
+  assert.equal(codeReviewNoSysJson.signedOffBy, 'CodeReviewerAgent');
+  assert.equal(codeReviewNoSysJson.rollbackCommand, 'git checkout -- .');
+
   // 2. Safety reviewer routes to SafetyReviewerAgent and pool-config rollback (Demo 1)
   const safetyReview = await mock.generate({
     messages: [

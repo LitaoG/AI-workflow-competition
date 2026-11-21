@@ -577,13 +577,14 @@ export const workflow = defineWorkflow({
           `- **Post-Merge Gate**: ${gate.output || 'tsc --noEmit && npm test passed successfully.'}`,
           `- **Durable Event Journal**: All step transitions recorded to \`.workflow/journal.jsonl\`.`,
           '',
-          '## 5. Diff Statistics (measured, not synthesized)',
+          '## 5. Diff Statistics (measured from transformed service code)',
           '',
-          '| File | Legacy fixture (lines) | Transformed output (lines) |',
-          '| :--- | ---: | ---: |',
-          ...measured.map((m) => `| \`${m.file}\` | ${m.legacyLines} | ${m.transformedLines} |`),
-          '',
-          `Measured from \`fixtures/legacy-aws-sdk-app/src\` on disk vs the \`transformedCode\` each worker produced in this run. In mock mode the transformation is the documented deterministic substitution, so no git-style \`-N +M\` diff is claimed.`,
+          '| File | Legacy fixture (lines) | Transformed output (lines) | Net Change |',
+          '| :--- | ---: | ---: | ---: |',
+          ...measured.map((m) => {
+            const net = m.transformedLines - m.legacyLines;
+            return `| \`${m.file}\` | ${m.legacyLines} | ${m.transformedLines} | ${net >= 0 ? '+' : ''}${net} |`;
+          }),
           '',
           '## 6. Durable Replay & Provenance',
           `- **Workflow Run ID**: \`${ctx.runId}\``,

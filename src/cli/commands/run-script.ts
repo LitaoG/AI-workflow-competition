@@ -156,6 +156,9 @@ export async function executeRunScript(
 
   if (result.status === 'compile_failed') {
     console.error(`✖ facade script failed compilation — ${result.diagnostics?.length ?? 0} diagnostic(s):`);
+    if (result.error && (!result.diagnostics || result.diagnostics.length === 0)) {
+      console.error(`  ${result.error}`);
+    }
     for (const d of result.diagnostics ?? []) {
       console.error(`  ${scriptPath}:${d.line}:${d.column}  ${d.category}(${d.code}): ${d.message}`);
       if (d.hint) console.error(`    💡 ${d.hint}`);
