@@ -4,6 +4,29 @@
 > to this project's own private development repository (the pre-public-history mirror), never
 > third-party code. All engine code in this repository is clean-room original work.
 
+## 2.10.0 (2026-11-21) — §1.9 mechanical closure, GitHub Pages showcase & one-command demo entry
+
+- **governance (§1.9 mechanical closure, Issue #173/#124)**: the three-state reply duty is now
+  enforced mechanically — `pr_review_gate.mjs` gains a `--ci-comments` CI face (same review
+  adjudication assembly — F5 linked-issue comments merged, S2 no-comment claims — skipping
+  merge-period-only checks), ci.yml adds the REQUIRED `review-comments` job on every PR update,
+  and a new `review-comments-status.yml` flips the `review-gate-comments` commit status on a
+  PR's HEAD whenever a comment or review lands: unanswered findings → `failure` → merge blocked
+  (enforce_admins covered); a three-state reply re-triggers it → `success` → unblocked. This
+  closes the #165 race class (a finding landing between gate runs and merge). Gate execution
+  always runs MAIN's script, never PR-author-controlled code; the bootstrap window (main's
+  script predating the mode) defers loudly instead of faking green. Branch protection now
+  requires `[gate, review-comments, review-gate-comments]`; blocking semantics probe-verified
+  live (`failure` → mergeStateStatus=BLOCKED → `success` → unblocked).
+- **pages (judge-facing showcase, Issue #178/#180/#179)**: `docs/` deploys to GitHub Pages via
+  the official `deploy-pages` workflow (push on `docs/**` or manual dispatch), giving judges a
+  live online entry alongside the repo; `npm run demo` lands as the one-command cross-platform
+  reproduction entry; the showcase and submission links were aligned to the judge flow.
+- **docs (artifact layers, Issue #181)**: README now explains the two-generation demo evidence
+  layout — repo-root `artifacts/` holds the latest bucketed `scripts/demo.sh` run, while
+  `apps/*/artifacts/` preserves each application's own standalone run (different runIds and
+  timestamps by design, not drift).
+
 ## 2.9.0 (2026-11-21) — plan-first live graph series: the DAG view becomes a run-long cockpit
 
 - **feat (Issue #168, PR #169)**: plan-first visualization — a facade run journals its compile-time

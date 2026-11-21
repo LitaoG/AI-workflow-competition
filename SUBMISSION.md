@@ -97,9 +97,10 @@ three-minute judge path) or from a release tarball: `npm install ./ai-workflow-<
 
 ### Reproducible quality-gate fingerprints
 
-All run 2026-11-21 on the v2.9.0 release tree (Issue #175 — main @ `563e5bf` plus the release
-overlay: package.json/package-lock version fields, the CHANGELOG 2.9.0 fold, this re-pin —
-folding the plan-first live graph series #168/#171), Windows, Node v26.13.0, from a **fresh build**
+All run 2026-11-21 on the v2.10.0 release tree (Issue #186 — main @ `36356d1` plus the release
+overlay: package.json/package-lock version fields, the CHANGELOG 2.10.0 fold, this re-pin —
+folding the §1.9 mechanical closure, the GitHub Pages showcase & the one-command demo entry),
+Windows, Node v26.13.0, from a **fresh build**
 (fresh-build numbers are what a judge clone reproduces; full context in
 [README](README.md#reproducible-quality-gate-fingerprints)):
 

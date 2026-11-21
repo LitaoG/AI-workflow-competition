@@ -1,6 +1,6 @@
 {
   "name": "ai-workflow",
-  "version": "2.9.0",
+  "version": "2.10.0",
   "description": "Deterministic code-as-workflow engine for multi-agent orchestration (\"Code, not conversation\" — sandboxed TypeScript facades, typed agent RPCs, deterministic probing, zero-token durable replay, DAG visualization, MCP integration)",
   "type": "module",
   "main": "./dist/src/index.js",
