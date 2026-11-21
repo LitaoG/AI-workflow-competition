@@ -170,9 +170,10 @@ Kiro-native wiring: [docs/KIRO_INTEGRATION.md](docs/KIRO_INTEGRATION.md).
 
 ### Reproducible quality-gate fingerprints
 
-All run 2026-11-21 on the **v2.12.0 release tree** (main @ `c267809` — the v2.11.0 release #212
-with the #205 presentation-facts batch: doctor install-integrity, release tarball assets, Pages
-single-sourcing, showcase truth purge — the v2.10.0 lineage #186/#187/#190-#196/#197-#204 — the
+All run 2026-11-21 on the **v2.12.0 release tree** (main @ `c267809` — the v2.12.0 release merge
+#216, folding the v2.11.0 release #212 with the #205 presentation-facts batch: doctor
+install-integrity, release tarball assets, Pages single-sourcing, showcase truth purge — the
+v2.10.0 lineage #186/#187/#190-#196/#197-#204 — the
 native-SigV4 BedrockProvider #209/#213, which adds the zero-dependency real-model path — and the
 stdlib-AST compile cache #210/#217 plus the judge golden-path docs #211/#218 folded at release
 time), Windows, Node v26.13.0, from a **fresh build**
