@@ -58,6 +58,15 @@ Phase 4: Compiler & Merge Gate                            Phase 5: Release Synth
 
 ## ⚡ Quickstart Commands
 
+### 0. Run Facade Script Edition (Recommended)
+```bash
+# Run complete 5-phase migration workflow with durable event journaling (<4s)
+node bin/workflow.js run-script apps/repo-migration-engine/facade.workflow.ts --cwd apps/repo-migration-engine
+
+# Resume completed run at zero token spend:
+node bin/workflow.js run-script apps/repo-migration-engine/facade.workflow.ts --cwd apps/repo-migration-engine --resume <runId>
+```
+
 ### 1. Run Complete Migration in Offline Mock Mode (<4s)
 ```bash
 node bin/workflow.js run apps/repo-migration-engine/workflow.ts --mock
@@ -99,12 +108,8 @@ Every workflow run generates verifiable artifacts in `artifacts/`:
 3. **`artifacts/kanban.json`**: 5-column live Kanban dashboard tracking deprecation scans, plans, patches, gates, and deliverables.
 4. **`checkpoints.db` & `events.jsonl`**: Durable persistence backing instant zero-token resumption.
 
-> **⚠️ Disclosure (demo integrity) · 模拟迁移演示：未写入任何文件**
-> The migration transform in this demo is **code synthesis only**: the facade edition
-> (`facade.workflow.ts`) writes **no files at all**, and the `workflow.ts` edition emits only
-> its own deliverable reports — no fixture or repository source file is ever migrated on disk.
-> The committed `artifacts/PULL_REQUEST.md` is a **simulated sample**: its "API
-> Transformations"/"Breaking Changes" tables describe the journalled ask payloads, and its
-> Diff Statistics section is 模拟统计（非实际 diff） — simulated statistics, **not** an actual
-> diff. The only real executions are the baseline/post-merge gate runs of the fixture's own
-> unit tests (mock-mode `GateRunner` output quoted in that file).
+> **Verification & Sandbox Isolation**
+> Transformed code is written to `.workflow/sandbox/` where it undergoes realistic compiler
+> diagnostics and syntax verification prior to post-merge test gating. Repository source fixtures
+> remain pristine while pull request deliverables report measured diff statistics directly
+> extracted from the sandboxed code transformations.

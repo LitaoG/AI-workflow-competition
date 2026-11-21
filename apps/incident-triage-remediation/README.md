@@ -70,6 +70,17 @@ Demo 1 includes 3 realistic production scenarios defined in `scenarios/`:
 
 ## ⚡ Quickstart: Running the Demo
 
+### 0. Run Facade Script Edition (Recommended)
+```bash
+# Run complete 5-phase incident triage workflow with durable journaling (<2s)
+node bin/workflow.js run-script apps/incident-triage-remediation/facade.workflow.ts \
+  --cwd apps/incident-triage-remediation --args '{"scenario":"p1_db_pool_exhaustion"}'
+
+# Replay completed run at zero token spend:
+node bin/workflow.js run-script apps/incident-triage-remediation/facade.workflow.ts \
+  --cwd apps/incident-triage-remediation --args '{"scenario":"p1_db_pool_exhaustion"}' --resume <runId>
+```
+
 ### 1. Run Default Scenario in Offline Mock Mode (<2s)
 ```bash
 # Using the /workflow slash-command CLI
