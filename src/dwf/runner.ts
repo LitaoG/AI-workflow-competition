@@ -261,7 +261,10 @@ async function runInner(
   cwd: string,
   store: SQLiteStateStore & DwfJournalStore,
 ): Promise<RunFacadeResult> {
-  const absoluteScript = path.resolve(cwd, options.scriptPath);
+  let absoluteScript = path.resolve(cwd, options.scriptPath);
+  if (!fs.existsSync(absoluteScript) && fs.existsSync(path.resolve(process.cwd(), options.scriptPath))) {
+    absoluteScript = path.resolve(process.cwd(), options.scriptPath);
+  }
   let source: string;
   try {
     source = fs.readFileSync(absoluteScript, 'utf8');

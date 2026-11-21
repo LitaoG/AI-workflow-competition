@@ -120,9 +120,9 @@ for (const item of perFile) {
     'node',
     [
       '-e',
-      `const fs = require('fs'); const path = require('path'); const target = path.join('.workflow', 'sandbox', process.argv[1]); fs.mkdirSync(path.dirname(target), { recursive: true }); fs.writeFileSync(target, process.argv[2], 'utf8');`,
+      `const fs = require('fs'); const path = require('path'); const target = path.join('.workflow', 'sandbox', process.argv[1]); fs.mkdirSync(path.dirname(target), { recursive: true }); fs.writeFileSync(target, decodeURIComponent(process.argv[2]), 'utf8');`,
       item.file,
-      item.migration.transformedCode,
+      encodeURIComponent(item.migration.transformedCode),
     ],
     { timeoutMs: 30_000 },
   );
@@ -136,17 +136,14 @@ for (const item of perFile) {
 // ---------------------------------------------------------------------------
 phase('Compiler Diagnostics & Post-Merge Test Gate');
 for (const item of perFile) {
+  const sandboxedTarget = `.workflow/sandbox/${item.file.replace(/\\/g, '/')}`;
   const syntaxCheck = await world.run(
     'node',
-    [
-      '-e',
-      `const fs = require('fs'); const path = require('path'); const target = path.join('.workflow', 'sandbox', process.argv[1]); if (!fs.existsSync(target)) process.exit(1); const code = fs.readFileSync(target, 'utf8'); if (!code.includes('import') || !code.includes('class')) process.exit(2);`,
-      item.file,
-    ],
+    ['--experimental-strip-types', '--check', sandboxedTarget],
     { timeoutMs: 30_000 },
   );
   if (syntaxCheck.exitCode !== 0) {
-    throw new Error(`Compiler diagnostic check failed for sandboxed ${item.file}: ${syntaxCheck.stderr}`);
+    throw new Error(`Compiler diagnostic check failed for sandboxed ${item.file}:\n${syntaxCheck.stderr}`);
   }
 }
 

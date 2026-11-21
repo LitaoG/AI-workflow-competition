@@ -58,6 +58,15 @@
 
 ## ⚡ 快速开始指南
 
+### 0. 运行 Facade 脚本版（推荐）
+```bash
+# 运行完整的 5 阶段迁移工作流，带确定性日志与零令牌重放 (<4秒)
+node bin/workflow.js run-script apps/repo-migration-engine/facade.workflow.ts --cwd apps/repo-migration-engine
+
+# 零成本重放已完成运行：
+node bin/workflow.js run-script apps/repo-migration-engine/facade.workflow.ts --cwd apps/repo-migration-engine --resume <runId>
+```
+
 ### 1. 在离线模拟模式下极速运行全量迁移 (<4秒)
 ```bash
 node bin/workflow.js run apps/repo-migration-engine/workflow.ts --mock
