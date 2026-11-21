@@ -73,13 +73,15 @@ Demo 1 includes 3 realistic production scenarios defined in `scenarios/`:
 ### 0. Run Facade Script Edition (Recommended)
 ```bash
 # Run complete 5-phase incident triage workflow with durable journaling (<2s)
-node bin/workflow.js run-script apps/incident-triage-remediation/facade.workflow.ts \
-  --cwd apps/incident-triage-remediation --args '{"scenario":"p1_db_pool_exhaustion"}'
+node bin/workflow.js run apps/incident-triage-remediation/facade.workflow.ts \
+  --cwd apps/incident-triage-remediation --approve-cmd node --args '{"scenario":"p1_db_pool_exhaustion"}'
 
 # Replay completed run at zero token spend:
-node bin/workflow.js run-script apps/incident-triage-remediation/facade.workflow.ts \
-  --cwd apps/incident-triage-remediation --args '{"scenario":"p1_db_pool_exhaustion"}' --resume <runId>
+node bin/workflow.js run apps/incident-triage-remediation/facade.workflow.ts \
+  --cwd apps/incident-triage-remediation --approve-cmd node --args '{"scenario":"p1_db_pool_exhaustion"}' --resume <runId>
 ```
+
+> **Windows PowerShell note**: In PowerShell, single quotes around JSON strings in `--args` may require escaping (e.g. `--args '{\"scenario\":\"p1_db_pool_exhaustion\"}'`), or prefer `--set scenario=p1_db_pool_exhaustion` or `--args-file <path>` which bypass shell escaping entirely. Pre-authorizing `node` via `--approve-cmd node` is required for verification gates under the Issue #127 security policy.
 
 ### 1. Run Default Scenario in Offline Mock Mode (<2s)
 ```bash

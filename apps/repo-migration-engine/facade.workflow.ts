@@ -7,8 +7,11 @@
 // facade; every node is journalled for zero-provider-call resume.
 //
 // Run it offline (mock provider is the registry default, <4s, 0 tokens):
+//   node bin/workflow.js run apps/repo-migration-engine/facade.workflow.ts \
+//     --cwd apps/repo-migration-engine --approve-cmd node
+//   (or with run-script):
 //   node bin/workflow.js run-script apps/repo-migration-engine/facade.workflow.ts \
-//     --cwd apps/repo-migration-engine
+//     --cwd apps/repo-migration-engine --approve-cmd node
 // Replay the completed run at zero cost: append --resume <runId>.
 //
 // The baseline/post-merge gate executes the fixture's unit test for real

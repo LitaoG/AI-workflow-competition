@@ -65,9 +65,9 @@ my-agent-pipeline/
 
 | 分组 | 命令 | 用途 | 关键选项 |
 |------|------|------|---------|
-| **执行** | `run <file>` | 统一执行入口，自动识别 Facade 脚本与 Builder 定义 | `-m --mock`、`--set <k=v>`（可重复）、`--args-file <file>`、`-a --args <json>`、`--resume <runId>`、`--amend <runId>`、`--ui`、`--live <path>`、`--watch-graph`（默认开启，Issue #168）、`--no-watch-graph`、`--cwd <path>`、`-c --max-concurrency <n>`、`--budget-total <n>`、`--run-timeout <ms>`、`--failover <ids>`、`-r --resume-from-failed <runId>`（Builder）、`--dry-run`、`-o --out <dir>`、`-l --lang en\|zh` |
+| **执行** | `run <file>` | 统一执行入口，自动识别 Facade 脚本与 Builder 定义 | `-m --mock`、`--set <k=v>`（可重复）、`--args-file <file>`、`-a --args <json>`、`--resume <runId>`、`--amend <runId>`、`--approve-cmd <name>`（可重复）、`--ui`、`--live <path>`、`--watch-graph`（默认开启，Issue #168）、`--no-watch-graph`、`--cwd <path>`、`-c --max-concurrency <n>`、`--budget-total <n>`、`--run-timeout <ms>`、`--failover <ids>`、`-r --resume-from-failed <runId>`（Builder）、`--dry-run`、`-o --out <dir>`、`-l --lang en\|zh` |
 | | `check <file>` | 编译检查 Facade 脚本，打印诊断、阶段图与站点表（不执行） | `-j --json` |
-| | `run-script <file>` | 以沙箱引擎执行 Facade 脚本（journal 重放） | `run` 全部 Facade 选项，另加 `--rerun <runId> --from <siteId>`、`--approve-cmd <name>`（可重复） |
+| | `run-script <file>` | 以沙箱引擎执行 Facade 脚本（journal 重放） | `run` 全部 Facade 选项，另加 `--rerun <runId> --from <siteId>` |
 | | `demo` | 一键旗舰演示：离线 mock 运行 incident-triage facade、渲染 Studio 看板并打开浏览器 | `--lang en\|zh`、`--no-open`、`--open` |
 | | `replay <runId>` | 重放或恢复 Builder 工作流执行 | `-s --step <stepId>`、`-f --force-recompute`、`-r --resume-from-failed`、`-m --mock`、`--file <path>` |
 | | `stop <runId>` | 强杀运行中的 Facade 进程树，解锁 resume / amend / fill | `--db <path>` |
