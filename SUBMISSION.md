@@ -8,8 +8,28 @@
 > **Working Application URL (Live Showcase)**: [https://litaog.github.io/AI-workflow-competition/](https://litaog.github.io/AI-workflow-competition/)  
 > *(Single-page porcelain-white interactive showcase: architecture SVG, four failure-mode fixes, cross-engine benchmark, reproducible quality fingerprints, and recorded 9-Act demo output — zero installation required)*
 
-This file is the judge-facing entry point: one-minute pitch → demo video → one-command
-reproduction → repository map → compliance → Kiro usage guide.
+This file is the judge-facing entry point: 3-minute golden path → one-minute pitch → demo video → one-command reproduction → repository map → compliance → Kiro usage guide.
+
+---
+
+## 🧭 Judge's 3-Minute Golden Path · 评委 3 分钟黄金审阅路径
+
+> **专为评委打造的 3 分钟极速通道**：三级递进式审阅路径，从 30 秒免安装在线体验到 90 秒深度探查可视化时间旅行与子应用：
+
+| 通道 | 耗时与方式 | 核心体验与验证要点 | 快速入口 |
+| :--- | :--- | :--- | :--- |
+| ⚡ **Path A** | **30 秒** · 零安装直达 | **全景矢量拓扑、四大失效结构解法、真实 9 幕实录**<br>浏览器零依赖即开即阅，微拟态纯白美学，完整呈现架构分层、基准测试与 9 幕运行实录证据链 | 🔗 [Live Showcase 交互演示单页](https://litaog.github.io/AI-workflow-competition/) |
+| 🚀 **Path B** | **60 秒** · 单命令全景实测 | **48 秒九幕全景直通，零 Token 确定性重放**<br>本地克隆后一键运行，离线验证严格编译、沙箱隔离、时间旅行、孔洞填补与预算硬门禁 | `git clone ...`<br>`npm install && npm run build`<br>`npm run demo` *(或 `bash scripts/demo.sh`)* |
+| 📊 **Path C** | **90 秒** · 可视化看板与实测应用 | **时间旅行可视化画布，直达两个真实子应用**<br>自动唤起浏览器 Studio 看板，探索 DevOps 突发故障自愈（[Incident Triage](apps/incident-triage-remediation/README.md)）与 AWS SDK v2→v3 自动化迁移（[Repo Migration](apps/repo-migration-engine/README.md)） | `npm run demo:studio`<br>*(自动在浏览器打开 Studio)* |
+
+```bash
+# 🚀 评委本地极速复现（Path B & Path C）：
+git clone https://github.com/LitaoG/AI-workflow-competition.git && cd AI-workflow-competition
+npm install && npm run build
+
+npm run demo          # ⚡ Path B: 60秒全景实测（零网络、零 Token、确定性重放）
+npm run demo:studio   # 📊 Path C: 90秒可视化看板（自动唤起时间旅行 Studio 画布）
+```
 
 ---
 
@@ -76,6 +96,7 @@ npm install && npm run build
 # Runs the flagship incident-triage facade offline & auto-raises Studio in your default browser:
 node bin/workflow.js demo
 # or: npm run demo
+# or: npm run demo:studio
 
 # Option B: Comprehensive nine-act self-verifying showcase (~48-51s, requires Bash / Git Bash on Windows):
 bash scripts/demo.sh
