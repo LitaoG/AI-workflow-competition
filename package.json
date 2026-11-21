@@ -36,6 +36,7 @@
     "postinstall": "node scripts/link-self.mjs && node scripts/bootstrap-fixtures.mjs",
     "start": "node bin/workflow.js",
     "demo": "node bin/workflow.js demo",
+    "demo:studio": "node bin/workflow.js demo",
     "demo:nine-acts": "bash scripts/demo.sh",
     "test": "node -e \"require('node:fs').mkdirSync('.gate',{recursive:true})\" && node scripts/link-self.mjs && node scripts/bootstrap-fixtures.mjs && node --test --test-concurrency=1 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=tap --test-reporter-destination=.gate/tap.log dist/tests/unit/**/*.test.js dist/tests/integration/**/*.test.js",
     "test:unit": "node --test dist/tests/unit/**/*.test.js",
