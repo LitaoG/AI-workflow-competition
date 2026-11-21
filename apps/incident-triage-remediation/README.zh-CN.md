@@ -24,7 +24,7 @@
 
 ```
 =====================================================================================================
- AI-Workflow: incident-triage-remediation (运行编号: run-1795227416145-8bedod)
+ AI-Workflow: incident-triage-remediation (运行编号: run-1795232387944-9cqkig)
  运行状态: 5 个阶段 · 3 个智能体并行执行中
 =====================================================================================================
 
@@ -118,7 +118,7 @@ node --experimental-strip-types tests/integration/demo-incident.test.ts
 
 > 两层演示证据是刻意设计（Issue #181）：本应用自有的
 > [`apps/incident-triage-remediation/artifacts/`](artifacts) 保存其独立运行产物
-> （mock 模式运行 `run-1795227416145-8bedod`，2026-11-21），而仓库根目录的
+> （mock 模式运行 `run-1795232387944-9cqkig`，2026-11-21），而仓库根目录的
 > [`artifacts/incident-triage/`](../../artifacts/incident-triage) 保存最近一次仓库根目录
 > 演示运行的输出——两层之间 `runId`/时间戳不同属预期，那是两次运行，而非漂移。
 

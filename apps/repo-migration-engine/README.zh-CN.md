@@ -99,15 +99,13 @@ node --experimental-strip-types tests/integration/demo-migration.test.ts
 3. **`artifacts/kanban.json`**: 5 列实时交付物看板数据，全面覆盖扫描、规划、补丁、门禁与交付物。
 4. **`checkpoints.db` 与 `events.jsonl`**: 支持零 Token 断点续跑的只追加事件日志与快照数据库。
 
-> **ℹ️ 演示完整性说明 · Demo Integrity Note**
-> 本演示是对已提交夹具应用（`fixtures/legacy-aws-sdk-app`）的**离线 mock 智能体演示**：
-> 迁移转换由引擎执行确定性替换——每个 worker 产出的 `transformedCode` 与
-> [`artifacts/PULL_REQUEST.md`](artifacts/PULL_REQUEST.md) 引用的门禁日志均为本次运行的
-> 真实引擎输出——但**任何夹具或仓库源文件都不会被写盘迁移**（facade 版本
-> `facade.workflow.ts` 完全不写任何文件）。该交付物第 5 节的差异统计**按夹具磁盘源码与
-> 同一次运行的转换输出实测得出**（"实测统计，非人工合成"——交付物原文已注明），第 4 节
-> 门禁输出为 mock 模式下夹具自身单测的 `GateRunner` 真实执行日志。与 Demo 1 相同
-> （Issue #181），[`apps/repo-migration-engine/artifacts/`](artifacts) 保存本应用的独立
-> 运行产物（mock 模式运行 `run-1795227449381-9yo5s2`，2026-11-21），仓库根目录
-> [`artifacts/repo-migration/`](../../artifacts/repo-migration) 保存最近一次仓库根目录
-> 演示运行的输出——两次运行，而非漂移。
+> **验证与沙箱隔离 · Verification & Sandbox Isolation**
+> 转换产物写入 `.workflow/sandbox/`，在进入合并后测试门禁前经过真实的编译器
+> 诊断与语法校验。仓库源码夹具保持原封不动，PR 交付物中的差异统计直接取自
+> 沙箱化代码转换的实测结果。
+>
+> 与 Demo 1 相同（Issue #181），[`apps/repo-migration-engine/artifacts/`](artifacts)
+> 保存本应用的独立运行产物（mock 模式运行 `run-1795232389468-z6avzz`，2026-11-21），
+> 仓库根目录 [`artifacts/repo-migration/`](../../artifacts/repo-migration) 保存最近一次
+> 仓库根目录演示运行的输出——两层之间 `runId`/时间戳不同属预期，那是两次运行，
+> 而非漂移。

@@ -75,10 +75,10 @@ independent, production-grade applications built on it**:
 | Deliverables | `PostMortem.md`, `kanban.json`, interactive `incident_dag.html` | publication-ready `PULL_REQUEST.md`, `migration_dag.html` |
 
 Two layers of demo evidence exist by design: the repo-root [`artifacts/`](artifacts) holds the
-**latest** outputs of a repo-root `bash scripts/demo.sh` run (which buckets per app since the
-v2.7.0 demo-bucketing fix), while [`apps/*/artifacts/`](apps/incident-triage-remediation/artifacts) preserves each
-application's own standalone run — expect different `runId`/timestamps between the two layers,
-that is two runs, not drift.
+latest committed outputs of a repo-root demo run (2026-11-19, bucketed per app since the v2.7.0
+demo-bucketing fix), while [`apps/*/artifacts/`](apps/incident-triage-remediation/artifacts) preserves each
+application's own standalone run (2026-11-21) — expect different `runId`/timestamps between the
+two layers, that is two runs, not drift.
 
 A third directory, [`apps/capabilities-tour`](apps/capabilities-tour), is the reusable pattern
 library — amend lineage, hole growth, human escalation, budget enforcement — that powers acts 5–8
@@ -115,7 +115,7 @@ node bin/workflow.js demo
 
 Offline, deterministic, **no API keys** — the script self-verifies and exits non-zero if any act
 fails. Measured end-to-end (2026-11-21, Git Bash on Windows, Node v26.13.0, warm
-npm cache; fresh `node_modules`/`dist`): **36 seconds, exit 0, `ALL NINE ACTS COMPLETE`** — well
+npm cache; fresh `node_modules`/`dist`): **39 seconds, exit 0, `ALL NINE ACTS COMPLETE`** — well
 inside the three-minute budget, with headroom for a cold registry.
 
 Every act prints the evidence line for the capability it demos — the authoritative

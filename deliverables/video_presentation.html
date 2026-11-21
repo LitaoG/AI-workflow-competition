@@ -764,9 +764,9 @@
               [00:00.0] Telemetry: HTTP 500 spike at 38.5%, DB Pool 100/100 active connections.<br>
               [00:00.0] Triage Inspector: Root cause identified in commit c4d9e1a (unclosed connection pool).<br>
               [00:00.0] Fixer + Reviewer: Paired agents synthesize patch with pool max=250 & 5s timeout.<br>
-              <span style="color: #8b5cf6;">[00:00.0] Shell Recovery Gate: deterministic gate-runner executing (~1.2s, offline mock healthcheck)...</span><br>
+              <span style="color: #8b5cf6;">[00:00.5] Shell Recovery Gate: deterministic gate-runner executing (offline mock healthcheck)...</span><br>
               <span style="color: #10b981;">[00:01.2] Gate Passed! exit code: 0.</span><br>
-              <span style="color: #38bdf8;">[00:01.3] Synthesis: Generated PostMortem.md & updated live Kanban dashboard. Total time: 1.28s.</span>
+              <span style="color: #38bdf8;">[00:01.3] Synthesis: Generated PostMortem.md & updated live Kanban dashboard. Total time: 0.7s.</span>
             </div>
           </div>
           <div style="display: flex; gap: 8px;">
@@ -1217,7 +1217,7 @@
       setTimeout(() => { log.innerHTML += '<br>[Triage]: Inspector agent classified incident as P1 DB pool exhaustion.'; }, 1200);
       setTimeout(() => { log.innerHTML += '<br>[Plan/Review]: Paired Fixer/Reviewer synthesized validated patch.'; }, 1800);
       setTimeout(() => { log.innerHTML += '<br><span style="color: #8b5cf6;">[Gate]: curl /healthz returned 200 OK!</span>'; }, 2400);
-      setTimeout(() => { log.innerHTML += '<br><span style="color: #10b981;">[Success]: PostMortem.md exported in 1.28s.</span>'; }, 3000);
+      setTimeout(() => { log.innerHTML += '<br><span style="color: #10b981;">[Success]: PostMortem.md exported in 0.7s.</span>'; }, 3000);
     }
 
     function showKanbanDrawer() {

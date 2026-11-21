@@ -74,7 +74,7 @@ node bin/workflow.js demo
 
 Offline, deterministic, **no API keys** — the script exits non-zero if any act fails.
 Measured end-to-end 2026-11-03 (Git Bash on Windows, Node v26.13.0, warm npm cache; fresh
-`node_modules`/`dist`): **36 seconds**, exit 0, **`ALL NINE ACTS COMPLETE`**.
+`node_modules`/`dist`): **39 seconds**, exit 0, **`ALL NINE ACTS COMPLETE`**.
 
 | Act | Capability | Evidence line |
 | --- | --- | --- |

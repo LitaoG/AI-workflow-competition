@@ -113,3 +113,9 @@ Every workflow run generates verifiable artifacts in `artifacts/`:
 > diagnostics and syntax verification prior to post-merge test gating. Repository source fixtures
 > remain pristine while pull request deliverables report measured diff statistics directly
 > extracted from the sandboxed code transformations.
+>
+> As with Demo 1 (Issue #181), [`apps/repo-migration-engine/artifacts/`](artifacts) preserves
+> this app's standalone run (mock-mode run `run-1795232389468-z6avzz`, 2026-11-21), while the
+> repo-root [`artifacts/repo-migration/`](../../artifacts/repo-migration) holds the latest
+> outputs of a repo-root demo run — expect different `runId`/timestamps between the two layers;
+> that is two runs, not drift.

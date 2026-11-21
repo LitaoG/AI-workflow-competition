@@ -66,18 +66,18 @@
 - **On-Screen Title**: DEMO 1: AUTONOMOUS DEVOPS INCIDENT TRIAGE & REMEDIATION
 - **Visual Composition**:
   - Full-screen side-by-side execution display:
-    - **Left Side (Terminal)**: Command executed: `bash scripts/demo.sh` (Act 2 — the incident-triage demo). Terminal logs stream with timestamped step events (cumulative stamps from the measured 1.28s offline mock run):
+    - **Left Side (Terminal)**: Command executed: `bash scripts/demo.sh` (Act 2 — the incident-triage demo). Terminal logs stream with timestamped step events (cumulative stamps from the measured 0.7s offline mock run):
       - `[00:00.0] Detection`: Telemetry probe flags a 38.5% HTTP 500 spike and 100/100 exhausted DB connections.
       - `[00:00.0] Triage`: Single Inspector Agent correlates logs with commit `c4d9e1a` (missing connection pool release).
       - `[00:00.0] Plan & Review`: Paired Fixer agent drafts a pool size increase and timeout fix; Paired Reviewer agent audits safety parameters.
-      - `[00:01.2] Recovery Gate`: The deterministic shell gate runs its offline mock healthcheck (~1.2s). Exit code: 0!
-      - `[00:01.3] Synthesis`: Coordinator writes `PostMortem.md` and updates live Kanban dashboard.
+      - `[00:00.5] Recovery Gate`: The deterministic shell gate runs its offline mock healthcheck. Exit code: 0!
+      - `[00:00.7] Synthesis`: Coordinator writes `PostMortem.md` and updates live Kanban dashboard.
     - **Right Side (Live Bézier DAG Visualizer)**: Multi-phase timeline DAG animating nodes from gray (`pending`) to glowing amber (`running`) to emerald green (`completed`). The purple diamond shell gate flashes green as the deterministic gate exits 0.
     - **Bottom Drawer**: Live Kanban board columns (`Ingested Alerts & Probes` → `Triage & Root Cause Analysis` → `Synthesized Runbooks & Safety Audit` → `Execution & Gate Logs` → `Final Deliverables`) populating cards in real time.
 - **On-Screen Callout Badges**:
   - `Topology`: Single Inspector + Paired Fixer/Reviewer + Shell Gate
   - `Verification Gate`: deterministic shell gate (offline mock healthcheck)
-  - `Outcome`: Incident diagnosed, patched, verified & post-mortem written in 1.28s!
+  - `Outcome`: Incident diagnosed, patched, verified & post-mortem written in 0.7s!
 - **Audio Track & SFX**:
   - `[0:55 - 1:05]`: Urgent P1 alert klaxon, quickly transitioning to focused driving synth bass.
   - `[1:05 - 1:18]`: High-tech dual ping as paired agents review the remediation plan.

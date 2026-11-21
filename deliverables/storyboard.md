@@ -107,7 +107,7 @@
 - **Visual Elements**:
   - Node status badges: `pending` (⏳), `running` (amber pulsing ring), `completed` (green ✔ with duration e.g. `412ms`).
   - Bézier curves light up with animated energy pulses as step inputs pass to downstream nodes.
-  - Real-time elapsed timer in the top-right corner (`0.0s -> 1.28s`).
+  - Real-time elapsed timer in the top-right corner (`0.0s -> 0.7s`).
 - **Transition Out**: Horizontal push wipe to the right (0.3s duration).
 
 ---

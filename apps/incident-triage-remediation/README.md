@@ -19,7 +19,7 @@ The workflow executes across **5 distinct phases** with **ZCode UI Parity**:
 
 ```
 =====================================================================================================
- AI-Workflow: incident-triage-remediation (Run: run-1795227416145-8bedod)
+ AI-Workflow: incident-triage-remediation (Run: run-1795232387944-9cqkig)
  Status: 5 phases · 3 active subagents
 =====================================================================================================
 
@@ -114,7 +114,7 @@ Every workflow run emits verifiable artifacts to `artifacts/` (and `.workflow/ru
 
 > Two layers of demo evidence exist by design (Issue #181): this app's own
 > [`apps/incident-triage-remediation/artifacts/`](artifacts) preserves its standalone run
-> (mock-mode run `run-1795227416145-8bedod`, 2026-11-21), while the repo-root
+> (mock-mode run `run-1795232387944-9cqkig`, 2026-11-21), while the repo-root
 > [`artifacts/incident-triage/`](../../artifacts/incident-triage) holds the latest outputs
 > of a repo-root demo run — expect different `runId`/timestamps between the two layers;
 > that is two runs, not drift.

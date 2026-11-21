@@ -306,7 +306,7 @@ Located in `apps/incident-triage-remediation/`, this application automates the t
 4. `SafetyReviewerAgent` audits the script for destructive commands.
 5. A deterministic shell gate executes `curl http://localhost:8080/healthz`.
 6. The coordinator emits an executive post-mortem (`artifacts/PostMortem.md`) and updates `artifacts/kanban.json`.
-7. **Total offline execution time**: **1.28 seconds** (measured in the offline mock run).
+7. **Total offline execution time**: **0.7 seconds** (measured in the offline mock run).
 
 ---
 
