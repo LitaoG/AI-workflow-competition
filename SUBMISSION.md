@@ -104,7 +104,7 @@ plus this docs-governance overlay, Issue #190), Windows, Node v26.13.0, from a *
 [README](README.md#reproducible-quality-gate-fingerprints)):
 
 ```text
-npm test                                            → 851 tests, 848 pass, 3 skipped, 0 fail
+npm test                                            → 852 tests, 849 pass, 3 skipped, 0 fail
 npm run test:integration (serial)                   → 215 tests, 215 pass, 0 skipped, 0 fail
 npm run test:pbt                                    →  18 tests,  18 pass, 0 fail
 node --experimental-strip-types tests/e2e/runner.ts → 118/118 passed
