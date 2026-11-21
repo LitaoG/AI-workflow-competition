@@ -24,7 +24,7 @@ node bin/workflow.js doctor   # environment self-check: runtime/compiler/journal
 ## 1. See the 1-second demo first (no code needed)
 
 ```shell
-node bin/workflow.js demo
+node bin/workflow.js demo   # or: npm run demo
 ```
 
 What happens: the flagship "incident triage" workflow runs offline (deterministic mock,
@@ -159,7 +159,7 @@ node bin/workflow.js doctor   # 环境自检：runtime/compiler/journal/sandbox 
 ## 1. 先看 1 秒 Demo（无需写任何代码）
 
 ```shell
-node bin/workflow.js demo
+node bin/workflow.js demo   # 或: npm run demo
 ```
 
 会发生什么：离线跑完旗舰「故障分诊」工作流（确定性 mock，**零网络调用、约 1 秒**），

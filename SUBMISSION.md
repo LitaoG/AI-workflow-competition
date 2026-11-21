@@ -67,13 +67,20 @@ default database path is `.workflow/dwf.sqlite`).
 git clone https://github.com/LitaoG/AI-workflow-competition.git
 cd AI-workflow-competition
 npm install && npm run build
-bash scripts/demo.sh        # or: npm run demo (Git Bash on Windows / Linux / macOS)
-# Cross-platform alternative (pure Node, runs mock demo & opens Studio dashboard in browser):
+
+
+# Option A: One-command cross-platform demo (~2s, Windows/macOS/Linux native)
+# Runs the flagship incident-triage facade offline & auto-raises Studio in your default browser:
 node bin/workflow.js demo
+# or: npm run demo
+
+# Option B: Comprehensive nine-act self-verifying showcase (~39s, requires Bash / Git Bash on Windows):
+bash scripts/demo.sh
+# or: npm run demo:nine-acts
 ```
 
-Offline, deterministic, **no API keys** — the script exits non-zero if any act fails.
-Measured end-to-end 2026-11-03 (Git Bash on Windows, Node v26.13.0, warm npm cache; fresh
+Offline, deterministic, **no API keys** — both entries self-verify and exit non-zero if any act fails.
+The nine-act suite measured end-to-end 2026-11-03 (Git Bash on Windows, Node v26.13.0, warm npm cache; fresh
 `node_modules`/`dist`): **39 seconds**, exit 0, **`ALL NINE ACTS COMPLETE`**.
 
 | Act | Capability | Evidence line |
@@ -97,19 +104,20 @@ three-minute judge path) or from a release tarball: `npm install ./ai-workflow-<
 
 ### Reproducible quality-gate fingerprints
 
-All run 2026-11-21 on the v2.10.0 tree (main @ `038c6ad` — the v2.10.0 release #186, the white
-interactive showcase #187, the demo write-closure fix #191/#194 and the CI gate fix #195/#196 —
-plus this docs-governance overlay, Issue #190), Windows, Node v26.13.0, from a **fresh build**
+All run 2026-11-21 on the v2.10.0 tree (main @ `fc28724` — the v2.10.0 release #186, the white
+interactive showcase #187, the demo write-closure fix #191/#194, the CI gate fix #195/#196, the
+docs-governance overlay #190 and the mock-provider crosstalk fixes #197/#201/#202 — plus this PR's
+cross-platform demo entry, Issue #179), Windows, Node v26.13.0, from a **fresh build**
 (fresh-build numbers are what a judge clone reproduces; full context in
 [README](README.md#reproducible-quality-gate-fingerprints)):
 
 ```text
-npm test                                            → 852 tests, 849 pass, 3 skipped, 0 fail
+npm test                                            → 853 tests, 850 pass, 3 skipped, 0 fail
 npm run test:integration (serial)                   → 215 tests, 215 pass, 0 skipped, 0 fail
 npm run test:pbt                                    →  18 tests,  18 pass, 0 fail
 node --experimental-strip-types tests/e2e/runner.ts → 118/118 passed
 npm run test:adversarial                            → 198 tests, 198 pass, 0 fail
-npm run test:governance                             →  43 tests,  43 pass, 0 fail
+npm run test:governance                             →  44 tests,  44 pass, 0 fail
 bash scripts/demo.sh                                → exit 0, all nine acts OK
 ```
 

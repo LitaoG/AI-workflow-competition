@@ -426,6 +426,30 @@ describe('Workflow & Governance Specification Suite Invariant Locks', () => {
     assert.ok(pitfallsMd.includes('P-ENV-4'), 'docs/AI-PITFALLS.md must contain P-ENV-4');
   });
 
+  test('Tier 2: package.json must provide cross-platform demo and demo:nine-acts entries (Issue #179)', () => {
+    const pkg = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf-8'));
+    assert.equal(
+      pkg.scripts['demo'],
+      'node bin/workflow.js demo',
+      'package.json must provide "demo": "node bin/workflow.js demo" for cross-platform execution (Issue #179)',
+    );
+    assert.equal(
+      pkg.scripts['demo:nine-acts'],
+      'bash scripts/demo.sh',
+      'package.json must provide "demo:nine-acts": "bash scripts/demo.sh" for the full nine-act suite (Issue #179)',
+    );
+    const readmeMd = fs.readFileSync(path.join(REPO_ROOT, 'README.md'), 'utf-8');
+    assert.ok(
+      readmeMd.includes('node bin/workflow.js demo') && readmeMd.includes('npm run demo'),
+      'README.md must guide judges with cross-platform node bin/workflow.js demo and npm run demo (Issue #179)',
+    );
+    const submissionMd = fs.readFileSync(path.join(REPO_ROOT, 'SUBMISSION.md'), 'utf-8');
+    assert.ok(
+      submissionMd.includes('node bin/workflow.js demo') && submissionMd.includes('npm run demo'),
+      'SUBMISSION.md must guide judges with cross-platform node bin/workflow.js demo and npm run demo (Issue #179)',
+    );
+  });
+
   test('Tier 2: WORKFLOW.md must prescribe per-worktree npm ci and forbid node_modules junction sharing (P-ENV-3, Issue #15)', () => {
     const workflowMd = fs.readFileSync(path.join(REPO_ROOT, 'docs/WORKFLOW.md'), 'utf-8');
 
