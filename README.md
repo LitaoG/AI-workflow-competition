@@ -72,6 +72,12 @@ independent, production-grade applications built on it**:
 | Safety | destructive commands (`DROP`, `TRUNCATE`, `rm -rf`) intercepted by a deterministic blacklist; automated rollback when the verification gate fails | every patch passes an independent reviewer before the compiler gate |
 | Deliverables | `PostMortem.md`, `kanban.json`, interactive `incident_dag.html` | publication-ready `PULL_REQUEST.md`, `migration_dag.html` |
 
+Two layers of demo evidence exist by design: the repo-root [`artifacts/`](artifacts) holds the
+**latest** outputs of a repo-root `bash scripts/demo.sh` run (which buckets per app since the
+#157 fix), while [`apps/*/artifacts/`](apps/incident-triage-remediation) preserves each
+application's own standalone run — expect different `runId`/timestamps between the two layers,
+that is two runs, not drift.
+
 A third directory, [`apps/capabilities-tour`](apps/capabilities-tour), is the reusable pattern
 library — amend lineage, hole growth, human escalation, budget enforcement — that powers acts 5–8
 of the demo below. Write a new facade script in any domain and the same skeleton carries it.
