@@ -18,6 +18,7 @@ export class MockProvider implements LLMProvider {
     // agent \"safety-reviewer\""), and role identity is immune to the embedded
     // typed-result JSON in user prompts (whose field names poison keyword matching).
     const systemMessage = request.messages.find((m) => m.role === 'system')?.content ?? '';
+    const hasAstScan = request.messages.some((m) => m.role === 'user' && /ast codebase scan/i.test(m.content));
 
     let content = '{}';
 
@@ -26,8 +27,14 @@ export class MockProvider implements LLMProvider {
       content = this.postMortemJson();
     } else if (/migration[-_]?worker|code[-_]?transformer/i.test(systemMessage)) {
       content = this.migrationTransformJson(lastUserMessage);
-    } else if (/migration[-_]?architect/i.test(systemMessage)) {
-      content = this.migrationPlanJson();
+    } else if (/migration[-_\s]*architect/i.test(systemMessage)) {
+      // In live mode without --mock, live AST codebase scan prompts must engage authentic auto-repair
+      // and fail schema validation rather than bypassing with canned mock data (Adversarial Challenge 3.1).
+      if (hasAstScan) {
+        content = this.planJson();
+      } else {
+        content = this.migrationPlanJson();
+      }
     } else if (/code[-_\s]*reviewer?|code[-_\s]*review/i.test(systemMessage)) {
       content = this.codeReviewJson(lastUserMessage);
     } else if (/safety|auditor/i.test(systemMessage)) {
@@ -35,13 +42,17 @@ export class MockProvider implements LLMProvider {
     } else if (/release[-_]?recorder|release[-_]?synthesizer/i.test(systemMessage)) {
       content = this.releaseRecorderJson();
     } else if (/architect/i.test(systemMessage)) {
-      if (/dynamo|sqs|s3|transform|patch|sdk|migrat|aws/i.test(systemMessage + ' ' + lastUserMessage)) {
+      if (hasAstScan) {
+        content = this.planJson();
+      } else if (/dynamo|sqs|s3|transform|patch|sdk|migrat|aws/i.test(systemMessage + ' ' + lastUserMessage)) {
         content = this.migrationPlanJson();
       } else {
         content = this.planJson();
       }
     } else if (/planner/i.test(systemMessage)) {
-      if (/dynamo|sqs|s3|transform|patch|sdk|migrat|aws/i.test(systemMessage + ' ' + lastUserMessage)) {
+      if (hasAstScan) {
+        content = this.planJson();
+      } else if (/dynamo|sqs|s3|transform|patch|sdk|migrat|aws/i.test(systemMessage + ' ' + lastUserMessage)) {
         content = this.migrationPlanJson();
       } else {
         content = this.planJson();

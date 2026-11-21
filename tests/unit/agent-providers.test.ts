@@ -660,6 +660,16 @@ test('MockProvider eliminates cross-app crosstalk and returns service-specific m
     messages: [{ role: 'system', content: 'You are specialized agent "migration-worker"' }, { role: 'user', content: 'transform dynamo' }],
   })).content)).success, 'migrationTransformJson must satisfy CodeTransformSchema');
 
+  // 1h. In un-mocked live execution of workflow.ts, AST scan analysis prompt fails schema validation across auto-repair turns
+  const liveAstScanPrompt = await mock.generate({
+    messages: [
+      { role: 'system', content: 'You are the Migration Architect Agent. Formulate dependency-ordered migration plans for breaking API migrations from AWS SDK v2 to v3.' },
+      { role: 'user', content: 'Analyze the following AST codebase scan for legacy AWS SDK v2 usages:\n\n{}' },
+    ],
+  });
+  const liveAstScanJson = JSON.parse(liveAstScanPrompt.content);
+  assert.ok(!MigrationPlanSchema.safeParse(liveAstScanJson).success, 'live AST scan prompt must not return canned schema-satisfying data without authentic provider (Adversarial Challenge 3.1)');
+
   // 2. Safety reviewer routes to SafetyReviewerAgent and pool-config rollback (Demo 1)
   const safetyReview = await mock.generate({
     messages: [
