@@ -864,12 +864,46 @@ not ok 2 - stdio e2e: real spawn lists all seven tools
     assert.ok(!res4.valid, 'Bracket-form supervisor comment without three-state reply should fail');
     assert.equal(res4.unresolvedCount, 1);
 
+    // Case 5 (Issue #220 semantics): the same bracket-form closure, but BOTH
+    // comments carry authorAssociation OWNER — the #215 live pattern (owner
+    // self-raised + self-answered on PR #213). OWNER findings are internal QA:
+    // exempted from the unresolved ledger (internalQaCount records them), so
+    // the required check no longer flips green on a self-answer.
     const comments5 = [
-      { user: 'LitaoG', body: '[监督席·只读复核] 本轮窗口抓到一处 §1.9 执行漏洞，聚焦机制，不涉及代码对错。' },
-      { user: 'LitaoG', body: '已处理：DoD 已同步，PR 评论已补三态交代（issuecomment 6959991711）' },
+      { user: 'LitaoG', authorAssociation: 'OWNER', body: '[监督席·只读复核] 本轮窗口抓到一处 §1.9 执行漏洞，聚焦机制，不涉及代码对错。' },
+      { user: 'LitaoG', authorAssociation: 'OWNER', body: '已处理：DoD 已同步，PR 评论已补三态交代（issuecomment 6959991711）' },
     ];
     const res5 = checkReviewComments(comments5);
-    assert.ok(res5.valid, 'Bracket-form supervisor comment with a later "已处理" reply should pass');
+    assert.ok(res5.valid, 'OWNER-association findings are internal QA and never block (Issue #220)');
+    assert.equal(res5.internalQaCount, 1, 'the exempted OWNER finding is recorded for transparency');
+
+    // Case 6 (Issue #220): an OWNER finding stands alone with no reply at all —
+    // still exempt (the gate must not demand a reply to the account itself).
+    const comments6 = [
+      { user: 'LitaoG', authorAssociation: 'OWNER', body: '[监督席·只读复核] 发现一处措辞漂移。' },
+    ];
+    const res6 = checkReviewComments(comments6);
+    assert.ok(res6.valid, 'an unanswered OWNER finding is internal QA, not an unresolved review');
+    assert.equal(res6.internalQaCount, 1);
+
+    // Case 7 (Issue #220): a NON-owner finding answered by ITS OWN AUTHOR is a
+    // self-answer — never a closure, even with the three-state keyword.
+    const comments7 = [
+      { user: 'alice', authorAssociation: 'CONTRIBUTOR', body: '## 审查意见: 边界条件漏测' },
+      { user: 'alice', authorAssociation: 'CONTRIBUTOR', body: '已处理：补齐用例' },
+    ];
+    const res7 = checkReviewComments(comments7);
+    assert.ok(!res7.valid, 'a self-answer by the finding author must not close the finding');
+    assert.equal(res7.unresolvedCount, 1);
+
+    // Case 8 (Issue #220): a different-author reply closes a non-owner finding
+    // normally (the standard reviewer -> author flow stays intact).
+    const comments8 = [
+      { user: 'alice', authorAssociation: 'CONTRIBUTOR', body: '## 审查意见: 边界条件漏测' },
+      { user: 'bob', authorAssociation: 'MEMBER', body: '已处理：补齐用例（commit abc1234）' },
+    ];
+    const res8 = checkReviewComments(comments8);
+    assert.ok(res8.valid, 'a cross-author three-state reply closes the finding normally');
   });
 
   test('Tier 3: PR Review Gate script functionality - checkCiGateConclusion (Issue #136)', () => {
