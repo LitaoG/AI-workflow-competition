@@ -1,0 +1,88 @@
+# Review-comment status flipper (Issue #173 DoD 3 — fulfilling the #124
+# "mechanical closure" promise for the §1.9 three-state reply duty).
+#
+# Why this exists: the pull_request-triggered `review-comments` job in ci.yml
+# only re-evaluates on push. The #165 incident showed the gap — a supervision
+# finding landed 11 seconds before merge, after every CI run had concluded.
+# This workflow closes that race mechanically: ANY comment or review landing
+# on a PR re-runs the §1.9 adjudication and flips the `review-gate-comments`
+# commit status on the PR's HEAD sha. Unanswered findings → `failure` → the
+# required-check context blocks merge; a three-state reply re-triggers this
+# workflow → `success` → merge unblocked. Residual window: Actions queue
+# latency (seconds) between the comment landing and the status flip — orders
+# of magnitude tighter than the previous "only if a human remembers" gate.
+#
+# SECURITY: the gate script runs from MAIN (this checkout), never from the
+# PR head — PR-author-controlled gate code would be self-certifying.
+
+name: review-status
+
+on:
+  issue_comment:
+    types: [created, edited, deleted]
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+
+permissions:
+  statuses: write
+  pull-requests: read
+  issues: read
+
+jobs:
+  adjudicate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'pull_request_review' || github.event.issue.pull_request != null
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Resolve PR number and HEAD sha
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request_review" ]; then
+            PR="${{ github.event.pull_request.number }}"
+          else
+            PR="${{ github.event.issue.number }}"
+          fi
+          SHA="$(gh pr view "$PR" --json headRefOid --jq .headRefOid)"
+          echo "pr=$PR" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+      - name: §1.9 adjudication (CI face)
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        continue-on-error: true
+        run: |
+          # Capability-aware bootstrap (Issue #173): if main's script predates
+          # --ci-comments, defer loudly — posting a failure here would be a
+          # false red from the merge-period checks, not from §1.9 findings.
+          if node scripts/pr_review_gate.mjs --help | grep -q -- '--ci-comments'; then
+            node scripts/pr_review_gate.mjs "${{ steps.pr.outputs.pr }}" --ci-comments
+          else
+            echo "[bootstrap] main's gate script predates --ci-comments (Issue #173) — status not flipped; adjudication deferred to pr_merge.sh."
+            echo "deferred=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Flip review-gate-comments status on the PR HEAD sha
+        if: steps.gate.outputs.deferred != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ steps.gate.outcome }}" = "success" ]; then
+            STATE=success
+            DESC="§1.9 replies adjudicated clean (Issue #173)"
+          else
+            STATE=failure
+            DESC="Unanswered review findings — reply with 已处理/刻意不改/需人拍板 (Issue #173)"
+          fi
+          gh api \
+            repos/${{ github.repository }}/statuses/${{ steps.pr.outputs.sha }} \
+            -f state="$STATE" \
+            -f context=review-gate-comments \
+            -f description="$DESC" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

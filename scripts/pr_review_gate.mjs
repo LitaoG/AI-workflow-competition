@@ -449,6 +449,7 @@ PR Review & Cooling Period Gate CLI (pr_review_gate.mjs)
 
 用法:
   node scripts/pr_review_gate.mjs <pr_number> [--ack <理由>] [--bypass-cooling <理由>]
+  node scripts/pr_review_gate.mjs <pr_number> --ci-comments   （CI 面：仅 §1.9 三件套——关联绑定/评论裁决/声明核对，跳过合并期专属检查）
   node scripts/pr_review_gate.mjs --check-fingerprint <file_path>
   node scripts/pr_review_gate.mjs --check-failure-naming <file_path>
   node scripts/pr_review_gate.mjs --check-cooling <created_at_iso> [--bypass-cooling <理由>]
@@ -547,6 +548,12 @@ PR Review & Cooling Period Gate CLI (pr_review_gate.mjs)
 
   // 默认直接检查 PR 编号（调用 GitHub CLI）
   const prNumber = args[0];
+  // CI 面（Issue #173/#124）：只跑 §1.9 机械三件套（关联绑定 + 评论裁决 + S2
+  // 声明核对），跳过合并期专属检查——冷却期（CI 随每次 push 重跑，900s 冷却
+  // 会让新 PR 常红且不自动复跑）、指纹/tap 绑定与失败命名（绑定的是作者本机
+  // 终稿 .gate/tap.log，WIP PR 在 CI 上合法地没有）。合并时机的完整门禁仍由
+  // pr_merge.sh 的 [1/5] 步裸跑本脚本（不带 --ci-comments）执行。
+  const ciFace = args.includes('--ci-comments');
   const ackIdx = args.indexOf('--ack');
   const bypassIdx = args.indexOf('--bypass-cooling');
   const ackReason = ackIdx !== -1 ? args[ackIdx + 1] : (bypassIdx !== -1 ? args[bypassIdx + 1] : null);
@@ -560,12 +567,15 @@ PR Review & Cooling Period Gate CLI (pr_review_gate.mjs)
     const prData = JSON.parse(raw);
 
     const issueRes = checkIssueLinkage(prData.body || '');
-    const fpRes = checkFingerprint(prData.body || '');
-    const fnRes = checkFailureNaming(prData.body || '');
+    // CI 面跳过的四项均为合并期专属判据（见上方 ciFace 注释），CI 上以空结果占位。
+    const fpRes = ciFace ? { valid: true, violations: [] } : checkFingerprint(prData.body || '');
+    const fnRes = ciFace ? { valid: true, violations: [] } : checkFailureNaming(prData.body || '');
     // Issue #158: the fingerprint numbers must match the real npm-test TAP
     // summary — shape regexes alone are hand-forgeable.
-    const tapRes = checkTapLogBinding(prData.body || '');
-    const coolRes = checkCoolingPeriod(prData.createdAt, { bypassReason: ackReason });
+    const tapRes = ciFace ? { valid: true, violations: [] } : checkTapLogBinding(prData.body || '');
+    const coolRes = ciFace
+      ? { valid: true, violations: [] }
+      : checkCoolingPeriod(prData.createdAt, { bypassReason: ackReason });
 
     // 合并普通 comments 与 review comments（reviews 用 submittedAt 统一时间轴），
     // 时间排序由 checkReviewComments 内部完成（Issue #109）。
@@ -618,7 +628,9 @@ PR Review & Cooling Period Gate CLI (pr_review_gate.mjs)
     // （可用性优先，与关联 Issue 评论拉取口径一致）；pending 不拦，
     // enforce_admins 在 GitHub 侧兜底。
     let ciRes = { valid: true, violations: [] };
-    if (prData.headRefOid) {
+    // CI 面跳过红门核对：pull_request 触发时本 job 与 gate 同批运行，结论必为
+    // pending（不拦），自引用无信息量；红门拦截是合并期判据（pr_merge.sh）。
+    if (!ciFace && prData.headRefOid) {
       try {
         const rawRuns = execFileSync(
           'gh',
@@ -651,7 +663,11 @@ PR Review & Cooling Period Gate CLI (pr_review_gate.mjs)
       process.exit(1);
     }
 
-    console.log(`\n✅ [门禁放行] PR #${prNumber} 已绑定 Issue #${issueRes.issueNumber}，满足指纹、冷却期与审查回复要求，允许合入。`);
+    console.log(
+      ciFace
+        ? `\n✅ [CI 面放行] PR #${prNumber} 关联绑定与 §1.9 评论裁决、声明核对全部通过（指纹/冷却为合并期判据，不在 CI 面评估）。`
+        : `\n✅ [门禁放行] PR #${prNumber} 已绑定 Issue #${issueRes.issueNumber}，满足指纹、冷却期与审查回复要求，允许合入。`
+    );
   } catch (err) {
     console.error(`无法获取 PR #${prNumber} 数据: ${err.message}`);
     process.exit(1);
