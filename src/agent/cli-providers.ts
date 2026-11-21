@@ -15,7 +15,7 @@
 
 import * as path from 'node:path';
 import { LLMProvider, LLMRequest, LLMResponse } from '../types.js';
-import { buildSanitizedEnv, spawnSupervised } from '../process-supervision.js';
+import { spawnSupervised } from '../process-supervision.js';
 import { providerRegistry } from './provider.js';
 
 export interface CliProviderOptions {
@@ -122,7 +122,6 @@ export class OpenCodeProvider extends CliAgentProvider {
 }
 
 export const CLI_PROVIDER_IDS = ['codex', 'codex-cli', 'gemini', 'opencode'] as const;
-export type CliProviderSelection = (typeof CLI_PROVIDER_IDS)[number];
 
 /**
  * Read AI_WORKFLOW_PROVIDER from the environment and register + default the

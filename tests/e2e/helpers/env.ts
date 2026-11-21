@@ -36,11 +36,3 @@ export function writeTempFile(baseDir: string, relativePath: string, content: st
   fs.writeFileSync(fullPath, content, 'utf-8');
   return fullPath;
 }
-
-/**
- * Reads a file from a directory.
- */
-export function readTempFile(baseDir: string, relativePath: string): string {
-  const fullPath = path.join(baseDir, relativePath);
-  return fs.readFileSync(fullPath, 'utf-8');
-}

@@ -20,11 +20,6 @@ interface LivePhase {
   order: number;
 }
 
-export interface LiveEvent {
-  type: WorkflowEventType;
-  data: Record<string, unknown>;
-}
-
 export class LiveGraph {
   private readonly htmlPath: string;
   private readonly jsonPath: string;
@@ -139,7 +134,6 @@ export class LiveGraph {
 }
 
 function renderHtml(stateFile: string): string {
-  const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
   return `<!doctype html>
 <html><head><meta charset="utf-8"><title>AI-Workflow live run</title>
 <style>

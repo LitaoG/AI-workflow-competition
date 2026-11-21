@@ -12,11 +12,9 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { z } from 'zod';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
-import { toJsonSchemaCompat } from '@modelcontextprotocol/sdk/server/zod-json-schema-compat.js';
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
@@ -30,17 +28,14 @@ import { EventLogWriter } from '../state/event-log.js';
 import { DAGVisualizerCoordinator } from '../dag/visualizer.js';
 import { analyzeFacadeScript } from '../dwf/compile.js';
 import { resolveDwfJournalPath, runFacadeScript } from '../dwf/runner.js';
-import { redactText, redactValue } from '../dwf/redact.js';
+import { redactText } from '../dwf/redact.js';
 import {
-  DomainErrorTag,
   domainError,
-  toDomainError,
-  toSerializableError,
 } from '../domain/errors.js';
 import { summarizeEvidence, ledgerFromEntries } from '../domain/evidence.js';
-import { DwfJournalStore, DwfNode, WorkflowEvent } from '../types.js';
-import { TOOL_CATALOG, facadeSchemas, type McpToolDescriptor } from './tool-catalog.js';
-import { jsonResult, taggedErrorResult, textResult, resolveScriptInsideCwd, zodArgsError, parseMaybeJson, readRunSites, countEvents, type RunSiteSummary } from './tool-helpers.js';
+import { DwfJournalStore } from '../types.js';
+import { TOOL_CATALOG, facadeSchemas } from './tool-catalog.js';
+import { jsonResult, taggedErrorResult, textResult, resolveScriptInsideCwd, zodArgsError, parseMaybeJson, readRunSites, countEvents } from './tool-helpers.js';
 
 // Historical import surface: the catalog and its descriptor type resolve from
 // the server module (tests, export-schema CLI).

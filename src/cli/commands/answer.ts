@@ -48,7 +48,6 @@ export async function executeAnswer(
       return 1;
     }
     const siteId = String((open.data as { siteId: string }).siteId);
-    const question = String((open.data as { question: string }).question ?? '');
 
     // Journal the answer — the replay key must match what the engine computed at open.
     const openHash = (open.data as { inputHash?: string }).inputHash;

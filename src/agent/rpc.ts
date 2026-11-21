@@ -44,7 +44,7 @@
  */
 
 import { z } from 'zod';
-import { AgentRPCClient, AgentCallOptions, LLMMessage, LLMResponse } from '../types.js';
+import { AgentRPCClient, AgentCallOptions, LLMMessage } from '../types.js';
 import { providerRegistry } from './provider.js';
 import { extractJson, repairJsonString, formatZodErrors } from './schema.js';
 import { isJsonSchemaShape, zodFromJsonSchema } from './json-schema-zod.js';

@@ -18,51 +18,6 @@ export interface GitProbeOptions {
   scenarioCommits?: GitCommitRecord[];
 }
 
-export interface GitAnalysisResult {
-  commits: GitCommitRecord[];
-  suspectedCommit?: GitCommitRecord;
-  isGitRepo: boolean;
-  branch: string;
-}
-
-const HIGH_RISK_KEYWORDS = [
-  'pool',
-  'connection',
-  'checkout',
-  'timeout',
-  'leak',
-  'cache',
-  'orm',
-  'release',
-  'deploy',
-  'database',
-  'db',
-  'discount',
-  'payment',
-  'order',
-];
-
-/**
- * Scores a commit for likelihood of being the incident trigger
- */
-export function scoreCommitSuspicion(commit: GitCommitRecord): number {
-  let score = 0;
-  const msgLower = commit.message.toLowerCase();
-
-  for (const kw of HIGH_RISK_KEYWORDS) {
-    if (msgLower.includes(kw)) score += 2;
-  }
-
-  for (const file of commit.filesChanged) {
-    const fLower = file.toLowerCase();
-    if (fLower.includes('pool') || fLower.includes('db') || fLower.includes('database')) score += 3;
-    if (fLower.includes('checkout') || fLower.includes('payment') || fLower.includes('discount')) score += 2;
-    if (fLower.includes('config') || fLower.includes('service')) score += 1;
-  }
-
-  return score;
-}
-
 /**
  * Deterministically analyzes Git commit history and pinpoints regression candidates.
  */
@@ -153,26 +108,4 @@ export async function analyzeGitHistory(options: GitProbeOptions = {}): Promise<
       filesChanged: ['public/banner.css'],
     },
   ].slice(0, maxCommits);
-}
-
-/**
- * Analyzes commits and identifies the primary suspected trigger commit.
- */
-export async function identifySuspectedCommit(
-  commits: GitCommitRecord[]
-): Promise<GitCommitRecord | undefined> {
-  if (commits.length === 0) return undefined;
-
-  let bestCandidate = commits[0];
-  let highestScore = -1;
-
-  for (const commit of commits) {
-    const score = scoreCommitSuspicion(commit);
-    if (score > highestScore) {
-      highestScore = score;
-      bestCandidate = commit;
-    }
-  }
-
-  return bestCandidate;
 }

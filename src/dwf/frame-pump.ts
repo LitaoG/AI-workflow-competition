@@ -38,7 +38,7 @@ export class ChildFramePump {
   private malformedFrameCount = 0;
 
   constructor(
-    private readonly stdout: NodeJS.ReadableStream,
+    stdout: NodeJS.ReadableStream,
     private readonly opts: ChildFramePumpOptions,
   ) {
     stdout.setEncoding('utf8');

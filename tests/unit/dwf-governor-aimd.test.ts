@@ -53,14 +53,14 @@ test('lastGood watermark: above the proven watermark falls back to it, at or bel
   // climb 6 → 7 → 8 with demand: each success completes a streak, and a parked
   // waiter is what authorises the +1
   for (let i = 0; i < 6; i++) await g.acquire('p');
-  const w1 = g.acquire('p'); // parks synchronously (bucket full)
+  g.acquire('p'); // parks synchronously (bucket full)
   g.release('p', 'success'); // streak → lastGood=6, waiter present → limit=7
   await Promise.resolve(); // let the woken waiter take the freed slot
   assert.equal(snap().limit, 7);
   assert.equal(snap().lastGood, 6);
 
   await g.acquire('p');
-  const w2 = g.acquire('p'); // parks again (bucket full at 7)
+  g.acquire('p'); // parks again (bucket full at 7)
   g.release('p', 'success'); // streak → lastGood=7, waiter present → limit=8
   await Promise.resolve();
   assert.equal(snap().limit, 8);

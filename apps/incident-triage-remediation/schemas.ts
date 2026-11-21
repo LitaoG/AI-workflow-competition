@@ -12,7 +12,6 @@ export const CommitInfoSchema = z.object({
   filesChanged: z.array(z.string()).describe('List of changed file paths'),
   diff: z.string().optional().describe('Unified diff snippet'),
 });
-export type CommitInfo = z.infer<typeof CommitInfoSchema>;
 
 export const TelemetryProbeResultSchema = z.object({
   serviceName: z.string().describe('Target service identifier'),
@@ -45,7 +44,6 @@ export const FailureDomainEnum = z.enum([
   'DATABASE',
   'database_resource_exhaustion',
 ]);
-export type FailureDomain = z.infer<typeof FailureDomainEnum>;
 
 export const TriageAssessmentSchema = z.object({
   incidentId: z.string().describe('Unique incident identifier (e.g. INC-20261031-01)'),
@@ -76,7 +74,6 @@ export const RemediationStrategyEnum = z.enum([
   'ENABLE_CIRCUIT_BREAKER',
   'RESTART_PODS',
 ]);
-export type RemediationStrategy = z.infer<typeof RemediationStrategyEnum>;
 
 export const RemediationActionSchema = z.object({
   order: z.number().int().positive().describe('Execution sequence order (1-indexed)'),
@@ -85,7 +82,6 @@ export const RemediationActionSchema = z.object({
   isDestructive: z.boolean().describe('Flag indicating whether the action mutates persistent data'),
   rollbackCommand: z.string().min(1).describe('Exact command string to revert this action upon failure'),
 });
-export type RemediationAction = z.infer<typeof RemediationActionSchema>;
 
 export const RemediationPlanSchema = z.object({
   strategy: RemediationStrategyEnum.describe('High-level remediation pattern'),
@@ -135,7 +131,6 @@ export const ActionItemSchema = z.object({
   description: z.string().min(5).describe('Specific engineering task description'),
   ownerRole: z.string().describe('Assigned engineering role or team'),
 });
-export type ActionItem = z.infer<typeof ActionItemSchema>;
 
 export const PostMortemReportSchema = z.object({
   title: z.string().describe('Executive incident post-mortem title'),

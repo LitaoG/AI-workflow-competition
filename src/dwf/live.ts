@@ -32,17 +32,6 @@ import type { StudioSnapshot, StudioArtifact } from '../visualizer/studio-render
 import { renderStudioPage, attachStudioWebSocket } from '../visualizer/studio-server.js';
 import type { StudioWebSocketHub } from '../visualizer/studio-server.js';
 
-const KIND_ICON: Record<DwfNode['kind'], string> = {
-  ask: '◆ ask',
-  worldRead: '◇ read',
-  worldRun: '▣ gate',
-  artifact: '■ artifact',
-  hole: '⌘ hole',
-  report: '📣 report',
-  escalation: '❓ escalate',
-};
-
-
 // ---------------------------------------------------------------------------
 // Studio snapshot — the ONE projection the SPA renders (static embed + /state
 // + SSE `state` frames all share it).

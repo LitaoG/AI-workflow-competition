@@ -18,8 +18,6 @@ import * as path from 'node:path';
 import {
   BedrockProvider,
   configureBedrockFromEnv,
-  getSignatureKey,
-  hmacSha256,
   sha256Hex,
   signSigV4,
 } from '../../src/agent/bedrock-provider.js';

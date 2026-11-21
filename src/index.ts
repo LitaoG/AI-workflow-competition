@@ -6,7 +6,6 @@ export { WorkflowExecutionContext } from './core/context.js';
 export {
   agentStep,
   gateStep,
-  probeStep,
   fanOutStep,
   actionStep,
 } from './core/step.js';

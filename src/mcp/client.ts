@@ -1,15 +1,13 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { z } from 'zod';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { adoptPidIntoJobGuard, type PidGuard } from '../process-supervision.js';
-import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import { McpCallOptions, MCPServerConfig } from '../types.js';
 import { McpConfigError, McpConnectError, McpServerNotConfiguredError, McpToolError } from '../core/error.js';
 import { redactText } from '../dwf/redact.js';
-import { expandEnvRefs, configFromMcpJsonEntry, createDefaultTransport, isRecord } from './mcp-config.js';
+import { configFromMcpJsonEntry, createDefaultTransport, isRecord } from './mcp-config.js';
 import type { McpEnv } from './mcp-config.js';
 
 // Historical import surface: config parsing resolves from the client module.

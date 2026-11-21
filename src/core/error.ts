@@ -1,6 +1,5 @@
-import { z } from 'zod';
 import { RetryPolicy } from '../types.js';
-import { domainError, toDomainError, type DomainErrorTag } from '../domain/errors.js';
+import { toDomainError, type DomainErrorTag } from '../domain/errors.js';
 
 export class WorkflowError extends Error {
   readonly code: string;

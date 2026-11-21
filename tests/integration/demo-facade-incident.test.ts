@@ -44,8 +44,6 @@ function makeDemoWorkspace(): DemoWorkspace {
   };
 }
 
-const ARGS = JSON.stringify({ scenario: 'p1_db_pool_exhaustion' });
-
 test('incident demo facade script: 5 phases, typed asks, gates and artifact export', async () => {
   const ws = makeDemoWorkspace();
   try {

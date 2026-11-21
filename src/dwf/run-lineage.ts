@@ -60,7 +60,6 @@ export type LineageOutcome =
 
 export async function resolveRunLineage(
   options: RunFacadeOptions,
-  cwd: string,
   store: SQLiteStateStore & DwfJournalStore,
   analysis: FacadeAnalysis,
   scriptHash: string,

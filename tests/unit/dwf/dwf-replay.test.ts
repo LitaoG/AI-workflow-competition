@@ -226,7 +226,7 @@ test('persistent actor sessions: the second ask sees the first turn, per-actor h
     const second = seenRequests[1]!;
     assert.equal(first.messages.filter((m) => m.role === 'user').length, 1, 'first ask has a bare conversation');
     // The second ask carries the first turn as prior messages (user + assistant).
-    const prior = second.messages.filter((m, i) => i > 0 && i < second.messages.length - 1);
+    const prior = second.messages.filter((_m, i) => i > 0 && i < second.messages.length - 1);
     assert.equal(prior.length, 2, `second ask should embed 2 prior turns, got ${prior.length}`);
     assert.equal(prior[0]!.role, 'user');
     assert.equal(prior[1]!.role, 'assistant');

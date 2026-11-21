@@ -3,11 +3,6 @@ import * as path from 'node:path';
 import * as readline from 'node:readline';
 import { WorkflowEvent } from '../types.js';
 
-export interface EventLogOptions {
-  runDir: string;
-  flushSync?: boolean;
-}
-
 export class EventLogWriter {
   private filePath: string;
   private sequence = 0;

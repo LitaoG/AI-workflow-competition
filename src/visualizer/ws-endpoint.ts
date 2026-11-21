@@ -23,7 +23,6 @@ export const OP_PONG = 0xa;
 
 export const CLOSE_NORMAL = 1000;
 export const CLOSE_PROTOCOL_ERROR = 1002;
-export const CLOSE_TOO_BIG = 1009;
 
 /** Safety cap for one frame payload (and one fragmented message). */
 const MAX_PAYLOAD_BYTES = 16 * 1024 * 1024;
