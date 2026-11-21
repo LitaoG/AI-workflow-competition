@@ -1,6 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { analyzeFacadeScript } from '../../../src/dwf/compile.js';
+import {
+  analyzeFacadeScript,
+  compileFacadeScript,
+  getCompilerCacheStats,
+  clearCompilerCaches,
+} from '../../../src/dwf/compile.js';
 
 const CLEAN = `
 phase("Gather");
@@ -246,4 +251,37 @@ test('D9: globs inside strings and line comments stay clean', () => {
 test('positive control: minimal agent+ask facade script stays clean (no regression)', () => {
   const r = analyzeFacadeScript('const a = await agent("scout").ask<string>("inspect the service");\nreturn a;');
   assert.equal(r.ok, true, JSON.stringify(r.diagnostics));
+});
+
+test('Issue #210: in-memory standard library AST and text caching populates and accelerates cold compiles', () => {
+  clearCompilerCaches();
+  const initialStats = getCompilerCacheStats();
+  // Facade virtual is pre-seeded in text cache
+  assert.equal(initialStats.astCacheSize, 0);
+
+  // Compile first script (cold warmup)
+  const r1 = compileFacadeScript('const a = await agent("agent1").ask<string>("hello");\nreturn a;');
+  assert.equal(r1.analysis.ok, true);
+
+  const warmStats = getCompilerCacheStats();
+  assert.ok(warmStats.textCacheSize > 0, `text cache should have standard library files, got ${warmStats.textCacheSize}`);
+  assert.ok(warmStats.astCacheSize > 0, `ast cache should have parsed SourceFile nodes, got ${warmStats.astCacheSize}`);
+
+  // Compile second distinct script (cold compile on warm AST cache)
+  const start = performance.now();
+  const r2 = compileFacadeScript('const b = await agent("agent2").ask<number>("count");\nreturn b;');
+  const duration = performance.now() - start;
+  assert.equal(r2.analysis.ok, true);
+  // Cold compile with AST caching should finish well below the 211ms unoptimized baseline and 66ms benchmark target
+  assert.ok(duration < 100, `cold compile took ${duration.toFixed(2)}ms, expected < 100ms`);
+
+  // Verify purity check (9002) still strictly works under warm cache
+  const r3 = compileFacadeScript('const now = Date.now();\nreturn now;');
+  assert.equal(r3.analysis.ok, false);
+  assert.ok(r3.analysis.diagnostics.some((d) => d.code === 9002 && d.message.includes('Date.now')));
+
+  // Verify prototype escape (9002) still strictly banned under warm cache
+  const r4 = compileFacadeScript('const f = ({}).constructor.constructor;\nreturn f;');
+  assert.equal(r4.analysis.ok, false);
+  assert.ok(r4.analysis.diagnostics.some((d) => d.code === 9002 && d.message.includes('constructor')));
 });

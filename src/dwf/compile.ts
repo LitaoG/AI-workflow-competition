@@ -65,7 +65,57 @@ const FACADE_VIRTUAL_NAME = 'workflow-facade.d.ts';
 const PRELUDE_LINES = 1; // async function __workflowScript__() {
 
 const require_ = createRequire(import.meta.url);
-const TS_LIB_DIR = path.dirname(require_.resolve('typescript/package.json'));
+const TS_PKG_DIR = path.dirname(require_.resolve('typescript/package.json'));
+const TS_LIB_DIR = fs.existsSync(path.join(TS_PKG_DIR, 'lib')) ? path.join(TS_PKG_DIR, 'lib') : TS_PKG_DIR;
+
+/** In-memory cache for standard library and facade d.ts text contents (disk IO at most once per process). */
+const libFileTextCache = new Map<string, string>([
+  [FACADE_VIRTUAL_NAME, FACADE_DTS],
+]);
+
+/** In-memory cache for standard library file existence checks. */
+const libFileExistsCache = new Map<string, boolean>();
+
+/** In-memory cache for pre-parsed ts.SourceFile ASTs (lib.*.d.ts and facade.d.ts). */
+const libSourceFileCache = new Map<string, ts.SourceFile>();
+
+/** Cached prior Program instance for AST and symbol reuse across ts.createProgram calls. */
+let lastProgram: ts.Program | undefined = undefined;
+
+const isFacadeVirtual = (fileName: string): boolean => {
+  return fileName === FACADE_VIRTUAL_NAME || path.basename(fileName) === FACADE_VIRTUAL_NAME;
+};
+
+const isScriptVirtual = (fileName: string): boolean => {
+  return fileName === SCRIPT_VIRTUAL_NAME || path.basename(fileName) === SCRIPT_VIRTUAL_NAME;
+};
+
+const isLibFileName = (fileName: string): boolean => {
+  return /^lib\.[a-z0-9.]+\.d\.ts$/i.test(path.basename(fileName));
+};
+
+/**
+ * Return current compiler cache sizes (text and AST caches).
+ * Useful for telemetry, inspection, and verification tests.
+ */
+export function getCompilerCacheStats(): { textCacheSize: number; astCacheSize: number } {
+  return {
+    textCacheSize: libFileTextCache.size,
+    astCacheSize: libSourceFileCache.size,
+  };
+}
+
+/**
+ * Clear compiler in-memory caches (for testing cold compilation paths).
+ */
+export function clearCompilerCaches(): void {
+  libFileTextCache.clear();
+  libFileExistsCache.clear();
+  libSourceFileCache.clear();
+  libFileTextCache.set(FACADE_VIRTUAL_NAME, FACADE_DTS);
+  cachedBundle = null;
+  lastProgram = undefined;
+}
 
 /** Wrap the author's source so top-level await/return typecheck inside a function body. */
 export function wrapScriptSource(source: string): string {
@@ -91,10 +141,6 @@ function buildProgram(source: string): ProgramBundle {
   if (cachedBundle && cachedBundle.key === key) return cachedBundle.bundle;
 
   const wrapped = wrapScriptSource(source);
-  const virtualFiles = new Map<string, string>([
-    [SCRIPT_VIRTUAL_NAME, wrapped],
-    [FACADE_VIRTUAL_NAME, FACADE_DTS],
-  ]);
 
   const options: ts.CompilerOptions = {
     strict: true,
@@ -114,31 +160,86 @@ function buildProgram(source: string): ProgramBundle {
   const host = ts.createCompilerHost(options, /*setParentNodes*/ true);
   const baseReadFile = host.readFile.bind(host);
   const baseFileExists = host.fileExists.bind(host);
-  const resolveVirtual = (fileName: string): string | undefined => {
-    if (fileName === SCRIPT_VIRTUAL_NAME || fileName === FACADE_VIRTUAL_NAME) return fileName;
-    return undefined;
-  };
+  const baseGetSourceFile = host.getSourceFile.bind(host);
+
   host.readFile = (fileName: string) => {
-    const v = resolveVirtual(fileName);
-    if (v) return virtualFiles.get(v);
+    if (isScriptVirtual(fileName)) return wrapped;
+    if (isFacadeVirtual(fileName)) return FACADE_DTS;
     // lib.*.d.ts resolves against the typescript package (in-memory contract, on-disk libs)
     const base = path.basename(fileName);
-    if (/^lib\.[a-z0-9.]+\.d\.ts$/i.test(base)) {
-      const p = path.join(TS_LIB_DIR, base);
-      if (fs.existsSync(p)) return fs.readFileSync(p, 'utf8');
+    if (isLibFileName(base)) {
+      const cached = libFileTextCache.get(fileName) ?? libFileTextCache.get(base);
+      if (cached !== undefined) return cached;
+      const p = path.isAbsolute(fileName) && fs.existsSync(fileName) ? fileName : path.join(TS_LIB_DIR, base);
+      if (fs.existsSync(p)) {
+        const text = fs.readFileSync(p, 'utf8');
+        libFileTextCache.set(base, text);
+        libFileTextCache.set(fileName, text);
+        return text;
+      }
     }
     return baseReadFile(fileName);
   };
+
   host.fileExists = (fileName: string) => {
-    if (resolveVirtual(fileName)) return true;
+    if (isScriptVirtual(fileName) || isFacadeVirtual(fileName)) return true;
     const base = path.basename(fileName);
-    if (/^lib\.[a-z0-9.]+\.d\.ts$/i.test(base)) return fs.existsSync(path.join(TS_LIB_DIR, base));
+    if (isLibFileName(base)) {
+      if (libFileTextCache.has(fileName) || libFileTextCache.has(base)) return true;
+      const cached = libFileExistsCache.get(fileName) ?? libFileExistsCache.get(base);
+      if (cached !== undefined) return cached;
+      const p = path.isAbsolute(fileName) && fs.existsSync(fileName) ? fileName : path.join(TS_LIB_DIR, base);
+      const exists = fs.existsSync(p);
+      libFileExistsCache.set(base, exists);
+      libFileExistsCache.set(fileName, exists);
+      return exists;
+    }
     return baseFileExists(fileName);
   };
+
+  host.getSourceFile = (
+    fileName: string,
+    languageVersionOrOptions: ts.ScriptTarget | ts.CreateSourceFileOptions,
+    onError?: (message: string) => void,
+    shouldCreateNewSourceFile?: boolean
+  ): ts.SourceFile | undefined => {
+    if (isScriptVirtual(fileName)) {
+      // User script must always be parsed fresh per buildProgram call
+      return baseGetSourceFile(fileName, languageVersionOrOptions, onError, shouldCreateNewSourceFile);
+    }
+    if (isFacadeVirtual(fileName)) {
+      let sf = libSourceFileCache.get(FACADE_VIRTUAL_NAME);
+      if (!sf) {
+        sf = baseGetSourceFile(fileName, languageVersionOrOptions, onError, shouldCreateNewSourceFile);
+        if (sf) {
+          libSourceFileCache.set(FACADE_VIRTUAL_NAME, sf);
+        }
+      }
+      return sf;
+    }
+    const base = path.basename(fileName);
+    if (isLibFileName(base)) {
+      const normKey = fileName.replace(/\\/g, '/');
+      let sf = libSourceFileCache.get(normKey) ?? libSourceFileCache.get(fileName);
+      if (!sf) {
+        sf = baseGetSourceFile(fileName, languageVersionOrOptions, onError, shouldCreateNewSourceFile);
+        if (sf) {
+          libSourceFileCache.set(normKey, sf);
+          if (fileName !== normKey) {
+            libSourceFileCache.set(fileName, sf);
+          }
+        }
+      }
+      return sf;
+    }
+    return baseGetSourceFile(fileName, languageVersionOrOptions, onError, shouldCreateNewSourceFile);
+  };
+
   // The script is a closed world: nothing resolves, imports are banned (rule pass).
   host.resolveModuleNames = (moduleNames: string[]) => moduleNames.map(() => undefined);
 
-  const program = ts.createProgram([SCRIPT_VIRTUAL_NAME, FACADE_VIRTUAL_NAME], options, host);
+  const program = ts.createProgram([SCRIPT_VIRTUAL_NAME, FACADE_VIRTUAL_NAME], options, host, lastProgram);
+  lastProgram = program;
   const bundle: ProgramBundle = { program, checker: program.getTypeChecker(), sourceFile: program.getSourceFile(SCRIPT_VIRTUAL_NAME)! };
   cachedBundle = { key, bundle };
   return bundle;
@@ -163,7 +264,7 @@ function buildProgram(source: string): ProgramBundle {
  * precise error.
  */
 export function analyzeFacadeScript(source: string): FacadeAnalysis {
-  const { checker, sourceFile } = buildProgram(source);
+  const { program, checker, sourceFile } = buildProgram(source);
   const diagnostics: FacadeDiagnostic[] = [];
   const sites: FacadeSite[] = [];
   const phases: string[] = [];
@@ -193,7 +294,6 @@ export function analyzeFacadeScript(source: string): FacadeAnalysis {
   }
 
   // ---- Channel 1: TS type diagnostics (script file only, mapped -1 prelude line) ----
-  const { program } = { program: cachedBundle!.bundle.program };
   const tsDiagnostics = ts.getPreEmitDiagnostics(program, sourceFile);
   for (const d of tsDiagnostics) {
     const { line, character } = d.file && d.start !== undefined
