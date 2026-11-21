@@ -99,8 +99,41 @@ The nine-act suite measured end-to-end 2026-11-03 (Git Bash on Windows, Node v26
 
 This repository is **not published to npm** — the `ai-workflow` name on the registry is an unrelated 2021
 placeholder (v0.1.19). Supported installs: from source (`git clone` + `npm install && npm run build`, the
-three-minute judge path) or from a release tarball: `npm install ./ai-workflow-<version>.tgz` — keep the
-`./` prefix (a bare relative path is parsed as a registry spec). Verified 2026-11-20.
+three-minute judge path) or from a release tarball — a `.tgz` asset is attached to every GitHub Release
+since v2.11.0:
+
+```bash
+gh release download --repo LitaoG/AI-workflow-competition --pattern "*.tgz"   # latest release asset
+npm install ./ai-workflow-<version>.tgz   # keep the ./ prefix — a bare relative path is parsed as a registry spec
+```
+
+The tarball ships the engine CLI, the MCP server, the library exports and the agent skill; the
+two-application demo suite is part of the source tree, so the demo paths above are a source clone.
+Verified 2026-11-21.
+
+### 90 seconds to a real model (the mock is the deterministic review channel, not the ceiling)
+
+Everything above runs on the built-in **deterministic mock provider** — zero network, zero API keys,
+byte-identical reruns. That is deliberate: it makes every claim on this page mechanically verifiable
+by a judge. The same facade scripts run unchanged against real agents — no script edits, three paths:
+
+```bash
+# Path 1 — delegate every ask to an external coding-agent CLI already on your PATH
+AI_WORKFLOW_PROVIDER=codex    node bin/workflow.js run-script my-flow.facade.ts
+AI_WORKFLOW_PROVIDER=gemini   node bin/workflow.js run-script my-flow.facade.ts
+AI_WORKFLOW_PROVIDER=opencode node bin/workflow.js run-script my-flow.facade.ts
+# AI_WORKFLOW_CLI_COMMAND='C:\bin\codex.exe'  — optional explicit executable override
+
+# Path 2 — mount the engine as an MCP server inside any MCP host (Claude Code / ZCode /
+# opencode / Codex CLI / Cursor): the host's own model powers every ask, through the
+# workflow_script_check / workflow_script_run tools.
+
+# Path 3 — Kiro: .kiro/mcp/mcp-server.json wires the engine into Kiro's MCP surface,
+# alongside .kiro/ hooks, steering and specs (see docs/KIRO_INTEGRATION.md).
+```
+
+Provider routing, per-host config snippets and health probes: [docs/INTEGRATION.md](docs/INTEGRATION.md).
+Kiro-native wiring: [docs/KIRO_INTEGRATION.md](docs/KIRO_INTEGRATION.md).
 
 ### Reproducible quality-gate fingerprints
 

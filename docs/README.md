@@ -72,7 +72,7 @@
 | **Facade 编排模式** | `docs/authoring-patterns.md` | facade 脚本编排模式目录：workflow 脚本的写作范式与可复用结构 |
 | **中文译本（历史存档）** | `docs/i18n/` | ARCHITECTURE / DEVELOPER_GUIDE / KIRO_INTEGRATION 三篇的 **2026-11-03 黑客松版本中文原文——历史存档，不再演进**；现行权威内容以各篇主文档（`docs/ARCHITECTURE.md` / `docs/DEVELOPER_GUIDE.md` / `docs/KIRO_INTEGRATION.md`）为准 |
 | **多代理治理体系历史存档** | `PROJECT.md` | 私有仓时代 M1 里程碑 survey 的**历史存档**（2026-11-14 定版）：治理框架 / 证据规范 / 门禁机制的立项期全貌；现行权威以 `AGENTS.md` 与 `docs/` 各篇为准（Issue #132 登记，消除悬空状态） |
-| **产品展示页与在线体验** | `docs/index.html` · `docs/showcase.html` | 单文件白色微拟态交互展示页与 GitHub Pages 线上部署入口（https://litaog.github.io/AI-workflow-competition/）：pitch、失败模式修复、架构 SVG、实拍演示输出，无构建步骤 |
+| **产品展示页与在线体验** | `docs/showcase.html` | 单文件白色微拟态交互展示页与 GitHub Pages 线上部署入口（https://litaog.github.io/AI-workflow-competition/）：pitch、失败模式修复、架构 SVG、实拍演示输出，无构建步骤。`docs/index.html` 是 Pages 部署期由 pages.yml 从本单一事实源复制生成的产物，仓库内不保留副本（Issue #205 单源化，杜绝人工双源漂移） |
 
 ---
 

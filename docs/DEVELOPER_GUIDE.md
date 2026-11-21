@@ -82,7 +82,7 @@ my-agent-pipeline/
 | | `init <template> [dir]` | Builder 工作流建项（`basic` / `multi-agent`） | `-d --dir`、`--force` |
 | | `author <intent...>` | 一句自然语言生成 Facade 脚本：生成 → 编译检查 → 自愈（至多 3 次）→ 落盘，**从不执行** | `-o --out`、`--provider`、`--model`、`--max-tokens` |
 | | `ultracode <task>` | 从任务描述合成工作流脚本并可试运行 | `--save <name>`、`--mock`、`--run`、`--provider` |
-| **环境** | `doctor` | 六项就绪度体检 | `-j --json` |
+| **环境** | `doctor` | 七项就绪度体检（runtime / compiler / git / journal / sandbox child / install integrity / providers） | `-j --json` |
 | | `probe [targetDir]` | 主机环境与工具链确定性探测 | `-o --output json\|text`、`-j --json`、`-s --strict` |
 | **注册表与互通** | `workflows list` / `workflows run <name>` | 已保存工作流注册表（项目覆盖全局） | `-a --args <json>`、`-r --resume`、`--live <path>` |
 | | `setup` | 生成编码助手互通配置 | `-t --target claude\|opencode\|codex\|zcode\|all`、`-d --dir` |

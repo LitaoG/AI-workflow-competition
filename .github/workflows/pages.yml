@@ -31,6 +31,11 @@ jobs:
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v5
 
+      # Issue #205: docs/index.html is generated at deploy time from the single-source
+      # showcase.html — the repo carries no hand-synced duplicate to drift.
+      - name: Materialize index.html from the single-source showcase
+        run: cp docs/showcase.html docs/index.html
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:

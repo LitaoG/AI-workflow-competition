@@ -116,9 +116,16 @@ bash scripts/demo.sh
 ```
 
 > **Install reality check:** this repository is NOT published to npm — the `ai-workflow` name on the registry
-> is an unrelated 2021 placeholder (v0.1.19). Install from source as above, or from a release tarball:
-> `npm install ./ai-workflow-<version>.tgz` — the `./` prefix matters (a bare relative path is parsed as a
-> registry spec and fails). Verified 2026-11-20.
+> is an unrelated 2021 placeholder (v0.1.19). Install from source as above, or from a release tarball — a
+> `.tgz` asset is attached to every GitHub Release since v2.11.0:
+>
+> ```bash
+> gh release download --repo LitaoG/AI-workflow-competition --pattern "*.tgz"   # latest release asset
+> npm install ./ai-workflow-<version>.tgz   # the ./ prefix matters (a bare relative path is parsed as a registry spec)
+> ```
+>
+> The tarball ships the engine CLI, MCP server, library exports and the agent skill; the two-application
+> demos require the source clone. Verified 2026-11-21.
 
 Offline, deterministic, **no API keys** — both entries self-verify and exit non-zero if any act
 fails. The nine-act suite measured end-to-end (2026-11-21, Git Bash on Windows, Node v26.13.0, warm
