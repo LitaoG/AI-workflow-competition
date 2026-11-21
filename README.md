@@ -95,7 +95,15 @@ of the demo below. Write a new facade script in any domain and the same skeleton
 git clone https://github.com/LitaoG/AI-workflow-competition.git
 cd AI-workflow-competition
 npm install && npm run build
+
+# Option A: One-command cross-platform demo (~2s, Windows/macOS/Linux native)
+# Runs the flagship incident-triage facade offline & auto-raises Studio in your default browser:
+node bin/workflow.js demo
+# or: npm run demo
+
+# Option B: Comprehensive nine-act self-verifying regression showcase (~42s, requires Bash / Git Bash on Windows):
 bash scripts/demo.sh
+# or: npm run demo:nine-acts
 ```
 
 > **Install reality check:** this repository is NOT published to npm — the `ai-workflow` name on the registry
@@ -103,8 +111,8 @@ bash scripts/demo.sh
 > `npm install ./ai-workflow-<version>.tgz` — the `./` prefix matters (a bare relative path is parsed as a
 > registry spec and fails). Verified 2026-11-20 (Issue #147).
 
-Offline, deterministic, **no API keys** — the script self-verifies and exits non-zero if any act
-fails. Measured end-to-end on this machine (2026-11-03, Git Bash on Windows, Node v26.13.0, warm
+Offline, deterministic, **no API keys** — both entries self-verify and exit non-zero if any act
+fails. The 9-act suite measured end-to-end on this machine (2026-11-03, Git Bash on Windows, Node v26.13.0, warm
 npm cache; fresh `node_modules`/`dist`): **42 seconds, exit 0, `ALL NINE ACTS COMPLETE`** — well
 inside the three-minute budget, with headroom for a cold registry.
 

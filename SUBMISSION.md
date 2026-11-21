@@ -64,11 +64,19 @@ default database path is `.workflow/dwf.sqlite`).
 git clone https://github.com/LitaoG/AI-workflow-competition.git
 cd AI-workflow-competition
 npm install && npm run build
+
+# Option A: One-command cross-platform demo (~2s, Windows/macOS/Linux native)
+# Runs the flagship incident-triage facade offline & auto-raises Studio in your default browser:
+node bin/workflow.js demo
+# or: npm run demo
+
+# Option B: Comprehensive nine-act self-verifying showcase (~42s, requires Bash / Git Bash on Windows):
 bash scripts/demo.sh
+# or: npm run demo:nine-acts
 ```
 
-Offline, deterministic, **no API keys** — the script exits non-zero if any act fails.
-Measured end-to-end 2026-11-03 (Git Bash on Windows, Node v26.13.0, warm npm cache; fresh
+Offline, deterministic, **no API keys** — both entries self-verify and exit non-zero if any act fails.
+The nine-act suite measured end-to-end 2026-11-03 (Git Bash on Windows, Node v26.13.0, warm npm cache; fresh
 `node_modules`/`dist`): **42 seconds**, exit 0, **`ALL NINE ACTS COMPLETE`**.
 
 | Act | Capability | Evidence line |
