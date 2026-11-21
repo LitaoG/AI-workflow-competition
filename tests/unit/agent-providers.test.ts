@@ -519,3 +519,66 @@ test('configureAnthropicFromEnv wires the cache decision into the registered pro
     globalThis.fetch = originalFetch;
   }
 });
+
+test('MockProvider eliminates cross-app crosstalk and returns service-specific migration transforms', async () => {
+  const mock = new MockProvider();
+
+  // 1. Code reviewer routes to CodeReviewerAgent and git checkout rollback (Demo 2)
+  const codeReview = await mock.generate({
+    messages: [
+      { role: 'system', content: 'You are specialized agent "code-reviewer"' },
+      { role: 'user', content: 'Code review this migration patch for src/s3-service.ts' },
+    ],
+  });
+  const codeReviewJson = JSON.parse(codeReview.content);
+  assert.equal(codeReviewJson.signedOffBy, 'CodeReviewerAgent');
+  assert.equal(codeReviewJson.rollbackCommand, 'git checkout -- .');
+  assert.equal(codeReviewJson.isApproved, true);
+
+  // 2. Safety reviewer routes to SafetyReviewerAgent and pool-config rollback (Demo 1)
+  const safetyReview = await mock.generate({
+    messages: [
+      { role: 'system', content: 'You are specialized agent "safety-reviewer"' },
+      { role: 'user', content: 'Safety review this remediation plan' },
+    ],
+  });
+  const safetyReviewJson = JSON.parse(safetyReview.content);
+  assert.equal(safetyReviewJson.signedOffBy, 'SafetyReviewerAgent');
+  assert.equal(safetyReviewJson.rollbackCommand, 'npm run rollback:pool-config');
+
+  // 3. Service-specific migration transform for DynamoDB
+  const ddbTransform = await mock.generate({
+    messages: [
+      { role: 'system', content: 'You are specialized agent "migration-worker"' },
+      { role: 'user', content: 'aws-sdk v2->v3 migration transform for src/dynamo-service.ts' },
+    ],
+  });
+  const ddbJson = JSON.parse(ddbTransform.content);
+  assert.equal(ddbJson.targetPackage, '@aws-sdk/client-dynamodb');
+  assert.ok(ddbJson.transformedCode.includes('DynamoDBDocumentClient'));
+  assert.ok(ddbJson.breakingChangesResolved.some((b: string) => b.includes('DynamoDB')));
+
+  // 4. Service-specific migration transform for SQS
+  const sqsTransform = await mock.generate({
+    messages: [
+      { role: 'system', content: 'You are specialized agent "migration-worker"' },
+      { role: 'user', content: 'aws-sdk v2->v3 migration transform for src/sqs-service.ts' },
+    ],
+  });
+  const sqsJson = JSON.parse(sqsTransform.content);
+  assert.equal(sqsJson.targetPackage, '@aws-sdk/client-sqs');
+  assert.ok(sqsJson.transformedCode.includes('SQSClient'));
+  assert.ok(sqsJson.breakingChangesResolved.some((b: string) => b.includes('SQS')));
+
+  // 5. Service-specific migration transform for S3
+  const s3Transform = await mock.generate({
+    messages: [
+      { role: 'system', content: 'You are specialized agent "migration-worker"' },
+      { role: 'user', content: 'aws-sdk v2->v3 migration transform for src/s3-service.ts' },
+    ],
+  });
+  const s3Json = JSON.parse(s3Transform.content);
+  assert.equal(s3Json.targetPackage, '@aws-sdk/client-s3');
+  assert.ok(s3Json.transformedCode.includes('S3Client'));
+  assert.ok(s3Json.breakingChangesResolved.some((b: string) => b.includes('S3')));
+});

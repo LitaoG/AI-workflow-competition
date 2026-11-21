@@ -97,9 +97,9 @@ three-minute judge path) or from a release tarball: `npm install ./ai-workflow-<
 
 ### Reproducible quality-gate fingerprints
 
-All run 2026-11-21 on the current tree (v2.9.0 + the showcase/Pages fixes, plus a docs-only
-governance overlay — Issue #190 — with no src/test changes), Windows, Node v26.13.0, from a
-**fresh build**
+All run 2026-11-21 on the v2.10.0 tree (main @ `038c6ad` — the v2.10.0 release #186, the white
+interactive showcase #187, the demo write-closure fix #191/#194 and the CI gate fix #195/#196 —
+plus this docs-governance overlay, Issue #190), Windows, Node v26.13.0, from a **fresh build**
 (fresh-build numbers are what a judge clone reproduces; full context in
 [README](README.md#reproducible-quality-gate-fingerprints)):
 
