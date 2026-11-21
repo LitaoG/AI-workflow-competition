@@ -98,14 +98,14 @@ node bin/workflow.js demo
 # or: npm run demo
 # or: npm run demo:studio
 
-# Option B: Comprehensive nine-act self-verifying showcase (~48-51s, requires Bash / Git Bash on Windows):
+# Option B: Comprehensive nine-act self-verifying showcase (~47-51s, requires Bash / Git Bash on Windows):
 bash scripts/demo.sh
 # or: npm run demo:nine-acts
 ```
 
 Offline, deterministic, **no API keys** — both entries self-verify and exit non-zero if any act fails.
 The nine-act suite measured end-to-end 2026-11-21 (Git Bash on Windows, Node v26.13.0, warm npm cache
-with preinstalled `node_modules` and a current `dist`; 48 s and 51 s across two runs): **exit 0,
+with preinstalled `node_modules` and a current `dist`; 47 s, 48 s and 51 s across three runs): **exit 0,
 `ALL NINE ACTS COMPLETE`, both runs** — well inside the three-minute budget.
 
 | Act | Capability | Evidence line |
@@ -140,9 +140,17 @@ Verified 2026-11-21.
 
 Everything above runs on the built-in **deterministic mock provider** — zero network, zero API keys,
 byte-identical reruns. That is deliberate: it makes every claim on this page mechanically verifiable
-by a judge. The same facade scripts run unchanged against real agents — no script edits, three paths:
+by a judge. The same facade scripts run unchanged against real agents — no script edits, four paths:
 
 ```bash
+# Path 0 — direct HTTP providers, registered from environment credentials (no extra dependency):
+export ANTHROPIC_API_KEY=sk-ant-…   # → provider `anthropic` (optional ANTHROPIC_MODEL / ANTHROPIC_BASE_URL)
+export OPENAI_API_KEY=sk-…          # → provider `openai`   (optional OPENAI_MODEL / OPENAI_BASE_URL)
+export AWS_ACCESS_KEY_ID=… AWS_SECRET_ACCESS_KEY=…   # → provider `bedrock` (native SigV4, zero-dep;
+#                            optional AWS_SESSION_TOKEN / AWS_REGION / BEDROCK_MODEL_ID)
+# …then route asks explicitly: providerId: 'bedrock' in the ask options (the registry default
+# remains the offline mock — no silent failover).
+
 # Path 1 — delegate every ask to an external coding-agent CLI already on your PATH
 AI_WORKFLOW_PROVIDER=codex    node bin/workflow.js run-script my-flow.facade.ts
 AI_WORKFLOW_PROVIDER=gemini   node bin/workflow.js run-script my-flow.facade.ts
@@ -162,23 +170,22 @@ Kiro-native wiring: [docs/KIRO_INTEGRATION.md](docs/KIRO_INTEGRATION.md).
 
 ### Reproducible quality-gate fingerprints
 
-All run 2026-11-21 on the **v2.11.0 release tree** (main @ `698e796` — the v2.10.0 release #186,
-the white interactive showcase #187, the demo write-closure fix #191/#194, the CI gate fix
-#195/#196, the docs-governance overlay #190, the mock-provider crosstalk fixes #197/#201/#202,
-the cross-platform demo entry #179, and the #205 presentation-facts batch: doctor
-install-integrity + release tarball assets + Pages single-sourcing + showcase truth purge),
+All run 2026-11-21 on the **v2.12.0 release tree** (main @ `1115094` — the v2.11.0 release #212
+with the #205 presentation-facts batch: doctor install-integrity, release tarball assets, Pages
+single-sourcing, showcase truth purge — plus the v2.10.0 lineage #186/#187/#190-#196/#197-#204 and
+the native-SigV4 BedrockProvider #209/#213, which adds the zero-dependency real-model path),
 Windows, Node v26.13.0, from a **fresh build**
 (fresh-build numbers are what a judge clone reproduces; full context in
 [README](README.md#reproducible-quality-gate-fingerprints)):
 
 ```text
-npm test                                            → 857 tests, 854 pass, 3 skipped, 0 fail
+npm test                                            → 867 tests, 864 pass, 3 skipped, 0 fail
 npm run test:integration (serial)                   → 215 tests, 215 pass, 0 skipped, 0 fail
 npm run test:pbt                                    →  18 tests,  18 pass, 0 fail
 node --experimental-strip-types tests/e2e/runner.ts → 118/118 passed
 npm run test:adversarial                            → 198 tests, 198 pass, 0 fail
 npm run test:governance                             →  44 tests,  44 pass, 0 fail
-bash scripts/demo.sh                                → 48–51s (two runs), exit 0, all nine acts OK
+bash scripts/demo.sh                                → 47–51s (three runs), exit 0, all nine acts OK
 ```
 
 ### Cross-engine benchmark (measured)

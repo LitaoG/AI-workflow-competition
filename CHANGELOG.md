@@ -4,6 +4,23 @@
 > to this project's own private development repository (the pre-public-history mirror), never
 > third-party code. All engine code in this repository is clean-room original work.
 
+## 2.12.0 (2026-11-21) — BedrockProvider native SigV4: the zero-dependency real-model path
+
+- **feat (Issue #209, PR #213)**: the Bedrock provider drops the dynamic `@aws-sdk/client-bedrock-runtime`
+  import entirely — AWS SigV4 (canonical request → string-to-sign → HMAC-SHA256 signing chain) is
+  implemented in ~200 lines on Node's native `node:crypto`, and `invokeModel` is called over native
+  `fetch`. Zero new dependencies (package.json / package-lock.json untouched), `AWS_SESSION_TOKEN`
+  supported via `x-amz-security-token`, and every error path redacts all three credentials through
+  `redactServerText`. With `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` in the environment the
+  provider self-registers (region/model via `AWS_REGION` / `BEDROCK_MODEL_ID`, defaults
+  `us-east-1` / `anthropic.claude-3-5-sonnet-20241022-v2:0`); the registry default remains the
+  offline mock — asks reach bedrock only via an explicit `providerId`, no silent failover. 15 new
+  unit tests including the AWS official SigV4 test vectors (+10 net → 867).
+- **docs (Issue #214)**: SUBMISSION's "90 seconds to a real model" gains the env-credential direct
+  path (ANTHROPIC_API_KEY / OPENAI_API_KEY / AWS_ACCESS_KEY_ID → anthropic / openai / bedrock) and
+  docs/INTEGRATION.md §4 documents the bedrock registration — closing the doc-sync debt that
+  PR #213's "no doc impact" adjudication left on record.
+
 ## 2.11.0 (2026-11-21) — presentation-facts batch: judge-surface truth purge, doctor install-integrity & release tarball assets
 
 - **cli (Issue #205, PR #206)**: `workflow doctor` gains an install-integrity check — when the
