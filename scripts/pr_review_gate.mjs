@@ -275,7 +275,7 @@ function extractFindingIds(body) {
 }
 
 /**
- * 校验评论流与审查流中审查意见的回复闭环（Issue #109 判定硬化）：
+ * 校验评论流与审查流中审查意见的回复闭环（Issue #109 判定硬化 + #220 评审独立性）：
  *
  * 1. 时间线：调用方可能传入未排序的 comments/reviews 合并流——判定前按
  *    createdAt/created_at/submittedAt 升序重排，回音必须发生在意见之后。
@@ -283,6 +283,11 @@ function extractFindingIds(body) {
  *    引用对应编号并携带三态关键词（RESOLVE_KEYWORDS），一条回音只消它引用的
  *    编号。未编号的审查意见退回旧规则（后续非审查评论携带任一关键词即可）。
  * 3. 角色判别：带审查标题的评论是意见不是回音——回音扫描会跳过它们。
+ * 4. 评审独立性（Issue #220，#215 实证）：authorAssociation=OWNER 的审查意见
+ *    按**内部自检**记账（internalQaCount 单列），不进 unresolved 账目——单账号
+ *    现实下机械门禁无法区分「自我评审」与「自我放行」，required check 从此只
+ *    对外部审查意见负责闭环；且任何 finding 的回音作者必须异于意见作者（双方
+ *    作者均已知时），自提自答一律不算闭环。§1.9 三态交代义务本身不变（纪律层）。
  */
 export function checkReviewComments(comments = []) {
   const ordered = [...comments].sort((a, b) => {
@@ -292,6 +297,9 @@ export function checkReviewComments(comments = []) {
   });
 
   const unresolvedReviews = [];
+  const internalQa = [];
+  const loginOf = (item) => String(item?.author?.login || item?.user?.login || item?.user || '');
+  const associationOf = (item) => String(item?.authorAssociation || item?.author_association || '');
 
   for (let i = 0; i < ordered.length; i++) {
     const item = ordered[i];
@@ -299,12 +307,20 @@ export function checkReviewComments(comments = []) {
     if (item?.replyOnly) continue; // PR 正文等回音位不产生审查意见
     if (!isReviewComment(body)) continue;
 
-    const author = item?.author?.login || item?.user?.login || item?.user || 'unknown';
+    const authorLogin = loginOf(item);
+    const author = authorLogin || 'unknown';
     const createdAt = item?.createdAt || item?.created_at || item?.submittedAt;
     const findingIds = extractFindingIds(body);
     const findings = findingIds.length > 0
       ? findingIds.map(id => ({ id, snippet: `发现项 ${id}` }))
       : [{ id: null, snippet: body.slice(0, 80).replace(/\r?\n/g, ' ') }];
+
+    // Issue #220: OWNER 自提的审查意见 = 内部自检，不进 required check 账目。
+    // 记录为 internalQa 留痕（透明可查），但不产生 unresolved、不驱动状态翻转。
+    if (associationOf(item) === 'OWNER') {
+      internalQa.push(...findings.map(f => ({ author, findingId: f.id, snippet: f.snippet, createdAt })));
+      continue;
+    }
 
     for (const finding of findings) {
       let resolved = false;
@@ -312,6 +328,9 @@ export function checkReviewComments(comments = []) {
         const replyBody = ordered[j]?.body || '';
         if (isReviewComment(replyBody)) continue; // 审查标题的评论不是回音
         if (!RESOLVE_KEYWORDS.some(kw => replyBody.includes(kw))) continue; // 无三态关键词
+        // Issue #220: 自提自答不算闭环——回音作者必须异于意见作者（双方已知时）。
+        const replyLogin = loginOf(ordered[j]);
+        if (authorLogin && replyLogin && authorLogin === replyLogin) continue;
         if (finding.id === null || replyBody.includes(finding.id)) resolved = true;
       }
 
@@ -325,6 +344,8 @@ export function checkReviewComments(comments = []) {
     valid: unresolvedReviews.length === 0,
     unresolvedCount: unresolvedReviews.length,
     unresolvedReviews,
+    internalQaCount: internalQa.length,
+    internalQa,
     violations: unresolvedReviews.map(
       r => `存在未回复的审查意见 (来自 ${r.author}${r.findingId ? `，发现项 ${r.findingId}` : ''}): "${r.snippet}"`
     ),
