@@ -8,8 +8,10 @@
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D22-green.svg)](package.json)
 [![CI](https://github.com/LitaoG/AI-workflow-competition/actions/workflows/ci.yml/badge.svg)](https://github.com/LitaoG/AI-workflow-competition/actions/workflows/ci.yml)
+[![Live Showcase](https://img.shields.io/badge/Live%20Showcase-GitHub%20Pages-brightgreen)](https://litaog.github.io/AI-workflow-competition/)
 
-**AWS Kiroween 2026 submission — Skeleton Crew category** (hosted by Kiro on Devpost).
+**AWS Kiroween 2026 submission — Skeleton Crew category** (hosted by Kiro on Devpost).  
+**Working Application URL (Live Showcase)**: [https://litaog.github.io/AI-workflow-competition/](https://litaog.github.io/AI-workflow-competition/)
 
 ---
 
@@ -95,7 +97,9 @@ of the demo below. Write a new facade script in any domain and the same skeleton
 git clone https://github.com/LitaoG/AI-workflow-competition.git
 cd AI-workflow-competition
 npm install && npm run build
-bash scripts/demo.sh
+bash scripts/demo.sh        # or: npm run demo (Git Bash on Windows / Linux / macOS)
+# Cross-platform alternative (pure Node, runs mock demo & opens Studio dashboard in browser):
+node bin/workflow.js demo
 ```
 
 > **Install reality check:** this repository is NOT published to npm — the `ai-workflow` name on the registry
