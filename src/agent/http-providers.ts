@@ -7,6 +7,7 @@
  *
  *   ANTHROPIC_API_KEY (+ optional ANTHROPIC_MODEL / ANTHROPIC_BASE_URL) → `anthropic`
  *   OPENAI_API_KEY   (+ optional OPENAI_MODEL   / OPENAI_BASE_URL)     → `openai`
+ *   AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY                          → `bedrock`
  *
  * The registry default always remains the offline mock; asks reach these
  * providers only via an explicit `providerId`.
@@ -33,5 +34,20 @@ export async function configureHttpProvidersFromEnv(
     if (id) ids.push(id);
   }
 
+  if (env.AWS_ACCESS_KEY_ID?.trim() && env.AWS_SECRET_ACCESS_KEY?.trim()) {
+    const { configureBedrockFromEnv } = await import('./bedrock-provider.js');
+    const id = configureBedrockFromEnv(env);
+    if (id) ids.push(id);
+  }
+
   return ids;
+}
+
+/**
+ * Detects credentials and registers default providers (including bedrock when AWS credentials exist).
+ */
+export async function createDefaultProviders(
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<string[]> {
+  return await configureHttpProvidersFromEnv(env);
 }

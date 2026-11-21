@@ -33,7 +33,8 @@ export { agent } from './agent/rpc.js';
 export { extractJson, repairJsonString, formatZodErrors } from './agent/schema.js';
 export { providerRegistry } from './agent/provider.js';
 export { MockProvider } from './agent/mock-provider.js';
-export { BedrockProvider } from './agent/bedrock-provider.js';
+export { BedrockProvider, configureBedrockFromEnv } from './agent/bedrock-provider.js';
+export { configureHttpProvidersFromEnv, createDefaultProviders } from './agent/http-providers.js';
 export { AgentProviderError, asContract, asLlmProvider, normalizeStreamChunk, redactServerText } from './agent/provider-contract.js';
 export type {
   ChatOptions,
