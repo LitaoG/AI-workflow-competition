@@ -62,7 +62,13 @@ jobs:
           # --ci-comments, defer loudly — posting a failure here would be a
           # false red from the merge-period checks, not from §1.9 findings.
           if node scripts/pr_review_gate.mjs --help | grep -q -- '--ci-comments'; then
-            node scripts/pr_review_gate.mjs "${{ steps.pr.outputs.pr }}" --ci-comments
+            OUT=$(node scripts/pr_review_gate.mjs "${{ steps.pr.outputs.pr }}" --ci-comments 2>&1)
+            echo "$OUT"
+            # Issue #231: a single-account repo makes the OWNER exemption mean the
+            # check is green with OWNER findings on record — surface the count in
+            # the status description instead of a bare "clean".
+            IQA=$(echo "$OUT" | grep -oE 'internal-qa count: [0-9]+' | grep -oE '[0-9]+' | head -1)
+            echo "internalQa=${IQA:-0}" >> "$GITHUB_OUTPUT"
           else
             echo "[bootstrap] main's gate script predates --ci-comments (Issue #173) — status not flipped; adjudication deferred to pr_merge.sh."
             echo "deferred=true" >> "$GITHUB_OUTPUT"
@@ -75,7 +81,12 @@ jobs:
         run: |
           if [ "${{ steps.gate.outcome }}" = "success" ]; then
             STATE=success
-            DESC="§1.9 replies adjudicated clean (Issue #173)"
+            IQA="${{ steps.gate.outputs.internalQa }}"
+            if [ "${IQA:-0}" -gt 0 ]; then
+              DESC="§1.9 clean; ${IQA} internal-QA finding(s) on record (single-account disclosure, Issue #220/#231)"
+            else
+              DESC="§1.9 replies adjudicated clean (Issue #173)"
+            fi
           else
             STATE=failure
             DESC="Unanswered review findings — reply with 已处理/刻意不改/需人拍板 (Issue #173)"

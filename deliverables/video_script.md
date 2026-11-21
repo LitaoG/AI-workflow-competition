@@ -66,7 +66,7 @@
 - **On-Screen Title**: DEMO 1: AUTONOMOUS DEVOPS INCIDENT TRIAGE & REMEDIATION
 - **Visual Composition**:
   - Full-screen side-by-side execution display:
-    - **Left Side (Terminal)**: Command executed: `bash scripts/demo.sh` (Act 2 — the incident-triage demo). Terminal logs stream with timestamped step events (cumulative stamps from the measured 0.7s offline mock run):
+    - **Left Side (Terminal)**: Command executed: `bash scripts/demo.sh` (Act 2 — the incident-triage demo). Terminal logs stream with timestamped step events (cumulative stamps from the ~2s offline mock run (README § demo, measured)):
       - `[00:00.0] Detection`: Telemetry probe flags a 38.5% HTTP 500 spike and 100/100 exhausted DB connections.
       - `[00:00.0] Triage`: Single Inspector Agent correlates logs with commit `c4d9e1a` (missing connection pool release).
       - `[00:00.0] Plan & Review`: Paired Fixer agent drafts a pool size increase and timeout fix; Paired Reviewer agent audits safety parameters.
@@ -77,7 +77,7 @@
 - **On-Screen Callout Badges**:
   - `Topology`: Single Inspector + Paired Fixer/Reviewer + Shell Gate
   - `Verification Gate`: deterministic shell gate (offline mock healthcheck)
-  - `Outcome`: Incident diagnosed, patched, verified & post-mortem written in 0.7s!
+  - `Outcome`: Incident diagnosed, patched, verified & post-mortem written in ~2s!
 - **Audio Track & SFX**:
   - `[0:55 - 1:05]`: Urgent P1 alert klaxon, quickly transitioning to focused driving synth bass.
   - `[1:05 - 1:18]`: High-tech dual ping as paired agents review the remediation plan.
@@ -99,8 +99,8 @@
       - Lane A: `s3-worker` + `s3-reviewer`
       - Lane B: `dynamo-worker` + `dynamo-reviewer`
       - Lane C: `sqs-worker` + `sqs-reviewer`
-    - **The Simulated Crash [1:55]**: Process abruptly receives an unhandled interrupt signal (`SIGINT` / `--interrupt-at step-3b2`). Terminal flashes red: `[SIMULATED RUNTIME CRASH]`.
-    - **The Durable Replay [1:59]**: Engineer runs `/workflow replay <run-id>`. The engine queries the SQLite WAL database. Completed steps (S3 and Dynamo transforms) are recognized as valid cached checkpoints: skipped in 0 milliseconds with **0 tokens consumed**! Execution resumes instantly at step 3b2, passes the post-merge TypeScript compiler gate, and generates `PULL_REQUEST.md`.
+    - **The Simulated Crash [1:55]**: The demo workflow hits `--interrupt-at 2` — "Simulated interruption triggered after 2 files" (Issue #226's passthrough keeps the flag working end-to-end). Terminal flashes red: `[SIMULATED RUNTIME CRASH]`.
+    - **The Durable Replay [1:59]**: Engineer runs `node bin/workflow.js replay <run-id>`. The engine queries the SQLite WAL database. Completed steps (S3 and Dynamo transforms) are recognized as valid cached checkpoints: skipped in 0 milliseconds with **0 tokens consumed**! Execution resumes instantly at the interruption point (file 3), passes the post-merge TypeScript compiler gate, and generates `PULL_REQUEST.md`.
 - **On-Screen Callout Badges**:
   - `Parallel Fan-Out`: 3 Worker + Reviewer Pairs via `Promise.all`
   - `Fault Tolerance`: Simulated mid-workflow crash

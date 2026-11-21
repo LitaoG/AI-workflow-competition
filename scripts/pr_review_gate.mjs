@@ -641,6 +641,13 @@ PR Review & Cooling Period Gate CLI (pr_review_gate.mjs)
 
     const allComments = [bodyItem, ...prComments, ...reviewItems, ...issueComments];
     const commRes = checkReviewComments(allComments);
+    // Issue #231 disclosure: a single-account repo makes the OWNER exemption
+    // (Issue #220) mean the check can never report unresolved OWNER findings —
+    // instead of a bare "clean", surface the internal-QA count so the flipper's
+    // status description carries the honesty note on every green check.
+    if (commRes.internalQaCount > 0) {
+      console.log(`internal-qa count: ${commRes.internalQaCount} (OWNER findings recorded as internal QA — Issue #220/#231 single-account disclosure)`);
+    }
     // S2（Issue #196）：「无评论」声明与关联 Issue 时间线机械核对。
     const claimRes = checkNoCommentClaims(prData.body || '', issueComments);
 
