@@ -565,6 +565,101 @@ test('MockProvider eliminates cross-app crosstalk and returns service-specific m
   assert.equal(codeReviewNoSysJson.signedOffBy, 'CodeReviewerAgent');
   assert.equal(codeReviewNoSysJson.rollbackCommand, 'git checkout -- .');
 
+  // 1d. Safety review user prompt starting with "Review" must NOT be stolen by code-reviewer (regression guard for ^review\b)
+  const safetyReviewPromptStartingWithReview = await mock.generate({
+    messages: [
+      {
+        role: 'user',
+        content: 'Review this incident remediation plan for safety violations and blast radius: {"strategy":"EXPAND_CONNECTION_POOL"}',
+      },
+    ],
+  });
+  const safetyReviewStartsWithReviewJson = JSON.parse(safetyReviewPromptStartingWithReview.content);
+  assert.equal(safetyReviewStartsWithReviewJson.signedOffBy, 'SafetyReviewerAgent');
+  assert.equal(safetyReviewStartsWithReviewJson.rollbackCommand, 'npm run rollback:pool-config');
+
+  // 1e. Migration architect agent returns AWS SDK migration plan, eliminating crosstalk with pool expansion
+  const migrationArchitect = await mock.generate({
+    messages: [
+      { role: 'system', content: 'You are specialized agent "migration-architect".' },
+      { role: 'user', content: 'Draft the migration architecture for converting these files from aws-sdk v2 to v3: ["src/s3-service.ts"]' },
+    ],
+  });
+  const migrationArchitectJson = JSON.parse(migrationArchitect.content);
+  assert.equal(migrationArchitectJson.planId, 'plan-aws-sdk-v3-migration');
+  assert.ok(Array.isArray(migrationArchitectJson.topologicalOrder));
+  assert.ok(migrationArchitectJson.topologicalOrder.includes('src/s3-service.ts'));
+  assert.ok(!JSON.stringify(migrationArchitectJson).includes('EXPAND_CONNECTION_POOL'), 'migration architect must not return pool expansion plan');
+
+  // 1f. Release recorder agent returns dedicated structured release summary
+  const releaseRecorder = await mock.generate({
+    messages: [
+      { role: 'system', content: 'You are specialized agent "release-recorder".' },
+      { role: 'user', content: 'Synthesize release notes and PR description for migrating 3 files to @aws-sdk/client-s3' },
+    ],
+  });
+  const releaseRecorderJson = JSON.parse(releaseRecorder.content);
+  assert.equal(releaseRecorderJson.status, 'SUCCESS');
+  assert.ok(Array.isArray(releaseRecorderJson.migratedFiles));
+  assert.equal(releaseRecorderJson.rollbackCommand, 'git checkout -- .');
+
+  // 1g. Strict canonical domain schema conformance for all mock JSON payloads
+  const CodeReviewSchema = z.object({
+    filePath: z.string(),
+    approved: z.boolean(),
+    isApproved: z.boolean(),
+    reviewScore: z.number().min(0).max(1),
+    riskLevel: z.enum(['LOW', 'MEDIUM', 'HIGH']),
+    identifiedRisks: z.array(z.string()),
+    safetyViolations: z.array(z.string()),
+    astValidation: z.enum(['PASS', 'FAIL']),
+    lintCheck: z.enum(['PASS', 'FAIL']),
+    rollbackCommand: z.string(),
+    signedOffBy: z.string(),
+  });
+  assert.ok(CodeReviewSchema.safeParse(codeReviewJson).success, 'codeReviewJson must satisfy CodeReviewSchema');
+
+  const SafetyReviewSchema = z.object({
+    approved: z.boolean(),
+    isApproved: z.boolean(),
+    safetyScore: z.number().min(0).max(1),
+    riskLevel: z.enum(['LOW', 'MEDIUM', 'HIGH']),
+    safetyViolations: z.array(z.string()),
+    prohibitedCommandsDetected: z.array(z.string()),
+    policyCompliance: z.enum(['PASS', 'FAIL', 'CONDITIONAL']),
+    riskMitigationNotes: z.string(),
+    rollbackCommand: z.string(),
+    signedOffBy: z.string(),
+  });
+  assert.ok(SafetyReviewSchema.safeParse(safetyReviewStartsWithReviewJson).success, 'safetyJson must satisfy SafetyReviewSchema');
+
+  const MigrationPlanSchema = z.object({
+    planId: z.string(),
+    topologicalOrder: z.array(z.string()),
+    transformationRulesApplied: z.array(z.string()),
+    estimatedComplexity: z.enum(['LOW', 'MEDIUM', 'HIGH']),
+    backupBranchName: z.string(),
+    parallelBatches: z.array(z.array(z.string())).optional(),
+    mcpRulesConsulted: z.array(z.string()).optional(),
+  });
+  assert.ok(MigrationPlanSchema.safeParse(migrationArchitectJson).success, 'migrationPlanJson must satisfy MigrationPlanSchema');
+
+  const CodeTransformSchema = z.object({
+    file: z.string(),
+    filePath: z.string(),
+    serviceName: z.string().optional(),
+    originalPackage: z.string(),
+    targetPackage: z.string(),
+    transformedCode: z.string(),
+    diffPatch: z.string(),
+    modifiedImports: z.array(z.string()),
+    breakingChangesResolved: z.array(z.string()),
+    status: z.enum(['SUCCESS', 'PARTIAL', 'FAILED']),
+  });
+  assert.ok(CodeTransformSchema.safeParse(JSON.parse((await mock.generate({
+    messages: [{ role: 'system', content: 'You are specialized agent "migration-worker"' }, { role: 'user', content: 'transform dynamo' }],
+  })).content)).success, 'migrationTransformJson must satisfy CodeTransformSchema');
+
   // 2. Safety reviewer routes to SafetyReviewerAgent and pool-config rollback (Demo 1)
   const safetyReview = await mock.generate({
     messages: [
