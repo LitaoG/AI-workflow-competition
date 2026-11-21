@@ -1,0 +1,6 @@
+/* Tailwind input for the self-contained docs/showcase.html build (Issue #224).
+ * The compiled output is INLINED into showcase.html's <style> block — see
+ * scripts/tailwind.showcase.config.cjs for the regeneration command. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
