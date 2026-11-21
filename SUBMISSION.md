@@ -193,6 +193,19 @@ npm run test:governance                             →  44 tests,  44 pass, 0 f
 bash scripts/demo.sh                                → ~48s, exit 0, all nine acts OK
 ```
 
+### Single-account disclosure (review-gate semantics)
+
+AI-Workflow is a single-developer project — every review comment on this repository is authored by
+the OWNER account. The `review-gate-comments` required check therefore mechanically enforces closure
+of **external (non-OWNER) review findings only**: OWNER-authored findings are recorded as internal QA
+(`internalQaCount`, surfaced in the check's status description) rather than counted as independent
+review evidence. That is a deliberate disclosure, not an oversight — issue #215 verified that a
+single account can self-answer a finding and flip the check green in two minutes, so the check now
+states what it can actually verify (a green check with internal-QA findings on record carries the
+count in its description). The §1.9 three-state reply duty itself remains a hard discipline; a
+genuine second identity (bot account or external reviewer) would re-arm the check with zero code
+changes, since the exemption matches `authorAssociation=OWNER` only. Tracked as issues #215/#220/#231.
+
 ### Cross-engine benchmark (measured)
 
 The identical facade mission script was also run against **both** the official ZCode
