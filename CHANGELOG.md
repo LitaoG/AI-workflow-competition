@@ -4,6 +4,39 @@
 > to this project's own private development repository (the pre-public-history mirror), never
 > third-party code. All engine code in this repository is clean-room original work.
 
+## 2.13.0 (2026-11-21) — R7 sharp-review fix batch: worldRead fidelity, review-author integrity, self-contained showcase
+
+- **fix (Issue #219, PR #222)**: redaction dual-profile. The engine's journalled worldRead results
+  (`files.read` / `files.grep` / `files.map` / `git.diff` — arbitrary workspace file content) now use
+  a content-preserving profile: every shape-based defense stays (whole-value, URI credentials, bare
+  credential shapes, Bearer headers), and the key-name rule narrows to token-shaped values
+  (8+ chars of `[A-Za-z0-9_+/~-]`) under sensitive-named keys. The unconditioned `SENSITIVE_KV_PAIR`
+  had corrupted benign fields — package.json's `"keywords"` / `"private"` broke `JSON.parse` at the
+  script (live-crashed during the R7 sharp review, run dwfrun-mwq880re). The ADV3 decoy contract is
+  intact (`sk-decoy-123` under `GOAL_POC_TOKEN` still masks), and the adversarial suite gains a
+  package.json fidelity regression (the fixture `JSON.parse`s what `files.read` returned, so a
+  profile regression crashes the run). Command output, error paths and ask results keep the full
+  profile — the env-leak surface is unchanged. docs/ARCHITECTURE.md documents the dual profile
+  (§8.1 redaction boundary, §12.4 penetration surface).
+- **fix (Issue #220, PR #223)**: review-author integrity in `pr_review_gate.mjs`. `authorAssociation=OWNER`
+  findings are recorded as internal QA (`internalQaCount`) and never enter the unresolved ledger —
+  the `review-gate-comments` required check only answers for external review findings; and any
+  finding's closure reply must come from a different author than the finding author (both known) —
+  self-answers never close, for any account. This closes the #215 independence hole verified live on
+  PR #213 (the required check had been driven failure→green in two minutes by owner self-raised +
+  self-answered comments). The §1.9 three-state duty itself is unchanged as a discipline.
+  docs/WORKFLOW.md §7.2 documents the new gate semantics.
+- **fix (Issue #224, PR #225)**: docs/showcase.html is self-contained. The Tailwind Play CDN script
+  (and the "not for production" console warning) is replaced by the compiled utility subset inlined
+  into a `<style>` block — 285 classes via content scan plus a safelist for the 11 classes the page
+  toggles at runtime — so an offline or network-restricted judge gets the full layout. Google Fonts
+  stay as progressive enhancement (system-font fallback offline). `tailwindcss` added as devDependency
+  (declared + lockfile-pinned; regeneration command in `scripts/tailwind.showcase.config.cjs`).
+  SUBMISSION's fingerprint tree label corrected (`c267809` is the v2.12.0 release merge #216, not
+  "the v2.11.0 release #212").
+- **docs (Issue #215)**: the supervision-seat independence accusation was verified claim-by-claim and
+  answered with a three-state reply; the mechanical layer landed via PR #223 and the issue closed.
+
 ## 2.12.0 (2026-11-21) — BedrockProvider native SigV4: the zero-dependency real-model path
 
 - **feat (Issue #209, PR #213)**: the Bedrock provider drops the dynamic `@aws-sdk/client-bedrock-runtime`
