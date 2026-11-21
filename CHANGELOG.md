@@ -36,6 +36,7 @@
   "the v2.11.0 release #212").
 - **docs (Issue #215)**: the supervision-seat independence accusation was verified claim-by-claim and
   - **fix (Issue #226, PR #228)**: CLI `workflow run` passes `approvedCommands` through to the sandbox engine and the sub-app facade commands resolve their authorized command sets correctly. This fix landed as an interleave between the release PR and its merge — folded here so v2.13.0 ships the full tree (fingerprints re-pinned to 874/871+3 on the merged main).
+  - **fix (Issues #230, PR #232)**: CLI `workflow graph` gains facade-script graph projection and `workflow list` discovers sub-app journals. Second interleave of this release window — folded with the fingerprints re-pinned to the final tree (876/873+3).
   answered with a three-state reply; the mechanical layer landed via PR #223 and the issue closed.
 
 ## 2.12.0 (2026-11-21) — BedrockProvider native SigV4: the zero-dependency real-model path
