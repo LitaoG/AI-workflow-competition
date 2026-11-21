@@ -204,7 +204,7 @@ node --experimental-strip-types scripts/pr_review_gate.mjs --check-clean
 
 > 第 8 级除 `git status` 洁净外，还扫描兄弟 `../AI-workflow-worktrees/` 下的**孤儿 worktree 壳**（目录在、`git rev-parse` 无法解析——Windows 句柄常让 `git worktree remove` 留壳，Issue #67）：发现即门禁失败，当场连目录删除。CI clone 无该目录时扫描为空操作。
 
-> 其中第 6 级治理门禁包含「冲突标记全仓扫描」（上游 Issue #277，经 comp Issue #17 同步移植）：对 `git ls-files` 全部受控文本文件断言不得残留行首 `<<<<<<< ` / `>>>>>>> ` 合并冲突标记（排除二进制与 fixtures），防止合并腐蚀静默进入 main。
+> 其中第 6 级治理门禁包含「冲突标记全仓扫描」（合并冲突标记全仓扫描，治理门禁反向锁死）：对 `git ls-files` 全部受控文本文件断言不得残留行首 `<<<<<<< ` / `>>>>>>> ` 合并冲突标记（排除二进制与 fixtures），防止合并腐蚀静默进入 main。
 
 ### 4.1 提取真实测试指纹
 
@@ -267,7 +267,7 @@ git push -u origin feat/issue-<issue-id>-<desc>
   2. **刻意不改 + 明确理由**（给出事实与架构考量）；
   3. **需人拍板**（列出分歧请求裁决）。
   **必回一条回音（必回的是回音，不是照办）**：审查意见不一定对（P-SRC-3 人数不是证据），判定为误报也必须回复驳回依据，严禁静默跳过。
-- **回音判定规则（Issue #109，机械锁死于门禁）**：
+- **回音判定规则（机械锁死于门禁）**：
   1. 编号闭环：带编号的发现项（F1、F2…）逐条记账；回音必须**同时引用对应编号并携带三态关键词**（已处理/刻意不改/需人拍板…），一条回音只消它引用的编号；
   2. 角色判别：带审查标题（`## 监督席`、`## 审查意见` 等）的评论是意见不是回音——回音写在 PR 正文（模板 §5）或普通评论里均可；
   3. 时间线：comments 与 reviews（`submittedAt`）按时间合并排序，回音必须晚于意见；
@@ -287,13 +287,13 @@ node --experimental-strip-types scripts/pr_review_gate.mjs <pr_number>
 
 ### 7.3 合入操作（必须在主仓 main 执行）
 
-**推荐入口（Issue #134）**：`bash scripts/pr_merge.sh <pr_number> [--ack <reason>]` —— 逐段显式校验退出码（`set -o pipefail`，无过滤管道）的合入入口：①审查门禁（可显式 `--ack` 豁免，理由登记）②CI 绿 ③打印最新 PR 评论供 §1.9 人工扫描 ④merge ⑤同步 main。任何一段非零即中止——`#105/#119/#125` 三次「管道吞退出码」违纪（`| tail` 吞 `exit 1`）自此从机制上杜绝，**严禁再手写 `| tail` 类合入链**。
+**推荐入口（Issue #134）**：`bash scripts/pr_merge.sh <pr_number> [--ack <reason>]` —— 逐段显式校验退出码（`set -o pipefail`，无过滤管道）的合入入口：①审查门禁（可显式 `--ack` 豁免，理由登记）②CI 绿 ③打印最新 PR 评论供 §1.9 人工扫描 ④merge ⑤同步 main。任何一段非零即中止——多次「管道吞退出码」违纪（台账见 `docs/AI-PITFALLS.md` P-SHELL-1；`| tail` 吞 `exit 1`）自此从机制上杜绝，**严禁再手写 `| tail` 类合入链**。
 
 手动等价流程（仅当无法运行脚本时）：
 
 ```powershell
 # 1. 远端 CI 已于 2026-11-14 经用户重新拍板恢复（比赛仓为 public 仓库，Actions
-#    免费，Issue #7；历史拍板 Issue #203）：合入放行判据 = PR 正文本机门禁指纹
+#    免费，Issue #7）：合入放行判据 = PR 正文本机门禁指纹
 #    + scripts/pr_review_gate.mjs <pr_number> 校验通过 + CI 绿（gh pr checks）。
 #    退出码必须裸跑核验——严禁经管道过滤后连写（Issue #134）。
 

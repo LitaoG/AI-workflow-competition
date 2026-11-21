@@ -1,6 +1,6 @@
 # Specification: AI-Workflow Dynamic Slash-Command Engine
 
-**Status**: Standard | **Category**: Skeleton Crew | **Version**: 1.0.0
+**Status**: Standard | **Category**: Skeleton Crew | **Version**: 跟随 package.json 主版本（2026-11-21 时点 2.9.0）
 
 ## 1. Operational Semantics
 AI-Workflow executes dynamic workflows expressed as TypeScript code rather than conversational loops ("Code, not conversation"). The engine coordinates multi-agent DAGs, deterministic environment probing, durable dual-layer persistence, and real-time visual progress rendering.

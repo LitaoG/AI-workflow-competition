@@ -127,7 +127,7 @@
 
 - **动手第一步自检**：运行 `git branch --show-current` 与 `git worktree list`。若当前处于主仓且为 `main` 分支，必须先创建独立 worktree；
 - **目录规范**：Worktree 目录统一建在主仓同级目录（例如 `../AI-workflow-worktrees/issue-<num>-<slug>`），**目录名严禁包含空格**；
-- **主仓操作白名单**：主仓目录仅允许执行：只读查看、全局状态查询、测试运行、`gh pr merge`（远端 CI 已于 2026-11-14 经用户重新拍板恢复：比赛仓为 public 仓库，Actions 免费，见 Issue #7；历史拍板见私有仓 Issue #203）；
+- **主仓操作白名单**：主仓目录仅允许执行：只读查看、全局状态查询、测试运行、`gh pr merge`（远端 CI 已于 2026-11-14 经用户重新拍板恢复：比赛仓为 public 仓库，Actions 免费，见 Issue #7）；
 - **Worktree 生命周期**：用完即删。合入主分支后，必须立即执行 `git worktree remove --force` 并清理本地与远程特性分支。
 
 ### 1.9 盯住 Issue / PR 评论：主动回看、逐条甄别、必回一条回音（Review Duty）

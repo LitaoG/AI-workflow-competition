@@ -24,7 +24,7 @@
 
 ```
 =====================================================================================================
- AI-Workflow: incident-triage-remediation (运行编号: run-1730419200)
+ AI-Workflow: incident-triage-remediation (运行编号: run-1795227416145-8bedod)
  运行状态: 5 个阶段 · 3 个智能体并行执行中
 =====================================================================================================
 
@@ -55,7 +55,7 @@
                              ▼
 ┌── 阶段 5: 复盘报告合成与交付看板导出 (Post-Mortem & Kanban) ───────┐
 │  └── [✔] 📦 协调员: PostMortemSynthesizer (110ms)                  │
-│          交付物: artifacts/PostMortem.md 与 artifacts/kanban.json   │
+│       交付物: artifacts/incident-triage/{PostMortem.md, kanban.json, …} │
 └────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -104,6 +104,13 @@ node --experimental-strip-types tests/integration/demo-incident.test.ts
 ## 📦 生成交付物
 
 每次运行都会在 `artifacts/`（及 `.workflow/runs/<runId>/`）生成完整的审计交付物：
+
+> 两层演示证据是刻意设计（Issue #181）：本应用自有的
+> [`apps/incident-triage-remediation/artifacts/`](artifacts) 保存其独立运行产物
+> （mock 模式运行 `run-1795227416145-8bedod`，2026-11-21），而仓库根目录的
+> [`artifacts/incident-triage/`](../../artifacts/incident-triage) 保存最近一次仓库根目录
+> 演示运行的输出——两层之间 `runId`/时间戳不同属预期，那是两次运行，而非漂移。
+
 1. **`artifacts/incident_dag.html`**: 独立零依赖的 SVG 三次贝塞尔曲线时间线 DAG，支持平移缩放、节点点击抽屉审查。
 2. **`artifacts/kanban.json`**: 对齐 ZCode "夜班清扫看板" 的 5 列实时交付物看板数据。
 3. **`artifacts/PostMortem.md`**: 符合 SRE 标准的事故复盘报告，含故障时间线、5-Whys 根因分析、修复指标对比及后续改进清单。

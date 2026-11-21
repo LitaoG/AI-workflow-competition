@@ -71,7 +71,7 @@ if (gate.exitCode !== 0) throw new Error(`gate failed: ${gate.stderr}`);
 await artifact.markdown('report', '# Findings\n...', { title: 'Review report' });
 await artifact.file('profile', 'out/profile.html', { title: 'Profile' });
 
-// adjust the live plan graph mid-run (Issue #171): new pending boxes + edges render
+// adjust the live plan graph mid-run: new pending boxes + edges render
 // immediately in graph.html; ids are runtime values, edges may point at real site ids
 plan({
   nodes: [{ id: 'deep-dive', name: 'Deep-dive root cause', phase: 'Deep-dive' }],
@@ -108,6 +108,9 @@ See [`examples/review.facade.ts`](./examples/review.facade.ts) — scan →
 parallel typed reviews → adversarial verify → gate → report. Run it:
 
 ```bash
+# run from the repo root — examples/review.facade.ts is relative to it
+# (use an explicit path otherwise); --cwd points the script's workspace
+# root at <workspace>, which may differ from the repo root
 workflow run examples/review.facade.ts --cwd <workspace> --set glob=src/**/*.ts
 ```
 

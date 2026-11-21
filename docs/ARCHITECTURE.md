@@ -156,7 +156,7 @@ flowchart TB
 
 **关键设计差异**：facade 引擎**刻意没有阶段依赖 DAG**。`phase()` 只是展示标记（发出 `dwf_phase` 事件，别无他用），编排控制流就是编译后脚本的原生 TypeScript——引擎只拦截边界调用。Kahn 式依赖校验与环拒绝属于核心构建器引擎（§3.1），两套引擎各司其职。
 
-一次运行的终态五选一：`completed` / `failed` / `compile_failed` / `parked` / `stopped`。其中 `parked`（挂起）是一等终态，与 `failed` 严格隔离（Issue #35）：脚本调用 `hole<T>()` 或 `escalate()` 时引擎开启站点并让分支停在永不落定的 promise 上，全部剩余分支都停稳后运行落为 `parked` 并发出独立终态事件 `dwf_parked`——事件统计永远不会把挂起计为失败；两个人工入口（`workflow fill` 与 `workflow answer`）只接受挂起运行。
+一次运行的终态五选一：`completed` / `failed` / `compile_failed` / `parked` / `stopped`。其中 `parked`（挂起）是一等终态，与 `failed` 严格隔离（私有仓 Issue #35）：脚本调用 `hole<T>()` 或 `escalate()` 时引擎开启站点并让分支停在永不落定的 promise 上，全部剩余分支都停稳后运行落为 `parked` 并发出独立终态事件 `dwf_parked`——事件统计永远不会把挂起计为失败；两个人工入口（`workflow fill` 与 `workflow answer`）只接受挂起运行。
 
 ### 3.3 统一重放前台
 
@@ -188,7 +188,7 @@ flowchart TB
 
 **9002 成员禁令**（成员粒度的最小约束）：墙钟（`Date.now`/`Date.parse`/无参 `new Date()`）、熵源（`Math.random`）与原型链属性被拒。动机是重放的字节级一致性：journal 以 `(runId, siteId, ordinal)` + `inputHash` 键控，两次执行一旦各自读钟/掷骰，同一 run 的重放即静默分叉。合法的时间与随机性只能经 `args` 注入；`Date`/`Math` 标识符本身合法——禁令是最小成员约束，注入的时间戳仍可正常取值与格式化。
 
-**9002 原型链禁令**（`PROTOTYPE_CHAIN_PROPS`）：`constructor`/`__proto__`/`prototype` 是从任意对象爬升到 realm `Function` 的梯子，`({}).constructor.constructor` 即零 import 逃逸。点号与字符串字面量下标双语法在 AST 层一并拒收；静态语法通道枚举不了的计算型键（`a[v]`）交给 `child-main.ts` 的运行时 realm 兜底（§5.1）。`isReference` 位置判定只豁免声明名位置——初始化位同样是引用，`const e = eval`/`const g = globalThis` 一并命中 9002（Issue #40 闭合 GAP-MATRIX D3，测试锁定于 `tests/unit/dwf/dwf-compiler.test.ts`）。
+**9002 原型链禁令**（`PROTOTYPE_CHAIN_PROPS`）：`constructor`/`__proto__`/`prototype` 是从任意对象爬升到 realm `Function` 的梯子，`({}).constructor.constructor` 即零 import 逃逸。点号与字符串字面量下标双语法在 AST 层一并拒收；静态语法通道枚举不了的计算型键（`a[v]`）交给 `child-main.ts` 的运行时 realm 兜底（§5.1）。`isReference` 位置判定只豁免声明名位置——初始化位同样是引用，`const e = eval`/`const g = globalThis` 一并命中 9002（私有仓 Issue #40 闭合 GAP-MATRIX D3，测试锁定于 `tests/unit/dwf/dwf-compiler.test.ts`）。
 
 **9003 字面量规则**：`phase()` 名、`hole()` 名、`world.run` 命令名等必须是编译期字符串字面量——审批图与命令清单由它们画出，运行期才出现的命令名无从审批。
 
@@ -198,7 +198,7 @@ flowchart TB
 
 **站点表（site table）**：编译同时捕获 `actor`/`phase`/`hole`/`ask`/`worldRun` 等调用点为站点（`siteId`），它是重放键控（§6.5）、审批面（§5.3）与 `workflow check` 输出的共同基础。
 
-**前置 AST Codemod 与解构自愈**（`src/dwf/ast-codemod.ts`，上游 Issue #300）：大模型动态生成脚本时常习惯性写出命名空间解构（`const { glob, read } = files`）或 Agent 方法解构（`const { ask } = agent('foo')`），直接分析会因提取中间变量而触发 9001 误用拦截，增加反思延迟与 Token 成本。编译器流水线在 `compileFacadeScript` 入口引入轻量 AST Codemod 变换：
+**前置 AST Codemod 与解构自愈**（`src/dwf/ast-codemod.ts`）：大模型动态生成脚本时常习惯性写出命名空间解构（`const { glob, read } = files`）或 Agent 方法解构（`const { ask } = agent('foo')`），直接分析会因提取中间变量而触发 9001 误用拦截，增加反思延迟与 Token 成本。编译器流水线在 `compileFacadeScript` 入口引入轻量 AST Codemod 变换：
 - 语法分析前将常见解构自动改写为符合规范的直接属性调用（`files.glob(...)`、`agent('foo').ask(...)`）并移除中间解构声明；
 - 具备严格的作用域感知与遮蔽保护（不误伤局部同名变量或对象属性），且保留原始注释与线性结构；
 - 已合规脚本无损零改动（`modified: false`），透明提升首次编译成功率。
@@ -226,10 +226,10 @@ flowchart TB
 引擎与 runner 派生的每个进程都是受监管单元：
 
 - **POSIX**：子进程获得独立进程组（`detached: true`），终止即组杀 `process.kill(-pid, 'SIGKILL')`——派生了孙进程的命令无法活过自己的超时；
-- **Windows**：传统路径走 `taskkill /PID <pid> /T /F`（`/T` 遍历进程树）；在此之上已实现 **Win32 Job Object 监管**（Issue #98 Phase 2）：一个极小的 C# 助手（`scripts/win32-jobhelper.cs`，由 Windows 内置 csc.exe 惰性编译进 gitignore 缓存）担任受监管命令的**直接父进程**，持有 `KILL_ON_JOB_CLOSE` 的 Job Object（可选逐进程内存 commit 上限）。`killTree()` 杀助手 pid 即关闭 job 句柄、内核回收整棵树；宿主 Node 崩溃时助手自身的 wait 分支也会终结进程树。降级链（非 win32 / 缺 csc / 编译失败 / 启动失败）按进程记忆化一次，可经 `queryJobGuardStatus()` 观察（`job-object` | `fallback-taskkill` 两态，事件 `dwf_job_guard`），降级仅损失内存上限与崩溃保险，功能零缺失；
+- **Windows**：传统路径走 `taskkill /PID <pid> /T /F`（`/T` 遍历进程树）；在此之上已实现 **Win32 Job Object 监管**（私有仓 Issue #98 Phase 2）：一个极小的 C# 助手（`scripts/win32-jobhelper.cs`，由 Windows 内置 csc.exe 惰性编译进 gitignore 缓存）担任受监管命令的**直接父进程**，持有 `KILL_ON_JOB_CLOSE` 的 Job Object（可选逐进程内存 commit 上限）。`killTree()` 杀助手 pid 即关闭 job 句柄、内核回收整棵树；宿主 Node 崩溃时助手自身的 wait 分支也会终结进程树。降级链（非 win32 / 缺 csc / 编译失败 / 启动失败）按进程记忆化一次，可经 `queryJobGuardStatus()` 观察（`job-object` | `fallback-taskkill` 两态，事件 `dwf_job_guard`），降级仅损失内存上限与崩溃保险，功能零缺失；
 - **环境白名单**：子进程绝不继承父进程完整环境。组装最小平台关键基座 + 显式白名单（`SPAWN_ENV_ALLOWLIST`/`buildSanitizedEnv`），调用方 shell 里的凭据（API Key、Token）无法泄漏进派生命令或沙箱；`world.run` 的孙进程另有第二层白名单（`engine.spawnCaptured` 的 `envAllowlist`）。这是 OS 级生命周期与泄漏约束，不是安全沙箱。
 
-### 5.3 `world.run` 授权面（Issue #127）
+### 5.3 `world.run` 授权面（私有仓 Issue #127）
 
 脚本的命令集在编译期收集为字面量清单，运行前向运行所有者展示审批。运行时每条 `world.run` 的授权来源（`explicit` 显式批准 / `allowlist` 白名单命中 / `tty`）作为独立事件 `dwf_world_run_auth` 落账；脚本自带的命令清单**不再**自行授权，必须经 `--approve-cmd` 显式批准。
 
@@ -276,9 +276,9 @@ messages.push({
 
 ### 6.3 Facade 引擎的 ask 与 Provider 路由
 
-facade 面的 `ask<T = string>(instructions: string): Node<T>` 不接收 schema 参数——类型参数 $T$ 的 JSON Schema 在**编译期**从类型合成（§4），运行时按同一 Zod 兼容路径校验（`json-schema-zod.ts`）；无类型参数时答案是子代理的最终回复文本。`Agent` 是**持续会话**：ask #2 承接 ask #1 的上下文；忙碌期间的新 ask 按 FIFO 排队。`agent()` 的 `opts.provider` 指定注册提供方（如 `"mock"`、`"bedrock"`），`opts.tier`（`'fast' | 'deep'`，#151 双轨）分别取 `AI_WORKFLOW_FAST_PROVIDER` / `AI_WORKFLOW_DEEP_PROVIDER`，二者都未配置时回落注册表默认；无 tier 时带 schema 或大 prompt 的 ask 自动路由 deep。失败 ask 按 failover 链换道并发出 `dwf_failover`。
+facade 面的 `ask<T = string>(instructions: string): Node<T>` 不接收 schema 参数——类型参数 $T$ 的 JSON Schema 在**编译期**从类型合成（§4），运行时按同一 Zod 兼容路径校验（`json-schema-zod.ts`）；无类型参数时答案是子代理的最终回复文本。`Agent` 是**持续会话**：ask #2 承接 ask #1 的上下文；忙碌期间的新 ask 按 FIFO 排队。`agent()` 的 `opts.provider` 指定注册提供方（如 `"mock"`、`"bedrock"`），`opts.tier`（`'fast' | 'deep'`，私有仓 #151 双轨）分别取 `AI_WORKFLOW_FAST_PROVIDER` / `AI_WORKFLOW_DEEP_PROVIDER`，二者都未配置时回落注册表默认；无 tier 时带 schema 或大 prompt 的 ask 自动路由 deep。失败 ask 按 failover 链换道并发出 `dwf_failover`。
 
-### 6.4 统一 Provider 契约与 Thinking 流式事件（上游 Issue #304）
+### 6.4 统一 Provider 契约与 Thinking 流式事件
 
 Provider 抽象层（`src/agent/provider-contract.ts`）定义了标准统一的模型交互契约：`chat`、`complete`、`stream`、`structured`、`checkHealth`。
 - **Thinking 流式增量**：流式通道 `stream` 扩充 `StreamChunk` 联合类型（`{ type: 'content' | 'thinking', delta: string }`），配合 `normalizeStreamChunk` 提供 100% 裸字符串向后兼容能力；
@@ -287,7 +287,7 @@ Provider 抽象层（`src/agent/provider-contract.ts`）定义了标准统一的
 
 ### 6.5 三层并发治理与硬熔断
 
-- **引擎 ask 闸门**：运行级并发上限（`maxConcurrency`，默认 4；或 `AI_WORKFLOW_MAX_CONCURRENT_AGENTS`，未配置时 `resolveAskConcurrency` 取 `min(16, max(2, availableParallelism() - 2))`）；
+- **引擎 ask 闸门**：运行级并发上限，按优先级解析——显式 `maxConcurrency` 选项（钉死为该值）→ 环境变量 `AI_WORKFLOW_MAX_CONCURRENT_AGENTS` → 两者均未设置时取默认公式 `resolveAskConcurrency` = `min(16, max(2, availableParallelism() - 2))`（`src/execution/swarm-dispatcher.ts`）；
 - **运行座位闸门**：FIFO 泊车排队；
 - **逐 Provider AIMD 进程治理**（`src/dwf/governor.ts`）：失败乘性降 ×0.75，每连续 4 次成功加性升 +1，下限 1，5 分钟空闲重置——一次 429 批次不会永久压垮吞吐。
 
@@ -297,7 +297,7 @@ Provider 抽象层（`src/agent/provider-contract.ts`）定义了标准统一的
 
 - **NUL 分隔哈希键**：`inputHash = sha256(kind ␀ siteId ␀ input)`。头两个字段由引擎控制（kind 是封闭枚举、siteId 由编译器生成），永远是真分隔符；NUL 优于任何可打印分隔符，因为 `JSON.stringify` 绝不产出裸 0x00（转义为 `\u0000` 六字符），拼接因此**构造性单射**，不靠字段内容纪律。
 - **Settle-Order Gate**（镜像官方引擎，`engine.ts` + `replay-pool.ts` SettlePools）：池化落定值按**首个落定顺序**释放，由 `inputHash` 内容匹配 1:1 消费——而非按到达顺序。扇出到达次序漂移因此不可能错绑 journal 行。
-- **重放键对比**：Claude Code 链式 `hash(prevKey, prompt)`、无站点表；本引擎与 ZCode 键控 `(siteId, ordinal, inputHash)`。语义等价，但显式键支持 amend 时局部失效，链式哈希则级联到每个变更点之后。amend 的站点键控缺口由 **per-actor 具名缓存**补齐（Issue #39）：ask 行额外携带 `(actorName, actorSeq, contentHash, personaJson)`，amend 按（有效名 + 规范 persona）附着、按位 + 内容哈希 1:1 消费、分歧单调——站点重编号不再打断命中；旧账本（无身份列）继续走站点键控回放，行为不变。
+- **重放键对比**：Claude Code 链式 `hash(prevKey, prompt)`、无站点表；本引擎与 ZCode 键控 `(siteId, ordinal, inputHash)`。语义等价，但显式键支持 amend 时局部失效，链式哈希则级联到每个变更点之后。amend 的站点键控缺口由 **per-actor 具名缓存**补齐（私有仓 Issue #39）：ask 行额外携带 `(actorName, actorSeq, contentHash, personaJson)`，amend 按（有效名 + 规范 persona）附着、按位 + 内容哈希 1:1 消费、分歧单调——站点重编号不再打断命中；旧账本（无身份列）继续走站点键控回放，行为不变。
 
 ---
 
@@ -351,7 +351,7 @@ export interface ProberResult {
 
 `workflow_start` / `phase_start` / `step_start` / `step_complete` / `step_failed` / `step_skipped` / `gate_eval` / `phase_complete` / `workflow_complete` / `workflow_failed` / `workflow_aborted` / `agent_rpc_request` / `agent_rpc_response` / `mcp_tool_call` / `mcp_tool_result` / `artifact_emitted`。
 
-Facade 引擎（`dwf_*`）事件（摘要）：`dwf_phase`、`dwf_log`、`dwf_report`、`dwf_actor_created`、`dwf_ask_start`、`dwf_ask_complete`、`dwf_replay_hit`、`dwf_amend_hit`、`dwf_amend_diverged`、`dwf_hole_open`、`dwf_escalation_open`、`dwf_budget_spent`、`dwf_size_warning`、`dwf_child_workflow`、`dwf_inflight_abort`、`dwf_failover`、`dwf_world_run`、`dwf_world_run_auth`、`dwf_call_error`、`dwf_node_failed`、`dwf_artifact`、`dwf_completed`、`dwf_failed`、`dwf_parked`、`dwf_resume_takeover`、`dwf_event_log_write_failed`、`dwf_frame_malformed`、`dwf_job_guard`、`dwf_import_cache_closed`。权威全集以 `WORKFLOW_EVENT_TYPES` 为准。
+Facade 引擎（`dwf_*`）事件（摘要）：`dwf_plan`（注册计划图：runner 把编译期站点表写入 journal 作为计划先行骨架）、`dwf_plan_update`（中期计划更新：`plan()` 原语调整运行中的计划图）、`dwf_phase`、`dwf_log`、`dwf_report`、`dwf_actor_created`、`dwf_ask_start`、`dwf_ask_complete`、`dwf_replay_hit`、`dwf_amend_hit`、`dwf_amend_diverged`、`dwf_hole_open`、`dwf_escalation_open`、`dwf_budget_spent`、`dwf_size_warning`、`dwf_child_workflow`、`dwf_inflight_abort`、`dwf_failover`、`dwf_world_run`、`dwf_world_run_auth`、`dwf_call_error`、`dwf_node_failed`、`dwf_artifact`、`dwf_completed`、`dwf_failed`、`dwf_parked`、`dwf_resume_takeover`、`dwf_event_log_write_failed`、`dwf_frame_malformed`、`dwf_job_guard`、`dwf_import_cache_closed`。权威全集以 `WORKFLOW_EVENT_TYPES` 为准。
 
 ### 8.3 重放的数学表述
 
@@ -399,7 +399,7 @@ $$C(t) = (1-t)^3 P_0 + 3(1-t)^2 t P_1 + 3(1-t) t^2 P_2 + t^3 P_3, \quad t \in [0
 - **平移缩放**：纯 CSS/SVG 矩阵变换，滚轮与拖拽导航；
 - **节点检查抽屉**：点击步骤滑出抽屉，渲染 JSON 输入输出、运行时长、角色与错误堆栈；
 - **AI-Workflow Studio**（`visualizer/studio-renderer.ts` + `studio-server.ts`）：单文件自包含 SPA（AffectUI 风格拓扑画布、抽屉式实时事件终端与节点检查器，`file://` 离线可用；默认 Canvas-First 全屏展示工作流全貌，点击节点或切换按钮平滑展开右侧抽屉；阶段标题自适应换行，卡片采用意图摘要与状态指标多行布局，跨阶段节点以 SVG 贝塞尔带箭头导向连线贯通）。服务端在零 npm 依赖前提下手写 RFC 6455 WebSocket：`broadcastEvent` 向所有连接实时推帧；客户端 `{"op":"seek","ordinal":N}` 触发**时间旅行**——把 `events.jsonl` 前 N 条事件折叠为状态快照回放（复用同一投影器 `projectEventsToGraph`），新连接以全量折叠开场，画布直接落在"现在"；
-- **Live SSE 与 Thinking 思考流**（`src/dwf/live.ts`，上游 Issue #304）：除 WebSocket 外，Live 引擎提供标准 `/events` Server-Sent Events 通道，将 raw journal 事件以 `event: event` 实时推流；当推理模型产生思考过程时，专有 `dwf_thinking_delta` 事件同时以 `event: thinking` 频道多路广播，支持 Studio 看板与外部终端低延迟呈现实时思维链；
+- **Live SSE 与 Thinking 思考流**（`src/dwf/live.ts`）：除 WebSocket 外，Live 引擎提供标准 `/events` Server-Sent Events 通道，将 raw journal 事件以 `event: event` 实时推流；当推理模型产生思考过程时，专有 `dwf_thinking_delta` 事件同时以 `event: thinking` 频道多路广播，支持 Studio 看板与外部终端低延迟呈现实时思维链；
 - **多格式导出**：单文件 HTML/SVG、Mermaid markdown 图、终端 ASCII 树（`workflow graph --format html|mermaid|ascii`）。
 
 ---
@@ -423,7 +423,7 @@ const result = await ctx.mcp.callTool('aws-cloudwatch', 'query_metrics', {
 
 ### 10.2 内置 MCP 服务端（`workflow mcp serve`）
 
-引擎经 stdio 暴露 10 项工具（`server.ts` 的 `TOOL_CATALOG`），分两代：
+引擎经 stdio 暴露 10 项工具（`src/mcp/tool-catalog.ts` 的 `TOOL_CATALOG`，`server.ts` 再导出），分两代：
 
 **Facade 代（现行）**：
 1. `workflow_script_check`：编译期检查 facade 脚本（严格 TS、纯度禁令、字面量规则），返回诊断、阶段与站点表——不执行任何东西；
@@ -476,7 +476,7 @@ AI-Workflow 的核心机制是有据可查的工程选择，追溯至三条成�
 1. **工具**：rea（"Reverse Engineer Anything"，MIT）——面向 Electron/JS 应用的统一 MCP + CLI 静态分析工具集；此处用于静态分析 ZCode 桌面 `app.asar`，全程零代码执行。
 2. **实测弧线**：全量 `analyze` → 类型化拒绝 `artifact_integrity_mismatch`（真实打包缺陷：`sharp-win32-x64/lib/libvips-42.dll` 字节与 ASAR 声明的 SHA-256 矛盾）；以 `--integrity-policy record-and-continue` 重跑 → 完整 Evidence（618 MB、27,645 个 JS 文件）；选择性 `--source-path` 分析 → 秒级。整个弧线 rea 未抛出任何裸异常：每个失败都是 `{code, category, message, retryable, remediation, details}` 且带可执行修复项。
 3. **吸收**：类型化错误契约形状——机器可读的失败码加可行动 remediation，取代裸异常；以及完整校验纪律（即便选择性分析也清点整个产物）。
-4. **OS 级进程树监管**（`src/process-supervision.ts`）：POSIX 子进程独立进程组（`detached: true`，组杀 `process.kill(-pid, 'SIGKILL')`）；Windows 无进程组，传统终止路径走树遍历（`taskkill /PID /T /F`）。原生的 Win32 Job Object 绑定（`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` + csc 编译助手 + 可选内存上限 + 记忆化降级链）已落地为现行机制（Issue #98 Phase 2，见 §5.2）。
+4. **OS 级进程树监管**（`src/process-supervision.ts`）：POSIX 子进程独立进程组（`detached: true`，组杀 `process.kill(-pid, 'SIGKILL')`）；Windows 无进程组，传统终止路径走树遍历（`taskkill /PID /T /F`）。原生的 Win32 Job Object 绑定（`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` + csc 编译助手 + 可选内存上限 + 记忆化降级链）已落地为现行机制（私有仓 Issue #98 Phase 2，见 §5.2）。
 
 ---
 
@@ -493,13 +493,13 @@ AI-Workflow 的核心机制是有据可查的工程选择，追溯至三条成�
 - **AST 9002 原型链静态封印**（`src/dwf/compile.ts`）：`constructor`/`__proto__`/`prototype` 的点号与字符串下标双语法在编译期拒收，类型无关。修复后检查矩阵：全部 10 个逃逸夹具 `ok:false` 拒收——逃逸链在进入沙箱前死亡（PEN §2.6.2-3）；
 - **PreSeed BOOTSTRAP 纪律**（§5.1）：入站仅限原语字符串 `__argsJson`，args 在 realm 内冻结为 context-native；`codeGeneration:{strings:false, wasm:false}` 拒绝 realm 造码（EvalError）；`__send`/`__timer` 捕获即删；入站 `__deliver` 宿主私有持有——脚本无法伪造 ok/err 或重放预算帧。
 
-诚实的残余：**D1 根因**（宿主域对象图注入 realm；官方 `child-source.ts:202-206` 的 `__host.args` context-native 化）尚未修复。静态层此前的初始化位缺口（`const e = eval` / `const g = globalThis` —— GAP-MATRIX D3）已闭合：`isReference` 只豁免声明名位置，初始化位命中 9002（Issue #40，测试锁定）。按"机制根因消除"标准，本案例为部分守住而非全守（PEN §2.4、§6.4）。
+诚实的残余：**D1 根因**（宿主域对象图注入 realm；官方 `child-source.ts:202-206` 的 `__host.args` context-native 化）尚未修复。静态层此前的初始化位缺口（`const e = eval` / `const g = globalThis` —— GAP-MATRIX D3）已闭合：`isReference` 只豁免声明名位置，初始化位命中 9002（私有仓 Issue #40，测试锁定）。按"机制根因消除"标准，本案例为部分守住而非全守（PEN §2.4、§6.4）。
 
 ### 12.2 案例 2 —— 协议投毒（NDJSON 帧撕裂 / 注入 / 超大 / 洪泛）—— 状态：审计时 PARTIAL；帧预算已落地
 
 攻击（PEN §3.1）：恶意或故障子进程向父端解析器喂跨 chunk 撕裂的帧、控制字符载荷（315 KB 含 `\r\n`/`\x00`/`\x1f`/`\u2028`/`\u2029`）、伪造的 `{t:"done"}` 终结帧、1 MB / 33 MB 单帧——当时无帧长上限，全部被接受；持续输出洪泛饿死事件循环（10 秒墙钟上界实测跑出 213 秒）。
 
-状态：审计通道致盲（log/report 载荷丢失）已修复并金丝雀端到端验证（PEN §2.6.5）。审计后加固已落地审计要求的帧预算：单帧 16 MB / 分帧缓冲 32 MB、泵按每 tick 512 行让出（`src/dwf/runner.ts`，援引 docs/research/WORKFLOW-GAP-MATRIX.md 缺口 D4 与官方 `PROTOCOL_V4_LIMITS`）；ASCII 超大帧拒绝路径由 `tests/adversarial/goal-poc3-oversize-frames.test.ts` 锁定。针对审计 PoC 的洪泛活性复测未在本文档撰写时重跑。
+状态：审计通道致盲（log/report 载荷丢失）已修复并金丝雀端到端验证（PEN §2.6.5）。审计后加固已落地审计要求的帧预算：单帧 16 MB / 分帧缓冲 32 MB、泵按每 tick 512 行让出（`src/dwf/runner.ts`，援引 docs/research/WORKFLOW-GAP-MATRIX.md 缺口 D4 与官方 `PROTOCOL_V4_LIMITS`）；ASCII 超大帧拒绝路径由 `tests/adversarial/goal-adv3-oversize-frames.test.ts` 锁定。针对审计 PoC 的洪泛活性复测未在本文档撰写时重跑。
 
 ### 12.3 案例 3 —— DoS 资源炸弹（深递归 / glob 炸弹 / 智能体风暴）—— 状态：HELD
 
@@ -531,7 +531,7 @@ AI-Workflow 的核心机制是有据可查的工程选择，追溯至三条成�
 
 | 层 | 机制 | 审计后状态 |
 |---|---|---|
-| 静态（编译） | 标识符/文本禁令 + `types: []` 类型检查；`PROTOTYPE_CHAIN_PROPS` 9002 | 逃逸夹具 10/10 拒收；初始化位缺口已闭合（D3，Issue #40） |
+| 静态（编译） | 标识符/文本禁令 + `types: []` 类型检查；`PROTOTYPE_CHAIN_PROPS` 9002 | 逃逸夹具 10/10 拒收；初始化位缺口已闭合（D3，私有仓 Issue #40） |
 | 运行时（vm realm） | `codeGeneration:{strings:false, wasm:false}` + PreSeed 仅原语跨界 | 作为静态层之后的纵深防御守住 |
 | 资源（上限/超时/保险丝） | 深度 8 / glob 2000 / 1000 次调用保险丝 / 运行超时 | 全程守住（案例 3） |
 | 掩码（边界） | 环境白名单、`CREDENTIAL_TOKEN_SHAPES`、journal 前 `redactValue` | 泄漏面已关；残余 R2（`args_json`） |

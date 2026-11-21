@@ -89,12 +89,14 @@
   +------------------------------------+------------------------------------+
   | LEFT HALF: TERMINAL STREAM (50%)   | RIGHT HALF: LIVE TIMELINE DAG (50%)|
   | $ bash scripts/demo.sh (Act 2)     | Phase 1: Detection [Probe]         |
-  | [00:00.2] Telemetry: 500 spike 38.5% | Phase 2: Triage [Inspector]      |
-  | [00:01.1] Root Cause: DB pool leak | Phase 3: Plan [Fixer + Reviewer]   |
-  | [00:02.8] Gate: deterministic check exit 0 | Phase 4: Gate [Shell Check] ⚡ |
-  | [00:03.6] Post-Mortem synthesized  | Phase 5: Synthesis [Coordinator]   |
+  | [00:00.0] Telemetry: 500 spike 38.5% | Phase 2: Triage [Inspector]      |
+  | [00:00.0] Root Cause: DB pool leak | Phase 3: Plan [Fixer + Reviewer]   |
+  | [00:01.2] Gate: deterministic check exit 0 | Phase 4: Gate [Shell Check] ⚡ |
+  | [00:01.3] Post-Mortem synthesized  | Phase 5: Synthesis [Coordinator]   |
   +------------------------------------+------------------------------------+
-  | BOTTOM: LIVE KANBAN DASHBOARD (Probe Context | Patches | Gates | Report)|
+  | BOTTOM: LIVE KANBAN DASHBOARD (5 columns: Ingested Alerts & Probes,     |
+  | Triage & Root Cause Analysis, Synthesized Runbooks & Safety Audit,      |
+  | Execution & Gate Logs, Final Deliverables)                              |
   +-------------------------------------------------------------------------+
   ```
 - **Camera Focus & Motion**:
@@ -105,7 +107,7 @@
 - **Visual Elements**:
   - Node status badges: `pending` (⏳), `running` (amber pulsing ring), `completed` (green ✔ with duration e.g. `412ms`).
   - Bézier curves light up with animated energy pulses as step inputs pass to downstream nodes.
-  - Real-time elapsed timer in the top-right corner (`0.0s -> 3.6s`).
+  - Real-time elapsed timer in the top-right corner (`0.0s -> 1.28s`).
 - **Transition Out**: Horizontal push wipe to the right (0.3s duration).
 
 ---
@@ -146,19 +148,19 @@
 - **Timecode**: `2:15 - 2:45` (30s)
 - **Screen Layout / Wireframe**:
   ```
-  +-------------------------------------------------------------------------+
-  |  TOP BAR: MANDATORY KIRO INTEGRATION — ROOT /.kiro CONFIGURATION        |
-  +-------------------------------------------------------------------------+
-  |  ROOT /.kiro/ (100% GIT TRACKED — NOT IN .gitignore)                    |
-  |  ├── specs/    : Formal State Machine & Zod Schema Contracts            |
-  |  ├── hooks/    : lifecycle.json (SessionStart, PreToolUse, PostToolUse) |
-  |  ├── steering/ : Always-on Security Guardrails & Exfiltration Bans      |
-  |  ├── mcp/      : 10 Engine Tools (5 legacy + 5 facade script tools)     |
-  |  ├── pbt/      : Fast-Check Property Tests (18 tests / 8-3,000 runs)    |
-  |  └── crew/     : Skeleton Crew Roster & Principle of Least Privilege   |
-  +-------------------------------------------------------------------------+
-  | LOWER OVERLAY: Terminal running `git status` + `npm run test:pbt` PASS  |
-  +-------------------------------------------------------------------------+
+  +-------------------------------------------------------------------------------+
+  |  TOP BAR: MANDATORY KIRO INTEGRATION — ROOT /.kiro CONFIGURATION              |
+  +-------------------------------------------------------------------------------+
+  |  ROOT /.kiro/ (100% GIT TRACKED — NOT IN .gitignore)                          |
+  |  ├── specs/    : Formal State Machine & Zod Schema Contracts                  |
+  |  ├── hooks/    : lifecycle.json (SessionStart, PreToolUse, PostToolUse, Stop) |
+  |  ├── steering/ : Always-on Security Guardrails & Exfiltration Bans            |
+  |  ├── mcp/      : 10 Engine Tools (5 legacy + 5 facade script tools)           |
+  |  ├── pbt/      : Fast-Check Property Tests (18 tests / 8-3,000 runs)          |
+  |  └── crew/     : Skeleton Crew Roster & Principle of Least Privilege          |
+  +-------------------------------------------------------------------------------+
+  | LOWER OVERLAY: Terminal running `git status` + `npm run test:pbt` PASS        |
+  +-------------------------------------------------------------------------------+
   ```
 - **Camera Focus & Motion**:
   - `2:15 - 2:25`: 3D isometric camera flies through the 6 directory branches of `/.kiro/`. Each folder illuminates as the narrator introduces its role.

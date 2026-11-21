@@ -43,13 +43,11 @@ npm test
 
 ```
 my-agent-pipeline/
-├── package.json
-├── tsconfig.json
-├── README.md
+├── package.json            # 最小包描述（type: module）
+├── tsconfig.json           # ES2022 + NodeNext
+├── README.md               # 运行说明（workflow run workflow.ts --mock）
 ├── workflow.ts             # 核心工作流定义（defineWorkflow）
-└── gates/
-    ├── test-gate.cmd       # Windows 确定性脚本门禁
-    └── test-gate.sh        # POSIX 确定性脚本门禁
+└── .gitignore              # node_modules/、.workflow/、dist/
 ```
 
 ### 2.2 CLI 命令速查
@@ -100,7 +98,7 @@ my-agent-pipeline/
 | `AI_WORKFLOW_PROVIDER` | 将 worker ask 路由到外部智能体 CLI（`codex` / `gemini` / `opencode`） |
 | `AI_WORKFLOW_FAST_PROVIDER` / `AI_WORKFLOW_DEEP_PROVIDER` | `fast` / `deep` tier 的默认 Provider |
 | `AI_WORKFLOW_STALL_MS` | 每 ask 停滞时钟（默认 90000，`0` 关闭） |
-| `AI_WORKFLOW_MAX_CONCURRENT_AGENTS` | 并发 ask 上限（默认 4） |
+| `AI_WORKFLOW_MAX_CONCURRENT_AGENTS` | 并发 ask 上限覆盖：未设置时（CLI 选项亦未传入）取默认公式 `min(16, max(2, availableParallelism() - 2))`；显式 `--max-concurrency` 选项优先于本变量 |
 | `AI_WORKFLOW_SANDBOX_MAX_OLD_SPACE_MB` | 沙箱子进程内存上限 |
 | `AI_WORKFLOW_LANG` | 默认界面语言 |
 | `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | 显式配置时才注册 HTTP Provider，绝不自动拨号 |
@@ -108,7 +106,7 @@ my-agent-pipeline/
 
 ### 2.5 MCP 工具面（10 个工具）
 
-`node bin/workflow.js mcp serve` 以 stdio 启动内置 MCP 服务端（亦可通过 `setup` 生成的项目级配置接入 Claude Code 等客户端）。工具目录以 `src/mcp/server.ts` 的 `TOOL_CATALOG` 为准，共 10 个：
+`node bin/workflow.js mcp serve` 以 stdio 启动内置 MCP 服务端（亦可通过 `setup` 生成的项目级配置接入 Claude Code 等客户端）。工具目录以 `src/mcp/tool-catalog.ts` 的 `TOOL_CATALOG` 为准（`server.ts` 再导出），共 10 个：
 
 **Facade 工具（推荐，5 个）**
 
@@ -167,7 +165,7 @@ node bin/workflow.js run-script workflow.ts --args '{"repo":"."}'
 | `-r, --resume <runId>` | 续跑：已完成节点按 journal 零模型调用重放（脚本必须字节一致） |
 | `-m, --amend <runId>` | 修订：用编辑后的脚本分叉新运行，未变更节点从暖缓存重放 |
 | `--rerun <runId> --from <siteId>` | 同一脚本从指定站点起重新执行：更早站点走暖缓存，该站点起真实执行（站点表见 `workflow check` 输出） |
-| `-c, --max-concurrency <n>` | 子代理 ask 并发上限（默认 4） |
+| `-c, --max-concurrency <n>` | 子代理 ask 并发上限（显式传入即钉死该值；未配置——选项与环境变量均未设置——时默认取 `min(16, max(2, availableParallelism() - 2))`） |
 | `--budget-total <n>` | 运行的输出 Token 预算（脚本内只读） |
 | `--approve-cmd <name>` | 为本次运行批准一条 `world.run` 命令（可重复；脚本自带清单不再自行授权） |
 | `--failover <ids>` | ask 失败时的换道 Provider 链（逗号分隔，如 `mock,gemini-cli`） |
@@ -180,7 +178,7 @@ node bin/workflow.js run-script workflow.ts --args '{"repo":"."}'
 
 | 原语 | 签名（摘要） | 语义 |
 |---|---|---|
-| `agent(name, opts?)` | `opts?: { provider?; tier?; model?: ModelRef \| string }` | 创建子代理（一次调用一个新会话；共享返回值即共享会话）。`ask #2` 承接 `ask #1` 上下文；忙碌时新 ask 按 FIFO 等待。`model` 绑定（Issue #38）优先于 provider/tier |
+| `agent(name, opts?)` | `opts?: { provider?; tier?; model?: ModelRef \| string }` | 创建子代理（一次调用一个新会话；共享返回值即共享会话）。`ask #2` 承接 `ask #1` 上下文；忙碌时新 ask 按 FIFO 等待。`model` 绑定优先于 provider/tier |
 | `p.ask<T>(instructions)` | `Node<T>` | 带类型参数时按编译期合成的 JSON Schema 校验答案；无类型参数时返回最终回复文本 |
 | `phase(name)` | 字面量必填 | 标记阶段起点（展示标记；无依赖语义） |
 | `log(message)` / `report(item)` / `report(item, presetId)` | | 进度消息 / 发布中间结果 / 带标签的中间结果（喂给已声明的 preset；标签必须指向已声明的 chart/table/metrics/board id） |
@@ -189,7 +187,7 @@ node bin/workflow.js run-script workflow.ts --args '{"repo":"."}'
 | `run` | `{ id; resumedFrom? }` | 运行身份（落款产物与账目；`resumedFrom` 指向 amend 的父运行） |
 | `budget` | `{ total; spent(); remaining() }` | 输出 Token 预算，**只读**（运行配置注入，脚本不能自抬上限） |
 | `artifact.file(id, path)` / `artifact.markdown(id, content)` | | 发布用户保留的文件或 markdown（内容族：效应，可捕获拒绝） |
-| `artifact.chart/table/metrics/board(id, spec)` | spec 形状见 facade d.ts | **声明族**（Issue #38）：同步、void、一次写——由 `report(item, id)` 供数；同 id 幂等、异 spec/越权 primary/第 33 个 id 整个 run 失败；声明必须位于顶层（循环/回调/条件内禁止） |
+| `artifact.chart/table/metrics/board(id, spec)` | spec 形状见 facade d.ts | **声明族**：同步、void、一次写——由 `report(item, id)` 供数；同 id 幂等、异 spec/越权 primary/第 33 个 id 整个 run 失败；声明必须位于顶层（循环/回调/条件内禁止） |
 | `model("id")` | 仅限 agent opts.model 位置 | 将 actor 绑定到模型（`"modelId"` / `"providerId/modelId"`，可带 `"$level"` 后缀）；按 run 的 modelDirectory 解析，未解析的 id 在 actor 创建即失败 |
 | `hole<T>(name, prompt?)` | 字面量名必填 | 类型化空位：运行到未填充的 hole 时挂起（`parked`），用 `workflow fill` 补齐后分叉 amend 继续 |
 | `escalate(question)` | | 阻塞式人工提问：运行挂起，用 `workflow answer` 回答（回答入账后续跑） |
@@ -510,7 +508,7 @@ node bin/workflow.js replay <runId>                                  # 两种运
 | `npm run test:adversarial` | Tier-5 对抗压力套件（`tests/adversarial/`） | 含渗透 PoC 回归与演示压力脚本 |
 | `npm run test:pbt` | fast-check 性质测试（`.kiro/pbt/`） | DAG 拓扑、引擎不变式、NDJSON 往返、脱敏差分、重试分类 |
 | `npm run test:governance` | 治理锁死测试（`tests/unit/workflow-governance.test.ts`） | 锁死文档措辞与流程要素 |
-| `npm run gate` | build → test → e2e → adversarial → pbt | 一键合入门禁：退出码 0 即全绿 |
+| `npm run gate` | build → capture-failure-names → e2e → adversarial → pbt → governance | 一键合入门禁：退出码 0 即全绿 |
 | `npm run coverage` | `c8` 覆盖 `npm test` | HTML 报告在 `coverage/`（gitignore）；关键模块设有逐文件 84% 行覆盖下限——只许上调不许下调 |
 
 ### 7.2 `tests/` 目录结构

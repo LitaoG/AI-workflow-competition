@@ -1,5 +1,10 @@
 # 测试基础设施：AI-Workflow 测试体系
 
+> **English**: AI-Workflow's test infrastructure — black-box, requirement-driven suites across
+> unit / integration / PBT / adversarial / E2E / governance layers, all running offline in mock
+> mode with zero API keys. The commands below are cross-platform and run verbatim on Git Bash /
+> Linux / macOS; a Windows PowerShell note follows the table.
+
 ## 测试哲学
 - 黑盒（Opaque-box）、需求驱动：不依赖任何内部实现设计。
 - 方法论：类别划分（Category-Partition）+ 边界值分析 + 成对组合（Pairwise）+ 真实负载测试。
@@ -10,15 +15,17 @@
 
 | 层 | 目录 | 运行命令 |
 |---|---|---|
-| 单元测试 | `tests/unit/`（agent / cli / context / core / dwf / execution / state / visualizer 等子目录；保持纯隔离语义，禁止 async 子进程树——上游 Issue #198） | `npm.cmd run test:unit` |
-| 集成测试（预算、failover、replay、MCP 等花钱与恢复路径；runner 级真实子进程树/进程守护用例） | `tests/integration/`（串行 `--test-concurrency=1`） | `npm.cmd run test:integration` |
-| 基于属性的测试（PBT） | `.kiro/pbt/` | `npm.cmd run test:pbt` |
-| E2E 场景测试 | `tests/e2e/`（`runner.ts` + `helpers/` + tier1～tier4 四层） | `npm.cmd run test:e2e`（即 `node --experimental-strip-types tests/e2e/runner.ts`） |
-| 对抗性测试 | `tests/adversarial/` | `npm.cmd run test:adversarial` |
-| 跨引擎回归 | `tests/cross-engine/` | 纳入全量门禁执行 |
-| 治理规则锁死测试 | `tests/unit/workflow-governance.test.ts` | `npm.cmd run test:governance` |
-| 覆盖率统计 | c8，行覆盖率阈值 84%（`package.json` 的 `c8` 配置） | `npm.cmd run coverage` |
-| 全量门禁 | build + 上述各层串联 | `npm.cmd run gate` |
+| 单元测试 | `tests/unit/`（agent / cli / context / core / dwf / execution / state / visualizer 等子目录；保持纯隔离语义，禁止 async 子进程树——治理门禁锁定） | `npm run test:unit` |
+| 集成测试（预算、failover、replay、MCP 等花钱与恢复路径；runner 级真实子进程树/进程守护用例） | `tests/integration/`（串行 `--test-concurrency=1`） | `npm run test:integration` |
+| 基于属性的测试（PBT） | `.kiro/pbt/` | `npm run test:pbt` |
+| E2E 场景测试 | `tests/e2e/`（`runner.ts` + `helpers/` + tier1～tier4 四层） | `npm run test:e2e`（即 `node --experimental-strip-types tests/e2e/runner.ts`） |
+| 对抗性测试 | `tests/adversarial/` | `npm run test:adversarial` |
+| 跨引擎基准 | `tests/cross-engine/` | **独立基准，不在 `npm run gate` 内**：官方赛道需本机外部官方引擎 checkout（不可随本仓分发，评委克隆无法复跑官方侧）；我方赛道可离线复跑，结果落盘 `tests/cross-engine/results/`，结论见 `docs/research/BILATERAL-CROSS-BENCHMARK-REPORT.md` |
+| 治理规则锁死测试 | `tests/unit/workflow-governance.test.ts` | `npm run test:governance` |
+| 覆盖率统计 | c8，行覆盖率阈值 84%（`package.json` 的 `c8` 配置） | `npm run coverage` |
+| 全量门禁 | build + 上述各层串联 | `npm run gate` |
+
+> 命令形态说明：上表为跨平台逐字可跑形态（Git Bash / Linux / macOS 直接可用）。Windows PowerShell 下 npm 必须显式调用 `npm.cmd`（如 `npm.cmd run test:unit`）——`npm.ps1` 受执行策略限制，详见 `docs/WORKFLOW.md` §4 与 `docs/AI-PITFALLS.md` P-ENV-1。
 
 ## E2E 特性清单与测试映射（F1–F9）
 
@@ -37,7 +44,7 @@
 | **F8** | 示例 1：事故分诊与修复 | 示例应用 | ✓ | ✓（替身） | P11, P12 | S1, S6 |
 | **F9** | 示例 2：仓库迁移引擎 | 示例应用 | ✓ | ✓（替身） | P13, P14 | S2, S6 |
 
-> 注（Issue #120）：F8/F9 的 E2E 覆盖跑的是 `tests/e2e/helpers/fixtures.ts` 内的结构化**替身**剧本（与真身同名的 5 步简化版，`SAMPLE_DEMO1_INCIDENT_WORKFLOW` / `SAMPLE_DEMO2_MIGRATION_WORKFLOW`）；apps 真身由集成层（`demo-incident.test.ts` / `demo-migration.test.ts`）与对抗层（`demo1-dag-stress.js` 等）直接运行覆盖，替身与真身的步骤面并不逐字相同。
+> 注：F8/F9 的 E2E 覆盖跑的是 `tests/e2e/helpers/fixtures.ts` 内的结构化**替身**剧本（与真身同名的 5 步简化版，`SAMPLE_DEMO1_INCIDENT_WORKFLOW` / `SAMPLE_DEMO2_MIGRATION_WORKFLOW`）；apps 真身由集成层（`demo-incident.test.ts` / `demo-migration.test.ts`）与对抗层（`demo1-dag-stress.js` 等）直接运行覆盖，替身与真身的步骤面并不逐字相同。
 
 ## E2E 分层结构
 
@@ -54,10 +61,10 @@
 tests/e2e/
 ├── runner.ts                     # 主测试运行器，输出汇总报告
 ├── helpers/                      # cli / env / fixtures / mock-engine / assertions
-├── tier1-features/               # F1–F9 每项一个套件（t1-01 … t1-09）
-├── tier2-boundaries/             # F1–F9 每项一个边界套件（t2-01 … t2-09）
+├── tier1-features/               # F1–F9 每项一个套件（t1-01 … t1-09）+ Kiro 合规套件 t1-10-kiro
+├── tier2-boundaries/             # F1–F9 每项一个边界套件（t2-01 … t2-09）+ Kiro 合规套件 t2-10-kiro
 ├── tier3-combinations/           # t3-pairwise.test.ts
-└── tier4-scenarios/              # t4-01 … t4-04、t4-06（对应 S1–S4、S6）
+└── tier4-scenarios/              # t4-01 … t4-06（S1–S4、S6 场景 + t4-05-kiro-compliance）
 ```
 
 ## 真实应用场景（Tier 4）
@@ -70,13 +77,16 @@ tests/e2e/
 | **S4** | 绿地脚手架初始化、自定义工作流创建与 DAG 可视化 | F4, F6, F7 | 生成脚手架项目并完成工作流运行，产出 `workflow-dag.html` |
 | **S6** | 离线快速评估：全量示例工作流 4 秒内跑完且零 API Key | F1, F6, F8, F9 | 两个示例工作流均在无外部 API Key 条件下完成 |
 
+> 编号说明：现行场景编号为 S1–S4 与 S6（S5 未分配）。
+
 ## 测试架构与通过语义
 - **E2E 主运行器**：`node --experimental-strip-types tests/e2e/runner.ts`（输出分层汇总报告）；
   治理规则锁死测试单独作为门禁运行：`node --experimental-strip-types tests/unit/workflow-governance.test.ts`。
 - **通过/失败语义**：全部断言通过、退出码 0。
-- **治理核验命令**（治理纪律自身的验证手段）：
-  - `git worktree list` → 可见 worktree 路径与对应特性分支（`<type>/issue-<num>-<slug>` 命名规范）；
-  - worktree 内 `git status --porcelain` → 工作区干净。
+- **治理核验**（治理纪律自身的机械验证手段）：`npm run test:governance`
+  （即 `node --experimental-strip-types tests/unit/workflow-governance.test.ts`）——
+  以锁死测试机械校验研发纪律自身：治理文件必含 token、全仓禁词与机器路径扫描、
+  冲突标记零残留、ci.yml 门禁链镜像、`.kiro` 结构契约（hooks/crew/steering/MCP 目录）等。
 
 > 防腐规则：本文件不硬编码任何一次运行的实际用例数、通过率与耗时；
 > 当前真实数字一律以最新一次全量运行的输出为准（执行上文分层表中的验证命令即可获取）。

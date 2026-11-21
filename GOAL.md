@@ -1,8 +1,14 @@
 # AI-Workflow 演进蓝图与技术路线
 
-> **文档属性**：引擎演进蓝图与技术路线（现状收敛版，2026-11-09）
+> **English abstract**: AI-Workflow's evolution blueprint — the North-Star philosophy (code,
+> not conversation; evidence-driven; typed agent RPCs; deterministic probing; durable event
+> sourcing with zero-token replay; process-group supervision), the three reference sources
+> studied clean-room, the eight delivered milestones (stages 0–8), and the open evolution lanes
+> tracked in `docs/research/WORKFLOW-GAP-MATRIX.md`.
+
+> **文档属性**：引擎演进蓝图与技术路线（现状收敛版，2026-11-09 定版；此后版本演进见 [CHANGELOG.md](CHANGELOG.md) 与 [SUBMISSION.md](SUBMISSION.md) 质量指纹）
 > **定位**：回答「引擎从哪里来、现在长什么样、接下来往哪走」；架构细节以 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) 为权威，测试体系以 [TEST_INFRA.md](TEST_INFRA.md) 为权威。
-> **历史说明**：本文原为项目立项时的 Codex 重构任务书，其八阶段路线（阶段 0–8）已全部落地交付，原文可查本文件在 2026-11-09 之前的 git 历史；现收敛为现状蓝图。
+> **历史说明**：本文原为项目立项时的 Codex 重构任务书，其八阶段路线（阶段 0–8）已全部落地交付；立项期原文属项目私有镜像仓的开发史，未随本仓 git 历史发布，现收敛为现状蓝图。
 > **锚点纪律**：本文 §1 愿景条目与 §6 工程铁律的编号被源码注释（如 `src/process-supervision.ts`）与审计文档引用，调整编号或语义前必须全仓检索确认。
 
 ---
@@ -29,7 +35,7 @@
 
 ## 2. 技术谱系：三大参考源
 
-本引擎的确定性内核不是凭空设计，而是对业界最强生产级实现的逐机制精读与同语义再推导，全部证据链沉淀于 [docs/research/](docs/research/)：
+本引擎的确定性内核不是凭空设计，而是对业界最强生产级实现的逐机制精读与同语义再推导（clean-room re-derivation：只吸收行为语义与设计思想，未纳入任何第三方专有代码——见 [README.md](README.md) §Compliance），全部证据链沉淀于 [docs/research/](docs/research/)：
 
 | 参考源 | 汲取要点 | 深度证据 |
 |---|---|---|
@@ -89,7 +95,7 @@ src/
 2. **D4 协议健壮性**：NDJSON 帧字节预算、畸形帧处理、EPIPE 竞态与洪泛防线的残余收口，skip 状态对抗测试转正；
 3. **D8 官方对齐 backlog**：per-actor 具名缓存、cell 停滞检测、三层限流四层纪律、facade 原语补全（多天工程，逐项立项）；
 4. **D5 停靠语义**：parked 终态事件统计甄别、escalate 快路径；
-5. **R4 未入册残余**：退避抖动、host 错误线形态、PoC4 microtask 伪造 done 帧防线。
+5. **R4 未入册残余**：退避抖动、host 错误线形态、microtask 伪造 done 帧防线（对抗测试覆盖）。
 
 ---
 

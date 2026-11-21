@@ -24,8 +24,8 @@ workflow run-script <script.ts> --cwd <ws> --resume <runId> # 断点续跑：已
 ## 2. MCP Server（Claude Code / ZCode / opencode / Codex CLI / Cursor…）
 
 `workflow mcp serve` 通过 stdio 提供 MCP 协议，并把同一份工具目录以两种形态暴露
-（Issue #153：工具目录与线上形态严格同步——`workflow mcp list` 渲染出的内容与
-`tools/list` 返回值完全一致）：
+（工具目录与线上形态严格同步——`workflow mcp list` 渲染出的内容与
+`tools/list` 返回值完全一致，由 `tests/unit/mcp-catalog-consistency.test.ts` 锁定）：
 
 - **Facade 形态（现役，推荐）**——dwf 沙箱安全标准：
   `workflow_script_check`、`workflow_script_run`、`workflow_run_script`、

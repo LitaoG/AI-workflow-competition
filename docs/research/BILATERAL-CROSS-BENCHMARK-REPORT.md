@@ -1,6 +1,6 @@
 # 双向跨界对标报告（BILATERAL-CROSS-BENCHMARK-REPORT）
 
-> **文档属性**：MISSION-B（Issue #67）阶段五交付物——官方引擎（ZCode `@zcode/dynamic-workflow` 0.1.0）与我方引擎（AI-workflow `src/dwf`）的**同任务、同脚本、同桩模型**四维对标。
+> **文档属性**：MISSION-B（私有仓 Issue #67）阶段五交付物——官方引擎（ZCode `@zcode/dynamic-workflow` 0.1.0）与我方引擎（AI-workflow `src/dwf`）的**同任务、同脚本、同桩模型**四维对标。
 > **工作区**：`<workspace-worktrees>/issue-67-zcode-benchmark`（下称 WT，分支 `feat/issue-67-zcode-benchmark`）。
 > **输入材料**（本文全部数据的来源，未引入任何外部数字）：
 > ① `WT/docs/research/OFFICIAL-WORKFLOW-TELEMETRY.md`（阶段二 Ground Truth，下称「遥测」）；
@@ -125,7 +125,7 @@
 | E3 | `npm.cmd run test:pbt` | `ℹ tests 5 / ℹ pass 5 / ℹ fail 0 / ℹ duration_ms 2268.083` |
 | E4 | `node --experimental-strip-types tests/unit/workflow-governance.test.ts` | `ℹ tests 24 / ℹ pass 24 / ℹ fail 0` |
 | E5 | `node --experimental-strip-types tests/e2e/runner.ts` | `Total Test Cases Executed: 121 / Passed: 121 / Failed: 0`，`[TEST_RUNNER_SUCCESS]` |
-| E6 | `git restore tests/unit/fixtures/` 后 `git status --porcelain` | 恢复为仅含 Issue #67 在册改动 |
+| E6 | `git restore tests/unit/fixtures/` 后 `git status --porcelain` | 恢复为仅含 私有仓 Issue #67 在册改动 |
 | E7 | `git diff --stat` / `git diff --numstat` | `6 files changed, 373 insertions(+), 35 deletions(-)`；numstat 分文件：`150 0 compile.ts`、`86 13 engine.ts`、`71 9 governor.ts`、`36 2 schema-synth.ts`、`14 3 tests/integration/dwf-registry-aimd.test.ts`、`16 8 tests/unit/dwf/dwf-replay.test.ts`（精确增删以此为准，--stat 数字列为增删合计） |
 | E8 | `grep -n` 五项优化标记（compile.ts / engine.ts / governor.ts / schema-synth.ts，行号见 §3.1） | 5/5 命中 |
 | E9 | `node --test dist/tests/unit/dwf/dwf-amend-divergence.test.js dist/tests/unit/dwf/dwf-replay-strict.test.js` | `ℹ tests 6 / ℹ pass 6 / ℹ fail 0`（P0-2/P0-3 定向复证） |
