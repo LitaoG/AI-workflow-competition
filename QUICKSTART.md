@@ -12,8 +12,10 @@
 - Dependencies installed once at the repo root (`npm install`)
 - **This package is NOT published to npm** — the `ai-workflow` name on the registry is an
   unrelated 2021 placeholder (v0.1.19). Install from source only (`git clone` this repo, then
-  `npm install` at the repo root) or from a release tarball: `npm install ./ai-workflow-<ver>.tgz`
-  (the `./` prefix is mandatory — a bare relative path is parsed as a registry spec and fails).
+  `npm install` at the repo root) or from a release tarball attached to every GitHub Release
+  since v2.11.0: `gh release download --repo LitaoG/AI-workflow-competition --pattern "*.tgz"`,
+  then `npm install ./ai-workflow-<ver>.tgz` (the `./` prefix is mandatory — a bare relative
+  path is parsed as a registry spec and fails).
 
 ```shell
 node bin/workflow.js doctor   # environment self-check: runtime/compiler/journal/sandbox all green = ready
@@ -148,7 +150,7 @@ or open a GitHub issue.
 
 - Node.js ≥ 22
 - 本仓库根目录下依赖已装好（`npm install` 一次性）
-- **本包未发布到 npm**——npm 上的 `ai-workflow` 是无关的 2021 占位包（0.1.19）；安装只走源码（`git clone` 本仓库后于仓库根 `npm install`）或发布 tarball：`npm install ./ai-workflow-<ver>.tgz`（`./` 前缀不可省，裸相对路径会被当作 registry spec 解析而报 git 错误）
+- **本包未发布到 npm**——npm 上的 `ai-workflow` 是无关的 2021 占位包（0.1.19）；安装只走源码（`git clone` 本仓库后于仓库根 `npm install`）或发布 tarball（v2.11.0 起每个 GitHub Release 附带 `.tgz` 资产）：`gh release download --repo LitaoG/AI-workflow-competition --pattern "*.tgz"` 下载后 `npm install ./ai-workflow-<ver>.tgz`（`./` 前缀不可省，裸相对路径会被当作 registry spec 解析而报 git 错误）
 
 ```shell
 node bin/workflow.js doctor   # 环境自检：runtime/compiler/journal/sandbox 全绿即就绪

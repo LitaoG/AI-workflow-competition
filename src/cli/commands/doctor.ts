@@ -6,12 +6,59 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { providerRegistry } from '../../agent/provider.js';
 
 interface Check {
   name: string;
   ok: boolean;
   detail: string;
+}
+
+/**
+ * Walk up from this module to the package root (works from dist/ and src/).
+ * Same idiom as the demo command's packageRoot(): install facts (apps/, the
+ * node_modules self-link) belong to the package, not to the caller's cwd —
+ * `workflow doctor` from a subdirectory must not misreport the install.
+ */
+function findPackageRoot(): string {
+  let dir = path.dirname(fileURLToPath(import.meta.url));
+  for (let i = 0; i < 8; i++) {
+    if (fs.existsSync(path.join(dir, 'package.json'))) return dir;
+    dir = path.dirname(dir);
+  }
+  return process.cwd();
+}
+
+/**
+ * Issue #205 — install-integrity check. The postinstall hook (scripts/link-self.mjs)
+ * is silently skipped when npm runs with ignore-scripts=true; the
+ * node_modules/ai-workflow self-link then goes missing and every apps-scope
+ * `import 'ai-workflow'` dies with ERR_MODULE_NOT_FOUND (see the link-self header).
+ * Pure-fs detection with the same dev-repo heuristic as link-self itself (apps/
+ * exists), so no npm spawn and no win32 .cmd landmine.
+ */
+export function buildInstallIntegrityCheck(rootDir: string): Check {
+  // Downstream install (tarball/npm registry): apps/ is not shipped, the self-link
+  // is a repo-dev concept — nothing to check.
+  if (!fs.existsSync(path.join(rootDir, 'apps'))) {
+    return { name: 'install integrity', ok: true, detail: 'downstream install — repo self-link not required' };
+  }
+  let linkOk = false;
+  try {
+    linkOk = fs.lstatSync(path.join(rootDir, 'node_modules', 'ai-workflow')).isSymbolicLink();
+  } catch {
+    /* missing → not ok */
+  }
+  if (linkOk) {
+    return { name: 'install integrity', ok: true, detail: 'node_modules/ai-workflow self-link present' };
+  }
+  return {
+    name: 'install integrity',
+    ok: false,
+    detail:
+      "node_modules/ai-workflow self-link missing — postinstall was likely skipped (npm ignore-scripts=true); apps-scope imports of 'ai-workflow' will fail. Fix: `npm config set ignore-scripts false` then `npm rebuild`, or run `node scripts/link-self.mjs && node scripts/bootstrap-fixtures.mjs`",
+  };
 }
 
 export async function executeDoctor(options: { json?: boolean; lang?: string }): Promise<number> {
@@ -59,6 +106,10 @@ export async function executeDoctor(options: { json?: boolean; lang?: string }):
   const childEntry = new URL('../../dwf/child-main.js', import.meta.url);
   const childOk = fs.existsSync(childEntry);
   checks.push({ name: 'sandbox child', ok: childOk, detail: childOk ? 'dist/src/dwf/child-main.js built' : 'run `npm run build` — the sandbox child is missing' });
+
+  // Install integrity (Issue #205): postinstall may be silently skipped — detect
+  // the missing self-link before an apps-scope import fails later.
+  checks.push(buildInstallIntegrityCheck(findPackageRoot()));
 
   // Providers + per-provider health (ODW-style readiness, no model call)
   const providers = providerRegistry.list();

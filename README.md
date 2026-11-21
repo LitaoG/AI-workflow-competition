@@ -110,20 +110,27 @@ npm install && npm run build
 node bin/workflow.js demo
 # or: npm run demo
 
-# Option B: Comprehensive nine-act self-verifying regression showcase (~39s, requires Bash / Git Bash on Windows):
+# Option B: Comprehensive nine-act self-verifying regression showcase (~48s, requires Bash / Git Bash on Windows):
 bash scripts/demo.sh
 # or: npm run demo:nine-acts
 ```
 
 > **Install reality check:** this repository is NOT published to npm — the `ai-workflow` name on the registry
-> is an unrelated 2021 placeholder (v0.1.19). Install from source as above, or from a release tarball:
-> `npm install ./ai-workflow-<version>.tgz` — the `./` prefix matters (a bare relative path is parsed as a
-> registry spec and fails). Verified 2026-11-20.
+> is an unrelated 2021 placeholder (v0.1.19). Install from source as above, or from a release tarball — a
+> `.tgz` asset is attached to every GitHub Release since v2.11.0:
+>
+> ```bash
+> gh release download --repo LitaoG/AI-workflow-competition --pattern "*.tgz"   # latest release asset
+> npm install ./ai-workflow-<version>.tgz   # the ./ prefix matters (a bare relative path is parsed as a registry spec)
+> ```
+>
+> The tarball ships the engine CLI, MCP server, library exports and the agent skill; the two-application
+> demos require the source clone. Verified 2026-11-21.
 
 Offline, deterministic, **no API keys** — both entries self-verify and exit non-zero if any act
 fails. The nine-act suite measured end-to-end (2026-11-21, Git Bash on Windows, Node v26.13.0, warm
-npm cache; fresh `node_modules`/`dist`): **39 seconds, exit 0, `ALL NINE ACTS COMPLETE`** — well
-inside the three-minute budget, with headroom for a cold registry.
+npm cache with preinstalled `node_modules` and a current `dist`): **48 seconds, exit 0,
+`ALL NINE ACTS COMPLETE`** — well inside the three-minute budget, with headroom for a cold registry.
 
 Every act prints the evidence line for the capability it demos — the authoritative
 nine-act table (act → capability → evidence line) lives in
@@ -135,7 +142,9 @@ journal event rendered as a standalone page. Attach live during a run with
 `.workflow/demo-dwf.sqlite`, while the CLI's default database path is `.workflow/dwf.sqlite`).
 
 🎬 A demo video (<3 minutes, per the official submission requirements) is being recorded — the
-placeholder and recording recipe live in [`SUBMISSION.md`](SUBMISSION.md).
+placeholder and recording recipe live in [`SUBMISSION.md`](SUBMISSION.md); the 180-second
+second-by-second cue sheet is already prepared in
+[`deliverables/video_script.md`](deliverables/video_script.md).
 
 ### Reproducible quality-gate fingerprints
 
@@ -248,5 +257,6 @@ dynamic-workflow design that inspired this engine; and to the open-source projec
 
 **Further reading** — [Quickstart (60-second tour)](QUICKSTART.md) ·
 [Judge navigator & pitch](SUBMISSION.md) ·
+[Devpost article draft](blog/post.md) ·
 [Kiro integration & compliance](docs/KIRO_INTEGRATION.md) · [Architecture](docs/ARCHITECTURE.md) ·
 [Integration guide](docs/INTEGRATION.md) · [Showcase page](docs/showcase.html) ([live](https://litaog.github.io/AI-workflow-competition/))

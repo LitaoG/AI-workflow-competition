@@ -51,6 +51,9 @@ with zero shared demo logic. Write a new facade script in any domain and the ske
 
 > **⏳ Placeholder — to be backfilled after recording and uploading to YouTube: `[YouTube link]`**
 > Length target: **under 3 minutes**, per the official submission requirements.
+> Recording assets are ready: the 180-second second-by-second cue sheet (393-word voiceover,
+> six scenes) lives in [`deliverables/video_script.md`](deliverables/video_script.md), with the
+> storyboard in [`deliverables/storyboard.md`](deliverables/storyboard.md).
 
 Planned recording recipe (already exercised end-to-end on this machine): record `bash scripts/demo.sh`
 running its nine self-verifying acts, then open `.workflow/views/demo.html` (the journal-rendered
@@ -74,14 +77,15 @@ npm install && npm run build
 node bin/workflow.js demo
 # or: npm run demo
 
-# Option B: Comprehensive nine-act self-verifying showcase (~39s, requires Bash / Git Bash on Windows):
+# Option B: Comprehensive nine-act self-verifying showcase (~48s, requires Bash / Git Bash on Windows):
 bash scripts/demo.sh
 # or: npm run demo:nine-acts
 ```
 
 Offline, deterministic, **no API keys** — both entries self-verify and exit non-zero if any act fails.
-The nine-act suite measured end-to-end 2026-11-03 (Git Bash on Windows, Node v26.13.0, warm npm cache; fresh
-`node_modules`/`dist`): **39 seconds**, exit 0, **`ALL NINE ACTS COMPLETE`**.
+The nine-act suite measured end-to-end 2026-11-21 (Git Bash on Windows, Node v26.13.0, warm npm cache
+with preinstalled `node_modules` and a current `dist`): **48 seconds**, exit 0, **`ALL NINE ACTS COMPLETE`**
+— well inside the three-minute budget.
 
 | Act | Capability | Evidence line |
 | --- | --- | --- |
@@ -99,26 +103,60 @@ The nine-act suite measured end-to-end 2026-11-03 (Git Bash on Windows, Node v26
 
 This repository is **not published to npm** — the `ai-workflow` name on the registry is an unrelated 2021
 placeholder (v0.1.19). Supported installs: from source (`git clone` + `npm install && npm run build`, the
-three-minute judge path) or from a release tarball: `npm install ./ai-workflow-<version>.tgz` — keep the
-`./` prefix (a bare relative path is parsed as a registry spec). Verified 2026-11-20.
+three-minute judge path) or from a release tarball — a `.tgz` asset is attached to every GitHub Release
+since v2.11.0:
+
+```bash
+gh release download --repo LitaoG/AI-workflow-competition --pattern "*.tgz"   # latest release asset
+npm install ./ai-workflow-<version>.tgz   # keep the ./ prefix — a bare relative path is parsed as a registry spec
+```
+
+The tarball ships the engine CLI, the MCP server, the library exports and the agent skill; the
+two-application demo suite is part of the source tree, so the demo paths above are a source clone.
+Verified 2026-11-21.
+
+### 90 seconds to a real model (the mock is the deterministic review channel, not the ceiling)
+
+Everything above runs on the built-in **deterministic mock provider** — zero network, zero API keys,
+byte-identical reruns. That is deliberate: it makes every claim on this page mechanically verifiable
+by a judge. The same facade scripts run unchanged against real agents — no script edits, three paths:
+
+```bash
+# Path 1 — delegate every ask to an external coding-agent CLI already on your PATH
+AI_WORKFLOW_PROVIDER=codex    node bin/workflow.js run-script my-flow.facade.ts
+AI_WORKFLOW_PROVIDER=gemini   node bin/workflow.js run-script my-flow.facade.ts
+AI_WORKFLOW_PROVIDER=opencode node bin/workflow.js run-script my-flow.facade.ts
+# AI_WORKFLOW_CLI_COMMAND='C:\bin\codex.exe'  — optional explicit executable override
+
+# Path 2 — mount the engine as an MCP server inside any MCP host (Claude Code / ZCode /
+# opencode / Codex CLI / Cursor): the host's own model powers every ask, through the
+# workflow_script_check / workflow_script_run tools.
+
+# Path 3 — Kiro: .kiro/mcp/mcp-server.json wires the engine into Kiro's MCP surface,
+# alongside .kiro/ hooks, steering and specs (see docs/KIRO_INTEGRATION.md).
+```
+
+Provider routing, per-host config snippets and health probes: [docs/INTEGRATION.md](docs/INTEGRATION.md).
+Kiro-native wiring: [docs/KIRO_INTEGRATION.md](docs/KIRO_INTEGRATION.md).
 
 ### Reproducible quality-gate fingerprints
 
 All run 2026-11-21 on the v2.10.0 tree (main @ `fc28724` — the v2.10.0 release #186, the white
 interactive showcase #187, the demo write-closure fix #191/#194, the CI gate fix #195/#196, the
-docs-governance overlay #190 and the mock-provider crosstalk fixes #197/#201/#202 — plus this PR's
-cross-platform demo entry, Issue #179), Windows, Node v26.13.0, from a **fresh build**
+docs-governance overlay #190 and the mock-provider crosstalk fixes #197/#201/#202 — plus the
+cross-platform demo entry #179 and this PR's doctor install-integrity + presentation-facts batch,
+Issue #205), Windows, Node v26.13.0, from a **fresh build**
 (fresh-build numbers are what a judge clone reproduces; full context in
 [README](README.md#reproducible-quality-gate-fingerprints)):
 
 ```text
-npm test                                            → 853 tests, 850 pass, 3 skipped, 0 fail
+npm test                                            → 857 tests, 854 pass, 3 skipped, 0 fail
 npm run test:integration (serial)                   → 215 tests, 215 pass, 0 skipped, 0 fail
 npm run test:pbt                                    →  18 tests,  18 pass, 0 fail
 node --experimental-strip-types tests/e2e/runner.ts → 118/118 passed
 npm run test:adversarial                            → 198 tests, 198 pass, 0 fail
 npm run test:governance                             →  44 tests,  44 pass, 0 fail
-bash scripts/demo.sh                                → exit 0, all nine acts OK
+bash scripts/demo.sh                                → 48s, exit 0, all nine acts OK
 ```
 
 ### Cross-engine benchmark (measured)
