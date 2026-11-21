@@ -160,6 +160,75 @@ describe('redactText — irreversible masking at serialization boundaries', () =
   });
 });
 
+describe('redactText — content profile (Issue #219, worldRead fidelity)', () => {
+  // engine.journalled('worldRead') passes 'content': workspace file content is
+  // ARBITRARY FILE TEXT, so the full profile's unconditioned key-name KV rule
+  // corrupts benign fields whose NAME merely contains a sensitive word (the
+  // R7 sharp-review live crash: package.json's "keywords" hit the bare `key`
+  // substring and "private": true hit `private`, breaking JSON.parse at the
+  // script). The content profile narrows the key-name rule to token-shaped
+  // values; every shape-based defense and the ADV3 contract stay intact.
+
+  test('benign key-name lookalikes in file content survive verbatim', () => {
+    const pkgJson = '{\n  "name": "decoy",\n  "keywords": ["workflow", "ai"],\n  "private": true,\n  "signature": "v2"\n}';
+    assert.equal(redactText(pkgJson, 'content'), pkgJson);
+    // Source code read back through files.read too (R7: `apiKeyLabel`/`monkey`):
+    const code = 'const apiKeyLabel = input.monkey; // benign despite the `key` substring';
+    assert.equal(redactText(code, 'content'), code);
+  });
+
+  test('decoy and base64-ish secrets under sensitive-named keys still mask (ADV3 contract)', () => {
+    const envFile = [
+      'GOAL_POC_TOKEN=sk-decoy-123',
+      'DATABASE_URL=postgres://app:hunter2@localhost:5432/db',
+      'NOTE=benign decoy workspace',
+      'AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG',
+      'GITHUB_WEBHOOK_SECRET=9f86d081884c7d659a2feaa0c55ad015a3f4c8b2',
+      '',
+    ].join('\n');
+    const out = redactText(envFile, 'content');
+    assert.ok(!out.includes('sk-decoy-123'), 'the ADV3 decoy must still mask under a token-named key');
+    assert.ok(!out.includes('hunter2'), 'URI credential must still mask');
+    assert.ok(out.includes('postgres://***:***@localhost:5432/db'));
+    assert.ok(!out.includes('wJalrXUtnFEMI'), 'base64-ish secret under a sensitive key must mask');
+    assert.ok(!out.includes('9f86d081884c7d659a2feaa0c55ad015a3f4c8b2'), 'hex secret under a sensitive key must mask');
+    assert.ok(out.includes('NOTE=benign decoy workspace'), 'benign .env lines survive');
+    // The key stays readable; only the value is destroyed:
+    assert.ok(out.includes('GOAL_POC_TOKEN='), 'the key stays readable');
+    assert.ok(out.includes('AWS_SECRET_ACCESS_KEY='));
+    // Credential shapes still mask anywhere, keyed or not:
+    assert.ok(!redactText('deployed with ghp_0123456789abcdefghij0123456789abcd', 'content').includes('ghp_0123'));
+  });
+
+  test('bare hex (git SHA) and sub-floor values survive without a token-shaped value', () => {
+    const sha = '3f03d40a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e';
+    const log = `commit ${sha}\nAuthor: someone\nnotes: v2.12.0 release\n`;
+    assert.equal(redactText(log, 'content'), log, 'git commit hashes must survive verbatim');
+    // Below the 8-char token floor — booleans, short tags — survive:
+    assert.equal(redactText('{"private": true, "sig": "v2"}', 'content'), '{"private": true, "sig": "v2"}');
+    // A bare hex run is only masked when it is the WHOLE value:
+    assert.equal(redactText(sha, 'content'), REDACTED_STRING);
+  });
+
+  test('Bearer headers still fire on the content profile; idempotent', () => {
+    const once = redactText('Authorization: Bearer abc.def.ghi', 'content');
+    assert.equal(once, 'Authorization: Bearer ***REDACTED***');
+    assert.equal(redactText(once, 'content'), once);
+  });
+
+  test('redactValue threads the profile into nested strings (files.map shape)', () => {
+    const map = { target: 'package.json', text: '"keywords": ["ai"]', truncated: false, keptSymbols: ['keywords'] };
+    const out = redactValue(map, 'content');
+    assert.equal(out.text, '"keywords": ["ai"]', 'nested file text must survive the content profile');
+    assert.deepEqual(out.keptSymbols, ['keywords']);
+    // The full profile default is untouched — the unconditioned rule still
+    // over-redacts command output (deliberately biased toward over-redaction;
+    // the pair's quote classes match independently, so the array's opening
+    // bracket is consumed as the value and its quote as the closing quote):
+    assert.equal(redactText('"keywords": ["ai"]'), '"keywords": ***REDACTED***"ai"]');
+  });
+});
+
 describe('redactText — Issue #122, the JWT shape rule in linear time', () => {
   // The pre-#122 combined rule, kept verbatim as the differential oracle.
   const LEGACY_COMBINED_SHAPES =

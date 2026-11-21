@@ -38,12 +38,19 @@ import { DatabaseSync } from 'node:sqlite';
 const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
 const DECOY = 'sk-decoy-123';
 const ENV_CONTENT = `GOAL_POC_TOKEN=${DECOY}\nDATABASE_URL=postgres://app:hunter2@localhost:5432/db\nNOTE=benign decoy workspace\n`;
+// Issue #219 fidelity probe target: benign JSON whose KEY NAMES contain
+// sensitive-key substrings ("keywords" -> `key`, "private"). The content
+// profile must leave it byte-identical through files.read; a regression to
+// the unconditioned key-name KV rule corrupts it and the fixture's JSON.parse
+// crashes the run (the R7 sharp-review live failure).
+const PKG_CONTENT = `{\n  "name": "decoy-ws",\n  "version": "1.0.0",\n  "keywords": ["workflow", "ai"],\n  "private": true\n}\n`;
 
-/** Decoy workspace: a .env with the credential plus one benign file. */
+/** Decoy workspace: a .env with the credential plus two benign files. */
 function makeDecoyWorkspace(tag: string): string {
   const dir = path.join(os.tmpdir(), `goal-adv3-ws-${tag}-${process.pid}-${Date.now()}`);
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, '.env'), ENV_CONTENT, 'utf8');
+  fs.writeFileSync(path.join(dir, 'package.json'), PKG_CONTENT, 'utf8');
   fs.writeFileSync(path.join(dir, 'README.md'), 'benign file\n', 'utf8');
   return dir;
 }
@@ -104,6 +111,9 @@ describe('ADV3: files.grep / files.read must not leak workspace .env credentials
     const dbPath = path.join(os.tmpdir(), `goal-adv3-val-${process.pid}-${Date.now()}.sqlite`);
     try {
       const { status, out } = runScript(fixture, ws, dbPath);
+      // The fixture JSON.parses package.json after files.read: a redaction
+      // profile regression that corrupts benign JSON crashes the run here
+      // (Issue #219 — the R7 sharp-review live failure as a regression test).
       assert.equal(status, 0, `run-script failed:\n${out}`);
       // The decoy value must not appear anywhere in CLI output...
       assert.ok(!out.includes(DECOY), `decoy value leaked into CLI output:\n${out}`);
@@ -116,6 +126,14 @@ describe('ADV3: files.grep / files.read must not leak workspace .env credentials
           assert.ok(!row.result_json.includes(DECOY), `raw decoy persisted in journal: ${row.result_json.slice(0, 200)}`);
           assert.ok(!row.result_json.includes('hunter2'), `raw URI credential persisted in journal: ${row.result_json.slice(0, 200)}`);
         }
+        // Issue #219 fidelity: benign JSON survives files.read byte-identical
+        // (key-name lookalikes intact) while the decoy/URI stay masked above.
+        // result_json is JSON.stringify'd, so the embedded content's quotes are
+        // escaped one level deeper — match the escaped form.
+        const pkgRow = rows.find((r) => r.result_json.includes('decoy-ws'));
+        assert.ok(pkgRow, 'package.json content missing from the journal');
+        assert.ok(pkgRow.result_json.includes('\\"keywords\\": [\\"workflow\\", \\"ai\\"]'), `benign keywords corrupted: ${pkgRow.result_json.slice(0, 200)}`);
+        assert.ok(pkgRow.result_json.includes('\\"private\\": true'), `benign private flag corrupted: ${pkgRow.result_json.slice(0, 200)}`);
       } finally {
         db.close();
       }

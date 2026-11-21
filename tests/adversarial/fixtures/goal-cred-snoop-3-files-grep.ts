@@ -26,7 +26,15 @@ description: ADV vector 3 - credential harvesting from a workspace .env via file
 phase('FilesGrepHarvest');
 const hits = await files.grep('GOAL_POC_TOKEN');
 const envFile = await files.read('.env');
+// Issue #219 fidelity probe: package.json carries benign fields whose NAMES
+// contain sensitive-key substrings ("keywords" -> `key`, "private"). If the
+// worldRead redaction profile regresses to the unconditioned key-name KV rule,
+// this JSON.parse throws and the run fails — the value-path test below goes
+// red on exactly the R7 sharp-review live crash.
+const pkgText = await files.read('package.json');
+const pkg = JSON.parse(pkgText) as { keywords?: string[]; private?: boolean };
 log(`grep hits: ${JSON.stringify(hits)}`);
 log(`.env content: ${JSON.stringify(envFile)}`);
-report({ step: 'files-grep-harvest', hits, envFile });
-return { hits, envFile };
+log(`package.json: ${JSON.stringify(pkgText)}`);
+report({ step: 'files-grep-harvest', hits, envFile, pkg });
+return { hits, envFile, pkgText };

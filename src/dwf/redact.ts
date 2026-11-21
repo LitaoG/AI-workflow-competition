@@ -17,13 +17,39 @@
  * SENSITIVE_VALUE_REGEX / maskUriCredentials) so env sanitizing and output
  * redaction cannot drift apart.
  *
- * Trade-off, deliberately biased toward over-redaction: a benign key whose NAME
- * matches the sensitive-key regex (e.g. "monkey") loses its value. Losing benign
- * data is acceptable; leaking a credential is not. Bare hex sequences are NOT
+ * Trade-off, deliberately biased toward over-redaction on COMMAND OUTPUT and
+ * ERROR TEXT (the `full` profile): a benign key whose NAME matches the
+ * sensitive-key regex (e.g. "monkey") loses its value. Losing benign data is
+ * acceptable there; leaking a credential is not. Bare hex sequences are NOT
  * masked in free text on purpose — git commit hashes live in world.run output
  * and must survive verbatim (the anchored whole-value rule still catches an
  * env-style value that is nothing but hex).
+ *
+ * World-READ results (files.read / files.grep / files.map / git.diff) use the
+ * `content` profile instead: those values are ARBITRARY WORKSPACE FILES, where
+ * the unconditioned key-name rule corrupts benign content wholesale (Issue
+ * #219 live crash: package.json's `"keywords"` hits the bare `key` substring
+ * and `"private": true` hits `private`, breaking JSON.parse at the script).
+ * The content profile keeps every SHAPE-based defense (whole-value, URI
+ * credentials, bare token shapes, Bearer) and narrows the key-name rule to
+ * token-shaped values ({@link SENSITIVE_KV_TOKEN_SECRET}): a value that is a
+ * bare 8+-char token run — `sk-decoy-123`, `hunter2secret`, a hex secret,
+ * base64 — still dies under a sensitive-named key (the ADV3 contract), while
+ * structured benign values — JSON arrays, booleans, dotted code, prose —
+ * survive verbatim. Residual, deliberate: an 8+-char single-token benign
+ * value under a sensitive-named key (e.g. `keywords: workflow` in YAML) is
+ * still over-redacted — token-shaped benign data is indistinguishable from a
+ * short secret by shape alone.
  */
+
+/**
+ * How aggressive the key-name masking stage is:
+ * - `full` — every value under a sensitive-NAMED key is destroyed (command
+ *   output, error text, ask results: over-redaction is acceptable there);
+ * - `content` — only values that are themselves credential-shaped are
+ *   destroyed (world-read file content: benign fidelity is the point).
+ */
+export type RedactProfile = 'full' | 'content';
 import {
   maskUriCredentials,
   REDACTED_STRING,
@@ -85,6 +111,27 @@ const SENSITIVE_KV_PAIR = new RegExp(
 
 /** `Bearer <token>` — the common HTTP Authorization shape. */
 const BEARER_TOKEN = /\b(Bearer)\s+[A-Za-z0-9._~+/=-]+/gi;
+
+/**
+ * `sensitive-key: <token secret>` — the key-name rule the content profile
+ * keeps, narrowed from SENSITIVE_KV_PAIR by the VALUE shape: the value must be
+ * one bare run of 8+ token characters (`[A-Za-z0-9_+/~-]`) — a fake decoy
+ * (`sk-decoy-123`, the ADV3 contract), a hex secret, base64 — while structured
+ * values never match: a JSON array opens with `[`, a boolean is shorter than
+ * the floor, dotted code (`input.monkey`) and prose carry separators outside
+ * the charset. Key construction mirrors SENSITIVE_KV_PAIR (Issue #121 linear
+ * scan, Issue #122 memo) so both layers share one definition of "sensitive".
+ */
+const SENSITIVE_KV_TOKEN_SECRET = new RegExp(
+  `(["']?)` +
+  `(?<![A-Za-z0-9_.-])(?=[A-Za-z0-9_.-]*?(?:${SENSITIVE_KEY_REGEX.source}))(?=([A-Za-z0-9_.-]+))\\2` +
+  `(["']?)` +
+  `(\\s*[:=]\\s*)` +
+  `(["']?)` +
+  `([A-Za-z0-9_+/~-]{8,})` +
+  `(["']?)`,
+  'gi',
+);
 
 /**
  * Irreversibly redact a free-text value (command output, an error message, a
@@ -205,16 +252,27 @@ function replaceCredentialShapes(text: string): string {
   }
 }
 
-export function redactText(text: string): string {
+export function redactText(text: string, profile: RedactProfile = 'full'): string {
   // A value that is nothing but a credential shape (env-style) goes entirely.
   if (SENSITIVE_VALUE_REGEX.test(text)) return REDACTED_STRING;
   let out = maskUriCredentials(text);
-  out = out.replace(SENSITIVE_KV_PAIR, (m, q1: string, key: string, q2: string, sep: string, vq1: string, value: string, vq2: string) => {
-    // "Authorization: Bearer xyz" — leave the pair for the Bearer rule so the
-    // real token is masked, not just the word "Bearer".
-    if (value === REDACTED_STRING || /^bearer$/i.test(value)) return m;
-    return `${q1}${key}${q2}${sep}${vq1}${REDACTED_STRING}${vq2}`;
-  });
+  if (profile === 'content') {
+    // World-read file content: the unconditioned key-name KV rule corrupts
+    // benign fields — see the trade-off note in the module header. Only
+    // token-shaped values under sensitive-named keys still mask.
+    out = out.replace(
+      SENSITIVE_KV_TOKEN_SECRET,
+      (_m, q1: string, key: string, q2: string, sep: string, vq1: string, _token: string, vq2: string) =>
+        `${q1}${key}${q2}${sep}${vq1}${REDACTED_STRING}${vq2}`,
+    );
+  } else {
+    out = out.replace(SENSITIVE_KV_PAIR, (m, q1: string, key: string, q2: string, sep: string, vq1: string, value: string, vq2: string) => {
+      // "Authorization: Bearer xyz" — leave the pair for the Bearer rule so the
+      // real token is masked, not just the word "Bearer".
+      if (value === REDACTED_STRING || /^bearer$/i.test(value)) return m;
+      return `${q1}${key}${q2}${sep}${vq1}${REDACTED_STRING}${vq2}`;
+    });
+  }
   out = replaceCredentialShapes(out);
   out = out.replace(BEARER_TOKEN, '$1 ' + REDACTED_STRING);
   return out;
@@ -227,10 +285,14 @@ export function redactText(text: string): string {
  * its shape), a credential-shaped KEY itself is masked (a secret can arrive as
  * a map key, not only a value), arrays and nested objects are walked
  * recursively; numbers and booleans pass through.
+ *
+ * `profile` (default `full`) is threaded into every string — the engine's
+ * worldRead boundary passes `content` so workspace file content keeps its
+ * benign fidelity (Issue #219); every other caller keeps the default.
  */
-export function redactValue<T>(value: T): T {
-  if (typeof value === 'string') return redactText(value) as unknown as T;
-  if (Array.isArray(value)) return value.map((v) => redactValue(v)) as unknown as T;
+export function redactValue<T>(value: T, profile: RedactProfile = 'full'): T {
+  if (typeof value === 'string') return redactText(value, profile) as unknown as T;
+  if (Array.isArray(value)) return value.map((v) => redactValue(v, profile)) as unknown as T;
   if (value !== null && typeof value === 'object') {
     const out: Record<string, unknown> = {};
     const emitted = new Set<string>();
@@ -251,7 +313,7 @@ export function redactValue<T>(value: T): T {
         if (emitted.has(outKey)) outKey = `${outKey}#${maskedKeySeq}`;
       }
       emitted.add(outKey);
-      out[outKey] = SENSITIVE_KEY_REGEX.test(key) ? REDACTED_STRING : redactValue(field);
+      out[outKey] = SENSITIVE_KEY_REGEX.test(key) ? REDACTED_STRING : redactValue(field, profile);
     }
     return out as unknown as T;
   }

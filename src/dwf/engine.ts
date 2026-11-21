@@ -1088,7 +1088,13 @@ export class FacadeEngine {
     // makes the journal the authority AND lets every downstream channel (script
     // view, log/report/return, the CLI result line) inherit the mask — replay
     // then deterministically inherits the masked value.
-    value = redactValue(value);
+    // worldRead results are ARBITRARY WORKSPACE FILE CONTENT: the full
+    // profile's unconditioned key-name KV rule corrupts benign fields there
+    // (Issue #219: package.json's "keywords"/"private" broke JSON.parse at the
+    // script) — they use the content-preserving profile, which still masks
+    // credential shapes, URI credentials and hex secrets under sensitive keys.
+    // Command output, error text and ask results keep the full profile.
+    value = redactValue(value, kind === 'worldRead' ? 'content' : 'full');
     await this.options.store.saveDwfNode({
       runId: this.options.runId,
       siteId,
