@@ -57,9 +57,19 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         continue-on-error: true
-        run: node scripts/pr_review_gate.mjs "${{ steps.pr.outputs.pr }}" --ci-comments
+        run: |
+          # Capability-aware bootstrap (Issue #173): if main's script predates
+          # --ci-comments, defer loudly — posting a failure here would be a
+          # false red from the merge-period checks, not from §1.9 findings.
+          if node scripts/pr_review_gate.mjs --help | grep -q -- '--ci-comments'; then
+            node scripts/pr_review_gate.mjs "${{ steps.pr.outputs.pr }}" --ci-comments
+          else
+            echo "[bootstrap] main's gate script predates --ci-comments (Issue #173) — status not flipped; adjudication deferred to pr_merge.sh."
+            echo "deferred=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Flip review-gate-comments status on the PR HEAD sha
+        if: steps.gate.outputs.deferred != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

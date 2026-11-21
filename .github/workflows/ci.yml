@@ -80,7 +80,20 @@ jobs:
       - name: §1.9 adjudication (linkage + review replies + no-comment claims)
         env:
           GH_TOKEN: ${{ github.token }}
-        run: node scripts/pr_review_gate.mjs "${{ github.event.pull_request.number }}" --ci-comments
+        run: |
+          # Capability-aware bootstrap (Issue #173): this job checks out MAIN,
+          # so before this PR merges, main's gate script predates --ci-comments
+          # and the flag would be silently ignored → the merge-period checks
+          # would fire on CI (tap.log / cooling), a guaranteed false red.
+          # Deferral is explicit and loud; after this PR merges, main's script
+          # supports the mode and this job adjudicates for real.
+          if node scripts/pr_review_gate.mjs --help | grep -q -- '--ci-comments'; then
+            node scripts/pr_review_gate.mjs "${{ github.event.pull_request.number }}" --ci-comments
+          else
+            echo "[bootstrap] main's gate script predates --ci-comments (Issue #173) —"
+            echo "  §1.9 adjudication deferred to pr_merge.sh's merge-time bare run;"
+            echo "  this job adjudicates for real on every PR created after this merge."
+          fi
 
   # Issue #66: a SIGNAL job, not a gate. Quantified at triage: 9
   # `process.platform === 'win32'` branches across src/ plus 2 win32/ps1/
