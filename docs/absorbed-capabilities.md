@@ -51,7 +51,7 @@
   - 步骤配了 `retryPolicy` 时，`McpToolError` 这类确定性错误也会让整个步骤重跑：`withRetry`（`src/core/error.ts`）只看 `retryableErrorFilter`，不看 `isRecoverable`，步骤里排在前面的 agent 调用每次都重新付费（PR 审查 F9，跟进 #120）。**已由 CAP-002 修复（#120）。**
   - 并行步骤用 `Promise.all` 执行（`src/core/workflow.ts` 的 `executePhaseSteps`），一个步骤失败就 reject；`Workflow.run()` 的 `finally` 随即关闭全部 MCP 连接，兄弟步骤正在执行的工具调用（包括写类工具）可能只做了一半，兄弟步骤的模型调用也会继续花钱（PR 审查 F10，跟进 #120）。**已由 CAP-002 修复（#120）。**
 - **落地模块**：`src/mcp/client.ts`、`src/core/context.ts`、`src/core/workflow.ts`、`src/core/error.ts`、`src/domain/workflow-types.ts`、`src/index.ts`；测试 `tests/unit/mcp-lazy-connect.test.ts`、`.kiro/pbt/mcp-lazy-connect.test.ts`。
-- **对应 Issue & PR**：Issue #106（含预审、复核与 PR 审查意见 F1–F10）；跟进 Issue #112、#113、#117、#120；PR #119（分支 `fix/issue-106-mcp-real-connect` → `main`）。
+- **对应 Issue & PR**：私有仓 Issue #106（含预审、复核与 PR 审查意见 F1–F10）；跟进私有仓 Issue #112、#113、#117、#120；私有仓 PR #119（分支 `fix/issue-106-mcp-real-connect` → `main`）。
 - **验证证据**（审计快照，2026-11-06，基线 `bbd26ff`，Windows / Node 26.13.0）：
   - 第 1 个提交 `c786dda`（预审前）：
     - `npm.cmd run build` → exit 0
@@ -106,7 +106,7 @@
   - dwf runner 的同类问题不在本能力范围（#107 跟踪）。
   - 只等不杀：在途的长工具调用或长命令会拖慢失败的上报。
 - **落地模块**：`src/core/workflow.ts`、`src/core/context.ts`、`src/core/error.ts`、`src/agent/rpc.ts`、`src/domain/workflow-types.ts`；测试 `tests/unit/step-failure-paths.test.ts`、`.kiro/pbt/retry-classification.test.ts`。
-- **对应 Issue & PR**：Issue #120；PR 由分支 `fix/issue-120-retry-sibling-cancel` 发往 `main`（编号以 GitHub 为准）。
+- **对应 Issue & PR**：私有仓 Issue #120；私有仓 PR 由分支 `fix/issue-120-retry-sibling-cancel` 发往 `main`（编号以 GitHub 为准）。
 - **验证证据**（审计快照，2026-11-06，基线 `c969216`，Windows / Node 26.13.0）：
   - 修复前（只加测试、未改代码）：`node --test --test-reporter=tap dist/tests/unit/step-failure-paths.test.js` → `tests 5, pass 2, fail 3`：
     - `not ok 1 - #120 A: a step with a retryPolicy does not rerun on a non-recoverable error (McpToolError)`（实际 3 次模型调用）
@@ -126,7 +126,7 @@
 - **原理解析**：每任务一棵独立分支+物理工作区（同级目录纪律），干净树释放即删（零残留）、脏树保留并回传路径/分支/状态供人审；并发窗口单一来源化（option > env > 公式，非法覆盖回退防 NaN 毒化座位门）；token 预算超限在 `__swarm` 侧落 null（drop-slot，运行级事实不连坐任务）。
 - **4-Tier 评估**：T1: PASS（千级并发底座 + 物理隔离杜绝脏工作区），T2: PASS（`src/execution/` 独立模块，向内依赖），T3: PASS（纯 TypeScript 控制流），T4: PASS（生命周期/并发窗口/预算 drop-slot 全测试锁死）。
 - **落地模块**：`src/execution/{worktree-pool,swarm-dispatcher}.ts`；测试 `tests/unit/execution/`、`tests/unit/dwf/dwf-swarm-budget.test.ts`。
-- **对应 Issue & PR**：Issue #140（Part of #88）；PR #150。
+- **对应 Issue & PR**：私有仓 Issue #140（Part of 私有仓 #88）；私有仓 PR #150。
 - **验证证据**（审计快照，2026-11-07，head `d3734b1`，Windows / Node 26）：build exit 0；unit `tests 448, pass 448, fail 0`（438→448）；PBT 9/9；E2E `pass 121, fail 0`；governance 24/24；check-clean 通过。并发 4 任务各写不同文件→逐个 mergeIntoBase→`git worktree list` 只剩主树（零残留断言）。
 - **定位披露（Issue #123）**：**worktree-pool 未接线 swarm 主链路**——dwf swarm 消费的仅是 swarm-dispatcher 的窗口公式；per-task worktree 物理隔离止于本模块与其单测，而 facade 公开契约（`src/dwf/facade-dts.ts` swarm()）明文写 "All tasks share this run's working tree (no per-task worktree)"。本条 T1 的「物理隔离」语义**仅在该模块自身验证范围内成立**，不适用于主引擎 swarm 路径。接线或退役为后续拍板项。
 
@@ -136,7 +136,7 @@
 - **原理解析**：router 只决定 failover 链头（显式 provider > tier 字面量 > schema/提示尺寸属性 > registry default 未配置即无操作），不替换 governor/重试链；权限走 Phase 3 预留 `PermissionGate` 接缝（Plan=readOnly 才放行、Build=写操作带结构化确认挂起标记、YOLO=迁移前逐字行为）；gateStep/ctx.gate 从裸 execAsync 迁到监督化 spawn（无 shell argv 解析、控制语法响亮拒绝、整树超时击杀、输出不可逆脱敏）。
 - **4-Tier 评估**：T1: PASS（消除一产品两档子进程安全分叉；预算化路由降本），T2: PASS（permissions/ 独立目录，gate 迁移就地改），T3: PASS（全确定性控制流），T4: PASS（router 5 例 + permissions 5 例 + tier 贯通 4 例 + 监督 gate 5 例）。
 - **落地模块**：`src/agent/model-router.ts`、`src/core/permissions/{modes,permission-manager}.ts`、`src/core/{step,context,agent-loop,query-engine}.ts`、`src/process-supervision.ts`（SPAWN_ENV_ALLOWLIST 共享）、`src/dwf/{facade-dts,compile,lower,protocol,child-main,runner,engine}.ts`（tier 贯通）。
-- **对应 Issue & PR**：Issue #151（Part of #88）；PR #158。
+- **对应 Issue & PR**：私有仓 Issue #151（Part of 私有仓 #88）；私有仓 PR #158。
 - **验证证据**（审计快照，2026-11-07，head `fabd080`）：build exit 0；unit `tests 457, pass 457, fail 0`（452→457）；PBT 9/9；E2E `pass 121, fail 0`；governance 24/24；check-clean 通过。既有 gate 测试（core.test.ts / step-failure-paths.test.ts）不改编全绿。
 - **定位披露（Issue #123）**：**src/core 的 ReAct 循环子系统（agent-loop/query-engine/compaction/permissions，约 1408 行）生产不可达**——全仓唯一消费是 `tests/unit/core/{query-engine,permissions}.test.ts`（831 行）；生产 ask 链路走 `src/agent/rpc.ts`（builder 步骤）与 `src/dwf/ask-executor.ts`（主引擎，自带 RetryOrchestrator + governor AIMD + failover），两套为平行实现（共享 attempt-classifier 原语）。保留为能力吸收演示资产；退役（净减约 2200 行含测试）或提供真实入口为后续拍板项。
 
@@ -154,8 +154,8 @@
 - **汲取来源**：双语——仓库自有 steering 规则（bilingual-presentation）落地为渲染层字典注入；看门狗——经典 orphan-watchdog 模式（OpenProcess 双等，宿主死 → TerminateProcess）适配 MCP SDK 的 blind-spawn 边界；外部审批——Claude Code 逐条确认语义反推到 world.run 面。
 - **原理解析**：① STUDIO_I18N 单表驱动服务端模板与客户端注入（占位符精确上下文替换，避免 token/属性名同名的 /g 自伤）；② SDK 在 StdioClientTransport 内部 blind-spawn —— spawnJobGuarded 不可见，改 watch-and-adopt（helper 双等宿主与子，宿主死 → TerminateProcess；**刻意不用嵌套 kill-on-close job**：与 SDK 子进程生命周期管理碰撞有 #120 B bisect 实证）；③ 审批三源（显式列表 ∪ 项目 allowlist ∪ 交互 y/N 持久化）pre-flight 于引擎存在之前，拒绝即零子进程。
 - **4-Tier 评估**：T1: PASS（双语=演示分；孤儿=宿主强杀零残留；审批=堵提示注入执行链），T2: PASS（各自落在所属层），T3: PASS（确定性控制流），T4: PASS（双语 3 例 / adopt 真机收割 2 例 / 审批 6 例；#120 B 真实 stdio 家族 12/12 回归）。
-- **落地模块**：`src/visualizer/studio-renderer.ts`、`scripts/win32-jobhelper.cs`（adopt 模式）+ `src/process-supervision.ts`（adoptPidIntoJobGuard）+ `src/mcp/client.ts`、`src/dwf/approvals.ts` + runner/CLI/MCP 接线。
-- **对应 Issue & PR**：#128→PR #187；#117→PR #189；#127 方向 2+3→PR #191（已合入）；方向 1→DRAFT PR #197（B 类：全量 unit 套件挂死待解，单测 6/6 隔离全绿）。
+- **落地模块**：`src/visualizer/studio-renderer.ts`、`scripts/win32-jobhelper.cs`（adopt 模式）+ `src/process-supervision.ts`（adoptPidIntoJobGuard）+ `src/mcp/client.ts`；world.run 外部审批就地落在引擎主链——`src/dwf/engine.ts`（`worldRun` 逐调用三源授权：explicit / allowlist / tty，事件 `dwf_world_run_auth` 落账）、`src/dwf/runner.ts`（`--approve-cmd` 显式批准与项目 allowlist `.workflow/approved-commands.json` 合并）、`src/dwf/diagnostics.ts`（编译期审批命令集）+ CLI/MCP 接线。
+- **对应 Issue & PR**：私有仓 #128→私有仓 PR #187；私有仓 #117→私有仓 PR #189；私有仓 #127 方向 2+3→私有仓 PR #191（已合入）；方向 1→私有仓 PR #197（已撤回未合入；全量 unit 套件挂死根因随后由 unit 纯隔离语义门禁收口，见 `docs/AI-PITFALLS.md` P-TEST-5）。
 - **验证证据**（2026-11-08）：双语 unit 548/548 + CLI 冒烟全中文；adopt 真机收割 2/2 + #120 B 12/12；审批模块/runner 6/6（未批准→零子进程预检拒绝、批准→命令真执行、allowlist 持久化）。
 
 ### [CAP-007] 动态工作流未 Await 挂起 Promise / Agent 自动审计防御（Unawaited Promise & Agent Leak Audit）
@@ -177,7 +177,7 @@
   - T3：检查为确定性的消费标记 + 集合扫描断言，不经过任何 LLM 不确定性推断；
   - T4：单测机械验证——未 await 脚本（含「已结算但被丢弃」形态）必须 `failed` 且错误精准命中丢弃调用（`tests/unit/dwf/unawaited-promise.test.ts`）。
 - **落地模块**：`src/dwf/child-bootstrap.ts`（消费描述符与受控 Promise 子类）、`src/dwf/child-main.ts`（终态双网审计）、`src/domain/errors.ts`（具名错误成员）；白皮书 [docs/research/ANTIGRAVITY-RUN-WORKFLOW-WHITEPAPER.md](research/ANTIGRAVITY-RUN-WORKFLOW-WHITEPAPER.md) §4.1。
-- **对应 Issue & PR**：Issue #274（初版在途哨兵）；Issue #279（消费语义修正 + 具名错误落地 + 登记校准）。
+- **对应 Issue & PR**：私有仓 Issue #274（初版在途哨兵）；私有仓 Issue #279（消费语义修正 + 具名错误落地 + 登记校准）。
 - **验证证据**：见 [docs/research/ANTIGRAVITY-RUN-WORKFLOW-WHITEPAPER.md](research/ANTIGRAVITY-RUN-WORKFLOW-WHITEPAPER.md) §2.5 与 §5；脚本 B 对照（丢弃 + 后续 await）实测 `failed`。
 
 ---

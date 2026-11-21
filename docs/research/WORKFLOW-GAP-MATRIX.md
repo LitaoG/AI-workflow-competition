@@ -11,6 +11,7 @@
 > - **文档分工（2026-11-01 修订确立）**：本文是 TEST-GOAL 4.1 三份文档（`ZCODE-BENCHMARK-REPORT.md` / `PENETRATION-AND-SECURITY-AUDIT.md` / 本文）的**唯一状态登记处**（D#/R#/GAP-# 条目号）——PENETRATION 只做安全判定并引用本文条目号，BENCHMARK 只管基准；状态冲突时以本文为准。
 > - **行号基准**：本文行号基于 HEAD `30eb54f`；上游汇报行号为其编辑时点，已按 §〇 复核并以「现 ：NNN」标注漂移；引用以符号名为准。
 > - **修订记录（2026-11-01，修订员）**：§1.1/§1.2 逆向切片载体对齐 §3.0（D1/D3/D4/D8＋R4）；PoC4 登记条目收敛为 R4④；不变量6 定义补「短示例串契约豁免」限定、§四「泄漏 0」加场景限定、子项①状态改「done（契约内豁除外）」；§2.3 计数口径补注（driver.mjs/verify.mjs 具名检查）；compile.ts isReference 行号漂移标注（汇报时点 :334，现 :341）；§七 #4 清理清单对齐实际 git status（scratch-audit-41 与 .scratch-b41doc 已删）；附录补 xrealm2 探针下落与 inv1 变体不可复跑警示；§2.6 子项④补桥接说明；测试计数统一 `tests N / pass N / fail 0 / skipped K` 格式；新增 §七 #7（inv1 变体入库建议）。未改动任何实测数字。
+> - **快照语境补注（2026-11-21，本仓 Issue #190 批次）**：本矩阵为 2026-11-01 TEST-GOAL 4.1 worktree 时刻的冻结快照；文中「均未 git commit / 已修复·待提交」均为当时语境，GAP-01..06 的对应修复其后已随私有仓与本仓的后续 PR 分批合入主干，状态以本表各条目的「已修」标注为准。
 
 ---
 
@@ -27,8 +28,8 @@
 | 7 | GAP-04 锚点 | `grep -na options.dbPath <wt>/src/cli/commands/run-script.ts` | `:129 console.log(\`  journal: ${options.dbPath ?? path.join('.workflow', 'dwf.sqlite')}\`)` [已验证] |
 | 8 | GAP-06 锚点 | `grep -na renderFacadeInspect <wt>/src/cli/commands/inspect.ts` | `:37` facade 分支入口、`:125` 函数定义 [已验证] |
 | 9 | engine.ts U+0000 | `node -e`（readFileSync + 逐行 indexOf('\0')） | 文件 1016 行；U+0000 真实字节现位于 **`:889`**（上游汇报 :886，GAP-03 顺延 +3 行）[已验证] |
-| 10 | 对抗测试转正复跑 | `node --experimental-strip-types --test tests/adversarial/goal-poc1-constructor-escape.test.ts`（worktree 内执行） | **tests 3 / pass 3 / fail 0 / skipped 0**（# duration_ms 2941）——该文件 describe.skip 已转为正式断言且全绿 [已验证] |
-| 11 | 残余 skip 扫描 | `grep -na "describe.skip\|\.skip(" tests/adversarial/*.test.ts` | 仍 skip 5 处：`goal-poc1-ndjson-protocol.test.ts:136`（洪泛饿死）、`goal-poc2-control-char-injection.test.ts:160`（log/report round-trip 载荷）、`goal-poc2-crossrealm-function.test.ts:56`（BREACHED 跨 realm）、`goal-poc3-oversize-frames.test.ts:149`（无帧长上限）、`goal-poc4-microtask-escape.test.ts:23`（BREACHED 伪造 done 帧）[已验证] |
+| 10 | 对抗测试转正复跑 | `node --experimental-strip-types --test tests/adversarial/goal-adv1-constructor-escape.test.ts`（worktree 内执行） | **tests 3 / pass 3 / fail 0 / skipped 0**（# duration_ms 2941）——该文件 describe.skip 已转为正式断言且全绿 [已验证] |
+| 11 | 残余 skip 扫描 | `grep -na "describe.skip\|\.skip(" tests/adversarial/*.test.ts` | 仍 skip 5 处：`goal-adv1-ndjson-protocol.test.ts:136`（洪泛饿死）、`goal-adv2-control-char-injection.test.ts:160`（log/report round-trip 载荷）、`goal-adv2-crossrealm-function.test.ts:56`（BREACHED 跨 realm）、`goal-adv3-oversize-frames.test.ts:149`（无帧长上限）、`goal-adv4-microtask-escape.test.ts:23`（BREACHED 伪造 done 帧）[已验证] |
 
 以上为本汇总节点唯一亲手执行项；其余结论均引自上游实测汇报（见各节，§五 为其要点保留）。行号漂移说明：各 GAP 汇报的行号为**其编辑时点**行号；因共享工作树上并行代理互有增删，当前工作树个别行号有小幅漂移（如 engine.ts :886→:889），锚点内容本身逐一核实无误。
 
@@ -55,11 +56,11 @@
 | 不变量5·断点零Token重放 | pass | pass | — | — |
 | 不变量6·敏感信息脱敏 | partial | 大部闭合*（①⑤闭合、④部分闭合、⑥本就通过） | GAP-03＋GAP-01＋GAP-04＋GAP-06 | ②值形已知边界（R3）、③入参脱敏未修（R2）、list/view/MCP→D2、probe→D6 |
 | 逆向切片 S1..S4 | behind ×4 | behind（未开工） | D1 / D3 / D4 / D8（＋R4） | 多天工程 |
-| PoC2b/2c·跨 realm 逃逸 | partial | 静态门已闭合*；动态预Seed 未修 | GAP-02（静态）＋D1（动态） | goal-poc2-crossrealm skip 未转正（D1 DoD） |
+| PoC2b/2c·跨 realm 逃逸 | partial | 静态门已闭合*；动态预Seed 未修 | GAP-02（静态）＋D1（动态） | goal-adv2-crossrealm skip 未转正（D1 DoD） |
 | PoC·协议投毒 | partial | 未修（GAP-01 保持未收 runInfo 直接 spawn 行为不变：9 pass/0 fail） | D4 | ndjson 洪泛、oversize 两 skip 未转正 |
 | PoC·资源炸弹三连 | **held** | held（防线实测有效） | — | — |
 | PoC·凭据窥探三向量＋错误路径 | partial | 主向量已闭合* | GAP-03 | 短裸 sk- 值形（刻意）、args_json（R2） |
-| PoC4·microtask 伪造 done 帧 | breached（skip 记录） | 未修（主获取路径暂被静态门遮断——GAP-02；纵深防御 done 帧鉴权未修） | **R4④**（唯一登记条目；PENETRATION §7 #10 指向此处） | `goal-poc4-microtask-escape.test.ts:23` |
+| PoC4·microtask 伪造 done 帧 | breached（skip 记录） | 未修（主获取路径暂被静态门遮断——GAP-02；纵深防御 done 帧鉴权未修） | **R4④**（唯一登记条目；PENETRATION §7 #10 指向此处） | `goal-adv4-microtask-escape.test.ts:23` |
 
 \* 「已闭合 / 大部闭合」均指 worktree 工作树已修、未提交（见状态总注记）。
 
@@ -87,14 +88,14 @@
 - **对应修复状态**：**GAP-02 done（未提交）**，实施与上游修复建议一致并超出：
   - `src/dwf/compile.ts:38-39`（现 :39）新增 `PROTOTYPE_CHAIN_PROPS = new Set(['constructor','__proto__','prototype'])`；
   - `src/dwf/compile.ts:169-180`（现 :170/:176）在既有属性访问分支内：属性访问名为上述三者之一 → push 9002 purity-ban（消息含 "constructor-chain access can rebuild Function from nothing; facade primitives only"）；兄弟块覆盖 `ts.isElementAccessExpression` + StringLiteral 计算形式（`obj["constructor"]`）；`isReference` 未触碰（`const e = eval` 初始化位漏网属 D3，不在本次范围）；
-  - 上游建议①（治理锁死测试）已满足于两层：`tests/unit/dwf/dwf-compiler.test.ts` 追加 5 条（v1-v4 各 ok:false 且 9002、v1 另断言 TS2591、v5 ok:false 且消息含 constructor-chain、括号形式 ok:false、正向对照最小 agent+ask 脚本 ok:true）＋ `tests/adversarial/goal-poc1-constructor-escape.test.ts` skip 块转为正式断言（含 any-cast 变体 poc1b 与 `check -j` 静态断言）；
+  - 上游建议①（治理锁死测试）已满足于两层：`tests/unit/dwf/dwf-compiler.test.ts` 追加 5 条（v1-v4 各 ok:false 且 9002、v1 另断言 TS2591、v5 ok:false 且消息含 constructor-chain、括号形式 ok:false、正向对照最小 agent+ask 脚本 ok:true）＋ `tests/adversarial/goal-adv1-constructor-escape.test.ts` skip 块转为正式断言（含 any-cast 变体 poc1b 与 `check -j` 静态断言）；
   - 上游建议②（按 `.workflow/inv1-v5.db` 中 run `dwfrun-mvxo7utl-051ba3` 的 script_path 复跑 run 验证 compile_failed）**未单独执行**——以 5 变体 CLI check exit 1 作等效静态验证；run 级验证留给收口层（[未知] 是否必要，因 check 拒绝后 run 根本无法启动）。
 - **证据**：
   - 修复前基线（GAP-02 会话内进程探针，对 analyzeFacadeScript）：v1=[TS2591,9002]，v2/v3/v4=[9002]，v5=ok:true 无诊断，clean=ok:true——与根因精确吻合；
   - 修复后：`node node_modules/typescript/bin/tsc --noEmit -p <wt>/tsconfig.json` exit 0；build exit 0；`node --test dist/tests/unit/dwf/dwf-compiler.test.js` **tests 14 / pass 14 / fail 0**（9 既有 + 5 新增）；dwf 单测全目录 10 文件 **tests 70 / pass 70 / fail 0**；
   - 修复后 v5 诊断实例：`v5-constructor-chain.ts:7:17 purity-ban(9002): "constructor" property access is banned — constructor-chain access can rebuild Function from nothing; facade primitives only.`；
   - CLI check × 5 inv1 变体（v1-process-exit / v2-eval / v3-date-now / v4-math-random / v5-constructor-chain）全部 exit 1；4 个 demos facade（gate/budget/growth/lineage.facade.ts）全部 exit 0 无回归；全仓 grep 确认仅 `tests/adversarial/` 下应拒样本受影响，无正当脚本受累；
-  - **本节点实测**：`node --experimental-strip-types --test tests/adversarial/goal-poc1-constructor-escape.test.ts` → **tests 3 / pass 3 / fail 0 / skipped 0**（§〇 #10）；
+  - **本节点实测**：`node --experimental-strip-types --test tests/adversarial/goal-adv1-constructor-escape.test.ts` → **tests 3 / pass 3 / fail 0 / skipped 0**（§〇 #10）；
   - 变体脚本存于 `<local-machine>/.zcode/workflow-drafts/goal-mission/inv1/`（按任务指令在仓库外；2026-11-01 修订轮核实目录在位，五文件 v1-process-exit.ts / v2-eval.ts / v3-date-now.ts / v4-math-random.ts / v5-constructor-chain.ts 逐一存在——**仓库外路径意味着第三方不可直接复跑本条主证据链**，入库建议见 §七 #7）；journal `inv1.db`、`inv1-v5.db` 保留于 worktree `.workflow/`（存在性本节点已核实）；
   - 披露：上游 ask 原文指定的 `node --experimental-strip-types <测试文件>` 直跑方式在本仓对单元测试因 pre-existing 结构性原因不可用（测试 import `../../../src/dwf/compile.js` 仅能经编译 dist 解析，直跑 ERR_MODULE_NOT_FOUND，GAP-02 改前已验证）；GAP-02 改用 `node --test dist/...`（`npm run test:unit` 同款机制）。对抗测试目录不受此限（本节点 #10 即 strip-types 直跑成功）。
 
@@ -144,7 +145,7 @@
 | ⑤ log()/report() 正文从未入 journal | 隐私上无泄露面，但日志内容整体丢失，疑似绑定错位 | child-main.ts:95-96 单参绑定错位（siteId 被当载荷） | **GAP-01 done**（同不变量3①），顺带闭合 | GAP-01 探针 ASSERT1/2/3 |
 | ⑥ env 通道（本不变量规定场景） | — | — | **实测通过（上游）**：probe 双模式 0 泄露、world.run 子进程 env 按名过滤（敏感键一个都不传）、输出 KV 对源头不可逆掩码、env-only journal 字节级 0 原始值 | 上游 inv6 实测 |
 
-- **证据保留**：测试副产物 `.scratch-inv6/`、`.workflow/inv6.db`、`.workflow/inv6b.db` 在 worktree 供复核（存在性已核实），建议本 issue 收尾时随 worktree 一并删除；GAP-03 门禁与测试结果见 §5（redact.test tests 12 / pass 12 / fail 0、goal-poc3-files-grep 转正 tests 2 / pass 2 / fail 0 / skipped 0、dwf 全目录 tests 71 / pass 71 / fail 0）。
+- **证据保留**：测试副产物 `.scratch-inv6/`、`.workflow/inv6.db`、`.workflow/inv6b.db` 在 worktree 供复核（存在性已核实），建议本 issue 收尾时随 worktree 一并删除；GAP-03 门禁与测试结果见 §5（redact.test tests 12 / pass 12 / fail 0、goal-adv3-files-grep 转正 tests 2 / pass 2 / fail 0 / skipped 0、dwf 全目录 tests 71 / pass 71 / fail 0）。
 
 > 子项④桥接说明（2026-11-01 修订）：本子项列的是 CLI 可见性工程（GAP-04/06），与「脱敏」看似无直接因果——桥接在于：按并发纪律用独立 `--db` 的 run 对事后审查三件套完全不可见时，journal 里是否落了敏感信息**无从审计**；先让 journal 可见（GAP-04 显示真实 journal 路径、GAP-06 inspect 支持 `--db`），本不变量其余子项才可第三方复核。
 
@@ -166,7 +167,7 @@
 - **底稿需修正三处（实测推翻）**：① 底稿 2.3-⑤「settle-order 门按启动顺序重放」错——是首生**结算**次序（node-settled 事件序），且它解决的是 join 后序号错位炸 InputHashMismatch，不是「与 Claude Code 启动序对齐」；② 底稿 2.3-⑦「血缘指针放 run-launched 事件里」错——resumedFrom 是 dwf_run 列、supersededBy 随 stopped 结算同一笔落库，run-launched 只载 launch 锚点（「零迁移」对结算序/关门判定的事件恢复才成立）；③ 底稿 2.4-2「(siteId, ordinal, inputHash) 三元组共用」要限定——官方 journal 重放是位置优先+哈希防御，池化（按内容 1:1 消费）只存在于 world 导入队列。
 - **底稿需深化两处**：④ 完全漏了 in-flight ask 接续（ImportedInFlightAsk）——静止探针的存在意义正是裁决「半场转录能否接续」，quietSessions 缺席=全部静默的不对称、5 秒有界等待的「不是超时掩盖竞态」论证、快照语义都值得记入；⑤ 漏了 import-closure 关门（askMutating/world-run 两个触发点、takeIfPure 纯条目豁免、从事件恢复关门判定）。→ 文档级待办，归入 **R1**（随 D8① 执行时一并落）。
 - **我方差距排序**：已有内容池重放 + amend 温缓存 + parent_run_id 血缘（实测零调用重放与 3/5 amend 命中都工作）；在底稿 P1-1「quiescence 探针可后置」之上，真正结构性缺口是：
-  - (a) **per-actor 具名缓存**（名字+persona 匹配，对 site 重编号免疫）替代我方按 siteId 键控的池——这是 amend 命中率的天花板（**D8①**）；**已落地（Issue #39）**：ask 行增 `(actorName, actorSeq, contentHash, personaJson)` 身份列，amend 按名+persona 附着、1:1 消费、分歧单调；旧账本站点键控回放保持兼容；
+  - (a) **per-actor 具名缓存**（名字+persona 匹配，对 site 重编号免疫）替代我方按 siteId 键控的池——这是 amend 命中率的天花板（**D8①**）；**已落地（私有仓 Issue #39）**：ask 行增 `(actorName, actorSeq, contentHash, personaJson)` 身份列，amend 按名+persona 附着、1:1 消费、分歧单调；旧账本站点键控回放保持兼容；
   - (b) 静止探针/消息边界/转录种子整层在无状态单发 ask 模型下暂时不适用，只有引入持久 actor 会话才值得建——建议在底稿 P1-1 标注此前置依赖；
   - (c) 若保留内容池方案，应修正 engine.ts 头注释里已滞后的「mismatch fails loudly」表述，或补一个 run 级 scriptHash 之外的显式纯度契约。
 - **验证方式（上游）**：官方结论全部逐行读码（探针 workflow-driver-quiescence.ts 逐函数、导入构建 dynamic-workflow-import.ts 逐函数）；我方行为在 worktree 用 mock provider 实测（run/resume/amend 三世 + node:sqlite 查 journal），scratch 已清理。
@@ -208,10 +209,10 @@
 
 | PoC | 防线（修复前） | 现状 | 缺口 | 修复载体 | 证据 |
 |---|---|---|---|---|---|
-| **PoC2b/2c 跨 realm Function 逃逸**：args（主机域对象）.constructor.constructor → 宿主 Function → 宿主 process → `process.binding('spawn_sync')` 任意命令执行（辅助：PoC1 构造器链、PoC3 原型链污染、PoC3c 协议畸变、PoC4 microtask 伪造 done 帧） | partial | **静态门已闭合\***：constructor/__proto__/prototype 链（含括号形式、any-cast 变体）compile 期 9002 拒绝（GAP-02）；对抗测试 skip 已转正且 **3 pass/0 fail（本节点实测）**。**动态层未修**：宿主域对象图仍整图注入 realm | VM 预Seed（child-main.ts:107 宿主域 JSON.parse 后注入） | GAP-02（静态）＋ **D1**（动态预Seed 重构，最高优先·安全） | 逃逸实测（修复前）：`node bin/workflow.js run-script xrealm2.facade.ts --args '{"a":1}'` 返回 `object:C:\...\issue-28-goal-e2e-pentest` 且 check 放行；official 同型 side-by-side 返回 undefined；`goal-poc2-crossrealm-function.test.ts:56` 仍 describe.skip（BREACHED 记录，D1 DoD 含转正）；`goal-poc4-microtask-escape.test.ts:23` 仍 skip（→ R4） |
-| **PoC-1/2/3 协议投毒**：child NDJSON 帧撕裂/粘包/伪造帧、控制字符注入 ask/log 通道、1MB/>32MB 超限报文 | partial | 未修（GAP-01 保持未收 runInfo 的直接 spawn 行为不变：goal-poc1-ndjson-protocol / goal-poc2-crossrealm-function / goal-poc2-control-char-injection 三文件 strip-types 直跑 **9 pass/0 fail**） | 字节预算缺失、畸形帧静默 continue、stdin EPIPE 竞态、洪泛饿死事件循环 | **D4**（skip 转正作 DoD） | 上游实测洪泛 213.1s 饿死 timers；仍 skip：`goal-poc1-ndjson-protocol.test.ts:136`、`goal-poc3-oversize-frames.test.ts:149` [已验证] |
-| **PoC1/2/3 资源炸弹三连**（TEST-GOAL 4.2）：① 500 深递归类型 ask&lt;T&gt; 编译期炸弹；② 3000 文件 files.glob 炸弹；③ 64 并发 mock agent 风暴 + 1000-call 熔断 | **held** | held（防线实测有效） | — | — | TEST-GOAL 4.2 实测（上游）；对应 fixtures `goal-poc1-deep-type.ts`、`goal-poc2-glob-*.ts`、`goal-poc3-agent-storm.ts`、`goal-poc3-cap-*.ts` 在 tests/adversarial/fixtures/ |
-| **凭据窥探三向量**：process.env 直读 / world.run 侧信道 / files.grep·read 扫 .env ＋ 错误路径外泄加测 | partial | **主向量已闭合\***（GAP-03）：CLI stdout 双通道 0 明文（log/report/result 全 `***REDACTED***`）、events data_json / dwf_nodes result_json 泄漏 0（**场景限定**：files-grep 场景；world-run 探针场景中短裸 sk-decoy-123 按上游 ask 契约原样保留，见 §2.6①——不计入「泄漏」）；goal-poc3-files-grep skip 转正 **tests 2 / pass 2 / fail 0 / skipped 0**；无回归：goal-poc2-worldrun-sidechannel 2/0、goal-poc1-env-read 1/0 | 短裸 sk- 值形（{20,} 下限，刻意保留）、args_json 入参（R2）、非敏感键值形（R3） | GAP-03；残余 R2/R3 | journal triage-fix-3.db node:sqlite 断言全过（上游 GAP-03 实测）；错误路径外泄：engine.ts `:943 redactText((err as Error).message)` 在位 [已验证] |
+| **PoC2b/2c 跨 realm Function 逃逸**：args（主机域对象）.constructor.constructor → 宿主 Function → 宿主 process → `process.binding('spawn_sync')` 任意命令执行（辅助：PoC1 构造器链、PoC3 原型链污染、PoC3c 协议畸变、PoC4 microtask 伪造 done 帧） | partial | **静态门已闭合\***：constructor/__proto__/prototype 链（含括号形式、any-cast 变体）compile 期 9002 拒绝（GAP-02）；对抗测试 skip 已转正且 **3 pass/0 fail（本节点实测）**。**动态层未修**：宿主域对象图仍整图注入 realm | VM 预Seed（child-main.ts:107 宿主域 JSON.parse 后注入） | GAP-02（静态）＋ **D1**（动态预Seed 重构，最高优先·安全） | 逃逸实测（修复前）：`node bin/workflow.js run-script xrealm2.facade.ts --args '{"a":1}'` 返回 `object:C:\...\issue-28-goal-e2e-pentest` 且 check 放行；official 同型 side-by-side 返回 undefined；`goal-adv2-crossrealm-function.test.ts:56` 仍 describe.skip（BREACHED 记录，D1 DoD 含转正）；`goal-adv4-microtask-escape.test.ts:23` 仍 skip（→ R4） |
+| **PoC-1/2/3 协议投毒**：child NDJSON 帧撕裂/粘包/伪造帧、控制字符注入 ask/log 通道、1MB/>32MB 超限报文 | partial | 未修（GAP-01 保持未收 runInfo 的直接 spawn 行为不变：goal-adv1-ndjson-protocol / goal-adv2-crossrealm-function / goal-adv2-control-char-injection 三文件 strip-types 直跑 **9 pass/0 fail**） | 字节预算缺失、畸形帧静默 continue、stdin EPIPE 竞态、洪泛饿死事件循环 | **D4**（skip 转正作 DoD） | 上游实测洪泛 213.1s 饿死 timers；仍 skip：`goal-adv1-ndjson-protocol.test.ts:136`、`goal-adv3-oversize-frames.test.ts:149` [已验证] |
+| **PoC1/2/3 资源炸弹三连**（TEST-GOAL 4.2）：① 500 深递归类型 ask&lt;T&gt; 编译期炸弹；② 3000 文件 files.glob 炸弹；③ 64 并发 mock agent 风暴 + 1000-call 熔断 | **held** | held（防线实测有效） | — | — | TEST-GOAL 4.2 实测（上游）；对应 fixtures `goal-adv1-deep-type.ts`、`goal-adv2-glob-*.ts`、`goal-adv3-agent-storm.ts`、`goal-adv3-cap-*.ts` 在 tests/adversarial/fixtures/ |
+| **凭据窥探三向量**：process.env 直读 / world.run 侧信道 / files.grep·read 扫 .env ＋ 错误路径外泄加测 | partial | **主向量已闭合\***（GAP-03）：CLI stdout 双通道 0 明文（log/report/result 全 `***REDACTED***`）、events data_json / dwf_nodes result_json 泄漏 0（**场景限定**：files-grep 场景；world-run 探针场景中短裸 sk-decoy-123 按上游 ask 契约原样保留，见 §2.6①——不计入「泄漏」）；goal-adv3-files-grep skip 转正 **tests 2 / pass 2 / fail 0 / skipped 0**；无回归：goal-adv2-worldrun-sidechannel 2/0、goal-adv1-env-read 1/0 | 短裸 sk- 值形（{20,} 下限，刻意保留）、args_json 入参（R2）、非敏感键值形（R3） | GAP-03；残余 R2/R3 | journal triage-fix-3.db node:sqlite 断言全过（上游 GAP-03 实测）；错误路径外泄：engine.ts `:943 redactText((err as Error).message)` 在位 [已验证] |
 
 \* 见状态总注记：worktree 已修、未提交。
 
@@ -231,7 +232,7 @@
   4. **扩权改动** runner.ts：pushToChild 赋值（:453-456）后补唯一一处 `pushToChild({t:'notify',op:'runInfo',runId,resumedFrom:amendedFrom ?? priorRunParent})`（现 :461；报文形状与 child 接收路径 protocol.ts:64-79 逐字段一致；每 child 恰好一次——child 冻结后二次 push 会 throw，故只此一处；resumedFrom 刻意镜像 saveDwfRun 的 parentRunId 血缘表达式 :475/:481）。**扩权依据**：探针首轮实证 run.id=''（CLI 输出 `result:{"runIdSeenByScript":""}`），仅改 child-main.ts 不可能满足 DoD 第 1 条（'hello dwfrun-…' 真实 runId）；经升级提问、主代理裁决选 A 后实施。engine.ts/lower.ts 零改动；runner.ts 中并行兄弟代理的 fillHole 改动未被触碰。
 - **探针自测 [已验证]**：check 干净（3 sites: phase#1/log#2/report#3）；`run-script --db .workflow/triage-fix-1.db` 首跑 `dwfrun-mvxu6hyu-1a1070` completed（修复前此场景 crash 'Cannot read properties of undefined (reading id)'）；node:sqlite readOnly 三断言全过：ASSERT1 `dwf_log.message="hello dwfrun-mvxu6hyu-1a1070"`（真实正文+真实 runId）；ASSERT2 `dwf_report.item={"k":1}`（修复前 `{"item":"report#N"}`）；ASSERT3 dwf_nodes 行 site_id='report#3'、result_json='{"k":1}'，site_id='undefined' 计数=0。血缘附加验证：--amend 该 run 得 fork `dwfrun-mvxu8mqj-00bdd1`，脚本内 `run.resumedFrom='dwfrun-mvxu6hyu-1a1070'`（正确定位 lineage parent，符合 facade-dts.ts:56 语义）。
 - **残留特性（如实报告）**：同步顶层读 run.id（任何 await 之前）仍为空串 [已验证·两轮实测]——runInfo 走 stdin 帧在事件循环才被应用，永远赶不上脚本同步 prologue；这是 bea9a05 push 式设计的固有属性，经第一次真实 host round-trip 后按帧序保证 run.id 正确（探针因此先 `await phase('probe')` 再读）。修复后不再 crash（空串回退），满足裁决条件②的旧路径容忍。
-- **测试 [已执行]**：tsc --noEmit -p worktree/tsconfig.json 三次全过（child-main 改后 / runner 改后 / 最终态，EXIT=0）；build 过且 `dist/src/dwf/child-main.js:84/:99/:279` 已核实含修复；`node --test` domain.test.js + dwf-compiler.test.js + dwf-replay.test.js 最终合并跑 **tests 42 / pass 42 / fail 0**（事件类型白名单无回归）；直接 spawn child 的对抗测试（goal-poc1-ndjson-protocol / goal-poc2-crossrealm-function / goal-poc2-control-char-injection，strip-types 源跑）**tests 9 / pass 9 / fail 0**——未收 runInfo 的直接 spawn 行为不变（裁决条件②）。tests/unit/fixtures 干净，无需 git restore。
+- **测试 [已执行]**：tsc --noEmit -p worktree/tsconfig.json 三次全过（child-main 改后 / runner 改后 / 最终态，EXIT=0）；build 过且 `dist/src/dwf/child-main.js:84/:99/:279` 已核实含修复；`node --test` domain.test.js + dwf-compiler.test.js + dwf-replay.test.js 最终合并跑 **tests 42 / pass 42 / fail 0**（事件类型白名单无回归）；直接 spawn child 的对抗测试（goal-adv1-ndjson-protocol / goal-adv2-crossrealm-function / goal-adv2-control-char-injection，strip-types 源跑）**tests 9 / pass 9 / fail 0**——未收 runInfo 的直接 spawn 行为不变（裁决条件②）。tests/unit/fixtures 干净，无需 git restore。
 - **收口提示**：无 git commit（留给收口层）；探针与 journal `.workflow/triage-fix-1.db` 为未跟踪中间产物，供收口层复核后按 §1.5 清理；PR 需在「刻意未改/扩权说明」留痕：runner.ts 的 runInfo push 系完成 bea9a05 承诺的父进程半边，经主代理裁决扩权（子代理 GAP-01 于 2026-11-01 升级请示，裁决选 A）。
 
 ### GAP-02 constructor 链静态 9002 规则（A 类）
@@ -247,13 +248,13 @@
   - `node --test dist/tests/unit/dwf/dwf-compiler.test.js` **tests 14 / pass 14 / fail 0**；dwf 全目录 10 文件 **tests 70 / pass 70 / fail 0**；
   - CLI check × 5 inv1 变体全部 exit 1；v5 明细：`v5-constructor-chain.ts:7:17 purity-ban(9002): "constructor" property access is banned — constructor-chain access can rebuild Function from nothing; facade primitives only.`；
   - 无回归 DoD：4 demos facade（demos/capabilities-tour 的 gate/budget/growth/lineage.facade.ts）check 全 exit 0；全仓 grep .constructor/.prototype/.__proto__/bracket 访问：仅 tests/adversarial PoC fixtures（应拒样本），无正当脚本受影响；
-  - 附加证据：`node bin/workflow.js check -j tests/adversarial/fixtures/goal-poc1-constructor-escape.ts` → ok=false，diagnostics=[(9002, purity-ban)]——满足对抗测试文件记载的断言。
+  - 附加证据：`node bin/workflow.js check -j tests/adversarial/fixtures/goal-adv1-constructor-escape.ts` → ok=false，diagnostics=[(9002, purity-ban)]——满足对抗测试文件记载的断言。
 - **披露**：ask 指定的 `node --experimental-strip-types <test file>` 直跑因 pre-existing 结构性原因不可用（测试 import '../../../src/dwf/compile.js' 仅能经编译 dist 解析，直跑 ERR_MODULE_NOT_FOUND，改前已验证），改用 dist 编译路径（npm run test:unit 同款机制）；共享工作树上 package-lock.json、run-script.ts、runner.ts、untracked scratch/* 系并行代理改动，未触碰；本任务探针为内联 node -e，无临时文件。**A 类（完成且通过验证）**。
 - **本节点补充 [已验证]**：该对抗测试文件的 skip 块现已在工作树转为正式断言（文件 :79-84 注释载明 "Formerly a .skip block documenting the gap … re-measured 2026-11-01 … converted to real assertions"），且 strip-types 直跑 **3 pass / 0 fail**（§〇 #10）；转化发生在 GAP-02 汇报之后、由并行任务完成（具体执行者 [未知]），文件为未跟踪状态，是否纳入本次提交由收口层决定。
 
 ### GAP-03 world.run argv 脱敏 + 完成值边界掩码（A 类）
 
-- **改动文件**：`src/dwf/engine.ts`、`src/dwf/redact.ts`、`tests/unit/dwf/redact.test.ts`、`tests/adversarial/goal-poc3-files-grep.test.ts`
+- **改动文件**：`src/dwf/engine.ts`、`src/dwf/redact.ts`、`tests/unit/dwf/redact.test.ts`、`tests/adversarial/goal-adv3-files-grep.test.ts`
 - **改动**（①③与计划逐字一致，②为已验证的必要扩展）：
   1. engine.ts:783 `emit('dwf_world_run',{cmd, args: args.map((a)=>redactText(String(a)))})`；:784 spawn 仍用原始 args（observability-only）；:20 导入补 redactValue。
   2. journalled 完成路径（现 :967-972）：在 saveDwfNode 之前与 return 之前 `value = redactValue(value)`，`resultJson: JSON.stringify(value ?? null)` 持久化的即掩码值（与计划字面 `JSON.stringify(redactValue(value ?? null))` 语义完全等价，redactValue 幂等）。**计划偏差·当场指出**：计划的②只改 resultJson 一行不足以通过 DoD——基线实测（改动前 dist 跑 goal-cred-snoop-3-files-grep 场景）证明 CLI stdout 唯一泄漏通道是 result: 行（脚本返回值经 runner.ts:431 frame.value 原样到 run-script.ts:128 打印，journal-only 掩码下转正测试的 `!out.includes(DECOY)` 必红）；且 ask 引用的 redact.ts:5-8 契约本身明确覆盖「随 run 结果返回的字符串」。故在 journalled 边界先掩码再持久化+返回（journal 即权威值、重放/脚本视图/CLI 全链路继承掩码），是满足 DoD 的最小扩展（同文件 1 行 + 注释）。
@@ -262,7 +263,7 @@
   - 基线（改动前）：CLI stdout 经 result: 行泄漏 sk-decoy-123×2 + hunter2×1；journal dwf_nodes.result_json 泄漏 2 行（worldread#2#1 / worldread#3#1）。
   - 改动后（独立 journal `.workflow/triage-fix-3.db`，`node bin/workflow.js run-script tests/adversarial/fixtures/goal-cred-snoop-3-files-grep.ts`，decoy workspace 在 tmp）：(a) node:sqlite 断言——events 表 dwf_world_run 中 sk-decoy-123 出现 0 次（该场景无 world.run 行，总数 0）；全部 events data_json 泄漏 0；dwf_nodes.result_json 泄漏 0、***REDACTED*** 出现 3 个节点；(b) CLI stdout 双通道 0 明文——log/report/result 全部显示 `GOAL_POC_TOKEN=***REDACTED***` 与 `postgres://***:***@`。
   - ①独立探针（world.run args 携带三种形状，journal triage-fix-3-probe.db）：events 表 dwf_world_run args 实测 `['GOAL_POC_TOKEN=***REDACTED***','***REDACTED***','sk-decoy-123']`——KV 形状与长裸 sk- 被掩码；短裸 sk-decoy-123 按③刻意下限原样保留（redactText 契约内、ask 明文「勿吞短示例串」，如实报告非隐藏）；dwf_nodes 泄漏 0。
-- **门禁与测试 [已验证]**：tsc --noEmit exit 0；`npm.cmd run build` dist 重建 20:50:01；node --test redact.test.js **tests 12 / pass 12 / fail 0**（含新增 sk- 形状用例：长裸 sk- 掩码 + sk-decoy-123 短串保留 + 幂等 + redactValue 结构路径）；dwf-replay 6/0；**goal-poc3-files-grep.test.ts describe.skip 已转正 → tests 2 / pass 2 / fail 0 / skipped 0**（error path + value path 全绿，DoD 达成）；goal-poc2-worldrun-sidechannel 2/0、goal-poc1-env-read 1/0（①③无回归守卫）；另跑 dist/tests/unit/dwf 全目录回归 **tests 71 / pass 71 / fail 0**。tests/unit/fixtures/ 干净（git status 空）。
+- **门禁与测试 [已验证]**：tsc --noEmit exit 0；`npm.cmd run build` dist 重建 20:50:01；node --test redact.test.js **tests 12 / pass 12 / fail 0**（含新增 sk- 形状用例：长裸 sk- 掩码 + sk-decoy-123 短串保留 + 幂等 + redactValue 结构路径）；dwf-replay 6/0；**goal-adv3-files-grep.test.ts describe.skip 已转正 → tests 2 / pass 2 / fail 0 / skipped 0**（error path + value path 全绿，DoD 达成）；goal-adv2-worldrun-sidechannel 2/0、goal-adv1-env-read 1/0（①③无回归守卫）；另跑 dist/tests/unit/dwf 全目录回归 **tests 71 / pass 71 / fail 0**。tests/unit/fixtures/ 干净（git status 空）。
 - **如实说明**：(1) worktree 为多 agent 共享，run-script.ts/child-main.ts/compile.ts/runner.ts/inspect.ts/cli index.ts/dwf-compiler.test.ts/package-lock.json 存在并行 agent 的未提交改动，未触碰；tsc/build/测试在合并工作树上进行。(2) 中间产物已清理：.scratch-gap03/、tmp 诱饵 workspace、自建 3 个 journal（triage-fix-3*.db）均已删除；.workflow/ 剩余 db 属并行 agent，未动。(3) 未跑全量门禁套件（test:pbt / e2e runner / governance）——按 ask 约束只跑直接相关最小集 + dwf 全目录，全量由收口层统一执行。(4) 若收口层认为②不应掩码返回值（仅 journal 掩码），回退方式：删除 engine.ts:972 一行，但转正测试将转红（CLI result 行复漏）——两者不可兼得，已按 DoD 优先取之。
 
 ### GAP-04 run-script journal 路径显示（A 类）
@@ -316,10 +317,10 @@
 
 | # | 主题 | 规模/优先级 | 内容 | DoD/验证 |
 |---|---|---|---|---|
-| **D1** | **VM realm 预Seed 重构（最高优先·安全，PoC2b/2c 跨 realm Function 逃逸的主破口）** | 约 0.5-1 天 + 全量门禁；**需独立 Issue** | child-main.ts:107 args 在宿主域 JSON.parse 后整对象图注入 realm（实测 args.constructor.constructor 可达宿主 process/cwd），对齐官方 child-source.ts:202-206——传 `__argsJson` 字符串进 realm、realm 内 `Object.freeze(JSON.parse(...))` 重建 args/run、`__host` 于 BOOTSTRAP 内重建、外层只递 send(string) | xrealm2 探针 + `tests/adversarial/goal-poc2-crossrealm-function.test.ts` skip（:56）转正回归 |
+| **D1** | **VM realm 预Seed 重构（最高优先·安全，PoC2b/2c 跨 realm Function 逃逸的主破口）** | 约 0.5-1 天 + 全量门禁；**需独立 Issue** | child-main.ts:107 args 在宿主域 JSON.parse 后整对象图注入 realm（实测 args.constructor.constructor 可达宿主 process/cwd），对齐官方 child-source.ts:202-206——传 `__argsJson` 字符串进 realm、realm 内 `Object.freeze(JSON.parse(...))` 重建 args/run、`__host` 于 BOOTSTRAP 内重建、外层只递 send(string) | xrealm2 探针 + `tests/adversarial/goal-adv2-crossrealm-function.test.ts` skip（:56）转正回归 |
 | D2 | 遥测挂接全量 | 约 0.5-1 天；建议 GAP-06 合入后接力 | list.ts --db + sqlite-store 新增 listDwfRuns 查询（facade runId 进 list 输出，integration gap2）；MCP workflow_inspect 的 dwf journal 分支（src/mcp/server.ts:239-246 固定 getAllCheckpoints，integration gap1）；view/graph 对 facade 的 graph 导出（基6 实测 graph 仅支持 builder 模式） | list/inspect/view/graph 四处 facade journal 可见 |
 | D3 | compile.ts isReference 初始化位漏网 | **15 分钟小修**；GAP-02 合入后同文件顺延 | compile.ts `isReference`（汇报时点 :334，现 :341）对 VariableDeclaration 整体排除引用判定，`const e=eval` / `const g=globalThis` 逃过 9002（type-error 通道也拦不住；PENETRATION 修订轮双探针复现 ok:true）；修法是 VariableDeclaration 仅排除 name 位 | 补两条对应断言进同一测试文件 |
-| D4 | runner 协议加固三件（PoC 协议投毒①② + inv3②） | 约 0.5 天 | runner.ts:373-390 行拆分加单行/总量字节预算（对齐官方 1MB 帧/16MB 消息，超限 killTree+命名错误）；stdout data 同步循环让位（setImmediate/pause，实测洪泛 213.1s 饿死 timers）；:384-387 畸形帧静默 continue 改计数并在 run 结束 emit 诊断事件；另给 child.stdin 挂 error 监听防 EPIPE（runner.ts:449-456 竞态窗） | goal-poc1-ndjson / goal-poc3-oversize-frames 的 skip（:136/:149）转正作 DoD |
+| D4 | runner 协议加固三件（PoC 协议投毒①② + inv3②） | 约 0.5 天 | runner.ts:373-390 行拆分加单行/总量字节预算（对齐官方 1MB 帧/16MB 消息，超限 killTree+命名错误）；stdout data 同步循环让位（setImmediate/pause，实测洪泛 213.1s 饿死 timers）；:384-387 畸形帧静默 continue 改计数并在 run 结束 emit 诊断事件；另给 child.stdin 挂 error 监听防 EPIPE（runner.ts:449-456 竞态窗） | goal-adv1-ndjson / goal-adv3-oversize-frames 的 skip（:136/:149）转正作 DoD |
 | D5 | 停靠语义与快路径 | 约 0.5 天 | C2 parked 终态事件是 dwf_failed{data.status:"parked"}（按事件类型统计会误计失败，需引入 dwf_parked 或消费方甄别约定+治理测试）；B3 escalate-only 停靠走 10s 兜底而非 750ms（[推断] realmIdle()=pending.size===0&&openHoles>0 的定义不含 escalation，扩展属行为变更需设计）；C4 fill 拒绝退出码复核（GAP-05 自测将顺带闭合大半，剩余 answer 命令同型复核） | 事件统计不误计 parked；escalate 快路径 |
 | D6 | probe 脱敏收敛（integration gap4） | 约 0.5 天 | workflow_probe 同时下发未脱敏 env 与 sanitizedEnv 两份快照且 IGCCSVC_DB 明文——收敛为仅返回脱敏快照属 API 形状变更（MCP/下游需评审）；IGCCSVC_DB 纳入 src/prober/sanitizer.ts SENSITIVE_KEY_REGEX | probe 仅返回脱敏快照 |
 | D7 | child-main stdin 'close' 父死退出（inv4①，与 GAP-01 同文件故顺延） | **10 分钟级**；建议 GAP-01 合入后立即接力 | child-main.ts:250 readline 无 close 处理器，父进程被强杀时子进程在本机靠宿主 Job 耦合兜底、引擎自身无保证 | driver.mjs 直驱 child-main 验证 stdin EOF→退出；在无 Job 耦合的干净宿主复跑不变量4 |
@@ -344,23 +345,23 @@
 - **R1 逆向底稿修正（文档级，随 D8① 执行时一并处理）**：切片1 实测推翻底稿三处（2.3-⑤ settle-order 应为「首生结算次序」而非「按启动顺序重放」；2.3-⑦ 血缘指针在 dwf_run 列/stopped 结算同一笔，非 run-launched 事件；2.4-2 三元组共用需限定为「官方位置优先+哈希防御，池化仅在 world 导入队列」），并需深化两处（ImportedInFlightAsk in-flight ask 接续、import-closure 关门）。另：若保留内容池方案，应修正 engine.ts 头注释滞后的「mismatch fails loudly」表述或补显式纯度契约。
 - **R2 不变量6③ run 入参脱敏**：dwf_runs.args_json 与 `.workflow/runs/<runId>/args.json` 无脱敏（resume 需要入参）；建议至少对命中 SENSITIVE_KEY_REGEX 的入参键掩码。未入 D 表，建议并入 D6 或独立小项。
 - **R3 不变量6② 值形收紧（可选）**：非敏感键名下 `bare=sk-decoy-123` 不掩码系 redact.ts:20-25 明文权衡（已知边界非缺陷）；如需收紧对 sk-/ghp_ 等前缀形值加 shape 规则（注意 GAP-03 的 {20,} 下限：短示例串刻意保留）。
-- **R4 逆向/PoC 未入册残余**：① 切片2-④ cell 停滞检测（official 每条 response 后 setImmediate 查 pending，无在飞即 ScriptStalled/ChannelDeadlock error-complete；我方零宿主调用的死等脚本挂满 600s 整跑超时）；② 切片2-⑤ host 错误线形态只带 name 丢 code/violations/finalText（畸形帧计数部分已入 D4，完整对齐官方「停 run 并点名该行」随 D4/D8 决定）；③ 切片3 退避抖动两点（429 向后抖动 ≤min(0.2×retryAfter,5s)、指数退避 0.5-1.0 乘性抖动）；④ **PoC4 microtask 伪造 done 帧**（`goal-poc4-microtask-escape.test.ts:23` describe.skip BREACHED 记录，未入 D1..D10，建议与 D1/D4 一并立项：done 帧鉴权/序号防伪造）。以上建议并入 D8 对应区或随 D1/D4 顺带立项。
+- **R4 逆向/PoC 未入册残余**：① 切片2-④ cell 停滞检测（official 每条 response 后 setImmediate 查 pending，无在飞即 ScriptStalled/ChannelDeadlock error-complete；我方零宿主调用的死等脚本挂满 600s 整跑超时）；② 切片2-⑤ host 错误线形态只带 name 丢 code/violations/finalText（畸形帧计数部分已入 D4，完整对齐官方「停 run 并点名该行」随 D4/D8 决定）；③ 切片3 退避抖动两点（429 向后抖动 ≤min(0.2×retryAfter,5s)、指数退避 0.5-1.0 乘性抖动）；④ **PoC4 microtask 伪造 done 帧**（`goal-adv4-microtask-escape.test.ts:23` describe.skip BREACHED 记录，未入 D1..D10，建议与 D1/D4 一并立项：done 帧鉴权/序号防伪造）。以上建议并入 D8 对应区或随 D1/D4 顺带立项。
 
 ---
 
 ## 七 收口清单（给收口层 / PR）
 
 1. **提交范围**（GAP-01..06 changedFiles 并集，全部已在工作树、本节点 git status 已核实为 modified）：
-   `src/dwf/child-main.ts`、`src/dwf/compile.ts`、`src/dwf/engine.ts`、`src/dwf/redact.ts`、`src/dwf/runner.ts`、`src/cli/commands/run-script.ts`、`src/cli/commands/inspect.ts`、`src/cli/index.ts`、`tests/unit/dwf/dwf-compiler.test.ts`、`tests/unit/dwf/redact.test.ts`、`tests/adversarial/goal-poc3-files-grep.test.ts`；另注意：`tests/adversarial/goal-poc1-constructor-escape.test.ts`（skip 已转正、实测 3/3 pass）与全部 `tests/adversarial/fixtures/*`、`tests/adversarial/*.test.ts` 目前为**未跟踪**状态，是否纳入本次提交由收口层决定。
+   `src/dwf/child-main.ts`、`src/dwf/compile.ts`、`src/dwf/engine.ts`、`src/dwf/redact.ts`、`src/dwf/runner.ts`、`src/cli/commands/run-script.ts`、`src/cli/commands/inspect.ts`、`src/cli/index.ts`、`tests/unit/dwf/dwf-compiler.test.ts`、`tests/unit/dwf/redact.test.ts`、`tests/adversarial/goal-adv3-files-grep.test.ts`；另注意：`tests/adversarial/goal-adv1-constructor-escape.test.ts`（skip 已转正、实测 3/3 pass）与全部 `tests/adversarial/fixtures/*`、`tests/adversarial/*.test.ts` 目前为**未跟踪**状态，是否纳入本次提交由收口层决定。
 2. **PR 留痕（刻意未改/扩权说明）**：
    - GAP-01：runner.ts runInfo push 系完成 bea9a05 承诺的父进程半边，经主代理裁决扩权（2026-11-01 子代理升级请示，裁决选 A）；同步顶层读 run.id 仍为空串为 push 式设计固有属性（首次 host round-trip 后正确）；
    - GAP-03：② journalled 边界先掩码再持久化+返回（超出计划 resultJson 单行），否则 DoD 转正测试必红——偏差与「两者不可兼得」关系需在 PR 写明；
    - GAP-02：上游建议②（inv1-v5.db run 级 compile_failed 复跑）未单独执行，以 5 变体 CLI check exit 1 作等效静态验证。
 3. **测试转正状态与待办**（本节点 grep 扫描 + 实测，§〇 #10/#11）：
-   - 已转正且绿：`goal-poc1-constructor-escape.test.ts`（3 pass / 0 fail 实测）、`goal-poc3-files-grep.test.ts`（GAP-03 会话内 2 pass / 0 skipped）；
-   - 仍 skip、转正有明确归属：`goal-poc1-ndjson-protocol.test.ts:136`、`goal-poc3-oversize-frames.test.ts:149`（→ D4 DoD）；`goal-poc2-crossrealm-function.test.ts:56`（→ D1 DoD）；
-   - 仍 skip、可提前转正：`goal-poc2-control-char-injection.test.ts:160`（log/report round-trip 载荷断言——GAP-01 修复已就绪，其探针 ASSERT1/2/3 即该断言的手工证据，建议收口层转正验证）；
-   - 仍 skip、未入册：`goal-poc4-microtask-escape.test.ts:23`（→ R4④）。
+   - 已转正且绿：`goal-adv1-constructor-escape.test.ts`（3 pass / 0 fail 实测）、`goal-adv3-files-grep.test.ts`（GAP-03 会话内 2 pass / 0 skipped）；
+   - 仍 skip、转正有明确归属：`goal-adv1-ndjson-protocol.test.ts:136`、`goal-adv3-oversize-frames.test.ts:149`（→ D4 DoD）；`goal-adv2-crossrealm-function.test.ts:56`（→ D1 DoD）；
+   - 仍 skip、可提前转正：`goal-adv2-control-char-injection.test.ts:160`（log/report round-trip 载荷断言——GAP-01 修复已就绪，其探针 ASSERT1/2/3 即该断言的手工证据，建议收口层转正验证）；
+   - 仍 skip、未入册：`goal-adv4-microtask-escape.test.ts:23`（→ R4④）。
 4. **中间产物清理（§1.5，随本 issue 收尾/PR 合入执行）**：`.scratch-gap01/`（gap01-logreport.facade.ts）、`.workflow/triage-fix-1.db`、`scratch-gap06/`、`.scratch-inv6/`、`.workflow/inv6.db`、`.workflow/inv6b.db`、`scratch-inv5/`、`scratch-pentest/`（ndjson 复现材料，如需留证先归档再删）、`.workflow/ndjson-inv.db`、`.workflow/inv1.db`、`.workflow/inv1-v5.db`；已删：scratch-gap04/、triage-fix-4.db、scratch-gap05/、.scratch-gap03/ 与 GAP-03 自建 journal，以及 `scratch-audit-41/`（PENETRATION 文档任务用后即删）与 `.scratch-b41doc/`（BENCHMARK 文档任务用后即删）——二者经 2026-11-01 修订轮 `git status --porcelain` 复核均无残留。其余 untracked（`examples/`、`demos/repo-migration-engine/fixtures/legacy-aws-sdk-app/package-lock.json` 等）属其他并行任务，不在本矩阵清理范围。
 5. **全量门禁（D10）**：本阶段各 GAP 仅跑最小相关集；`tsc -p` 全量、`npm.cmd run test:unit`、`test:pbt`、e2e runner、governance 由收口层在独占窗口执行，PR 附真实构建与测试输出指纹（P0 红线 4，严禁占位符）。
 6. **fixtures**：GAP-03 / GAP-06 会话内已 `git restore tests/unit/fixtures/` 还原；本矩阵任务为纯文档写入，未运行引擎写库（除 #10 对抗测试读取既有 fixture、写 `.workflow/escape-poc1-test.db` 测试自身 db）。

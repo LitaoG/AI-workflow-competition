@@ -2,7 +2,7 @@
 
 > 方法：npm pack 平台二进制（335MB PE32+，Bun 编译，JS bundle 内嵌）→ Python 定向标记扫描。
 > 用途：个人研究（对齐本引擎语义）；不 redistribute 任何反编译产物。
-> 清洁室修订（2026-11-20，私有仓 Issue #163 批次）：逐字专有文案、内部遥测事件名原文、
+> 清洁室修订（2026-11-20，本仓 Issue #163 批次）：逐字专有文案、内部遥测事件名原文、
 > minified 符号与 ask 内部结果契约全字段改写为行为级描述；事实性接口常量（env knob 名、
 > 公开协议形状）保留。
 > ZCode 侧为官方开源（apps/zcode-cli/packages/dynamic-workflow），此前报告 §2 已全覆盖，本轮为 Claude 侧补齐。

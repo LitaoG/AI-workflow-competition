@@ -106,7 +106,7 @@ phase-entered；6 ask→queued/dispatched/usage-updated/settled 各 6；planner�
   两条路线是**同一个对象**（逆向报告 §1.6，`src/engine/engine.ts:690`）——emit 流的 36 条计数即
   journal 内容计数 `[已验证·源码+计数一致]`。
 
-> **增补（Issue #89，2026-11-04）**：探针查询已修复——`limit` 改传数字 `10_000`
+> **增补（私有仓 Issue #89，2026-11-04）**：探针查询已修复——`limit` 改传数字 `10_000`
 > （official-telemetry-probe.mjs:127-131）。修复后正式遍读回 **36 条全序列**
 > `[已验证·JSON]`（`journalEventSequence` 逐字）：
 >
@@ -272,7 +272,7 @@ official-telemetry-probe.mjs:40,88-90,101 `[已验证·源码]`；「开销」�
 
 ---
 
-## 5A. Schema 合成与运行时校验开销（Probe D，Issue #89 增补）
+## 5A. Schema 合成与运行时校验开销（Probe D，私有仓 Issue #89 增补）
 
 > 蓝图 B.md §4.3 点名指标「从 TS 泛型提取到运行时 JSON 校验的平均耗时与内存峰值」——原探针未覆盖，
 > 本节为补测。数据源：升级后探针的 `schema` 块（预热一遍 + 正式一遍，正式遍逐字转写）
@@ -332,7 +332,7 @@ official-telemetry-probe.mjs:40,88-90,101 `[已验证·源码]`；「开销」�
 | §1.6 27 种 RunEvent 全集 | 实测 emit 流出现其中 9 类 36 条，全部在清单内；`run-launched` 缺席与 launch 元数据缺席的源码语义一致（§3.2） | `[已验证]` |
 | §1.6 `usage-updated` 与 `dwf_run.spent_tokens` 同一同步步骤 | 6 次 askStats → 6 条 usage-updated，计数严格相等（§3.2） | `[已验证·计数]` |
 | §1.6 report「有行无节点」、一次写 | 实测 `report` 事件 1 条、`instanceTimings` 中 report#1 无 queued/dispatched/settled 三态（§3.4） | `[已验证·计数]` |
-| §1.6 `run-settled` 必须是事件流最后一条 | 修复后 journal 全序列 36 条读回，`run-settled` 恰为最后一条（§3.3 增补） | `[已验证·JSON]`（Issue #89 起升格） |
+| §1.6 `run-settled` 必须是事件流最后一条 | 修复后 journal 全序列 36 条读回，`run-settled` 恰为最后一条（§3.3 增补） | `[已验证·JSON]`（私有仓 Issue #89 起升格） |
 | §2.1 编译管线五段 + lowering 独立一段 | §5 开销结构与量级吻合（冷/温/降级三段计费、脏脚本拒降级） | `[推断·结构印证]` |
 | §2.2 探针记录 typescript@5.9.3 同配置 | 本机官方包 node_modules 实测 typescript 5.9.3（§1） | `[已验证]` |
 
@@ -368,9 +368,9 @@ official-telemetry-probe.mjs:40,88-90,101 `[已验证·源码]`；「开销」�
 4. **in-process、无真实 IPC**：driver 为内存桩（setTimeout 模拟模型时延），无子进程、无真实
    模型调用、无 SQLite journal 侧——真实端到端时延不适用本文数字 `[已验证·探针构造]`。
 5. **探针采集缺口（根因均已定位，`[已验证·复现/源码]`）**：
-   - ~~journal 逐条事件序列：`limit:"all"` → NaN 空页（§3.3）~~ **已修复（Issue #89）**：`limit`
+   - ~~journal 逐条事件序列：`limit:"all"` → NaN 空页（§3.3）~~ **已修复（私有仓 Issue #89）**：`limit`
      改传数字后 36 条全序列读回（§3.3 增补），`run-settled` 收口不变式随之印证；
-   - Schema 校验开销（蓝图 §4.3 点名）：**已补测（Issue #89，§5A）**——提取 48.7ms 温均值 /
+   - Schema 校验开销（蓝图 §4.3 点名）：**已补测（私有仓 Issue #89，§5A）**——提取 48.7ms 温均值 /
      +27.1MB 堆增量，运行时校验 6–19µs/次；
    - settled 载荷产物值：键名 `result` ≠ 官方 `artifact`（§3.5）——探针载荷键名缺陷，仍 `[未知]`；
    - phase-entered 名称：键名 `phaseName` ≠ 官方 `name`（§3.2，名称另有探针源码旁证）；

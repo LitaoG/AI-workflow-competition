@@ -1,6 +1,6 @@
 # 代码即流程，而非对话猜测：基于 Kiro 构建 AWS Kiroween 2026 动态工作流引擎 AI-Workflow
 
-> **在 Skeleton Crew（骨架团队）赛道中，我们如何用确定性 DAG 编译、强类型 RPC 与零重算持久化重放替代脆弱的“提示词追逐”。**
+> **在 Skeleton Crew（骨架班底模板）赛道中，我们如何用确定性 DAG 编译、强类型 RPC 与零重算持久化重放替代脆弱的“提示词追逐”。**
 
 **作者**：龚立涛 (Litao Gong)  
 **Devpost 账号**：[1842043669](https://devpost.com/1842043669)  
@@ -78,7 +78,7 @@
 
 ## 3. 系统核心架构与技术创新
 
-作为专为 **AWS Kiroween 2026（Skeleton Crew 赛道）** 量身定制的架构方案，AI-Workflow 充分利用了 Node.js 22 LTS 的最新原生特性——包括 `--experimental-strip-types`（原生 TypeScript 剥离执行）、内置 `node:sqlite` 与内置 `node:test`——打造出极致轻量、零外部笨重依赖的执行底座。
+作为专为 **AWS Kiroween 2026（Skeleton Crew 赛道）** 量身定制的架构方案，AI-Workflow 面向 Node.js ≥22 开发（见 `package.json` 的 `engines` 字段），充分利用其原生特性——包括 `--experimental-strip-types`（原生 TypeScript 剥离执行）、内置 `node:sqlite` 与内置 `node:test`——打造出极致轻量、零外部笨重依赖的执行底座；本文全部指纹与基准数据均在 Node v26.13.0 上实测。
 
 ```
                               AI-WORKFLOW 系统架构拓扑
@@ -306,7 +306,7 @@ Kiro 的钩子机制为工作流提供了确定性的拦截能力：
 4. `SafetyReviewerAgent` 完成破坏性模式拦截审查。
 5. 脚本门禁校验 `curl http://localhost:8080/healthz` 返回正常。
 6. 输出规范复盘报告与看板数据。
-7. **完整离线执行耗时**：**1.4 秒**。
+7. **完整离线执行耗时**：**0.7 秒**（离线 mock 运行实测）。
 
 ---
 
@@ -346,7 +346,7 @@ Phase 4: 编译与合并门禁                                   Phase 5: 发布
 2. 扫描 AST 识别 `AWS.S3`、`AWS.DynamoDB`、`AWS.SQS` 过时用法。
 3. 借助 `Promise.all` 并发启动 3 组智能体对模块进行重构与结对安全审查。
 4. 运行 `tsc --noEmit` 编译器门禁验证重构后代码零类型错误。
-5. 生成带详尽 Diff 与回滚指南的 `PULL_REQUEST.md`。
+5. 生成带详尽转换对照与回滚指南的 `PULL_REQUEST.md`——离线 mock 模式下针对已提交夹具应用（`fixtures/legacy-aws-sdk-app`）：worker 产出的 `transformedCode` 与门禁日志均为真实引擎输出，差异统计按夹具磁盘源码与本次运行的转换输出实测得出，且不写盘任何夹具或仓库文件。
 
 ---
 
@@ -384,7 +384,7 @@ Phase 4: 编译与合并门禁                                   Phase 5: 发布
 | **turn 结束提醒（nudge）** | 1 次提醒预算（`NUDGE_ATTEMPTS=1`） | 我方暂无对应机制 | 如实差距，已在对标报告中留痕 |
 
 #### 表 3：4 层黑盒 E2E 端到端测试套件表现（2026-10-31 实测）
-*在 Node.js 22 LTS 环境中通过 `--experimental-strip-types` 运行。数据出处：[初始发布提交时的 `TEST_READY.md`](https://github.com/LitaoG/AI-workflow-competition/blob/a86554b/TEST_READY.md)——该文件后来在文档清扫中移出仓库树，此处数字即其 2026-10-31 记录的实测值；测试套件此后有调整，当前门禁为 118/118（指纹见 [README](../README.md)）。*
+*2026-10-31 在 Node.js 22 环境中通过 `--experimental-strip-types` 运行（版本口径见第 3 节说明）。原始出处：`TEST_READY.md`——该文件后来在文档清扫中移出仓库树，仓库内已无副本，此处数字即其 2026-10-31 记录的实测值；测试套件此后有调整，当前门禁为 118/118（指纹见 [README](../README.md)）。仓库内有出处的带日期实测数据见跨界引擎对标 JSON（[我方](../tests/cross-engine/results/ours-cross-benchmark.json) · [官方](../tests/cross-engine/results/official-cross-benchmark.json)）及其分析 [`docs/research/BILATERAL-CROSS-BENCHMARK-REPORT.md`](../docs/research/BILATERAL-CROSS-BENCHMARK-REPORT.md)（上文表 1–2）。*
 
 | 测试分层 | 验证范围 | 计划用例数 | 实际执行 | 通过数 | 通过率 | 累计耗时 |
 |---|---|:---:|:---:|:---:|:---:|:---:|

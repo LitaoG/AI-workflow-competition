@@ -1,7 +1,146 @@
-# ⚡ AI-Workflow 1 分钟上手指南 (QUICKSTART)
+# ⚡ AI-Workflow Quickstart (60-second tour)
+
+> Goal: **in 60 seconds**, from zero to watching your own workflow finish on the Studio kanban.
+> Full specs live in `README.md` and `docs/`; this page is only the on-ramp.
+> 中文版在下方（Chinese version below — the two halves are kept in parity).
+
+---
+
+## 0. Prerequisites (10 seconds)
+
+- Node.js ≥ 22
+- Dependencies installed once at the repo root (`npm install`)
+- **This package is NOT published to npm** — the `ai-workflow` name on the registry is an
+  unrelated 2021 placeholder (v0.1.19). Install from source only (`git clone` this repo, then
+  `npm install` at the repo root) or from a release tarball: `npm install ./ai-workflow-<ver>.tgz`
+  (the `./` prefix is mandatory — a bare relative path is parsed as a registry spec and fails).
+
+```shell
+node bin/workflow.js doctor   # environment self-check: runtime/compiler/journal/sandbox all green = ready
+```
+
+---
+
+## 1. See the 1-second demo first (no code needed)
+
+```shell
+node bin/workflow.js demo
+```
+
+What happens: the flagship "incident triage" workflow runs offline (deterministic mock,
+**zero network calls, ~1 second**), then the **AI-Workflow Studio** kanban opens in your
+browser — topology graph on the left, live event stream top-right, node Inspector bottom-right.
+Click any node to see inputs/outputs/artifacts; a green ⚡ badge = that node replays from the
+journal at zero cost.
+
+---
+
+## 2. Run your first real workflow (30 seconds)
+
+**One unified entry point**: `workflow run` auto-detects facade scripts (sandbox engine) vs
+builder definitions — you cannot pick the wrong command.
+
+```shell
+# Option 1: key-value args (PowerShell-safe, recommended) — runs the built-in capabilities-tour example
+node bin/workflow.js run apps/capabilities-tour/lineage.facade.ts
+
+# Option 2: pass a JSON file (zero escaping pain)
+node bin/workflow.js run my.flow.ts --args-file params.json
+
+# Option 3: --ui opens the Studio kanban automatically when the run finishes
+node bin/workflow.js run my.flow.ts --set key=value --ui
+```
+
+> 💡 **Windows users**: prefer `--set` / `--args-file` always.
+> `--args '{"k":"v"}'` gets its double quotes eaten by PowerShell — that is exactly why the
+> first two channels exist.
+
+---
+
+## 3. Write your own workflow (30 seconds)
+
+```shell
+# Interactive scaffold: pick a template (code-review / incident-triage / repo-migration / multi-agent)
+node bin/workflow.js new my-flow
+```
+
+The generated `my-flow.facade.ts` looks like this (excerpt):
+
+```ts
+phase('Draft');                                   // phase (compile-time literal)
+const draft = await agent('strategist').ask<Plan>('...');  // typed subagent ask
+const gate = await world.run('node', ['--version'], { timeoutMs: 30_000 }); // deterministic shell gate
+await artifact.markdown('plan', '# Plan\n...');   // artifact
+return { ok: true };                              // top-level return = run result
+```
+
+**Iron rules** (compiler-enforced, with 💡 QuickFix hints on violation):
+- No `Date.now()` / `Math.random()` / `new Date()` — time and randomness come in via `args`
+  (guarantees byte-identical replay)
+- No `import` / `process` / `fs` / `fetch` — the facade is the whole world
+- `phase()` titles and `world.run` commands must be string literals
+
+---
+
+## 4. The standard loop: check → run → resume
+
+```shell
+node bin/workflow.js check my-flow.facade.ts        # must print ✔ facade script compiled clean (uncompiled scripts never run)
+node bin/workflow.js run my-flow.facade.ts          # failed? completed nodes are all in the journal
+node bin/workflow.js run my-flow.facade.ts --resume <runId>   # after the fix: zero-cost replay, continue from the breakpoint
+```
+
+**Human-in-the-loop** (escalation / hole parking):
+- Terminal: `node bin/workflow.js answer <runId> <questionId> "your answer"` or
+  `workflow fill <runId> <holeName> <bodyFile>`
+- Kanban: `node bin/workflow.js serve <runId>` opens Studio — **submit the web form directly**
+  and the workflow resumes in place
+
+---
+
+## 5. Wire up your AI assistant (one command)
+
+```shell
+node bin/workflow.js setup --target all    # generates Claude Code + OpenCode + Codex + ZCode configs
+```
+
+- **Claude Code**: `.mcp.json` (10 real MCP tools) + `.claude/skills/ai-workflow/` skill +
+  `.claude/settings.json` (pre-granted permissions) → restart Claude Code and go
+- **OpenCode**: `.opencode/` (workflow-runner subagent + `/workflow` slash command + MCP mount)
+- **Codex**: `.codex/instructions.md` + `tools.json` (pure-JSON OpenAI function-calling schema;
+  re-export with `workflow export-schema --format openai`, byte-identical)
+- **ZCode**: `.zcode/config.json` (engine entry + journal path declarations, runtime-aligned)
+
+Verify the tool face: `node bin/workflow.js mcp list` — should list `workflow_run` …
+`workflow_get_run`, 10 real engine tools.
+
+---
+
+## Command cheat sheet
+
+| Command | What it does |
+|---|---|
+| `workflow new <name>` | template scaffold |
+| `workflow check <file>` | compile check (only `✔ facade script compiled clean` proceeds to run) |
+| `workflow run <file>` | unified execution entry (auto-detects facade/builder) |
+| `workflow run <file> --ui` | opens the Studio kanban automatically on completion |
+| `workflow serve <runId>` | live kanban (SSE) + in-page answer/fill resume; loopback-only — cross-origin and non-loopback Host requests are refused with 403 |
+| `workflow view <runId>` | export a static Studio HTML |
+| `workflow inspect <runId>` | inspect a run in the terminal |
+| `workflow setup --target all` | one command, all assistant interop configs |
+| `workflow mcp list` | list the 10 real MCP tools |
+
+Stuck? `node bin/workflow.js --help`, [`docs/DEVELOPER_GUIDE.md`](docs/DEVELOPER_GUIDE.md),
+or open a GitHub issue.
+
+---
+
+---
+
+# ⚡ AI-Workflow 1 分钟上手指南（中文版）
 
 > 目标：**60 秒内**从零到第一次看到自己的工作流在看板里跑完。
-> 完整规范见 `README.md` 与 `docs/`；本页只管上手。
+> 完整规范见 `README.md` 与 `docs/`；本页只管上手。英文版见上方（两版内容保持一致）。
 
 ---
 
@@ -9,7 +148,7 @@
 
 - Node.js ≥ 22
 - 本仓库根目录下依赖已装好（`npm install` 一次性）
-- **本包未发布到 npm**——npm 上的 `ai-workflow` 是无关的 2021 占位包（0.1.19）；安装只走源码（`git clone` 本仓库后于仓库根 `npm install`）或发布 tarball：`npm install ./ai-workflow-<ver>.tgz`（`./` 前缀不可省，裸相对路径会被当作 registry spec 解析而报 git 错误；Issue #147 已验证）
+- **本包未发布到 npm**——npm 上的 `ai-workflow` 是无关的 2021 占位包（0.1.19）；安装只走源码（`git clone` 本仓库后于仓库根 `npm install`）或发布 tarball：`npm install ./ai-workflow-<ver>.tgz`（`./` 前缀不可省，裸相对路径会被当作 registry spec 解析而报 git 错误）
 
 ```shell
 node bin/workflow.js doctor   # 环境自检：runtime/compiler/journal/sandbox 全绿即就绪
@@ -110,10 +249,10 @@ node bin/workflow.js setup --target all    # 生成 Claude Code + OpenCode + Cod
 | `workflow check <file>` | 编译检查（✔ facade script compiled clean 才跑） |
 | `workflow run <file>` | 统一执行入口（自动识别 facade/builder） |
 | `workflow run <file> --ui` | 跑完自动弹 Studio 看板 |
-| `workflow serve <runId>` | 实时看板（SSE）+ 网页内回答/填孔续跑；仅绑回环，跨源与非回环 Host 请求一律 403（Issue #143） |
+| `workflow serve <runId>` | 实时看板（SSE）+ 网页内回答/填孔续跑；仅绑回环，跨源与非回环 Host 请求一律 403 |
 | `workflow view <runId>` | 导出静态 Studio HTML |
 | `workflow inspect <runId>` | 终端查看运行详情 |
 | `workflow setup --target all` | 一键生成三助手互通配置 |
 | `workflow mcp list` | 列出 10 个真实 MCP 工具 |
 
-卡住了？`node bin/workflow.js --help`、`docs/DEVELOPER_GUIDE.md`，或在 GitHub 提 issue。
+卡住了？`node bin/workflow.js --help`、[`docs/DEVELOPER_GUIDE.md`](docs/DEVELOPER_GUIDE.md)，或在 GitHub 提 issue。

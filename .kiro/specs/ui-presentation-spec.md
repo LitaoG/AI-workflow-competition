@@ -21,6 +21,8 @@ Nodes visually display role badges:
 - `coordinator`: Merge coordinator (e.g. "合入库管理员 / Merge Coordinator")
 
 ## 3. Live Metrics & Artifact Kanban Dashboard
-- **Header Badge**: `14 phases · N subagents active`
-- **Live Kanban**: 4 state columns (`Discovered`, `In-Progress`, `Verified`, `Committed`) displaying produced artifacts with SHA-256 fingerprints.
+- **Header Badge**: Dynamic, rendered from the live graph (`src/dag/html-renderer.ts`): `${graph.totalPhases} phases · ${graph.activeSubagents} subagents active` — both flagship demos run **5 phases** (incident: 3 active subagents; migration: 4).
+- **Live Kanban**: 5 columns per app, mirroring the `kanban.json` artifact column schema (each card carries a SHA-256 fingerprint):
+  - Incident triage (`apps/incident-triage-remediation`): `probe` (Ingested Alerts & Probes) → `triage` (Triage & Root Cause Analysis) → `plan` (Synthesized Runbooks & Safety Audit) → `gate` (Execution & Gate Logs) → `deliverable` (Final Deliverables).
+  - Repo migration (`apps/repo-migration-engine`): `baseline-scan` (Deprecation & AST Scans) → `architecture` (Migration Architecture & MCP Rules) → `parallel-transforms` (Parallel Workers & Paired Reviewers) → `post-merge-gate` (Compiler & Test Gate Audits) → `release-pr` (Pull Request & Final Deliverables).
 - **Bilingual Switch**: Instantaneous toggle between English and Chinese (`EN` / `中文`) across all node titles, descriptions, and metrics.

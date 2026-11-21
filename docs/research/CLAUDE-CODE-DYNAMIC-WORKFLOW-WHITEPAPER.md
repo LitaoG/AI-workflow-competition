@@ -5,6 +5,7 @@
 > **对标对象**：本仓 `AI-workflow`（DWF facade 引擎 + MCP Facade + SQLite journal）
 > **证据等级**：全文结论按 `[已验证]` / `[推断]` / `[未知]` 标注；无证据的推断不写成事实。
 > **清洁室声明**：本文只记录**行为、接口契约、常量与设计思想**，不复制官方闭源实现代码。落地代码按本仓架构独立实现。
+> **清洁室修订（2026-11-21，本仓 Issue #190 批次）**：官方 minified 符号名一律改写为行为级描述；官方 unpacked 产物行号表一律移除，改以语义锚描述。
 
 ---
 
@@ -14,7 +15,7 @@
 
 1. **逆向**：对官方 2.1.316 workflow 模块（`workflow-module-pretty.js`，5437 行）做逐函数精读，提取重放键、VM 沙箱、纯度封印、并发门、Prompt Cache 预热门、停滞重试状态机、预算与子工作流组合的精确契约。
 2. **实机**：用官方 Workflow 运行时跑了 4 组黑盒探针（VM 全局、预算、并行/流水线语义、Schema 预检、嵌套限制、纯度封印与构造器链边界），全部拿到可复现输出。
-3. **对标与反哺**：把本仓引擎挂到 MCP 上做同路径实跑，发现并修复了一个官方已封印、本仓仍存在的 **Date 纯度后门**（两条路径均可读取真实墙钟时间），以 Issue #55 / PR #56 落地，并补齐真实 child-main spawn 回归测试。
+3. **对标与反哺**：把本仓引擎挂到 MCP 上做同路径实跑，发现并修复了一个官方已封印、本仓仍存在的 **Date 纯度后门**（两条路径均可读取真实墙钟时间），以私有仓 Issue #55 / PR #56 落地，并补齐真实 child-main spawn 回归测试。
 
 核心结论：
 
@@ -73,15 +74,15 @@
 官方重放键不是 prompt 字符串，而是**调用链结构哈希**：
 
 ```text
-Xn(prev, label, event):
-  sha256(prev \0 label \0 event)
+官方的阶段推进函数（传入前一状态、阶段标签与事件）:
+  key = sha256(prev \0 label \0 event)
   event = "slot:${n}" | "fork" | "join" + 每个子键 | "replaced"
 ```
 
-- `parallel` 的每个槽进入 `inSlot(i)`，键为 `Xn(prev, label, slot:i)`；
+- `parallel` 的每个槽进入槽作用域（第 i 槽），键为「prev + 阶段标签 + slot:i」再逐级哈希；
 - `join()` 吸收全部槽键，形成栅栏；
 - 重试 prompt 加 `(retry N)` 后缀，**故意让键失效**，保证重试必然实跑；
-- 命中 `results.get(key)` 即返回缓存。
+- 以键查缓存表，命中即返回缓存。
 
 `[已验证]` 官方解包件（语义锚：重放键结构哈希实现段）。
 
@@ -92,11 +93,11 @@ Xn(prev, label, event):
 官方 VM 的边界由多层构成：
 
 1. `vm.createContext` + `codeGeneration: { strings: false, wasm: false }`：禁 `eval`/`Function` 字符串编译与 wasm。
-2. 入站只传字符串：`__argsJson`，realm 内重建 args；`__send`/`__timer` 等能力“即捕即删”，不长期挂在 globalThis。
-3. 纯度封印：`Math.random`、`Date.now()`、无参 `new Date()` 均抛固定错误；`ShimDate` 显式复制 `now`（抛错）/`parse`/`UTC`，并执行：
-   - `ShimDate.prototype = RealDate.prototype`
-   - `RealDate.prototype.constructor = ShimDate`
-   - `Object.freeze(RealDate)`
+2. 入站只传字符串（args 以 JSON 字符串注入、realm 内重建）；宿主通信与定时器等能力“即捕即删”，不长期挂在 globalThis。
+3. 纯度封印：`Math.random`、`Date.now()`、无参 `new Date()` 均抛固定错误；官方的 Date 影子构造器显式复制 `now`（抛错）/`parse`/`UTC`，并执行：
+   - 影子构造器的 prototype 指向原生 Date 的 prototype
+   - 原生 Date.prototype.constructor 改指影子构造器
+   - 对原生 Date 构造器执行 Object.freeze
    从而封死 `(new Date(x)).constructor.now()` 与 `Object.getPrototypeOf(Date).now()` 两条构造器链回退路径。
 4. 值消毒：跨界值消毒、跨 realm await 绑定、VM 内同步钩子封印、lanes 惰性化（行为级描述，内部符号名不录）。
 
@@ -107,8 +108,8 @@ Xn(prev, label, event):
 | 探针 | 结果 |
 |---|---|
 | `typeof process` / `require` / `fetch` / `queueMicrotask` / `WebAssembly` / `Buffer` | 全部 `undefined` |
-| `Date.now()`（动态属性访问） | 抛 `Error: Date.now() / new Date() are unavailable in workflow scripts (breaks resume)...` |
-| `Math.random()`（动态属性访问） | 抛 `Error: Math.random() is unavailable in workflow scripts (breaks resume)...` |
+| `Date.now()`（动态属性访问） | 抛固定错误（文案说明工作流脚本内禁用 `Date.now()`/`new Date()`，因其破坏 resume） |
+| `Math.random()`（动态属性访问） | 抛固定错误（文案说明工作流脚本内禁用 `Math.random()`，因其破坏 resume） |
 | `globalThis.constructor.constructor('return typeof process')()` | 抛 `EvalError: Code generation from strings disallowed for this context` |
 | `args.constructor` | `undefined`（args 无构造器链） |
 | `eval('1+1')` | 抛 `EvalError: Code generation from strings disallowed for this context` |
@@ -116,15 +117,15 @@ Xn(prev, label, event):
 ### 2.4 并发、扇出与 Prompt Cache 预热门
 
 - **Agent 并发门**：`CLAUDE_CODE_WORKFLOW_MAX_CONCURRENT_AGENTS ?? min(16, max(2, cores-2))`。
-- **Fan-out 槽门**：`Si = 50`（`parallel`/`pipeline` 的槽上限）。
+- **Fan-out 槽门**：官方默认 50（`parallel`/`pipeline` 的槽上限）。
 - **Worktree 单飞**：`isolation:'worktree'` 的代理串行创建 worktree。
 - **Prompt Cache 预热门（官方所称 “prefix stagger”）**：
   - 不是固定延迟，而是**同前缀兄弟等待首个响应**的门；
-  - 键 `Os = [model, effort, agentType, toolNames, schemaHash, cwd].join("\n")`；
-  - 首个调用者是 leader，其余调用者等待 `leader.ready`，最多 `capMs`；
-  - 首个响应到达时 `responded()` 把该前缀标记为 warm，TTL `ii = 270000ms`；
-  - 默认 `capMs = si = 5000ms`；`DISABLE_PROMPT_CACHING` 关闭；`CLAUDE_CODE_WORKFLOW_PREFIX_STAGGER_MS` 覆盖；
-  - 等待日志：`workflow agent [label] held Nms for a same-prefix sibling's first response (prompt-cache warm-up)`。
+  - 键由模型、推理档位、agent 类型、工具名集合、Schema 哈希与工作目录等请求语义字段以换行拼接而成；
+  - 首个调用者是 leader，其余调用者等待 leader 的就绪信号，等待上限默认 5000ms；
+  - 首个响应到达时该前缀即被标记为 warm，TTL 270000ms；
+  - 默认等待上限 5000ms；`DISABLE_PROMPT_CACHING` 关闭；`CLAUDE_CODE_WORKFLOW_PREFIX_STAGGER_MS` 覆盖；
+  - 等待日志：说明该 agent 因同前缀兄弟的首个响应而等待了 Nms（prompt-cache warm-up 语义）。
 
 `[已验证]` 官方解包件（语义锚：预算账本类与默认值段、缓存键构造与日志入口段、50 槽门常量、agent 门公式）。
 
@@ -135,11 +136,11 @@ Xn(prev, label, event):
 官方对失败做了极细的分类：
 
 - **429/throttle**：先等待约 45s，重发 `${label} (throttle-retry)`；再退化则放弃 throttle 退避。
-- **停滞（stalled）**：`Mi = 90000ms` 无进展 → 判定 stalled；重发 `${label} (retry N)`，最多 `Xr = 5` 次。
+- **停滞（stalled）**：90000ms 无进展 → 判定 stalled；重发 `${label} (retry N)`，最多 5 次。
 - **回复丢失（reply lost）**：响应流静默结束、Claude Code 放弃等待 → 与 stalled 分开文案。
 - **用户重试（user-retry）**：用户显式要求。
 - **StructuredOutput 重试上限**：`MAX_STRUCTURED_OUTPUT_RETRIES`（默认值由模块常量给出），超限抛专用错误。
-- **Usage-limit 自动等待**：基于结构化 `quotaLimits.resetsAt`，最多等待 2 次（`Uo/jo`），超过则 decline/abort。
+- **Usage-limit 自动等待**：基于结构化 `quotaLimits.resetsAt`，最多等待 2 次（两个独立上限共同限定），超过则 decline/abort。
 
 `[已验证]` 官方解包件（语义锚：结构化输出重试上限与停滞超时常量、throttle/retry/abandon 文案段、usage-limit 等待段）。
 
@@ -148,7 +149,7 @@ Xn(prev, label, event):
 ### 2.6 预算与 Agent 调用上限
 
 - `budget` 冻结注入，`total` 来自 run 配置；脚本只读。
-- `WorkflowBudgetExceededError`：在 `agent()` 调用粒度检查 `spent >= total`，文案明确“in-flight agents will complete; their results are preserved”。
+- `WorkflowBudgetExceededError`：在 `agent()` 调用粒度检查 `spent >= total`，文案明确：在飞 agent 会完成、其结果保留。
 - `WorkflowAgentCapError`：1000 次调用上限，防 `budget.remaining() === Infinity` 的死循环。
 - `parallel`/`pipeline` 对预算丢弃槽计数并汇总，不逐条报错。
 
@@ -158,12 +159,7 @@ Xn(prev, label, event):
 
 ### 2.7 子工作流组合与单层嵌套
 
-官方 `workflow(name | {scriptPath})` 在父上下文可用；子脚本上下文把 `workflow` 绑定替换为：
-
-```text
-workflow() cannot be called from within a child workflow — nesting is limited to one level.
-Inline the inner script or call its agents directly.
-```
+官方 `workflow(name | {scriptPath})` 在父上下文可用；子脚本上下文把 `workflow` 绑定替换为拒绝 stub：报错文案说明 `workflow()` 不能在子工作流内调用——嵌套限一层，建议内联内层脚本或直接调用其 agent。
 
 `[已验证]` 官方解包件（语义锚：子脚本 `workflow` 拒绝 stub 段）；实机 child 脚本尝试组合 grandchild，返回同一拒绝文案（official-nesting-probe）。
 
@@ -199,10 +195,10 @@ Inline the inner script or call its agents directly.
 | 3 | `parallel([Promise])` | 抛 `TypeError`（官方文案提示 thunk 包装写法；本仓自有措辞实现同语义） | official-runtime-probe |
 | 4 | `parallel` thunk 抛错 | 该槽 `null`，其余槽正常完成（`[null, 42]`） | official-runtime-probe |
 | 5 | `pipeline` null 截断 | `pipeline([1,null,3], x=>x*2)` → `[2,null,6]`；null 项下游不执行 | official-runtime-probe |
-| 6 | `pipeline` 非函数 stage | 抛 `TypeError: pipeline() stages must be functions...` | official-runtime-probe |
-| 7 | 不可满足 Schema | 派发前抛 `TelemetrySafeError`，文案含 “The subagent was not started” | official-runtime-probe / official-nesting-probe |
-| 8 | 子工作流嵌套 | 子脚本内 `workflow()` 抛 “nesting is limited to one level” | official-nesting-probe |
-| 9 | 非法 `workflow(123)` | 抛 `TypeError: workflow() expects a workflow name (string) or {scriptPath: string}` | official-runtime-probe |
+| 6 | `pipeline` 非函数 stage | 抛 `TypeError`（说明 stages 必须全为函数） | official-runtime-probe |
+| 7 | 不可满足 Schema | 派发前抛错（遥测安全包装），文案说明 subagent 未启动 | official-runtime-probe / official-nesting-probe |
+| 8 | 子工作流嵌套 | 子脚本内 `workflow()` 报错说明嵌套限一层 | official-nesting-probe |
+| 9 | 非法 `workflow(123)` | 抛 `TypeError`（说明只接受工作流名（string）或 `{scriptPath}` 形态） | official-runtime-probe |
 | 10 | Date/Math 纯度 | 动态访问仍抛固定错误 | official-purity-escape-probe |
 | 11 | 构造器链逃逸 | `globalThis.constructor.constructor(...)` → `EvalError: Code generation from strings disallowed` | official-purity-escape-probe |
 | 12 | args 构造器链 | `args.constructor` 为 `undefined` | official-purity-escape-probe |
@@ -210,12 +206,12 @@ Inline the inner script or call its agents directly.
 ### 3.2 结果解读
 
 - 官方的**静态门 + 运行期封印**是双层的：脚本里直接写 `Date.now` 会被运行前静态门拒绝；即使动态绕过静态门，运行期仍抛错。`[已验证]`
-- 官方的 **args 无构造器链**（实测 `args.constructor === undefined`；官方 `Qt` 风格封装会 `setPrototypeOf(null)` 并删除 `constructor`），比“realm Object + codeGeneration 兜底”更彻底。`[已验证]`
+- 官方的 **args 无构造器链**（实测 `args.constructor === undefined`；官方对 args 的封装层会 `setPrototypeOf(null)` 并删除 `constructor`），比“realm Object + codeGeneration 兜底”更彻底。`[已验证]`
 - 官方的 **Schema 预检**区分“invalid”与“unsatisfiable”：空 enum 归为 invalid，`minLength > maxLength` 归为 unsatisfiable；两者都在派发前拒绝。`[已验证]`
 
 ### 3.3 未能实测的部分
 
-- **Ultracode / `/ultrareview` 云端协同**：官方二进制字符串明确写着 `/ultrareview` 运行在 Anthropic 云端（`markers-report.txt:49`），本地模块不含其实现；需要 claude.ai 账号与云端权限，本轮无法进入。`[未知]`（C 类）。
+- **Ultracode / `/ultrareview` 云端协同**：官方二进制字符串明确写着 `/ultrareview` 运行在 Anthropic 云端（见 `markers-report.txt` 扫描报告），本地模块不含其实现；需要 claude.ai 账号与云端权限，本轮无法进入。`[未知]`（C 类）。
 - **真实模型下的 token/成本/延迟对比**：本仓本轮使用 mock provider 做结构对标，未用真实 API Key 跑双轨基准，避免凭据与费用风险。`[未知]`（C/E 类）。
 - **官方 Agent 并发上限的实机精确值**：源码公式已确认，但未用 20+ 子代理做时序测量；`[推断]` 公式与实际一致。
 
@@ -251,7 +247,7 @@ Inline the inner script or call its agents directly.
 | `parallel([1,2])` | `TypeError`（官方文案提示 thunk 包装写法；本仓自有措辞实现同语义） | 同语义 | 语义一致 `[已验证]` |
 | thunk 抛错 | `[42,"NULL"]` | `["NULL",42]`（顺序按数组） | 语义一致 |
 | `pipeline` null | `[2,null,6]` | `[2,null,6]` | 逐字一致 |
-| `budget` | `total:null, spent:0, remaining:null, frozen:false, protoNull:false` | frozen, null-proto | Issue #73 已对齐（只读注入） |
+| `budget` | `total:null, spent:0, remaining:null, frozen:false, protoNull:false` | frozen, null-proto | 私有仓 Issue #73 已对齐（只读注入） |
 
 ### 4.3 双向对标矩阵
 
@@ -260,10 +256,10 @@ Inline the inner script or call its agents directly.
 | 执行/DSL | VM 内 async 函数 + AST 预检 | TS facade 编译期类型检查 + 降级 VM JS + `codeGeneration` 加固 | 等价 |
 | 重放键 | 结构哈希（slot/fork/join/replaced） | `(siteId, ordinal, inputHash)` + amend 温缓存 | 本仓更强（局部失效） |
 | 持久化 | 进程内/云端 | SQLite WAL + journal + 事件流 | 本仓更强（离线可审计） |
-| 并发热门 | agent 门 + Si=50 槽门 + warm gate | 席位门 + AIMD + `sessions.race/waitAny` | 本仓并发控制更细；warm gate 缺失 |
+| 并发热门 | agent 门 + 50 槽门 + warm gate | 席位门 + AIMD + `sessions.race/waitAny` | 本仓并发控制更细；warm gate 缺失 |
 | 停滞重试 | 90s + 5 次 + 三态文案 | `stallMs` 有实现但未接线；分类器已识别 | 官方更强（需接线） |
 | 纯度封印 | Date 构造器链 + freeze + null-proto args；Intl 无参未封 | 本轮前有 Date 两条构造器链后门；已修复；并额外封印 Intl 无参 format/formatToParts | 本仓更强（Intl 超越官方；args 仍为 realm Object，codeGeneration 兜底） |
-| 预算 | 只读冻结 | Issue #73 已对齐（run 级只读注入） | 一致 |
+| 预算 | 只读冻结 | 私有仓 Issue #73 已对齐（run 级只读注入） | 一致 |
 | 子工作流 | 单层硬拒绝；子结果由运行期状态承接 `[推断]` | 单层硬拒绝；子 run 结果未入父 journal（resume 重跑） | 双方同限；本仓另有 resume 成本待补 |
 | 可观测性 | TUI 单行 + phase 日志 | live HTTP + view + DAG + MCP inspect | 本仓更强 |
 | 对抗测试 | 未见公开矩阵 | 43 条 goal-PoC + 158 条 JS 压力测试全绿 | 本仓更强 |
@@ -306,12 +302,12 @@ Inline the inner script or call its agents directly.
 
 | 套件 | 结果 | 证据 |
 |---|---|---|
-| `npm.cmd run test:adversarial`（JS 压力/PoC） | **158 tests / 158 pass / 0 fail / 0 skipped** | `/tmp/mission-a-adversarial.log` 指纹 |
-| `node --experimental-strip-types --test tests/adversarial/goal-poc*.test.ts` | **43 tests / 43 pass / 0 fail / 0 skipped** | `/tmp/mission-a-goal-poc.log` 指纹 |
+| `npm.cmd run test:adversarial`（JS 压力/PoC） | **158 tests / 158 pass / 0 fail / 0 skipped** | `/tmp/mission-a-adversarial.log` 指纹（临时日志，已清理） |
+| `node --experimental-strip-types --test tests/adversarial/goal-adv*.test.ts` | **43 tests / 43 pass / 0 fail / 0 skipped** | 临时日志指纹（已清理） |
 
 覆盖向量包括：跨 realm Function（PoC2）、构造器链/原型链（PoC1/3）、microtask 伪造 done 帧（PoC4）、16MB 畸形帧、glob 炸弹、agent storm、proto pollution、world.run 侧信道等。`[已验证]`
 
-### 5.3 新发现：Date / Intl 纯度后门（Issue #55）
+### 5.3 新发现：Date / Intl 纯度后门（私有仓 Issue #55）
 
 **缺陷 A（Date 构造器链）**：本仓 `src/dwf/child-main.ts` 的 Date 影子有两条构造器链回退路径：
 
@@ -337,7 +333,7 @@ new Intl.DateTimeFormat('en-US',{timeZone:'UTC',hour:'2-digit',...}).format()   
 ...formatToParts()                                                                     -> hour=01,minute=19,second=24（真实时间）
 ```
 
-**官方同样存在缺陷 B** `[已验证]`（official-intl-probe）：官方 2.1.316 运行时 `format()` 返回 `"01:20:03 PM"`、`formatToParts()` 返回当前时分秒；官方模块 311-336 只封印 Date，没有 Intl 封印。因此本轮对 Intl 的封印是**有意超越官方**的确定性加固，而不是官方对齐项。
+**官方同样存在缺陷 B** `[已验证]`（official-intl-probe）：官方 2.1.316 运行时 `format()` 返回 `"01:20:03 PM"`、`formatToParts()` 返回当前时分秒；官方模块（语义锚：纯度封印段）只封印 Date，没有 Intl 封印。因此本轮对 Intl 的封印是**有意超越官方**的确定性加固，而不是官方对齐项。
 
 **边界**：这两条都不是沙箱逃逸或任意代码执行；脚本仍拿不到 `process`/`require`。它们破坏的是**确定性重放契约**——脚本可读取真实时间，导致同脚本重跑产生不同输入。
 
@@ -345,8 +341,8 @@ new Intl.DateTimeFormat('en-US',{timeZone:'UTC',hour:'2-digit',...}).format()   
 
 本仓已有：
 
-- `tests/adversarial/goal-poc3-oversize-frames.test.ts`（16MB 畸形帧）
-- `tests/adversarial/goal-poc3-agent-storm.test.ts`（agent 风暴）
+- `tests/adversarial/goal-adv3-oversize-frames.test.ts`（16MB 畸形帧）
+- `tests/adversarial/goal-adv3-agent-storm.test.ts`（agent 风暴）
 - `tests/adversarial/concurrency-stress.test.js`（并发/重放压力）
 - `src/process-supervision.ts` 与 runner 的进程树 kill / 零孤儿逻辑
 - `AI-PITFALLS.md` P-TEST-3 的竞速超时与 not-ok 失败命名门禁
@@ -355,7 +351,7 @@ new Intl.DateTimeFormat('en-US',{timeZone:'UTC',hour:'2-digit',...}).format()   
 
 ---
 
-## 6. 反哺落地：Date / Intl 纯度封印（Issue #55 / PR #56）
+## 6. 反哺落地：Date / Intl 纯度封印（私有仓 Issue #55 / PR #56）
 
 ### 6.1 根因
 
@@ -364,10 +360,10 @@ new Intl.DateTimeFormat('en-US',{timeZone:'UTC',hour:'2-digit',...}).format()   
 ### 6.2 官方修复模式（行为契约，非代码复制）
 
 - 显式复制 `now`（抛错）/`parse`/`UTC`，不通过 `setPrototypeOf` 继承；
-- `ShimDate.prototype = RealDate.prototype`；
-- `RealDate.prototype.constructor = ShimDate`；
+- 影子构造器的 prototype 指向原生 Date 的 prototype；
+- 原生 Date.prototype.constructor 改指影子构造器；
 - 原生 `now` 也替换为抛错；
-- `Object.freeze(RealDate)`。
+- 对原生 Date 构造器执行 `Object.freeze`。
 
 Intl 部分官方未封印；本仓按同一“纯度违约”语义补上：
 
@@ -401,19 +397,19 @@ Intl 部分官方未封印；本仓按同一“纯度违约”语义补上：
 
 ### 6.5 测试与门禁指纹
 
-- 定向回归：`dwf-error-algebra.test.js` → `# tests 10 / # pass 10 / # fail 0`（含 Date 与 Intl 两组 Issue #55 测试）。
+- 定向回归：`dwf-error-algebra.test.js` → `# tests 10 / # pass 10 / # fail 0`（含 Date 与 Intl 两组私有仓 Issue #55 测试）。
 - 全量单元：`# tests 256 / # pass 256 / # fail 0`。
 - PBT：`# tests 5 / # pass 5 / # fail 0`。
 - E2E：`Total Test Cases Executed: 121 / Passed: 121 / Failed: 0`。
 - 治理：`# tests 24 / # pass 24 / # fail 0`。
 - 洁净度：`[门禁通过] 工作区彻底干净`。
 
-### 6.6 2026-11-02 后续补强（Issue #57 / #59 + REA）
+### 6.6 2026-11-02 后续补强（私有仓 Issue #57 / #59 + REA）
 
-- **多级 `workflow()` 组合（#57）**：以 `workflowAncestry` 做环检测、最多 5 个 saved workflow；子 run 继承父 workspace，嵌套 registry 可解析；3 级成功、A→B→A 环、第 6 层深度上限均有测试。官方 2.1.316 仍硬拒绝单层以上，本仓为有意扩展。
-- **`stallMs` 接线（#59）**：`rpc.ts` 的 stall 竞速定时器现在总会 `clearTimeout` + `unref`；engine/runner 传递 `stallMs`（显式 > `AI_WORKFLOW_STALL_MS` > 90000ms，`0` 关闭）；`StallError` 重试时在最后一条 user 消息追加 `(Retry N after no progress ...)`，不累积。单元 + facade 集成测试覆盖。
+- **多级 `workflow()` 组合（私有仓 #57）**：以 `workflowAncestry` 做环检测、最多 5 个 saved workflow；子 run 继承父 workspace，嵌套 registry 可解析；3 级成功、A→B→A 环、第 6 层深度上限均有测试。官方 2.1.316 仍硬拒绝单层以上，本仓为有意扩展。
+- **`stallMs` 接线（私有仓 #59）**：`rpc.ts` 的 stall 竞速定时器现在总会 `clearTimeout` + `unref`；engine/runner 传递 `stallMs`（显式 > `AI_WORKFLOW_STALL_MS` > 90000ms，`0` 关闭）；`StallError` 重试时在最后一条 user 消息追加 `(Retry N after no progress ...)`，不累积。单元 + facade 集成测试覆盖。
 - **REA 实操**：宿主机新装 Node v26.13.0（`C:\Program Files\nodejs`），满足 REA `^22.23.4 || ^24.22.1 || >=26.12.1`；`rea doctor` 的 Node 检查为 healthy。`rea analyze-javascript-application` 对官方解包 package 完成静态分析：4 文件、7477 AST 节点、121 findings、0 parse failures（evidence bundle 1.7MB）。
-- **REA 原生分析（Issue #82）**：安装官方 Ghidra 12.2（`ghidra_12.2_PUBLIC_20261016.zip`，SHA256 `2c2cd776...a7be67` 与 GitHub digest 一致）与 Amazon Corretto JDK 25；`rea doctor` 的 `ghidra` / `ghidra-platform` / `ghidra-architecture` / `ghidra-installation` / `ghidra-version` / `ghidra-headless` / `ghidra-native_decompiler` / `ghidra-java` 全部 healthy。小 PE `notepad.exe` 的 `rea inspect --provider ghidra` 成功：10 segments / 853 procedures / 638 strings，222s。
+- **REA 原生分析（私有仓 Issue #82）**：安装官方 Ghidra 12.2（`ghidra_12.2_PUBLIC_20261016.zip`，SHA256 `2c2cd776...a7be67` 与 GitHub digest 一致）与 Amazon Corretto JDK 25；`rea doctor` 的 `ghidra` / `ghidra-platform` / `ghidra-architecture` / `ghidra-installation` / `ghidra-version` / `ghidra-headless` / `ghidra-native_decompiler` / `ghidra-java` 全部 healthy。小 PE `notepad.exe` 的 `rea inspect --provider ghidra` 成功：10 segments / 853 procedures / 638 strings，222s。
 - **claude.exe**：335MB PE32+ x64，`rea inspect --provider ghidra` 在 3,600,208ms（1h）预算内返回 `provider_timeout`；Ghidra auto-analysis 未完成，**未确认 OOM**（输出不完整）；target SHA256 `e896a9d8da519353a49bf69ca4a695ba7e09067752687c675b3969041e632d52`、provider 12.2、ephemeral project 已清理。小 PE `notepad.exe` 成功（10 segments / 853 procedures / 638 strings，222s），证明 provider 链路可用；335MB Bun 单文件的默认 auto-analysis 需要更长预算或 `REA_GHIDRA_DISABLED_ANALYZERS` 降低覆盖。
 
 ---
@@ -422,17 +418,17 @@ Intl 部分官方未封印；本仓按同一“纯度违约”语义补上：
 
 ### 7.1 已吸收（本轮）
 
-- Date/Intl 构造器链与无参格式化封印（Issue #55，A 类）。
-- 多级 `workflow()` 组合（Issue #57，A 类）。
-- `stallMs` 接线与 `(Retry N)` 重试提示（Issue #59，A 类）。
+- Date/Intl 构造器链与无参格式化封印（私有仓 Issue #55，A 类）。
+- 多级 `workflow()` 组合（私有仓 Issue #57，A 类）。
+- `stallMs` 接线与 `(Retry N)` 重试提示（私有仓 Issue #59，A 类）。
 
 ### 7.2 建议吸收（按优先级）
 
 | 优先级 | 建议 | 理由 | 前置条件 |
 |---|---|---|---|
-| ✅ #57 | 多级 `workflow()` 组合（有界深度 + 环检测） | 已落地：5 层上限、A→B→A 环检测、3 级成功/环/深度测试 | — |
+| ✅ 私有仓 #57 | 多级 `workflow()` 组合（有界深度 + 环检测） | 已落地：5 层上限、A→B→A 环检测、3 级成功/环/深度测试 | — |
 | P1 | 子工作流结果入父 journal（resume 零重跑） | `composeWorkflow` 目前不落节点：父 run resume 会重新创建并执行子 run，重复消耗 provider 调用 | 设计 child node 键、lineage 重放与 `dwf_child_workflow` 结算测试 |
-| ✅ #59 | 接线 `stallMs`（默认 90s，可配置） | 已落地：`AI_WORKFLOW_STALL_MS`、0 关闭、Retry N 提示、定时器清理、单元+集成测试 | — |
+| ✅ 私有仓 #59 | 接线 `stallMs`（默认 90s，可配置） | 已落地：`AI_WORKFLOW_STALL_MS`、0 关闭、Retry N 提示、定时器清理、单元+集成测试 | — |
 | P2 | 统一 `workflow({scriptPath})` 契约 | `facade-dts.ts:98-105` JSDoc 声称支持 `{scriptPath}`，但声明与 engine 只接受 saved name | 二选一：实现 `{scriptPath}` 或收窄文档与类型 |
 | P2 | Prompt Cache 预热门 | 官方省重复前缀上传；本仓需先统一系统提示前缀 | 统一 actor 系统提示 + provider 能力标记 |
 | P2 | `args` null-prototype | 官方 `args.constructor` 不存在；本仓仍为 realm Object（codeGeneration 兜底） | 评估脚本对 `hasOwnProperty` 等原型方法的依赖 |
@@ -447,15 +443,15 @@ Intl 部分官方未封印；本仓按同一“纯度违约”语义补上：
 
 ### 7.4 不建议照搬
 
-- 官方 frozen budget：Issue #73 已对齐；预算改为 run 级只读注入，旧的脚本可写设计已移除。
-- 官方 usage-limit 自动等待：Issue #73 已实现有界版本（整跑 deadline 内、每 ask 最多 2 次）；24h 无界等待仍不照搬（与 10 分钟整跑超时冲突）。
+- 官方 frozen budget：私有仓 Issue #73 已对齐；预算改为 run 级只读注入，旧的脚本可写设计已移除。
+- 官方 usage-limit 自动等待：私有仓 Issue #73 已实现有界版本（整跑 deadline 内、每 ask 最多 2 次）；24h 无界等待仍不照搬（与 10 分钟整跑超时冲突）。
 - 官方工具黑白名单：本仓子代理没有工具循环，移植会得到永远不生效的死配置。
 
 ### 7.5 交付成果 A–E 分档
 
 | 分类 | 交付物 | 状态与判据 |
 |---|---|---|
-| **A 类：已完成且通过全量验证** | 本白皮书 + 门禁 PR #56/#58/#60/#62/#66 + 真实模型基准 PR #69/#71/#74/#77/#79/#81（详见 benchmark report §2-§4） | build/unit/PBT/E2E/governance/对抗全绿；基准双方均正确 |
+| **A 类：已完成且通过全量验证** | 本白皮书 + 门禁 私有仓 PR #56/#58/#60/#62/#66 + 真实模型基准 私有仓 PR #69/#71/#74/#77/#79/#81（详见 benchmark report §2-§4） | build/unit/PBT/E2E/governance/对抗全绿；基准双方均正确 |
 | **B 类：已实施但尚未充分验证** | 官方运行时黑盒探针矩阵（§3.1）、Date/Intl 绕过 PoC（§5.3）、REA JS 静态分析、REA Ghidra 小 PE（notepad 853 procedures） | 已执行并记录 runId/evidence；一次性探针未入库（AGENTS §1.5） |
 | **C 类：未完成或阻塞** | Ultracode/`/ultrareview` 云端协同；跨云/跨租户多仓；claude.exe 335MB Ghidra 1h timeout | 需云端权限/远端 CI；REA 需更长预算或禁用 analyzer；未确认 OOM |
 | **D 类：仅建议未修改** | 子 run 结果入 journal、Prompt Cache 预热门、`args` null-proto、`{scriptPath}` 契约统一 | 设计建议与优先级见 §7.2；未在本轮改代码 |
@@ -467,8 +463,8 @@ Intl 部分官方未封印；本仓按同一“纯度违约”语义补上：
 
 1. **真实模型成本/延迟**：未跑真实 LLM 双轨基准；token 节省与延迟数据缺失。
 2. **Ultracode 云端**：`/ultrareview` 的云端多代理协议、鉴权、上下文摘要策略未知。
-3. **V8 未来内建与静态策略差异**：Date 构造器链与 Intl 无参格式化已封印；未来 V8 新增的 `Temporal`/`performance` 等时间入口尚未逐一审计 `[未知]`。本仓编译器额外禁止 `Date.parse()`（9002 purity-ban）；官方 `ShimDate` 暴露 `parse`，但其静态门是否额外拦截未单独实测 `[未知]`。`Date.UTC`/`toISOString()` 已验证正常（`Date.UTC(1970,0,1)===0`）。
-4. **多级组合**：已在 #57 落地（5 层上限 + 环检测 + 3 级测试）；官方仍为单层。剩余风险是深层链的 provider 成本与子 run 未入父 journal（见第 7 条）。
+3. **V8 未来内建与静态策略差异**：Date 构造器链与 Intl 无参格式化已封印；未来 V8 新增的 `Temporal`/`performance` 等时间入口尚未逐一审计 `[未知]`。本仓编译器额外禁止 `Date.parse()`（9002 purity-ban）；官方影子 Date 构造器暴露 `parse`，但其静态门是否额外拦截未单独实测 `[未知]`。`Date.UTC`/`toISOString()` 已验证正常（`Date.UTC(1970,0,1)===0`）。
+4. **多级组合**：已在私有仓 #57 落地（5 层上限 + 环检测 + 3 级测试）；官方仍为单层。剩余风险是深层链的 provider 成本与子 run 未入父 journal（见第 7 条）。
 5. **Prompt Cache 收益**：本仓系统提示按 actor 名分叉，warm gate 直接照搬可能无效；需先做前缀统一实验。
 6. **第三方 provider 差异**：Anthropic 之外的 provider 是否支持 `cache_control`/前缀缓存，未验证。
 7. **子工作流 resume 成本**：父 run resume 会重新执行子 run（子结果未入父 journal），重复 provider 调用；本轮未测其成本量级。
@@ -488,14 +484,13 @@ node bin/workflow.js mcp serve
 # 本仓 facade 实跑（mock）
 node bin/workflow.js run-script <facade.ts> --cwd <dir>
 
-# 全量门禁（在 worktree 内）
-cd ../AI-workflow-worktrees/issue-55-date-purity-seal
+# 全量门禁（2026-11-02 修复时的 worktree ../AI-workflow-worktrees/issue-55-date-purity-seal，现已删除；复现步骤如下）
 npm.cmd run build
 npm.cmd run test:unit
 npm.cmd run test:pbt
 node --experimental-strip-types tests/e2e/runner.ts
 node --experimental-strip-types tests/unit/workflow-governance.test.ts
-node --experimental-strip-types --test tests/adversarial/goal-poc*.test.ts
+node --experimental-strip-types --test tests/adversarial/goal-adv*.test.ts
 git restore tests/unit/fixtures/
 node --experimental-strip-types scripts/pr_review_gate.mjs --check-clean
 ```
@@ -504,25 +499,25 @@ node --experimental-strip-types scripts/pr_review_gate.mjs --check-clean
 
 ## 10. 附录：证据索引
 
-### 10.1 官方源码行号
+### 10.1 官方解包件语义锚（行号自清洁室修订起不录）
 
-| 主题 | 行号 |
+| 主题 | 语义锚（行为级定位） |
 |---|---|
-| 纯度封印（ShimDate/RealDate） | 311-336 |
-| 预算冻结 | 590 |
-| 子脚本 `workflow` 拒绝 stub | 733 |
-| `codeGeneration` | 682 |
-| 重放键 `Xn` / `jr` / `Fo` | 934 / 928 / 947 |
-| 并发门公式 | 1767 |
-| Fan-out 槽门 `Si=50` | 1491 / 1770 |
-| Warm gate `Br` | 1124-1200 |
-| Warm 默认 `si=5000` / TTL `ii=270000` | 1124 |
-| Warm 键 `Os` | 2311 |
-| Warm enter/日志 | 2828-2833 |
-| 停滞 `Mi=90000` / 重试 `Xr=5` | 1568 / 1563 |
-| throttle/retry/abandon | 2862-2899 |
-| Schema 预检 | 2139-2148 |
-| 子工作流嵌套 | 733 |
+| 纯度封印 | `Date.now`/`Math.random` 抛错、影子构造器复制 `now`/`parse`/`UTC` 并闭合构造器链、冻结原生构造器的实现段 |
+| 预算冻结 | `freeze({ __proto__: null, total, spent, remaining })` 预算对象构造段 |
+| 子脚本 `workflow` 拒绝 stub | 子上下文内以拒绝 stub 替换 `workflow` 的段 |
+| `codeGeneration` | VM 上下文禁字符串编译与 wasm 的配置段 |
+| 重放键结构哈希 | prevKey + 结构标签 + 结构事件逐级 sha256 的实现段 |
+| 并发门公式 | `min(16, max(2, cores-2))` 默认并发公式段 |
+| Fan-out 槽门（50） | `parallel`/`pipeline` 50 槽上限常量段 |
+| Warm gate | 同前缀兄弟等待首个响应的 stagger 门实现段 |
+| Warm 默认等待 5000ms / TTL 270000ms | stagger 等待上限与 warm TTL 常量段 |
+| Warm 键构造 | 模型/推理档位/agent 类型/工具名/Schema/工作目录拼接键的段 |
+| Warm 进入与日志 | 首个响应标记 warm 与等待日志（held Nms 语义）段 |
+| 停滞 90000ms / 重试上限 5 次 | 停滞判定与重试上限常量段 |
+| throttle/retry/abandon | throttle 等待、`(retry N)` 重发与放弃文案段 |
+| Schema 预检 | 派发前 invalid/unsatisfiable 分型拒绝段 |
+| 子工作流嵌套 | 子上下文拒绝嵌套的文案段 |
 
 ### 10.2 本仓源码行号
 

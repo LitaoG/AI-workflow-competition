@@ -761,12 +761,12 @@
           <div class="terminal-box" style="flex: 1;">
             <div class="terminal-bar"><span class="terminal-dot dot-green"></span><span>INCIDENT TRIAGE EXECUTION LOG</span></div>
             <div class="terminal-content" id="d1-term-log">
-              [00:00.1] Telemetry: HTTP 500 spike at 38.5%, DB Pool 100/100 active connections.<br>
-              [00:01.0] Triage Inspector: Root cause identified in commit a8f9b2 (unclosed connection pool).<br>
-              [00:01.9] Fixer + Reviewer: Paired agents synthesize patch with pool max=250 & 5s timeout.<br>
-              <span style="color: #8b5cf6;">[00:02.8] Shell Recovery Gate: deterministic gate-runner executing (offline mock healthcheck)...</span><br>
-              <span style="color: #10b981;">[00:02.9] Gate Passed! exit code: 0.</span><br>
-              <span style="color: #38bdf8;">[00:03.6] Synthesis: Generated PostMortem.md & updated live Kanban dashboard. Total time: 3.6s.</span>
+              [00:00.0] Telemetry: HTTP 500 spike at 38.5%, DB Pool 100/100 active connections.<br>
+              [00:00.0] Triage Inspector: Root cause identified in commit c4d9e1a (unclosed connection pool).<br>
+              [00:00.0] Fixer + Reviewer: Paired agents synthesize patch with pool max=250 & 5s timeout.<br>
+              <span style="color: #8b5cf6;">[00:00.5] Shell Recovery Gate: deterministic gate-runner executing (offline mock healthcheck)...</span><br>
+              <span style="color: #10b981;">[00:01.2] Gate Passed! exit code: 0.</span><br>
+              <span style="color: #38bdf8;">[00:01.3] Synthesis: Generated PostMortem.md & updated live Kanban dashboard. Total time: 0.7s.</span>
             </div>
           </div>
           <div style="display: flex; gap: 8px;">
@@ -1047,8 +1047,8 @@
         name: 'Root Cause Classification (Inspector)',
         role: '[INSPECTOR]',
         status: 'Completed · 840ms',
-        inputs: { telemetry: 'http500=38.5%, dbPool=100/100', recentCommits: ['a8f9b2: add async connection'] },
-        outputs: { severity: 'P1', failureDomain: 'database_pool', rootCauseCommit: 'a8f9b2', confidence: 0.96 }
+        inputs: { telemetry: 'http500=38.5%, dbPool=100/100', recentCommits: ['c4d9e1a: add async connection'] },
+        outputs: { severity: 'P1', failureDomain: 'database_pool', rootCauseCommit: 'c4d9e1a', confidence: 0.96 }
       },
       'd1-plan': {
         name: 'Remediation Plan (Fixer Planner)',
@@ -1217,7 +1217,7 @@
       setTimeout(() => { log.innerHTML += '<br>[Triage]: Inspector agent classified incident as P1 DB pool exhaustion.'; }, 1200);
       setTimeout(() => { log.innerHTML += '<br>[Plan/Review]: Paired Fixer/Reviewer synthesized validated patch.'; }, 1800);
       setTimeout(() => { log.innerHTML += '<br><span style="color: #8b5cf6;">[Gate]: curl /healthz returned 200 OK!</span>'; }, 2400);
-      setTimeout(() => { log.innerHTML += '<br><span style="color: #10b981;">[Success]: PostMortem.md exported in 3.6s.</span>'; }, 3000);
+      setTimeout(() => { log.innerHTML += '<br><span style="color: #10b981;">[Success]: PostMortem.md exported in 0.7s.</span>'; }, 3000);
     }
 
     function showKanbanDrawer() {

@@ -74,7 +74,7 @@ node bin/workflow.js demo
 
 Offline, deterministic, **no API keys** — the script exits non-zero if any act fails.
 Measured end-to-end 2026-11-03 (Git Bash on Windows, Node v26.13.0, warm npm cache; fresh
-`node_modules`/`dist`): **42 seconds**, exit 0, **`ALL NINE ACTS COMPLETE`**.
+`node_modules`/`dist`): **39 seconds**, exit 0, **`ALL NINE ACTS COMPLETE`**.
 
 | Act | Capability | Evidence line |
 | --- | --- | --- |
@@ -93,19 +93,18 @@ Measured end-to-end 2026-11-03 (Git Bash on Windows, Node v26.13.0, warm npm cac
 This repository is **not published to npm** — the `ai-workflow` name on the registry is an unrelated 2021
 placeholder (v0.1.19). Supported installs: from source (`git clone` + `npm install && npm run build`, the
 three-minute judge path) or from a release tarball: `npm install ./ai-workflow-<version>.tgz` — keep the
-`./` prefix (a bare relative path is parsed as a registry spec). Verified 2026-11-20 (Issue #147).
+`./` prefix (a bare relative path is parsed as a registry spec). Verified 2026-11-20.
 
 ### Reproducible quality-gate fingerprints
 
-All run 2026-11-21 on the v2.10.0 release tree (Issue #186 — main @ `36356d1` plus the release
-overlay: package.json/package-lock version fields, the CHANGELOG 2.10.0 fold, this re-pin —
-folding the §1.9 mechanical closure, the GitHub Pages showcase & the one-command demo entry),
-Windows, Node v26.13.0, from a **fresh build**
+All run 2026-11-21 on the v2.10.0 tree (main @ `038c6ad` — the v2.10.0 release #186, the white
+interactive showcase #187, the demo write-closure fix #191/#194 and the CI gate fix #195/#196 —
+plus this docs-governance overlay, Issue #190), Windows, Node v26.13.0, from a **fresh build**
 (fresh-build numbers are what a judge clone reproduces; full context in
 [README](README.md#reproducible-quality-gate-fingerprints)):
 
 ```text
-npm test                                            → 851 tests, 848 pass, 3 skipped, 0 fail
+npm test                                            → 852 tests, 849 pass, 3 skipped, 0 fail
 npm run test:integration (serial)                   → 215 tests, 215 pass, 0 skipped, 0 fail
 npm run test:pbt                                    →  18 tests,  18 pass, 0 fail
 node --experimental-strip-types tests/e2e/runner.ts → 118/118 passed
@@ -118,7 +117,9 @@ bash scripts/demo.sh                                → exit 0, all nine acts OK
 
 The identical facade mission script was also run against **both** the official ZCode
 dynamic-workflow engine and ours, on the same scripted fake model (zero network, zero API keys).
-Measured highlights (2 runs each, Windows, Node v26.13.0): mission wall time 167.271/155.256 ms
+The official-engine track runs against a local checkout of the official engine (not ours to
+redistribute, so that side is evidence-backed but not re-runnable from this clone); our side is
+fully reproducible from this repository. Measured highlights (2 runs each, Windows, Node v26.13.0): mission wall time 167.271/155.256 ms
 (official) vs 168.833/154.248 ms (ours); warm compile 51.072 vs **7.206 ms**; peak heapUsed
 100.18 vs **40.54 MB**; peak RSS 235.88 vs **147.7 MB**; determinism holds on both sides
 (byte-identical settle/event sequences; same normalized settle order across engines, 12 = 12).
@@ -201,7 +202,8 @@ directory is **fully tracked in Git** and carries five subsystems — the comple
 - **Steering** (`.kiro/steering/`) — frontmatter (`inclusion: always`) guardrails: "code, not
   conversation" philosophy, security policy, workflow conventions, bilingual presentation.
 - **MCP** (`.kiro/mcp/mcp-server.json`) — mounts the engine's MCP server over stdio with the full
-  ten-tool face: five legacy tools (`workflow_run` / `probe` / `inspect` / `replay` / `graph`) plus
+  ten-tool face: five legacy tools (`workflow_run` / `workflow_probe` / `workflow_inspect` /
+  `workflow_replay` / `workflow_graph`) plus
   five facade tools (`workflow_script_check` / `workflow_script_run` / `workflow_run_script` /
   `workflow_inspect_run` / `workflow_get_run`), locked to `TOOL_CATALOG` by the governance suite.
 - **PBT** (`.kiro/pbt/`) — `fast-check` properties across six property files proving the core
@@ -230,9 +232,10 @@ Concretely, during development:
    "code, not conversation" philosophy, the security policy (destructive shell syntax banned,
    credentials sanitized) and bilingual presentation rules — injected into every session.
 4. **MCP as the integration surface** (`.kiro/mcp/`): `.kiro/mcp/mcp-server.json` mounts the
-   engine's MCP server over stdio (`workflow_run` / `probe` / `inspect` / `replay` / `graph`
-   declared; the served catalog also includes `workflow_script_check` / `workflow_script_run`)
-   — the same server surface ZCode consumes.
+   engine's MCP server over stdio with the full ten-tool face declared (`workflow_run` /
+   `workflow_probe` / `workflow_inspect` / `workflow_replay` / `workflow_graph` plus the five
+   `workflow_script_*` / `workflow_*_run` facade tools — identical to §6 above, locked to
+   `TOOL_CATALOG` by the governance suite) — the same server surface ZCode consumes.
 5. **PBT as proof, not vibes** (`.kiro/pbt/`): fast-check property suites (wired into
    `npm run test:pbt`) prove DAG acyclicity, idempotent zero-token replay, typed-RPC soundness,
    monotonic event ordering and credential redaction — 8–3,000 randomized cases per property

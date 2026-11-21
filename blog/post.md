@@ -78,7 +78,7 @@ In **AI-Workflow**, we formalized this philosophy into six engineering pillars:
 
 ## 3. Deep System Architecture & Engineering Innovations
 
-Built from the ground up for the **AWS Kiroween 2026 Hackathon (Skeleton Crew Category)**, AI-Workflow leverages Node.js 22 LTS native capabilities—including `--experimental-strip-types`, built-in `node:sqlite`, and built-in `node:test`—to deliver a zero-dependency, ultra-lightweight execution runtime.
+Built from the ground up for the **AWS Kiroween 2026 Hackathon (Skeleton Crew Category)**, AI-Workflow is developed for Node.js ≥22 (`engines` in `package.json`) and leverages its native capabilities—including `--experimental-strip-types`, built-in `node:sqlite`, and built-in `node:test`—to deliver a zero-dependency, ultra-lightweight execution runtime; all fingerprints and benchmarks in this post were measured on Node v26.13.0.
 
 ```
                                   AI-WORKFLOW SYSTEM TOPOLOGY
@@ -306,7 +306,7 @@ Located in `apps/incident-triage-remediation/`, this application automates the t
 4. `SafetyReviewerAgent` audits the script for destructive commands.
 5. A deterministic shell gate executes `curl http://localhost:8080/healthz`.
 6. The coordinator emits an executive post-mortem (`artifacts/PostMortem.md`) and updates `artifacts/kanban.json`.
-7. **Total offline execution time**: **1.4 seconds**.
+7. **Total offline execution time**: **0.7 seconds** (measured in the offline mock run).
 
 ---
 
@@ -349,7 +349,7 @@ Phase 4: Compiler & Merge Gate                            Phase 5: Release Synth
    - Worker B converts `AWS.DynamoDB` to `@aws-sdk/lib-dynamodb`.
    - Worker C converts `AWS.SQS` to `@aws-sdk/client-sqs`.
 4. Phase 4 runs a deterministic compiler gate (`npx tsc --noEmit`).
-5. Phase 5 synthesizes a comprehensive `artifacts/PULL_REQUEST.md` with the migration payload (simulated — no files are written; the diff statistics are simulated, not an actual diff) and rollback runbooks.
+5. Phase 5 synthesizes a comprehensive `artifacts/PULL_REQUEST.md` with the migration payload and rollback runbooks — in offline mock mode against the committed fixture app (`fixtures/legacy-aws-sdk-app`): the `transformedCode` and gate logs are real engine outputs, the diff statistics are measured from the fixture's source on disk vs this run's transformed output, and no fixture or repository file is ever written to disk.
 
 ---
 
@@ -388,7 +388,7 @@ and zero API keys. Every number below is quoted verbatim from the raw measuremen
 | **Turn-ended nudge** | 1 reminder budget (`NUDGE_ATTEMPTS=1`) | none on this side | honest gap, recorded in the bilateral report |
 
 #### Table 3: Opaque-Box E2E Test Suite Results (measured 2026-10-31)
-*Complete test execution conducted on Node.js 22 LTS with `--experimental-strip-types`. Source: [`TEST_READY.md` as of the initial-release commit](https://github.com/LitaoG/AI-workflow-competition/blob/a86554b/TEST_READY.md) — the file was later removed from the tree during a docs purge, so these are its recorded 2026-10-31 measurements; the suite has since changed and the current gate reports 118/118 (fingerprints in [README](../README.md)).*
+*Complete test execution recorded 2026-10-31 on Node.js 22 with `--experimental-strip-types` (see the version disclosure in §3). Original source: `TEST_READY.md` — removed from the tree during a docs purge, so no in-repo copy survives; these are its recorded 2026-10-31 measurements, the suite has since changed, and the current gate reports 118/118 (fingerprints in [README](../README.md)). For dated raw measurements that ARE checked into the repo, see the cross-engine benchmark JSONs ([ours](../tests/cross-engine/results/ours-cross-benchmark.json) · [official](../tests/cross-engine/results/official-cross-benchmark.json)) analyzed in [`docs/research/BILATERAL-CROSS-BENCHMARK-REPORT.md`](../docs/research/BILATERAL-CROSS-BENCHMARK-REPORT.md) (Tables 1–2 above).*
 
 | Verification Tier | Focus Area | Executed Tests | Passed Tests | Failed Tests | Pass Rate | Execution Duration |
 |---|---|:---:|:---:|:---:|:---:|:---:|

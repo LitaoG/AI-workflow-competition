@@ -66,18 +66,18 @@
 - **On-Screen Title**: DEMO 1: AUTONOMOUS DEVOPS INCIDENT TRIAGE & REMEDIATION
 - **Visual Composition**:
   - Full-screen side-by-side execution display:
-    - **Left Side (Terminal)**: Command executed: `bash scripts/demo.sh` (Act 2 — the incident-triage demo). Terminal logs stream with timestamped step events:
-      - `[00:00.2] Detection`: Telemetry probe flags a 38.5% HTTP 500 spike and 100/100 exhausted DB connections.
-      - `[00:01.1] Triage`: Single Inspector Agent correlates logs with commit `a8f9b2` (missing connection pool release).
-      - `[00:01.9] Plan & Review`: Paired Fixer agent drafts a pool size increase and timeout fix; Paired Reviewer agent audits safety parameters.
-      - `[00:02.8] Recovery Gate`: The deterministic shell gate runs its offline mock healthcheck. Exit code: 0!
-      - `[00:03.6] Synthesis`: Coordinator writes `PostMortem.md` and updates live Kanban dashboard.
+    - **Left Side (Terminal)**: Command executed: `bash scripts/demo.sh` (Act 2 — the incident-triage demo). Terminal logs stream with timestamped step events (cumulative stamps from the measured 0.7s offline mock run):
+      - `[00:00.0] Detection`: Telemetry probe flags a 38.5% HTTP 500 spike and 100/100 exhausted DB connections.
+      - `[00:00.0] Triage`: Single Inspector Agent correlates logs with commit `c4d9e1a` (missing connection pool release).
+      - `[00:00.0] Plan & Review`: Paired Fixer agent drafts a pool size increase and timeout fix; Paired Reviewer agent audits safety parameters.
+      - `[00:00.5] Recovery Gate`: The deterministic shell gate runs its offline mock healthcheck. Exit code: 0!
+      - `[00:00.7] Synthesis`: Coordinator writes `PostMortem.md` and updates live Kanban dashboard.
     - **Right Side (Live Bézier DAG Visualizer)**: Multi-phase timeline DAG animating nodes from gray (`pending`) to glowing amber (`running`) to emerald green (`completed`). The purple diamond shell gate flashes green as the deterministic gate exits 0.
-    - **Bottom Drawer**: Live Kanban board columns (`Probe Context` → `Agent Patches` → `Gate Logs` → `Deliverables`) populating cards in real time.
+    - **Bottom Drawer**: Live Kanban board columns (`Ingested Alerts & Probes` → `Triage & Root Cause Analysis` → `Synthesized Runbooks & Safety Audit` → `Execution & Gate Logs` → `Final Deliverables`) populating cards in real time.
 - **On-Screen Callout Badges**:
   - `Topology`: Single Inspector + Paired Fixer/Reviewer + Shell Gate
   - `Verification Gate`: deterministic shell gate (offline mock healthcheck)
-  - `Outcome`: Incident diagnosed, patched, verified & post-mortem written in 3.6s!
+  - `Outcome`: Incident diagnosed, patched, verified & post-mortem written in 0.7s!
 - **Audio Track & SFX**:
   - `[0:55 - 1:05]`: Urgent P1 alert klaxon, quickly transitioning to focused driving synth bass.
   - `[1:05 - 1:18]`: High-tech dual ping as paired agents review the remediation plan.
@@ -125,7 +125,7 @@
     - `steering/`: Policy guardrails with frontmatter `inclusion: always`, enforcing secret exfiltration bans and safe bash execution.
     - `mcp/`: Exposing the ten-tool MCP face — five legacy tools (`workflow_run`, `workflow_probe`, `workflow_inspect`, `workflow_replay`, `workflow_graph`) plus five facade tools (`workflow_script_check`, `workflow_script_run`, `workflow_run_script`, `workflow_inspect_run`, `workflow_get_run`).
     - `pbt/`: Terminal runs `npm run test:pbt`. `fast-check` executes 8–3,000 randomized cases per property (18 property tests across six suites) in seconds, mathematically verifying replay idempotency, DAG acyclicity, and schema soundness.
-    - `crew/`: Skeleton Crew team roster (`roster.json`) and role-based permissions (`permissions.json`) enforcing least-privilege tool ceilings.
+    - `crew/`: Skeleton Crew team roster (`team.json`) and role-based permissions (`permissions.json`) enforcing least-privilege tool ceilings.
   - **Git Status Window**: Runs `git status`. Confirms root `/.kiro/` is 100% tracked in git and explicitly preserved in `.gitignore` (`!/.kiro/`, `!/.kiro/**`).
 - **On-Screen Callout Badges**:
   - `Tracked in Git`: 100% compliant with Kiroween R3 rules

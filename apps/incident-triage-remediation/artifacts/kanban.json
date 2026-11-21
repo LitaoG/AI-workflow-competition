@@ -1,7 +1,7 @@
 {
   "workflow": "incident-triage-remediation",
-  "runId": "run-1794666472764-wnuh14",
-  "timestamp": "2026-11-14T14:27:53.588Z",
+  "runId": "run-1795232387944-9cqkig",
+  "timestamp": "2026-11-21T03:39:48.725Z",
   "status": "completed",
   "metrics": {
     "totalPhases": 5,

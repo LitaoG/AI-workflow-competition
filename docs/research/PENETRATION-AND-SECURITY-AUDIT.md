@@ -84,9 +84,9 @@
 
 **防线① check 静态（审计时矩阵）**：
 
-- `node bin/workflow.js check -j tests/adversarial/fixtures/goal-poc1-constructor-escape.ts` → **ok:true**（构造器链零诊断——TS 5.9.3 `--strict --lib es2022` 对 Function 类型值的调用无错，scratch 中 tsc exit 0 已复核）；
-- `goal-poc2-crossrealm-function.ts`（Date.parse 路由）→ ok:false，**3× code 9002 purity-ban**「Date.parse() is banned」；
-- `goal-poc2b/2c/3/3b/3c/4`（args 路由）→ **全部 ok:true（静态缺口）**。
+- `node bin/workflow.js check -j tests/adversarial/fixtures/goal-adv1-constructor-escape.ts` → **ok:true**（构造器链零诊断——TS 5.9.3 `--strict --lib es2022` 对 Function 类型值的调用无错，scratch 中 tsc exit 0 已复核）；
+- `goal-adv2-crossrealm-function.ts`（Date.parse 路由）→ ok:false，**3× code 9002 purity-ban**「Date.parse() is banned」；
+- `goal-adv2b/2c/3/3b/3c/4`（args 路由）→ **全部 ok:true（静态缺口）**。
 
 **防线② run-script 运行时（审计时矩阵）**：
 
@@ -105,7 +105,7 @@
 - lowering 产 `__host.log(siteId,msg)` / `__host.report(siteId,item)`，而 child-main 端 log/report 只收一个参数（审计时 `src/dwf/child-main.ts:95-96`），siteId 被当消息、真实内容丢弃——CLI 日志只见「log: log#1」，**审计通道实际失明**（该缺陷同见于用例二缺口 I、用例三副产缺陷；撰写时已修复，见 §2.6）；
 - lowering 对作为 VariableDeclaration 直接子节点的 args 不重写（`src/dwf/lower.ts` isArgsReference），`const x=args;` 运行时报 `args is not defined`（**fail-closed，非漏洞**）。
 
-**回归（审计时）**：`node --experimental-strip-types --test tests/adversarial/goal-poc1-constructor-escape.test.ts tests/adversarial/goal-poc2-crossrealm-function.test.ts tests/adversarial/goal-poc3-proto-pollution.test.ts tests/adversarial/goal-poc4-microtask-escape.test.ts`（上列四文件枚举即实际执行形态；原稿印刷的 brace-glob 缩写 `goal-poc{1,2,3,4}-*.test.ts` 实际会展开为 13 个 test 文件、不可能产出本行计数——2026-11-01 修订轮 `ls tests/adversarial/*.test.ts` 核实共 13 个）→ tests 4 / pass 4 / fail 0 / skipped 4（4 个 describe.skip 缺口档未计入 tests），3.0s；构建门禁 `node node_modules/typescript/bin/tsc -p tsconfig.json` exit 0。
+**回归（审计时）**：`node --experimental-strip-types --test tests/adversarial/goal-adv1-constructor-escape.test.ts tests/adversarial/goal-adv2-crossrealm-function.test.ts tests/adversarial/goal-adv3-proto-pollution.test.ts tests/adversarial/goal-adv4-microtask-escape.test.ts`（上列四文件枚举即实际执行形态；原稿印刷的 brace-glob 缩写 `goal-adv{1,2,3,4}-*.test.ts` 实际会展开为 13 个 test 文件、不可能产出本行计数——2026-11-01 修订轮 `ls tests/adversarial/*.test.ts` 核实共 13 个）→ tests 4 / pass 4 / fail 0 / skipped 4（4 个 describe.skip 缺口档未计入 tests），3.0s；构建门禁 `node node_modules/typescript/bin/tsc -p tsconfig.json` exit 0。
 
 ### 2.3 官方对比
 
@@ -126,19 +126,19 @@
 ### 2.5 PoC 代码位置
 
 ```text
-tests/adversarial/fixtures/goal-poc1-constructor-escape.ts        # ({})  .constructor.constructor 直链
-tests/adversarial/fixtures/goal-poc1b-constructor-escape-anycast.ts # any-cast 变体（曾静态不可见）
-tests/adversarial/fixtures/goal-poc2-crossrealm-function.ts       # Date.parse 路由（静态可拦样本）
-tests/adversarial/fixtures/goal-poc2b-crossrealm-args.ts          # args → 宿主 Function → 宿主 process
-tests/adversarial/fixtures/goal-poc2c-spawn-sync.ts               # process.binding('spawn_sync') 任意命令执行
-tests/adversarial/fixtures/goal-poc3-proto-pollution.ts           # 跨 realm 原型链污染
-tests/adversarial/fixtures/goal-poc3b-proto-pollution-realm-only.ts # 对照组：realm 内污染（被隔离）
-tests/adversarial/fixtures/goal-poc3c-proto-pollution-tojson.ts   # toJSON 协议畸变
-tests/adversarial/fixtures/goal-poc4-microtask-escape.ts          # 微任务伪造 done 帧
-tests/adversarial/goal-poc1-constructor-escape.test.ts            # 回归：编译期拒绝断言（撰写时形态）
-tests/adversarial/goal-poc2-crossrealm-function.test.ts           # 回归：Date.parse 9002 + PoC2b 缺口档（skip）
-tests/adversarial/goal-poc3-proto-pollution.test.ts               # 回归：静态收口断言
-tests/adversarial/goal-poc4-microtask-escape.test.ts              # 回归：缺口档（skip，含转正模板）
+tests/adversarial/fixtures/goal-adv1-constructor-escape.ts        # ({})  .constructor.constructor 直链
+tests/adversarial/fixtures/goal-adv1b-constructor-escape-anycast.ts # any-cast 变体（曾静态不可见）
+tests/adversarial/fixtures/goal-adv2-crossrealm-function.ts       # Date.parse 路由（静态可拦样本）
+tests/adversarial/fixtures/goal-adv2b-crossrealm-args.ts          # args → 宿主 Function → 宿主 process
+tests/adversarial/fixtures/goal-adv2c-spawn-sync.ts               # process.binding('spawn_sync') 任意命令执行
+tests/adversarial/fixtures/goal-adv3-proto-pollution.ts           # 跨 realm 原型链污染
+tests/adversarial/fixtures/goal-adv3b-proto-pollution-realm-only.ts # 对照组：realm 内污染（被隔离）
+tests/adversarial/fixtures/goal-adv3c-proto-pollution-tojson.ts   # toJSON 协议畸变
+tests/adversarial/fixtures/goal-adv4-microtask-escape.ts          # 微任务伪造 done 帧
+tests/adversarial/goal-adv1-constructor-escape.test.ts            # 回归：编译期拒绝断言（撰写时形态）
+tests/adversarial/goal-adv2-crossrealm-function.test.ts           # 回归：Date.parse 9002 + PoC2b 缺口档（skip）
+tests/adversarial/goal-adv3-proto-pollution.test.ts               # 回归：静态收口断言
+tests/adversarial/goal-adv4-microtask-escape.test.ts              # 回归：缺口档（skip，含转正模板）
 ```
 
 ### 2.6 当前状态复核【撰写时，本文档代理独立实测】
@@ -148,10 +148,10 @@ tests/adversarial/goal-poc4-microtask-escape.test.ts              # 回归：缺
    - poc1、poc1b、poc2b、poc2c、poc4 各 1×「"constructor" property access is banned」；poc2 4×9002（Date.parse 路由 + 构造器链）；poc3 2×、poc3b 1×、poc3c 1×「"__proto__" property access is banned」；
    - `goal-cred-snoop-1-env-read.ts` → 2591（TS "Cannot find name 'process'"，types:[] 构型）+ 9002 `"process" is banned`。
    - **审计时的静态缺口（poc1/2b/2c/3/3b/3c/4 全 ok:true）已由 compile.ts PROTOTYPE_CHAIN_PROPS（`src/dwf/compile.ts:38-39,169-179`，未提交）收口。**
-3. **run-script 行为**：`node bin/workflow.js run-script tests/adversarial/fixtures/goal-poc2b-crossrealm-args.ts --db .workflow/audit41-poc2b.db` → 「✖ facade script failed compilation — 1 diagnostic(s): …20:16 purity-ban(9002): "constructor" property access is banned…」exit 1；poc4 同形（15:20 处拒绝）exit 1。**逃逸链在编译期即死，不再进入沙箱。**
-4. **回归套件（重建 dist 后）**：`node --experimental-strip-types --test tests/adversarial/goal-poc1-constructor-escape.test.ts tests/adversarial/goal-poc2-crossrealm-function.test.ts tests/adversarial/goal-poc3-proto-pollution.test.ts tests/adversarial/goal-poc4-microtask-escape.test.ts` → **tests 7 / pass 7 / fail 0 / skipped 2**（3.7s；2 个 skip 缺口档未计入 tests）。测试已在静态收口后由兄弟代理转正：PoC1/PoC1b/PoC3/PoC3b/PoC3c 断言"编译期拒绝"；仍保留两个 skip 缺口档——PoC2 defense②（args 运行时根因未改，`__host.args` 仍是主机域对象）与 PoC4 defense②（微任务伪造，注释含转正模板）。
+3. **run-script 行为**：`node bin/workflow.js run-script tests/adversarial/fixtures/goal-adv2b-crossrealm-args.ts --db .workflow/audit41-poc2b.db` → 「✖ facade script failed compilation — 1 diagnostic(s): …20:16 purity-ban(9002): "constructor" property access is banned…」exit 1；poc4 同形（15:20 处拒绝）exit 1。**逃逸链在编译期即死，不再进入沙箱。**
+4. **回归套件（重建 dist 后）**：`node --experimental-strip-types --test tests/adversarial/goal-adv1-constructor-escape.test.ts tests/adversarial/goal-adv2-crossrealm-function.test.ts tests/adversarial/goal-adv3-proto-pollution.test.ts tests/adversarial/goal-adv4-microtask-escape.test.ts` → **tests 7 / pass 7 / fail 0 / skipped 2**（3.7s；2 个 skip 缺口档未计入 tests）。测试已在静态收口后由兄弟代理转正：PoC1/PoC1b/PoC3/PoC3b/PoC3c 断言"编译期拒绝"；仍保留两个 skip 缺口档——PoC2 defense②（args 运行时根因未改，`__host.args` 仍是主机域对象）与 PoC4 defense②（微任务伪造，注释含转正模板）。
 5. **log/report 审计通道**：探针 `scratch-audit-41/logprobe.facade.ts`（log("CANARY-LOG-CONTENT") + report({canary}) + return）经 `node bin/workflow.js run-script … --db .workflow/audit41-log.db` → CLI 输出 `log: CANARY-LOG-CONTENT` 与 `report: {"canary":"CANARY-REPORT-ITEM"}`，run completed，result "CANARY-RETURN"。**审计通道失明已修复**（`child-main.ts:95-98` 双参，未提交），但用例二的对应 describe.skip 标签仍写「[缺口未修复]」，属测试债（见 §7 第 8 条）。
-6. **静态残余探针（2026-11-01 修订轮，GAP-MATRIX D3）**：`isReference` 初始化位漏网复现——`const e = eval; return typeof e;` 与 `const g = globalThis; return typeof g;` 两个临时探针经 `node bin/workflow.js check -j` 均 **ok:true、零诊断、exit 0**；同命令对照组 `goal-poc2b-crossrealm-args.ts` → ok:false / 9002 / exit 1（门禁在位，唯独初始化位形态漏网）。即：本节第 2 条的「10/10 全拒」矩阵不含初始化位形态，**静态收口不覆盖 `const e = eval` 一族**；修复载体 GAP-MATRIX D3（15 分钟小修），加固清单见 §7 #14。探针临时文件用后即删，未留痕。
+6. **静态残余探针（2026-11-01 修订轮，GAP-MATRIX D3）**：`isReference` 初始化位漏网复现——`const e = eval; return typeof e;` 与 `const g = globalThis; return typeof g;` 两个临时探针经 `node bin/workflow.js check -j` 均 **ok:true、零诊断、exit 0**；同命令对照组 `goal-adv2b-crossrealm-args.ts` → ok:false / 9002 / exit 1（门禁在位，唯独初始化位形态漏网）。即：本节第 2 条的「10/10 全拒」矩阵不含初始化位形态，**静态收口不覆盖 `const e = eval` 一族**；修复载体 GAP-MATRIX D3（15 分钟小修），加固清单见 §7 #14。探针临时文件用后即删，未留痕。
 
 ### 2.7 缺口与修复建议（原 gapHint）
 
@@ -159,7 +159,7 @@ tests/adversarial/goal-poc4-microtask-escape.test.ts              # 回归：缺
 2. **静态补规则**——compile.ts AST 遍历对 `<expr>.constructor.constructor` 链与未知全局上的 Function 型调用出 9002 类诊断（审计时仅文本禁令）。**撰写时已落地**（PROTOTYPE_CHAIN_PROPS，点号+方括号双形态），但"字符串内嵌代码"仍无规则（PoC1b 曾利用 any-cast，现被 property-access 禁令间接覆盖）。
 3. **log/report 参数序不一致**（lower.ts:137-141 发射双参、child-main 只收单参）导致审计通道失明——应修齐，这也是逃逸检测的前置可观测性。**撰写时已落地并经探针验证。**
 4. runner.ts 对「child 退出码 0 但无 done 帧」的情况应区分协议畸变（PoC3c）与普通崩溃（现统一报 "sandbox child exited before finishing (code 0)"）。
-5. 微任务伪造 done（PoC4）：**已知 BREACHED 缺口，未修**——主获取路径（经构造器链取得宿主写权限后向 stdout 伪造 done 帧）暂被静态门遮断（GAP-02），但 skip 注释仍标 BREACHED（`tests/adversarial/goal-poc4-microtask-escape.test.ts:23`）；可在 sendToParent 帧上附加进程内校验标记（如 journal 侧 HMAC）做纵深防御。唯一登记条目：GAP-MATRIX R4④（本文 §7 #10 与之对齐）。
+5. 微任务伪造 done（PoC4）：**已知 BREACHED 缺口，未修**——主获取路径（经构造器链取得宿主写权限后向 stdout 伪造 done 帧）暂被静态门遮断（GAP-02），但 skip 注释仍标 BREACHED（`tests/adversarial/goal-adv4-microtask-escape.test.ts:23`）；可在 sendToParent 帧上附加进程内校验标记（如 journal 侧 HMAC）做纵深防御。唯一登记条目：GAP-MATRIX R4④（本文 §7 #10 与之对齐）。
 6. 回归测试已按缺口档沉淀：skip 注明根因与转正条件，修复后按注释内模板转为真断言（撰写时 PoC1/3 组已转正，PoC2b/PoC4 档仍保留）。
 
 ---
@@ -178,9 +178,9 @@ tests/adversarial/goal-poc4-microtask-escape.test.ts              # 回归：缺
 [已验证] 全部实测于 worktree @ `30eb54f`，dist 以 `node node_modules/typescript/bin/tsc -p tsconfig.json` 重建后测试。最终门禁：
 
 ```text
-node --experimental-strip-types --test tests/adversarial/goal-poc1-ndjson-protocol.test.ts
-     tests/adversarial/goal-poc2-control-char-injection.test.ts
-     tests/adversarial/goal-poc3-oversize-frames.test.ts
+node --experimental-strip-types --test tests/adversarial/goal-adv1-ndjson-protocol.test.ts
+     tests/adversarial/goal-adv2-control-char-injection.test.ts
+     tests/adversarial/goal-adv3-oversize-frames.test.ts
 → tests 12 / pass 12 / fail 0 / skipped 3 / duration 17.4s
 （3 个 describe.skip 缺口档未计入 tests，按纪律记录缺口，未提交必红测试）
 ```
@@ -231,10 +231,10 @@ node --experimental-strip-types --test tests/adversarial/goal-poc1-ndjson-protoc
 ### 3.5 PoC 代码位置
 
 ```text
-tests/adversarial/fixtures/goal-poc1-frame-poison-child.mjs   # 恶意子进程（childEntryPath 顶替），毒化字节流发射器
-tests/adversarial/goal-poc1-ndjson-protocol.test.ts           # 帧撕裂/粘包/垃圾行/伪造帧/静默超时（+洪泛缺口 skip 档）
-tests/adversarial/goal-poc2-control-char-injection.test.ts    # 315KB 控制字符全链 round-trip（+log/report 缺口 skip 档）
-tests/adversarial/goal-poc3-oversize-frames.test.ts           # 1MB/33MB 超限帧（+帧长上限缺口 skip 档）
+tests/adversarial/fixtures/goal-adv1-frame-poison-child.mjs   # 恶意子进程（childEntryPath 顶替），毒化字节流发射器
+tests/adversarial/goal-adv1-ndjson-protocol.test.ts           # 帧撕裂/粘包/垃圾行/伪造帧/静默超时（+洪泛缺口 skip 档）
+tests/adversarial/goal-adv2-control-char-injection.test.ts    # 315KB 控制字符全链 round-trip（+log/report 缺口 skip 档）
+tests/adversarial/goal-adv3-oversize-frames.test.ts           # 1MB/33MB 超限帧（+帧长上限缺口 skip 档）
 ```
 
 ### 3.6 当前状态复核【撰写时，本文档代理独立实测】
@@ -249,13 +249,13 @@ tests/adversarial/goal-poc3-oversize-frames.test.ts           # 1MB/33MB 超限�
 
 三个可修缺口（均已写进对应 describe.skip 注释，含修复方向）：
 
-1. **【帧长上限】**`runner.ts:373-390` 行拆分循环加单行/总量字节预算（对齐官方 1MB 物理帧/16MB 消息），超限 killTree+命名错误（如 `ChildFrameLimitExceeded`），并在 ask/log 入口加同款上限——修复后把 goal-poc3 的 skip 改为真实断言；
-2. **【洪泛活性】**stdout data 处理同步循环饿死 timers：行间 `setImmediate` 让位或流 `pause()`/字节预算+超限杀树——修复后把 goal-poc1 的 flood skip（实测 213.1s vs 10s 上界）改为真实断言；
+1. **【帧长上限】**`runner.ts:373-390` 行拆分循环加单行/总量字节预算（对齐官方 1MB 物理帧/16MB 消息），超限 killTree+命名错误（如 `ChildFrameLimitExceeded`），并在 ask/log 入口加同款上限——修复后把 goal-adv3 的 skip 改为真实断言；
+2. **【洪泛活性】**stdout data 处理同步循环饿死 timers：行间 `setImmediate` 让位或流 `pause()`/字节预算+超限杀树——修复后把 goal-adv1 的 flood skip（实测 213.1s vs 10s 上界）改为真实断言；
 3. **【log/report 载荷丢失回归，G2 级】**bea9a05 起 lower.ts 发射双参而 child-main 只收单参：改 child-main 签名转发（或改 lower 回单参），同步验证 report 的 ReportCapExceeded 端到端可达——**撰写时 child-main 侧已落地，skip 转正待做**（见 §7 第 8 条）。
 
 另有低危：入站帧无 zod schema 校验（官方逐帧 safeParse）。
 
-> 注意：本 worktree 为多代理共享（期间有兄弟代理重建过 dist、留下 scratch-inv5/6 等），测试依赖 dist/src 与 src 同步，合入前建议按 AGENTS.md §四 以 `npm.cmd run build` 重建后再跑一遍三个 goal-poc*.test.ts（本文档撰写时已以 tsc 重建并复跑，见 §3.6）。
+> 注意：本 worktree 为多代理共享（期间有兄弟代理重建过 dist、留下 scratch-inv5/6 等），测试依赖 dist/src 与 src 同步，合入前建议按 AGENTS.md §四 以 `npm.cmd run build` 重建后再跑一遍三个 goal-adv*.test.ts（本文档撰写时已以 tsc 重建并复跑，见 §3.6）。
 
 ---
 
@@ -273,11 +273,11 @@ tests/adversarial/goal-poc3-oversize-frames.test.ts           # 1MB/33MB 超限�
 
 [已验证] 全部实测于 worktree：
 
-- **PoC①（cwd=worktree，`node bin/workflow.js check tests/adversarial/fixtures/goal-poc1-deep-type.ts`）**：exit 1、实测墙钟 **1188ms**（120s 看门狗未触发），单条诊断 `508:18 schema-synth(9005): ask<T> type nests deeper than 8 levels`——形态=**编译期诊断**（工具层可捕获，run 不启动），不挂死；超时上界：实测 ~1.2s，回归测试断言 60s 上界（余量说明 `[推断]`：60s ≈ 本机实测 ~1.2s 的 50×，按 CI 慢机余量取档；测试原始设计意图未查证 `[未知]`）。真循环变体 `goal-poc1-recursive-cycle.ts` → `16:3 schema-synth(9015): recursive type at site ask#3: Chain`（1177ms），精确点名站点与类型。
+- **PoC①（cwd=worktree，`node bin/workflow.js check tests/adversarial/fixtures/goal-adv1-deep-type.ts`）**：exit 1、实测墙钟 **1188ms**（120s 看门狗未触发），单条诊断 `508:18 schema-synth(9005): ask<T> type nests deeper than 8 levels`——形态=**编译期诊断**（工具层可捕获，run 不启动），不挂死；超时上界：实测 ~1.2s，回归测试断言 60s 上界（余量说明 `[推断]`：60s ≈ 本机实测 ~1.2s 的 50×，按 CI 慢机余量取档；测试原始设计意图未查证 `[未知]`）。真循环变体 `goal-adv1-recursive-cycle.ts` → `16:3 schema-synth(9015): recursive type at site ask#3: Chain`（1177ms），精确点名站点与类型。
 - **PoC②（scratch 造 3000 文件，run-script --db 独立 journal）**：未捕获 → `✖ run dwfrun-… failed in 0.40s: script error: files.glob matched more than 2000 files — narrow the pattern`（**结构性 fail run**）；try/catch 捕获 → `✔ run … completed in 0.40s`（Promise reject 可捕获、run 存活）；边界 2000 文件 → 完成且 matched=2000 不拒（cap+1 判据）。
 - **PoC③（-c 4）**：64 agent ×1 ask → `✔ completed in 0.38s`、`asks: 64`、journal dwf_nodes `kind=ask,status=completed,n=64`；64×20=1280 捕获 → `asks: 1000` **恰好截停**、capName=WorkflowAgentCapError、run 存活（0.97s）；未捕获 → 结构性 fail（0.74s）。
 - **副产缺陷（审计时）**：child realm 丢弃 log/report 载荷——从 `.workflow/runs/<id>/script.js` 实读降级产物为 `__host.log("log#4", 'reply: ' + r)`（双参），而 child-main.ts:95-96 的 realm helper 只收一参，站点 id 字符串被当 payload 转发（CLI 只显示 `log: log#4`、report item 变成 'report#N'、节点 siteId='undefined'）；实测 `log('CANARY-LOG-CONTENT')` 输出 `log: log#2` 无内容，而脚本 return 值完好（`result: {"marker":"CANARY-RETURN-VALUE"}`）——故回归测试一律以 run 返回值断言。**（撰写时该缺陷已修复，探针见 §2.6。）**
-- **回归（审计时）**：3 文件 tests 9 / pass 9 / fail 0 / skipped 0、单文件最久 9.9s（均 <60s）：`node --test --experimental-strip-types tests/adversarial/goal-pocN-*.test.ts`。
+- **回归（审计时）**：3 文件 tests 9 / pass 9 / fail 0 / skipped 0、单文件最久 9.9s（均 <60s）：`node --test --experimental-strip-types tests/adversarial/goal-advN-*.test.ts`。
 - **构建门禁（审计时）**：`node node_modules/typescript/bin/tsc -p <worktree>/tsconfig.json` exit 0；主仓 git status 与任务前快照一致（未动）；scratch dos/ 目录（3000+2000 炸弹文件、临时脚本）已整目录删除。
 - **[推断]** AIMD 熔断（multiplicative decrease/Retry-After）未被实测触发：`governor.ts:4` 自述 mock 无信号永不触发，本轮也未注入故障 provider。**[未知]** 真实 provider 下的调度/AIMD 行为。
 
@@ -299,7 +299,7 @@ tests/adversarial/goal-poc3-oversize-frames.test.ts           # 1MB/33MB 超限�
 
 - 我方：`src/dwf/engine.ts:36`（默认 min(16,max(2,cores-2))）、`:418-431`（withAskSeat FIFO 信号量）、`:124`+`:286-294`（AGENT_CALL_CAP=1000 → WorkflowAgentCapError）、`src/dwf/governor.ts:49-52`（AIMD 五参 8/4/0.75/5min/floor 1——撰写时核对 governor.ts:14-23,48-52,97 默认值 maxPerProvider 8 / increaseAfter 4 / decreaseFactor 0.75 / idleReset 5min、floor 1（:97 `Math.max(1, …)`），成立；官方侧起始 cap 未载 `[未知]`）。
 - 官方：`apps/zcode-cli/packages/dynamic-workflow/src/engine/concurrency.ts:25,33,35,37`（同参 AIMD：0.75 减速、+1/4 成功、floor 1、300s 空闲重置——撰写时逐行核实）、`src/engine/types.ts:134-136` Caps 仅剩 maxConcurrency、`:126-128` 注释明言「token 预算与节点上限已整体移除……取消才是控制面」、facade/dts.ts 已无 budget 声明。
-- 结论：**调度层持平**（我方 `governor.ts:2-6` 自述恰为**补齐三层**——"completing the three-layer concurrency model (ask seat gate → run seat gate → process governor in ZCode)"，含进程级治理器，与官方三层一一对应；但官方围绕 AIMD 公式的四层纪律我方全缺，见 GAP-MATRIX §3.3/D8②。首稿括号把该自述误转述为「只补两层」，与源码注释相反，修订更正）；**熔断层我方领先**——我方保留 1000-call 硬熔断（`engine.ts:124,286-294`）+ token 预算硬顶（`engine.ts` budgetTotal/预算执行器；Issue #73 后预算改为 run 级只读注入，已无 `setBudgetTotal` setter）（实测 1280 恰截停于 1000 且脚本可捕获），官方已整体移除该防线，风暴无硬停（官方哲学：资源控制靠用户取消）。
+- 结论：**调度层持平**（我方 `governor.ts:2-6` 自述恰为**补齐三层**——"completing the three-layer concurrency model (ask seat gate → run seat gate → process governor in ZCode)"，含进程级治理器，与官方三层一一对应；但官方围绕 AIMD 公式的四层纪律我方全缺，见 GAP-MATRIX §3.3/D8②。首稿括号把该自述误转述为「只补两层」，与源码注释相反，修订更正）；**熔断层我方领先**——我方保留 1000-call 硬熔断（`engine.ts:124,286-294`）+ token 预算硬顶（`engine.ts` budgetTotal/预算执行器；私有仓 Issue #73 后预算改为 run 级只读注入，已无 `setBudgetTotal` setter）（实测 1280 恰截停于 1000 且脚本可捕获），官方已整体移除该防线，风暴无硬停（官方哲学：资源控制靠用户取消）。
 
 ### 4.4 防线状态
 
@@ -308,21 +308,21 @@ tests/adversarial/goal-poc3-oversize-frames.test.ts           # 1MB/33MB 超限�
 ### 4.5 PoC 代码位置
 
 ```text
-tests/adversarial/fixtures/goal-poc1-deep-type.ts          # 500 层嵌套 interface 链
-tests/adversarial/fixtures/goal-poc1-recursive-cycle.ts    # 真自引用类型（9015 环诊断）
-tests/adversarial/fixtures/goal-poc2-glob-uncaught.ts      # 3000 文件 glob，未捕获
-tests/adversarial/fixtures/goal-poc2-glob-caught.ts        # 3000 文件 glob，try/catch 捕获
-tests/adversarial/fixtures/goal-poc3-agent-storm.ts        # 64 mock agent 并发
-tests/adversarial/fixtures/goal-poc3-cap-caught.ts         # 1280 ask 捕获（1000 熔断截停）
-tests/adversarial/fixtures/goal-poc3-cap-uncaught.ts       # 1280 ask 未捕获（结构性 fail）
-tests/adversarial/goal-poc1-deep-type.test.ts              # 回归
-tests/adversarial/goal-poc2-glob-bomb.test.ts              # 回归
-tests/adversarial/goal-poc3-agent-storm.test.ts            # 回归
+tests/adversarial/fixtures/goal-adv1-deep-type.ts          # 500 层嵌套 interface 链
+tests/adversarial/fixtures/goal-adv1-recursive-cycle.ts    # 真自引用类型（9015 环诊断）
+tests/adversarial/fixtures/goal-adv2-glob-uncaught.ts      # 3000 文件 glob，未捕获
+tests/adversarial/fixtures/goal-adv2-glob-caught.ts        # 3000 文件 glob，try/catch 捕获
+tests/adversarial/fixtures/goal-adv3-agent-storm.ts        # 64 mock agent 并发
+tests/adversarial/fixtures/goal-adv3-cap-caught.ts         # 1280 ask 捕获（1000 熔断截停）
+tests/adversarial/fixtures/goal-adv3-cap-uncaught.ts       # 1280 ask 未捕获（结构性 fail）
+tests/adversarial/goal-adv1-deep-type.test.ts              # 回归
+tests/adversarial/goal-adv2-glob-bomb.test.ts              # 回归
+tests/adversarial/goal-adv3-agent-storm.test.ts            # 回归
 ```
 
 ### 4.6 当前状态复核【撰写时，本文档代理独立实测】
 
-- 回归套件：`node --test --experimental-strip-types tests/adversarial/goal-poc1-deep-type.test.ts tests/adversarial/goal-poc2-glob-bomb.test.ts tests/adversarial/goal-poc3-agent-storm.test.ts` → **tests 9 / pass 9 / fail 0 / skipped 0**（11.2s）。与审计时一致。
+- 回归套件：`node --test --experimental-strip-types tests/adversarial/goal-adv1-deep-type.test.ts tests/adversarial/goal-adv2-glob-bomb.test.ts tests/adversarial/goal-adv3-agent-storm.test.ts` → **tests 9 / pass 9 / fail 0 / skipped 0**（11.2s）。与审计时一致。
 - 源码复核：`schema-synth.ts:23-28`（8/64/24 上限与 9015）、`engine.ts:597-598`（2000-cap throw）、`engine.ts:36-44`（WORLD_OUTPUT_CAP 16MiB / GIT_DIFF_CAP 512KB 等 'rejects, never truncates' 族）、`governor.ts:1-6,49-52`（AIMD 默认参数）均在位。
 
 ### 4.7 缺口与修复建议（原 gapHint）
@@ -368,7 +368,7 @@ tests/adversarial/goal-poc3-agent-storm.test.ts            # 回归
 | 3 files.grep 扫 .env | CLI result 行含 `"text":"GOAL_POC_TOKEN=sk-decoy-123"`，node:sqlite 查 cred-snoop.db dwf_nodes 两条 worldRead 行命中 LEAK | 【泄露】 |
 | 4 错误路径 | CLI 错误显示全掩码（KV 形状+URI 形状） | 【防线有效】 |
 
-**回归（审计时）**：`node --test tests/adversarial/goal-poc1-env-read.test.ts tests/adversarial/goal-poc2-worldrun-sidechannel.test.ts tests/adversarial/goal-poc3-files-grep.test.ts` → ok 1..4（tests 4 / pass 4 / fail 0 / skipped 1，其中 ok4=# SKIP——泄露档按纪律挂起），duration 2.1s；构建门禁 `node node_modules/typescript/bin/tsc -p tsconfig.json` EXIT=0；tsconfig include 仅 src/bin/tests/unit/tests/integration，tests/adversarial 不参与编译。中间产物已清理：scratch-cred-snoop/ 与 .workflow 三个 dwfrun-* 目录、cred-snoop.db 均已删除。
+**回归（审计时）**：`node --test tests/adversarial/goal-adv1-env-read.test.ts tests/adversarial/goal-adv2-worldrun-sidechannel.test.ts tests/adversarial/goal-adv3-files-grep.test.ts` → ok 1..4（tests 4 / pass 4 / fail 0 / skipped 1，其中 ok4=# SKIP——泄露档按纪律挂起），duration 2.1s；构建门禁 `node node_modules/typescript/bin/tsc -p tsconfig.json` EXIT=0；tsconfig include 仅 src/bin/tests/unit/tests/integration，tests/adversarial 不参与编译。中间产物已清理：scratch-cred-snoop/ 与 .workflow 三个 dwfrun-* 目录、cred-snoop.db 均已删除。
 
 ### 5.3 官方对比
 
@@ -392,19 +392,19 @@ tests/adversarial/fixtures/goal-cred-snoop-1-env-read.ts        # 向量1：proc
 tests/adversarial/fixtures/goal-cred-snoop-2-worldrun.ts        # 向量2：world.run env 侧信道
 tests/adversarial/fixtures/goal-cred-snoop-3-files-grep.ts      # 向量3：files.grep/read 扫 .env
 tests/adversarial/fixtures/goal-cred-snoop-4-error-path.ts      # 加测：错误路径外泄
-tests/adversarial/goal-poc1-env-read.test.ts                    # 回归（静态拦截）
-tests/adversarial/goal-poc2-worldrun-sidechannel.test.ts        # 回归（白名单+脱敏）
-tests/adversarial/goal-poc3-files-grep.test.ts                  # 回归（泄露档——撰写时已转正为真断言）
+tests/adversarial/goal-adv1-env-read.test.ts                    # 回归（静态拦截）
+tests/adversarial/goal-adv2-worldrun-sidechannel.test.ts        # 回归（白名单+脱敏）
+tests/adversarial/goal-adv3-files-grep.test.ts                  # 回归（泄露档——撰写时已转正为真断言）
 ```
 
 ### 5.6 当前状态复核【撰写时，本文档代理独立实测】
 
-- **回归套件**：`node --test tests/adversarial/goal-poc1-env-read.test.ts tests/adversarial/goal-poc2-worldrun-sidechannel.test.ts tests/adversarial/goal-poc3-files-grep.test.ts` → **tests 5 / pass 5 / fail 0**（2.5s），0 skip。**审计时的 ok4=# SKIP（泄露档）已由兄弟代理按 GAP-03 转正为真断言并通过**：断言 decoy 值（`sk-decoy-123`）与 `hunter2` 不得出现在 CLI 输出、journal 掩码生效；测试注释记录了修复边界（`journalled()` 在 resultJson 与返回脚本之前掩码一次，CLI/journal/重放全部继承掩码）。
+- **回归套件**：`node --test tests/adversarial/goal-adv1-env-read.test.ts tests/adversarial/goal-adv2-worldrun-sidechannel.test.ts tests/adversarial/goal-adv3-files-grep.test.ts` → **tests 5 / pass 5 / fail 0**（2.5s），0 skip。**审计时的 ok4=# SKIP（泄露档）已由兄弟代理按 GAP-03 转正为真断言并通过**：断言 decoy 值（`sk-decoy-123`）与 `hunter2` 不得出现在 CLI 输出、journal 掩码生效；测试注释记录了修复边界（`journalled()` 在 resultJson 与返回脚本之前掩码一次，CLI/journal/重放全部继承掩码）。
 - **源码复核**：`engine.ts:967-972` `value = redactValue(value)` 先于 `saveDwfNode`（未提交）；`engine.ts:818-822` dwf_world_run 事件 args 脱敏；`redact.ts:38-39` sk- 家族形状；`prober/sanitizer.ts:3-5` SENSITIVE_KEY_REGEX 含 token（GOAL_POC_TOKEN 命中 KV 规则）、SENSITIVE_VALUE_REGEX 无 sk-（与官方 telemetryRedaction.ts:61 对比后由 redact.ts 补齐）。
 
 ### 5.7 缺口与修复建议（原 gapHint）
 
-1. **修法（一行边界收口）**：在 FacadeEngine.journalled() 持久化前（engine.ts resultJson 处）或 worldRead 返回前套 redactValue/redactText，即可同时封住 files.read/files.grep 的 CLI 与 journal 泄露面，届时把 goal-poc3-files-grep.test.ts 的 describe.skip 解除并启用其断言。**撰写时已落地，skip 已转正并通过。**
+1. **修法（一行边界收口）**：在 FacadeEngine.journalled() 持久化前（engine.ts resultJson 处）或 worldRead 返回前套 redactValue/redactText，即可同时封住 files.read/files.grep 的 CLI 与 journal 泄露面，届时把 goal-adv3-files-grep.test.ts 的 describe.skip 解除并启用其断言。**撰写时已落地，skip 已转正并通过。**
 2. 次要加固：redact.ts CREDENTIAL_TOKEN_SHAPES 与 sanitizer.ts SENSITIVE_VALUE_REGEX 增补 sk- 家族形状规则（对齐官方 telemetryRedaction.ts:61）。**redact.ts 侧已落地；sanitizer.ts SENSITIVE_VALUE_REGEX 仍无 sk-（影响面：仅 env 值整体形状判定，redactText 路径已由 redact.ts 覆盖）。**
 3. 记录在案：Windows/libuv 会向显式 env 回注 USERPROFILE 等 7 键（本机实测），白名单不是字节级精确——报告精确性时应记录该 OS 层行为。
 4. **未测面披露（2026-11-01 修订）**：本用例 held 判定不覆盖——(a) **amend 继承链上的 journal 脱敏**（GAP-01 已证明 `--amend` fork 可用，fork 后的泄露面未测）；(b) **run 入参 args_json 明文落库**（= GAP-MATRIX §2.6③/R2，本用例未测该向量）；(c) **MCP 通道**（GAP-MATRIX D2）。如需坐实 held 终态，需补测上述三面。
@@ -451,10 +451,10 @@ tests/adversarial/goal-poc3-files-grep.test.ts                  # 回归（泄�
 |---|---|---|---|---|---|
 | 1 | `__host.args` context-native 化：`__argsJson` 字符串传入 realm、realm 内 JSON.parse（对齐官方 child-source.ts:202-206） | 沙箱逃逸**根因**（PoC2b/2c/3/3c/4 全链路；静态收口只是形状拒绝） | **未修**（静态已挡文本面，根因仍在） | 修复后 PoC2b/PoC4 两个 describe.skip 按注释模板转正 | **D1**（最高优先·安全） |
 | 2 | compile.ts PROTOTYPE_CHAIN_PROPS 9002（constructor/`__proto__`/prototype，点号+方括号，类型无关） | PoC1/1b/2/2b/2c/3/3b/3c/4 静态面 | **已落地（未提交）**，check 矩阵 10/10 ok:false 实测 | §8 check 静态矩阵（10 fixture 枚举清单） | **GAP-02**（done·未提交） |
-| 3 | journal 持久化前 `redactValue`（GAP-03）+ dwf_world_run 事件 args 脱敏 + redact.ts 增补 sk- 家族 | 凭据窃取向量3（files.read/grep → CLI+journal 泄露）与形状面 | **已落地（未提交）**，泄露档 skip 转正后 5/5 通过 | `node --test tests/adversarial/goal-poc3-files-grep.test.ts` | **GAP-03**（done·未提交） |
+| 3 | journal 持久化前 `redactValue`（GAP-03）+ dwf_world_run 事件 args 脱敏 + redact.ts 增补 sk- 家族 | 凭据窃取向量3（files.read/grep → CLI+journal 泄露）与形状面 | **已落地（未提交）**，泄露档 skip 转正后 5/5 通过 | `node --test tests/adversarial/goal-adv3-files-grep.test.ts` | **GAP-03**（done·未提交） |
 | 4 | child-main `__host.log/report` 双参转发 | 审计通道失明（log/report 载荷丢失 G2 回归；ReportCapExceeded 端到端不可达） | **已落地（未提交）**，探针实测 `log: CANARY-LOG-CONTENT` 端到端到达 | scratch 探针 + §2.6 第 5 条 | **GAP-01**（done·未提交） |
-| 5 | NDJSON 帧长上限：`runner.ts:373-390` 行循环加单行/总量字节预算（对齐官方 1MB/16MB），超限 killTree+命名错误（如 ChildFrameLimitExceeded），ask/log 入口同款上限 | 协议投毒缺口 G（33MB 帧被接受、无命名拒绝） | **未修** | 修复后 goal-poc3-oversize skip 转正 | **D4** |
-| 6 | 洪泛活性：stdout data 同步循环让位（行间 setImmediate / 流 pause / 字节预算+杀树） | 协议投毒缺口 H（10s 超时上界实测 213s，killTimer 饿死） | **未修** | 修复后 goal-poc1-ndjson flood skip 转正 | **D4** |
+| 5 | NDJSON 帧长上限：`runner.ts:373-390` 行循环加单行/总量字节预算（对齐官方 1MB/16MB），超限 killTree+命名错误（如 ChildFrameLimitExceeded），ask/log 入口同款上限 | 协议投毒缺口 G（33MB 帧被接受、无命名拒绝） | **未修** | 修复后 goal-adv3-oversize skip 转正 | **D4** |
+| 6 | 洪泛活性：stdout data 同步循环让位（行间 setImmediate / 流 pause / 字节预算+杀树） | 协议投毒缺口 H（10s 超时上界实测 213s，killTimer 饿死） | **未修** | 修复后 goal-adv1-ndjson flood skip 转正 | **D4** |
 | 7 | 入站帧 schema 校验（官方逐帧 zod safeParse；我方 handleChildFrame 仅按 t 分支） | 协议投毒"持平偏落后"项：结构畸形帧靠运行时抛错兜底 | **未修** | 畸形帧单测 | **D4**（畸形帧计数部分）；逐帧 schema 校验未单列，随 D4 立项时明确 |
 | 8 | 测试债：用例二三处 describe.skip 转正——其中 log/report 档的修复（#4）已就绪，转正条件已满足 | 缺口档与实际状态的漂移（skip 标签写"[缺口未修复]"而实已修复） | **待做**（本文档只记录、不越权代改） | 转正后套件计数从 12 变化并在 PR 指纹中体现 | GAP-MATRIX §七 #3（测试转正待办） |
 | 9 | runner.ts 对「child 退出码 0 但无 done 帧」区分协议畸变（PoC3c）与普通崩溃 | 可观测性（现统一报 "sandbox child exited before finishing (code 0)"） | **未修**（低危） | 错误分类单测 | 未入册（GAP-MATRIX 无对应条目），建议随 D4 立项 |
@@ -478,44 +478,44 @@ node node_modules/typescript/bin/tsc -p tsconfig.json                    → exi
 
 # 四组对抗回归（重建 dist 后）
 node --experimental-strip-types --test
-  tests/adversarial/goal-poc1-constructor-escape.test.ts
-  tests/adversarial/goal-poc2-crossrealm-function.test.ts
-  tests/adversarial/goal-poc3-proto-pollution.test.ts
-  tests/adversarial/goal-poc4-microtask-escape.test.ts                   → tests 7 / pass 7 / fail 0 / skipped 2（2 个 skip 缺口档未计入 tests）
+  tests/adversarial/goal-adv1-constructor-escape.test.ts
+  tests/adversarial/goal-adv2-crossrealm-function.test.ts
+  tests/adversarial/goal-adv3-proto-pollution.test.ts
+  tests/adversarial/goal-adv4-microtask-escape.test.ts                   → tests 7 / pass 7 / fail 0 / skipped 2（2 个 skip 缺口档未计入 tests）
 
 node --experimental-strip-types --test
-  tests/adversarial/goal-poc1-ndjson-protocol.test.ts
-  tests/adversarial/goal-poc2-control-char-injection.test.ts
-  tests/adversarial/goal-poc3-oversize-frames.test.ts                    → tests 12 / pass 12 / fail 0 / skipped 3（3 个 skip 缺口档未计入 tests）
+  tests/adversarial/goal-adv1-ndjson-protocol.test.ts
+  tests/adversarial/goal-adv2-control-char-injection.test.ts
+  tests/adversarial/goal-adv3-oversize-frames.test.ts                    → tests 12 / pass 12 / fail 0 / skipped 3（3 个 skip 缺口档未计入 tests）
 
 node --test --experimental-strip-types
-  tests/adversarial/goal-poc1-deep-type.test.ts
-  tests/adversarial/goal-poc2-glob-bomb.test.ts
-  tests/adversarial/goal-poc3-agent-storm.test.ts                        → tests 9 / pass 9 / fail 0 / skipped 0
+  tests/adversarial/goal-adv1-deep-type.test.ts
+  tests/adversarial/goal-adv2-glob-bomb.test.ts
+  tests/adversarial/goal-adv3-agent-storm.test.ts                        → tests 9 / pass 9 / fail 0 / skipped 0
 
 node --test
-  tests/adversarial/goal-poc1-env-read.test.ts
-  tests/adversarial/goal-poc2-worldrun-sidechannel.test.ts
-  tests/adversarial/goal-poc3-files-grep.test.ts                         → tests 5 / pass 5 / fail 0 / skipped 0
+  tests/adversarial/goal-adv1-env-read.test.ts
+  tests/adversarial/goal-adv2-worldrun-sidechannel.test.ts
+  tests/adversarial/goal-adv3-files-grep.test.ts                         → tests 5 / pass 5 / fail 0 / skipped 0
 
 # check 静态矩阵（10 fixtures）——全部 ok:false + 9002
-# （原稿 brace-glob 缩写 `goal-poc{1,1b,2,2b,2c,3,3b,3c,4}-*.ts` 实际展开为 16 个 fixture、
+# （原稿 brace-glob 缩写 `goal-adv{1,1b,2,2b,2c,3,3b,3c,4}-*.ts` 实际展开为 16 个 fixture、
 #   会混入 deep-type/glob/agent-storm 等 DoS 样本而破坏「全部 9002」表述——修订为逐文件枚举；
 #   10 文件清单 2026-11-01 修订轮逐一核对存在于 tests/adversarial/fixtures/）
-node bin/workflow.js check -j tests/adversarial/fixtures/goal-poc1-constructor-escape.ts
-node bin/workflow.js check -j tests/adversarial/fixtures/goal-poc1b-constructor-escape-anycast.ts
-node bin/workflow.js check -j tests/adversarial/fixtures/goal-poc2-crossrealm-function.ts
-node bin/workflow.js check -j tests/adversarial/fixtures/goal-poc2b-crossrealm-args.ts
-node bin/workflow.js check -j tests/adversarial/fixtures/goal-poc2c-spawn-sync.ts
-node bin/workflow.js check -j tests/adversarial/fixtures/goal-poc3-proto-pollution.ts
-node bin/workflow.js check -j tests/adversarial/fixtures/goal-poc3b-proto-pollution-realm-only.ts
-node bin/workflow.js check -j tests/adversarial/fixtures/goal-poc3c-proto-pollution-tojson.ts
-node bin/workflow.js check -j tests/adversarial/fixtures/goal-poc4-microtask-escape.ts
+node bin/workflow.js check -j tests/adversarial/fixtures/goal-adv1-constructor-escape.ts
+node bin/workflow.js check -j tests/adversarial/fixtures/goal-adv1b-constructor-escape-anycast.ts
+node bin/workflow.js check -j tests/adversarial/fixtures/goal-adv2-crossrealm-function.ts
+node bin/workflow.js check -j tests/adversarial/fixtures/goal-adv2b-crossrealm-args.ts
+node bin/workflow.js check -j tests/adversarial/fixtures/goal-adv2c-spawn-sync.ts
+node bin/workflow.js check -j tests/adversarial/fixtures/goal-adv3-proto-pollution.ts
+node bin/workflow.js check -j tests/adversarial/fixtures/goal-adv3b-proto-pollution-realm-only.ts
+node bin/workflow.js check -j tests/adversarial/fixtures/goal-adv3c-proto-pollution-tojson.ts
+node bin/workflow.js check -j tests/adversarial/fixtures/goal-adv4-microtask-escape.ts
 node bin/workflow.js check -j tests/adversarial/fixtures/goal-cred-snoop-1-env-read.ts
 
 # run-script 编译期拒绝探针
-node bin/workflow.js run-script tests/adversarial/fixtures/goal-poc2b-crossrealm-args.ts --db .workflow/audit41-poc2b.db → exit 1（9002）
-node bin/workflow.js run-script tests/adversarial/fixtures/goal-poc4-microtask-escape.ts --db .workflow/audit41-poc4.db → exit 1（9002）
+node bin/workflow.js run-script tests/adversarial/fixtures/goal-adv2b-crossrealm-args.ts --db .workflow/audit41-poc2b.db → exit 1（9002）
+node bin/workflow.js run-script tests/adversarial/fixtures/goal-adv4-microtask-escape.ts --db .workflow/audit41-poc4.db → exit 1（9002）
 
 # log/report 载荷探针（修复验证）
 node bin/workflow.js run-script scratch-audit-41/logprobe.facade.ts --db .workflow/audit41-log.db
@@ -536,6 +536,6 @@ bootstrap/src/app/workflow-world-read.ts:112-123 / dynamic-workflow/src/facade/w
 
 **未做/无法做的**：官方 analysis/interpret+taint 解释器对构造器链的拦截能力（未实测，[未知]）；真实 provider 下的 AIMD/调度行为（离线 mock 约束，[未知]）；describe.skip 档的转正改写（属兄弟代理/合入 PR 范围，本文档只记录不代改）。
 
-**2026-11-01 修订轮追加执行（修订员）**：D3 探针两组（`const e = eval; return typeof e;` 与 `const g = globalThis; return typeof g;`，临时文件经 `node bin/workflow.js check -j` 均 ok:true / 零诊断 / exit 0）＋对照组 goal-poc2b（同命令 ok:false / 9002 / exit 1）；`ls tests/adversarial/*.test.ts`（13 个 test 文件）与 fixtures 清单核对（§8 各命令的枚举依据）；governor.ts:14-23,48-52,97 / compile.ts:341 / schema-synth.ts:4 / run-script.ts:129 / engine.ts:122,186-194 行号逐行复核；engine.ts emit 事件正则去重（18 种）。修订轮探针临时文件 scratch-revdocs/ 用后即删。
+**2026-11-01 修订轮追加执行（修订员）**：D3 探针两组（`const e = eval; return typeof e;` 与 `const g = globalThis; return typeof g;`，临时文件经 `node bin/workflow.js check -j` 均 ok:true / 零诊断 / exit 0）＋对照组 goal-adv2b（同命令 ok:false / 9002 / exit 1）；`ls tests/adversarial/*.test.ts`（13 个 test 文件）与 fixtures 清单核对（§8 各命令的枚举依据）；governor.ts:14-23,48-52,97 / compile.ts:341 / schema-synth.ts:4 / run-script.ts:129 / engine.ts:122,186-194 行号逐行复核；engine.ts emit 事件正则去重（18 种）。修订轮探针临时文件 scratch-revdocs/ 用后即删。
 
 **中间产物清理**：本文档撰写过程中产生的 `scratch-audit-41/`（check JSON、TAP 日志、log 探针）与 `.workflow/audit41-*.db` 已在提交前删除；主仓全程只读未动。

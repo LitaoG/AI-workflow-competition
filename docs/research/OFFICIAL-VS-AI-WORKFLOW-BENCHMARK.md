@@ -1,7 +1,7 @@
 # 官方 Dynamic Workflow vs AI-workflow · 4 大双轨场景基准报告
 
 > **版本**：1.0（2026-11-02）
-> **对照对象**：Claude Code `@anthropic-ai/claude-code@2.1.316` vs 本仓 `main`（含 PR #56/#58/#60/#62）
+> **对照对象**：Claude Code `@anthropic-ai/claude-code@2.1.316` vs 本仓 `main`（含 私有仓 PR #56/#58/#60/#62）
 > **证据等级**：`[已验证]` / `[推断]` / `[未知]`；未实测的数据不填数字。
 > **结论先行**：4 个场景中，**只有场景 4（3 级嵌套）完成了真正的同台实测**；场景 2/3 是源码 + 单测级证据；场景 1（真实模型大规模重构）因缺受控 API Key 与 Claude CLI provider，明确列为 C 类受阻。
 
@@ -64,7 +64,7 @@ fixture：15 个 `src/modules/mNN.ts`，每个含本地重复的 `validateAmount
 
 - 本仓 runId：`dwfrun-mvzghahc-973867`；官方 Workflow run `wf_8169662e-17c`（agent_count 5、tokens 469,040、tool_uses 38、duration 27,766ms）。
 - 官方 15 个文件全部 `import` 共享 helper、无本地 `function validateAmount`；本仓 15 个文件同样全部正确。
-- 复现 harness：原 `bench/refactor-15/`（`generate.mjs`、`ours-refactor.facade.ts`、`run-ours.mjs`）——已于 2026-11-09 仓库精简时移除（Issue #205），实测数字保留在本文。
+- 复现 harness：原 `bench/refactor-15/`（`generate.mjs`、`ours-refactor.facade.ts`、`run-ours.mjs`）——已于 2026-11-09 仓库精简时移除（私有仓 Issue #205），实测数字保留在本文。
 
 ### 2.3 边界
 
@@ -132,7 +132,7 @@ fixture：4 个独立本地 repo（`contracts-repo`、`pricing-repo`、`orders-r
 
 - `attempt-classifier.ts`：429 退避（Retry-After 感知）、transient 快重试、quota/auth policy-stop。
 - `retry-orchestrator.ts`：每 provider/总 attempt 预算、circuit breaker、failover 链。
-- `stallMs`（#59）：默认 90000ms，`AI_WORKFLOW_STALL_MS` 覆盖，`0` 关闭；`StallError` 重试带 `(Retry N after no progress ...)`。
+- `stallMs`（私有仓 #59）：默认 90000ms，`AI_WORKFLOW_STALL_MS` 覆盖，`0` 关闭；`StallError` 重试带 `(Retry N after no progress ...)`。
 - 测试：
   - `tests/unit/dwf/dwf-stall.test.ts` → 2/2（重试标记 + `stallMs=0`）
   - `tests/integration/dwf-stall.test.ts` → 2/2（facade run 失败/关闭）
@@ -151,7 +151,7 @@ runId dwfrun-mvzxvgxy-cc9bda
 
 - 引擎在 429 后 **2,013ms** 重试（与 Retry-After: 2 一致），随后成功；整个 run 3.87s（含代理/CLI 启动）。
 - `asks: 1`——重试发生在 rpc 内部，不新增 journal ask。
-- 复现：原 `bench/rate-limit-429/`（429 注入代理 + ask facade 脚本，env-only）——已于 2026-11-09 仓库精简时移除（Issue #205）。
+- 复现：原 `bench/rate-limit-429/`（429 注入代理 + ask facade 脚本，env-only）——已于 2026-11-09 仓库精简时移除（私有仓 Issue #205）。
 
 ### 3.4 未同台的部分 `[未知]`
 
@@ -224,7 +224,7 @@ Inline the inner script or call its agents directly.
 
 ### 5.2 本仓实机 `[已验证]`
 
-PR #58（Issue #57）：`workflowAncestry` 环检测 + 5 层上限 + 子 run 继承父 workspace。
+私有仓 PR #58（私有仓 Issue #57）：`workflowAncestry` 环检测 + 5 层上限 + 子 run 继承父 workspace。
 
 `tests/integration/dwf-composition.test.ts`：
 
@@ -257,7 +257,7 @@ ok 5 - workflow() refuses unknown names with the registry listed
 | 环检测 | N/A（不允许多级） | ✅ 完整链路错误 | composition test 3 |
 | 深度上限 | 1（硬编码） | 5（常量） | `engine.ts` `MAX_WORKFLOW_NESTING_DEPTH` |
 | 429 退避 | 源码：45s throttle / 90s stall；live 注入未做 | live：1 次 429 → 2,013ms 后重试成功；单测覆盖 Retry-After | §3.3 / runId `dwfrun-mvzxvgxy-cc9bda` |
-| 停滞重试 | 5 次 + `(retry N)` | `stallMs` + `(Retry N ...)` | #59 测试 4/4 |
+| 停滞重试 | 5 次 + `(retry N)` | `stallMs` + `(Retry N ...)` | 私有仓 #59 测试 4/4 |
 | Amend 局部失效 | 跨顶层调用 0 复用（5→5 agents，实测） | 5→2 live，3 复用（amend 事件） | §4.3 / runIds |
 | 真实模型 5 步 token/延迟 | 5 agents/轮，469k tokens，16.2/17.9s | 5 live 576 tokens 3.32s；amend 2 live 245 tokens 1.63s | §4.3 |
 | 15 文件机械重构 | 5 agents / 469,040 tokens / 38 tools / 27.8s / 15/15 正确 | 5 asks / 3,579 tokens / 0 tools / 8.1s / 15/15 正确 | §2.2 / runId `dwfrun-mvzghahc-973867` |
@@ -298,7 +298,7 @@ npm.cmd run test:pbt
 node --experimental-strip-types tests/e2e/runner.ts
 node --experimental-strip-types tests/unit/workflow-governance.test.ts
 
-# 真实模型 5 步 amend：harness 已于 2026-11-09 仓库精简时移除（Issue #205），实测记录见 §4.3
+# 真实模型 5 步 amend：harness 已于 2026-11-09 仓库精简时移除（私有仓 Issue #205），实测记录见 §4.3
 
 # 官方嵌套探针：本会话 Workflow 工具，child.js 调用 workflow({scriptPath: grandchild.js})
 ```
@@ -308,7 +308,7 @@ node --experimental-strip-types tests/unit/workflow-governance.test.ts
 ## 9. 后续建议
 
 1. **跨云/跨租户多仓**：本地 4 仓已完成（§2.6）；下一步接入真实远端仓库、CI 发布与凭据边界。
-2. **回归基准**：原 bench 回归 harness（amend 复用、15 文件吞吐）已于 2026-11-09 仓库精简时移除（Issue #205）；engine 改动后的回归验证一律以 `npm run gate` 全量门禁为准，历史实测数字沉淀于本文。
+2. **回归基准**：原 bench 回归 harness（amend 复用、15 文件吞吐）已于 2026-11-09 仓库精简时移除（私有仓 Issue #205）；engine 改动后的回归验证一律以 `npm run gate` 全量门禁为准，历史实测数字沉淀于本文。
 3. **429 代理注入**：本机代理返回 429 + Retry-After，分别驱动官方与本仓。
 4. **官方 amend 计时**：同一 5 步脚本，第 3 步改提示词前后各跑 3 次，记录墙钟；本仓同时采集 replayHits/amendHits/diverged。
 5. **Ultracode 云端**：保持 C 类，不伪造数据。
@@ -320,4 +320,4 @@ node --experimental-strip-types tests/unit/workflow-governance.test.ts
 - 白皮书：`docs/research/CLAUDE-CODE-DYNAMIC-WORKFLOW-WHITEPAPER.md`
 - 官方锚点：解包件语义锚（重试/停滞/文案段、重放键实现段、子脚本拒绝 stub 段）——行号自清洁室修订（2026-11-20）起不录
 - 本仓：`src/dwf/engine.ts`、`src/agent/rpc.ts`、`src/dwf/attempt-classifier.ts`
-- Issue：#55（Date/Intl）、#57（多级组合）、#59（stallMs）、#61（Claude Code 挂载）
+- 私有仓 Issue：#55（Date/Intl）、#57（多级组合）、#59（stallMs）、#61（Claude Code 挂载）

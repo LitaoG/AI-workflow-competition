@@ -75,10 +75,10 @@ independent, production-grade applications built on it**:
 | Deliverables | `PostMortem.md`, `kanban.json`, interactive `incident_dag.html` | publication-ready `PULL_REQUEST.md`, `migration_dag.html` |
 
 Two layers of demo evidence exist by design: the repo-root [`artifacts/`](artifacts) holds the
-**latest** outputs of a repo-root `bash scripts/demo.sh` run (which buckets per app since the
-#157 fix), while [`apps/*/artifacts/`](apps/incident-triage-remediation) preserves each
-application's own standalone run — expect different `runId`/timestamps between the two layers,
-that is two runs, not drift.
+latest committed outputs of a repo-root demo run (2026-11-19, bucketed per app since the v2.7.0
+demo-bucketing fix), while [`apps/*/artifacts/`](apps/incident-triage-remediation/artifacts) preserves each
+application's own standalone run (2026-11-21) — expect different `runId`/timestamps between the
+two layers, that is two runs, not drift.
 
 A third directory, [`apps/capabilities-tour`](apps/capabilities-tour), is the reusable pattern
 library — amend lineage, hole growth, human escalation, budget enforcement — that powers acts 5–8
@@ -92,7 +92,7 @@ of the demo below. Write a new facade script in any domain and the same skeleton
 | Sandbox | Child process + `node:vm` realm, NDJSON IPC, process supervision (POSIX process groups / Windows tree-kill / sanitized child env) | `src/dwf/runner.ts`, `src/process-supervision.ts` |
 | Deterministic journal | SQLite WAL: `(runId, siteId, ordinal, inputHash)` short-circuit replay; loud hash-mismatch failures; escalation/hole parking; amend lineage | `workflow run-script --resume/--amend`; `src/dwf/engine.ts` |
 | Runtime Q&A | `escalate()` parks the run with a `dwfq-` id; `workflow answer` resumes at zero cost; `hole<T>()` grows the workflow mid-run | `tests/integration/dwf-escalation.test.ts`, `dwf-holes.test.ts` |
-| Human surface | `workflow view <runId>` (journal-rendered HTML report), `workflow serve` (live, self-refreshing; loopback-only — cross-origin and non-loopback-Host requests are refused, Issue #143), ASCII/HTML DAG | `src/dwf/view.ts`, `src/dwf/live.ts` |
+| Human surface | `workflow view <runId>` (journal-rendered HTML report), `workflow serve` (live, self-refreshing; loopback-only — cross-origin and non-loopback-Host requests are refused), ASCII/HTML DAG | `src/dwf/view.ts`, `src/dwf/live.ts` |
 | Integration | MCP tools (`workflow_script_check/run`), agent skill (`skills/ai-workflow/`), CLI providers (`AI_WORKFLOW_PROVIDER=codex\|gemini\|opencode`) | `docs/INTEGRATION.md` |
 
 ---
@@ -111,11 +111,11 @@ node bin/workflow.js demo
 > **Install reality check:** this repository is NOT published to npm — the `ai-workflow` name on the registry
 > is an unrelated 2021 placeholder (v0.1.19). Install from source as above, or from a release tarball:
 > `npm install ./ai-workflow-<version>.tgz` — the `./` prefix matters (a bare relative path is parsed as a
-> registry spec and fails). Verified 2026-11-20 (Issue #147).
+> registry spec and fails). Verified 2026-11-20.
 
 Offline, deterministic, **no API keys** — the script self-verifies and exits non-zero if any act
-fails. Measured end-to-end on this machine (2026-11-03, Git Bash on Windows, Node v26.13.0, warm
-npm cache; fresh `node_modules`/`dist`): **42 seconds, exit 0, `ALL NINE ACTS COMPLETE`** — well
+fails. Measured end-to-end (2026-11-21, Git Bash on Windows, Node v26.13.0, warm
+npm cache; fresh `node_modules`/`dist`): **39 seconds, exit 0, `ALL NINE ACTS COMPLETE`** — well
 inside the three-minute budget, with headroom for a cold registry.
 
 Every act prints the evidence line for the capability it demos — the authoritative
@@ -134,7 +134,7 @@ placeholder and recording recipe live in [`SUBMISSION.md`](SUBMISSION.md).
 
 Current quality-gate fingerprints are pinned in one place only:
 [`SUBMISSION.md` § Reproducible quality-gate fingerprints](SUBMISSION.md#reproducible-quality-gate-fingerprints)
-(re-pinned on the v2.10.0 release tree, Issue #186 — fresh-build
+(re-pinned 2026-11-21 on the current tree — fresh-build
 numbers are what a judge clone reproduces).
 
 Both demo applications also run standalone (offline mock mode, `--lang zh` for Chinese
@@ -192,7 +192,7 @@ And the namesake: the **Skeleton Crew roster** (`.kiro/crew/`) — `inspector`, 
 
 | Kiroween 2026 dimension | Where this repo scores |
 | --- | --- |
-| **Potential Impact** | The four failure modes above are endemic to every multi-agent deployment; zero-token replay turns workflow iteration economics from "re-bill everything" into "bill only the diff" — and composed `workflow()` subtrees are covered too, at every nesting depth: re-entry imports the prior child journal per call site and replays the subtree at zero provider calls (Issues #35/#62, fixed; only pre-#35 child runs without site stamps fall back to a live run) |
+| **Potential Impact** | The four failure modes above are endemic to every multi-agent deployment; zero-token replay turns workflow iteration economics from "re-bill everything" into "bill only the diff" — and composed `workflow()` subtrees are covered too, at every nesting depth: re-entry imports the prior child journal per call site and replays the subtree at zero provider calls |
 | **Technological Implementation** | Compile-time purity bans, a real sandbox (child process + `node:vm`, process supervision), SQLite WAL journal with hash-verified replay, PBT-proven invariants |
 | **Design** | Journal-rendered interactive HTML reports, cubic-Bézier DAG canvases, live Kanban tracking — presentation generated from evidence, not hand-made |
 | **Innovation** | Amend lineage (`♻` reuse / `⑂` diverge), mid-run hole growth, human escalation with zero-cost resume, hard budget enforcement |
@@ -213,10 +213,11 @@ Implementation, Design, Innovation, and Presentation.
    ([LICENSE](LICENSE)).
 3. **Dependency supply chain.** All dependencies are version-pinned via `package-lock.json`. The
    one high advisory (GHSA-mrhx-c7xc-m3w5 in `zod` 3.25.76) is **fixed**: the runtime dependency
-   now pins `zod` **4.6.7** (the official fix version), migrated in a worktree and verified by a
-   journalled facade-script gate pipeline (tsc, 695 unit/integration, 121 E2E, 158 adversarial,
-   16 PBT, nine-act demo, `npm audit --omit=dev` → 0 — these counts are the values as measured on
-   2026-11-14 during the migration; the current gate counts are the fingerprints above).
+   declares `zod` **^4.6.7** (the official fix version; the lockfile resolves 4.6.7), migrated in a
+   worktree and verified by a journalled facade-script gate pipeline (tsc, 695 unit/integration,
+   121 E2E, 158 adversarial, 16 PBT, nine-act demo, `npm audit --omit=dev` → 0 — these counts are
+   the values as measured on 2026-11-14 during the migration; the current gate counts are the
+   fingerprints above).
    `npm audit` now reports 4 moderate advisories, all in dev dependencies.
 4. **Zero private data leakage.** All demo scenarios, telemetry and fixtures are synthetic; every
    demo and test runs offline in mock mode with zero API keys; environment probing redacts

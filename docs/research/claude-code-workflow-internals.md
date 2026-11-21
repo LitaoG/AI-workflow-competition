@@ -1,6 +1,6 @@
 # Claude Code Workflow 引擎行为级逆向笔记（2.1.316 win32-x64）
 
-> 清洁室修订（2026-11-20，私有仓 Issue #163 批次）：本文原为逆向现场笔记，含逐字专有文案、
+> 清洁室修订（2026-11-20，本仓 Issue #163 批次）：本文原为逆向现场笔记，含逐字专有文案、
 > 内部符号名与二进制偏移；现全部改写为**行为级描述**——只保留语义结论与对标分析，不收录
 > 逐字源码片段、内部标识符原文或反编译产物引用（相关产物从未随本仓分发）。
 > 配套：`claude-code-binary-reverse.md`（首轮证据，同批脱敏）；ZCode 侧为官方开源已精读。
@@ -33,13 +33,13 @@ Claude 的重放键是 **AsyncLocalStorage 结构调用路径哈希**，不是�
 
 ## 3. 预算（硬执行，语义精确）
 
-- `budget` 以 **frozen 快照** 注入 VM —— VM 内只读。`total` 来自 run 配置（本引擎允许脚本内设置，差异已记录）。
+- `budget` 以 **frozen 快照** 注入 VM —— VM 内只读。`total` 来自 run 配置（本引擎允许脚本内设置，差异已记录——已被 §9.6 取代：现同为 run 级只读注入、脚本赋值在编译期被拒，私有仓 Issue #73 落地）。
 - 双错误：`WorkflowAgentCapError`（1000 调用上限，配防死循环提示——语义：`budget.total` 为
   null 时 `remaining()` 为 Infinity，无硬上限的循环会永不终止）与
   `WorkflowBudgetExceededError`（语义：token 预算超限即停止后续 agent() 调用，在飞的
   完成、结果保留）——在 agent() 调用粒度检查 turn 花费是否越界。
 - parallel/pipeline 对 budget 丢弃槽**计数并汇总**（不逐条报错）。
-- 本引擎已实现同语义（错误文案为本仓自有措辞；差异：budget.total 可脚本内设置）。
+- 本引擎已实现同语义（错误文案为本仓自有措辞；旧注「差异：budget.total 可脚本内设置」已被 §9.6 取代——现 budget.total 赋值在编译期被拒，私有仓 Issue #73 落地）。
 
 ## 4. agent() 停滞/重试（行为级循环）
 
@@ -89,7 +89,7 @@ ask 内部结果契约（字段语义，原文不录）: 结构化结果、文�
 
 ## 8. 不实现（有意，理由）
 
-- frozen budget（允许脚本内设 total 更灵活，已记录差异）
+- frozen budget（允许脚本内设 total 更灵活，已记录差异）（已被 §9.6 取代：run 级只读 budget + 编译期拒绝赋值，私有仓 Issue #73 落地）
 - 流式 stall 重启（原子调用 + attempt-classifier 覆盖等价场景）
 - prompt 链哈希重放键（显式 (siteId, ordinal, inputHash) 支持 amend 局部失效，更强）
 - workflow() 子脚本组合（P2 剩余：saved workflows 已提供等价复用；一层嵌套限制反而更严）
@@ -129,7 +129,7 @@ ask 内部结果契约（字段语义，原文不录）: 结构化结果、文�
 
 1. **`budget` 只读（已对齐，私有仓 Issue #73）**：预算改为 run 级注入（`--budget-total` / MCP `budgetTotal`），
    沙箱内为 `Object.freeze(Object.create(null))` 的只读对象；脚本赋值在编译期被拒。
-   这是破坏性契约变更，已在 Issue #73 与本文留痕。
+   这是破坏性契约变更，已在私有仓 Issue #73 与本文留痕。
 2. **usage-limit 等待有界（私有仓 Issue #73）**：provider 429 的 `retry-after` / 结构化
    `quotaLimits.resetsAt` 会触发同一 provider 的重试；仅在整跑 deadline 内、且每个 ask 最多 2 次；
    超出 deadline 仍回到 G7 policy-stop。官方 24h 无界等待仍为有意差异（本仓默认 10 分钟整跑超时）。

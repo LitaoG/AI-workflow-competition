@@ -18,7 +18,7 @@
 | 领域 / 主题 | 权威文档路径 | 核心职责与涵盖范围 |
 |---|---|---|
 | **项目主入口（评委导向）** | `README.md` | 英文评委导向主页：30 秒 pitch、三种对话式失败模式的结构性修复、"一副骨架两个应用"与两个 demo 对照、三分钟评委体验（一键九幕 demo）、Kiro 集成总览、评审五维映射与合规声明——九幕证据表、质量指纹与跨引擎基准的**权威版本在 SUBMISSION.md**（本页只留链接分流，Issue #132 收敛） |
-| **1分钟上手指南** | `QUICKSTART.md` | 零门槛上手：capabilities-tour 示例、统一 run 入口、--set/--args-file 传参、Studio 看板、setup 互通与命令速查 |
+| **1分钟上手指南（英文为主，中英双语）** | `QUICKSTART.md` | 零门槛上手（英文版在前、中文版在后，两版内容一致）：capabilities-tour 示例、统一 run 入口、--set/--args-file 传参、Studio 看板、setup 互通与命令速查 |
 | **系统架构设计（权威中文规约）** | `docs/ARCHITECTURE.md` | 总体架构图（自 README 迁入）、设计哲学、模块地图、双引擎执行模型、Facade 编译器纯度契约、VM 沙箱与进程组监管、强类型 RPC、环境探测、双层持久化与零 Token 重放、可视化与 Studio、MCP、技术溯源、威胁模型与纵深防御 |
 | **系统演进蓝图** | `GOAL.md` | 引擎演进蓝图与技术路线：核心使命与架构哲学、三大参考源技术谱系、已落地架构现状与里程碑（阶段 0–8）、后续演进方向、工程铁律 |
 
@@ -50,7 +50,7 @@
 | **ZCode 深度逆向机制报告 v2** | `docs/research/ZCODE-DEEP-REVERSE-v2.md` | MISSION-B 阶段一交付：dynamic-workflow 全家族（runtime/adapters/bootstrap/shared）源码级 REA 证据驱动逆向，AIMD 治理等官方语义机制出处 |
 | **官方 Workflow 一手遥测 Ground Truth** | `docs/research/OFFICIAL-WORKFLOW-TELEMETRY.md` | MISSION-B Phase-2 交付：官方 Workflow 真实执行的本机遥测白皮书，数值逐字取自探针 stdout 并逐条标注证据档位 |
 | **ZCode×本仓七维基准对比报告** | `docs/research/ZCODE-BENCHMARK-REPORT.md` | TEST-GOAL 4.1 交付：ZCODE 官方引擎 × 本仓引擎七维基准对比与证据分级（缺口状态唯一登记处为同目录 WORKFLOW-GAP-MATRIX） |
-| **双向跨界对标报告** | `docs/research/BILATERAL-CROSS-BENCHMARK-REPORT.md` | MISSION-B（Issue #67）阶段五交付：官方引擎与我方引擎同任务、同脚本、同桩模型的四维双向对标 |
+| **双向跨界对标报告** | `docs/research/BILATERAL-CROSS-BENCHMARK-REPORT.md` | MISSION-B（私有仓 Issue #67）阶段五交付：官方引擎与我方引擎同任务、同脚本、同桩模型的四维双向对标 |
 | **工作流差距矩阵总账** | `docs/research/WORKFLOW-GAP-MATRIX.md` | TEST-GOAL 4.1 总交付：六大不变量实测、官方内核逆向切片、PoC 攻防与 GAP 补强修复状态的统一可复核矩阵（D#/R#/GAP-# 状态唯一登记处） |
 | **Claude Code 二进制逆向证据** | `docs/research/claude-code-binary-reverse.md` | Claude Code 2.1.316 win32-x64 平台二进制（Bun 编译）npm pack + 定向标记扫描的首轮逆向证据 |
 | **Claude Code 引擎完整逆向** | `docs/research/claude-code-workflow-internals.md` | Claude Code 2.1.316 workflow 模块整段 dump + 逐函数精读的深度提取逆向（配套首轮二进制证据） |
