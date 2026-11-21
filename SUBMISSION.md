@@ -4,6 +4,9 @@
 > — the team is deliberately named after the category it competes in)
 > Submission deadline: **December 4, 2026, 2:00 PM PT** · Prize pool: **USD 100,000**
 > Judged on: Potential Impact · Technological Implementation · Design · Innovation · Presentation
+>
+> **Working Application URL (Live Showcase)**: [https://litaog.github.io/AI-workflow-competition/](https://litaog.github.io/AI-workflow-competition/)  
+> *(Single-page dark-theme interactive showcase: architecture SVG, four failure-mode fixes, cross-engine benchmark, reproducible quality fingerprints, and recorded demo output — zero installation required)*
 
 This file is the judge-facing entry point: one-minute pitch → demo video → one-command
 reproduction → repository map → compliance → Kiro usage guide.
@@ -64,7 +67,9 @@ default database path is `.workflow/dwf.sqlite`).
 git clone https://github.com/LitaoG/AI-workflow-competition.git
 cd AI-workflow-competition
 npm install && npm run build
-bash scripts/demo.sh
+bash scripts/demo.sh        # or: npm run demo (Git Bash on Windows / Linux / macOS)
+# Cross-platform alternative (pure Node, runs mock demo & opens Studio dashboard in browser):
+node bin/workflow.js demo
 ```
 
 Offline, deterministic, **no API keys** — the script exits non-zero if any act fails.
