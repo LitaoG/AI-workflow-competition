@@ -250,13 +250,16 @@
           </div>
 
           <!-- Act Tabs -->
-          <div class="flex items-center gap-1 overflow-x-auto text-xs font-mono" id="terminal-tabs">
-            <button onclick="switchTab('act1')" id="tab-act1" class="px-2.5 py-1 rounded-md font-semibold bg-white text-indigo-600 shadow-sm border border-slate-200/80 transition-all">Act 1: Compile</button>
-            <button onclick="switchTab('act2')" id="tab-act2" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 transition-all">Act 2: Incident</button>
-            <button onclick="switchTab('act3')" id="tab-act3" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 transition-all">Act 3: ⚡ Replay</button>
-            <button onclick="switchTab('act4')" id="tab-act4" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 transition-all">Act 4: SDK Migration</button>
-            <button onclick="switchTab('act5')" id="tab-act5" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 transition-all">Act 5: Amend</button>
-            <button onclick="switchTab('act7')" id="tab-act7" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 transition-all">Act 7: Escalation</button>
+          <div class="flex items-center gap-1 overflow-x-auto py-1 max-w-full text-xs font-mono scrollbar-none" id="terminal-tabs">
+            <button onclick="switchTab('act1')" id="tab-act1" class="px-2.5 py-1 rounded-md font-semibold bg-white text-indigo-600 shadow-sm border border-slate-200/80 whitespace-nowrap transition-all">Act 1: Compile</button>
+            <button onclick="switchTab('act2')" id="tab-act2" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 whitespace-nowrap transition-all">Act 2: Incident</button>
+            <button onclick="switchTab('act3')" id="tab-act3" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 whitespace-nowrap transition-all">Act 3: ⚡ Replay</button>
+            <button onclick="switchTab('act4')" id="tab-act4" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 whitespace-nowrap transition-all">Act 4: Migration</button>
+            <button onclick="switchTab('act5')" id="tab-act5" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 whitespace-nowrap transition-all">Act 5: Amend</button>
+            <button onclick="switchTab('act6')" id="tab-act6" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 whitespace-nowrap transition-all">Act 6: Hole Fill</button>
+            <button onclick="switchTab('act7')" id="tab-act7" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 whitespace-nowrap transition-all">Act 7: Escalation</button>
+            <button onclick="switchTab('act8')" id="tab-act8" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 whitespace-nowrap transition-all">Act 8: Budget Cap</button>
+            <button onclick="switchTab('act9')" id="tab-act9" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 whitespace-nowrap transition-all">Act 9: View & Live</button>
           </div>
 
           <div class="hidden lg:flex items-center gap-2">
@@ -330,6 +333,19 @@
             <p class="text-emerald-400">[DONE] Only 2 stages re-run instead of 14. 85.7% token economy preserved.</p>
           </div>
 
+          <!-- Act 6 Content -->
+          <div id="content-act6" class="hidden space-y-2">
+            <p class="text-slate-500"># Act 6 (6/9) — Hole Parking, Code Fill & Amend Continue</p>
+            <p><span class="text-indigo-400 font-bold">$</span> node bin/workflow.js run-script growth.facade.ts --db .workflow/demo-dwf.sqlite</p>
+            <p class="text-amber-400">[PARK] Dynamic branch encountered hole: [plan-remediation]. Workflow state parked.</p>
+            <p class="text-slate-400 pl-4">└── Run ID: dwfrun-6b83f120 | Status: PARKED_WAITING_FOR_HOLE_FILL</p>
+            <p><span class="text-indigo-400 font-bold">$</span> node bin/workflow.js fill dwfrun-6b83f120 plan-remediation ./fill-plan.js</p>
+            <p class="text-cyan-400">[INJECT] Code artifact [fill-plan.js] bound to hole slot [plan-remediation].</p>
+            <p class="text-emerald-400 pl-4">✔ hole plan-remediation filled with code</p>
+            <p class="text-emerald-400 pl-4">♻ amended run continuing from parked snapshot (0 live re-executions)</p>
+            <p class="text-emerald-400">[COMPLETE] Hole-fill workflow resolved in 1.4s. Exit code: 0.</p>
+          </div>
+
           <!-- Act 7 Content -->
           <div id="content-act7" class="hidden space-y-2">
             <p class="text-slate-500"># Act 7 — Human Escalation & Parking Semantics</p>
@@ -340,6 +356,32 @@
             <p class="text-slate-300">[WAIT] Sleeping process without CPU polling or token leakage (Ticket #DWF-8201)...</p>
             <p class="text-emerald-400">[ANSWER] Human Admin Approved via CLI: "approved --reason emergency_maintenance"</p>
             <p class="text-emerald-400">[RESUMED] Process awakened from SQLite journal snapshot. Terminated successfully.</p>
+          </div>
+
+          <!-- Act 8 Content -->
+          <div id="content-act8" class="hidden space-y-2">
+            <p class="text-slate-500"># Act 8 (8/9) — Budget Hard Stop (Strict Spend Cap Protection)</p>
+            <p><span class="text-indigo-400 font-bold">$</span> node bin/workflow.js run-script budget.facade.ts --budget-total 80</p>
+            <p class="text-slate-300">[EXEC] Initializing ask#1 (analysis), ask#2 (search), ask#3 (synthesis)...</p>
+            <p class="text-purple-400 pl-4">├── ask#1 completed (spend: 28 tokens)</p>
+            <p class="text-purple-400 pl-4">├── ask#2 completed (spend: 34 tokens, cumulative: 62 / 80)</p>
+            <p class="text-rose-400 font-semibold">[INTERCEPT] ask#3 requested 40 tokens ➜ would exceed budget.total (102 > 80)</p>
+            <p class="text-rose-400 font-mono pl-4">✖ WorkflowBudgetExceededError: Workflow token budget exceeded (80 / 80 tokens).</p>
+            <p class="text-amber-300 pl-4">⚠ Stopping further agent() calls. In-flight agents will complete safely.</p>
+            <p class="text-emerald-400">[VERIFIED] Process safely terminated. Overspend prevented: 0 tokens leaked.</p>
+          </div>
+
+          <!-- Act 9 Content -->
+          <div id="content-act9" class="hidden space-y-2">
+            <p class="text-slate-500"># Act 9 (9/9) — Journal-Rendered Report & WebSocket Live Attach</p>
+            <p><span class="text-indigo-400 font-bold">$</span> node bin/workflow.js view dwfrun-a831e7 -o .workflow/views/demo.html</p>
+            <p class="text-cyan-400">[VIEW] Exported standalone HTML report: .workflow/views/demo.html</p>
+            <p class="text-slate-400 pl-4">├── Rendered DAG topological stages: 14 nodes, 18 edges</p>
+            <p class="text-slate-400 pl-4">├── Complete event timeline & token ledger bound to SQLite WAL</p>
+            <p class="text-slate-400 pl-4">└── Zero external CDN dependencies (Self-contained SVG & HTML)</p>
+            <p><span class="text-indigo-400 font-bold">$</span> node bin/workflow.js serve dwfrun-a831e7 --port 8765</p>
+            <p class="text-emerald-400">[LIVE ATTACH] WebSocket steering server listening on ws://127.0.0.1:8765</p>
+            <p class="text-emerald-400">[READY] Interactive studio connected. Stream latency: 0.8ms.</p>
           </div>
         </div>
       </div>
@@ -585,7 +627,7 @@
     // 2. Interactive Terminal Tab Switching
     function switchTab(act) {
       // Hide all contents
-      ['act1', 'act2', 'act3', 'act4', 'act5', 'act7'].forEach(id => {
+      ['act1', 'act2', 'act3', 'act4', 'act5', 'act6', 'act7', 'act8', 'act9'].forEach(id => {
         const content = document.getElementById('content-' + id);
         const tab = document.getElementById('tab-' + id);
         if (content) content.classList.add('hidden');
