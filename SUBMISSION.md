@@ -77,15 +77,15 @@ npm install && npm run build
 node bin/workflow.js demo
 # or: npm run demo
 
-# Option B: Comprehensive nine-act self-verifying showcase (~48s, requires Bash / Git Bash on Windows):
+# Option B: Comprehensive nine-act self-verifying showcase (~48-51s, requires Bash / Git Bash on Windows):
 bash scripts/demo.sh
 # or: npm run demo:nine-acts
 ```
 
 Offline, deterministic, **no API keys** — both entries self-verify and exit non-zero if any act fails.
 The nine-act suite measured end-to-end 2026-11-21 (Git Bash on Windows, Node v26.13.0, warm npm cache
-with preinstalled `node_modules` and a current `dist`): **48 seconds**, exit 0, **`ALL NINE ACTS COMPLETE`**
-— well inside the three-minute budget.
+with preinstalled `node_modules` and a current `dist`; 48 s and 51 s across two runs): **exit 0,
+`ALL NINE ACTS COMPLETE`, both runs** — well inside the three-minute budget.
 
 | Act | Capability | Evidence line |
 | --- | --- | --- |
@@ -141,11 +141,12 @@ Kiro-native wiring: [docs/KIRO_INTEGRATION.md](docs/KIRO_INTEGRATION.md).
 
 ### Reproducible quality-gate fingerprints
 
-All run 2026-11-21 on the v2.10.0 tree (main @ `fc28724` — the v2.10.0 release #186, the white
-interactive showcase #187, the demo write-closure fix #191/#194, the CI gate fix #195/#196, the
-docs-governance overlay #190 and the mock-provider crosstalk fixes #197/#201/#202 — plus the
-cross-platform demo entry #179 and this PR's doctor install-integrity + presentation-facts batch,
-Issue #205), Windows, Node v26.13.0, from a **fresh build**
+All run 2026-11-21 on the **v2.11.0 release tree** (main @ `698e796` — the v2.10.0 release #186,
+the white interactive showcase #187, the demo write-closure fix #191/#194, the CI gate fix
+#195/#196, the docs-governance overlay #190, the mock-provider crosstalk fixes #197/#201/#202,
+the cross-platform demo entry #179, and the #205 presentation-facts batch: doctor
+install-integrity + release tarball assets + Pages single-sourcing + showcase truth purge),
+Windows, Node v26.13.0, from a **fresh build**
 (fresh-build numbers are what a judge clone reproduces; full context in
 [README](README.md#reproducible-quality-gate-fingerprints)):
 
@@ -156,7 +157,7 @@ npm run test:pbt                                    →  18 tests,  18 pass, 0 f
 node --experimental-strip-types tests/e2e/runner.ts → 118/118 passed
 npm run test:adversarial                            → 198 tests, 198 pass, 0 fail
 npm run test:governance                             →  44 tests,  44 pass, 0 fail
-bash scripts/demo.sh                                → 48s, exit 0, all nine acts OK
+bash scripts/demo.sh                                → 48–51s (two runs), exit 0, all nine acts OK
 ```
 
 ### Cross-engine benchmark (measured)
