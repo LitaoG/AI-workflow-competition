@@ -6,7 +6,7 @@
 > Judged on: Potential Impact · Technological Implementation · Design · Innovation · Presentation
 >
 > **Working Application URL (Live Showcase)**: [https://litaog.github.io/AI-workflow-competition/](https://litaog.github.io/AI-workflow-competition/)  
-> *(Single-page dark-theme interactive showcase: architecture SVG, four failure-mode fixes, cross-engine benchmark, reproducible quality fingerprints, and recorded demo output — zero installation required)*
+> *(Single-page porcelain-white interactive showcase: architecture SVG, four failure-mode fixes, cross-engine benchmark, reproducible quality fingerprints, and recorded 9-Act demo output — zero installation required)*
 
 This file is the judge-facing entry point: one-minute pitch → demo video → one-command
 reproduction → repository map → compliance → Kiro usage guide.
@@ -164,8 +164,7 @@ exactly that:
 [Quickstart (60-second tour)](QUICKSTART.md) ·
 [Architecture](docs/ARCHITECTURE.md) · [Integration guide](docs/INTEGRATION.md) ·
 [Kiro integration](docs/KIRO_INTEGRATION.md) · [Showcase page](docs/showcase.html)
-(single-file dark-theme product page: pitch, failure-mode fixes, architecture SVG, captured demo
-output, evidence fingerprints — no build step).
+([Live](https://litaog.github.io/AI-workflow-competition/): single-file porcelain-white interactive product page — pitch, failure-mode fixes, architecture SVG, captured 9-act demo output, evidence fingerprints, zero build step).
 
 ---
 

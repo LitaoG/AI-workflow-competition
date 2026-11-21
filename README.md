@@ -196,7 +196,7 @@ And the namesake: the **Skeleton Crew roster** (`.kiro/crew/`) — `inspector`, 
 | **Technological Implementation** | Compile-time purity bans, a real sandbox (child process + `node:vm`, process supervision), SQLite WAL journal with hash-verified replay, PBT-proven invariants |
 | **Design** | Journal-rendered interactive HTML reports, cubic-Bézier DAG canvases, live Kanban tracking — presentation generated from evidence, not hand-made |
 | **Innovation** | Amend lineage (`♻` reuse / `⑂` diverge), mid-run hole growth, human escalation with zero-cost resume, hard budget enforcement |
-| **Presentation** | One command, nine acts, self-verifying, offline — plus a single-file [showcase page](docs/showcase.html) |
+| **Presentation** | One command, nine acts, self-verifying, offline — plus a single-file [showcase page](docs/showcase.html) ([live](https://litaog.github.io/AI-workflow-competition/)) |
 
 **Contest facts** — AWS Kiroween 2026, hosted by Kiro on Devpost; USD 100,000 prize pool;
 submissions close **December 4, 2026, 2:00 PM PT**; judged on Potential Impact, Technological
@@ -241,4 +241,4 @@ dynamic-workflow design that inspired this engine; and to the open-source projec
 **Further reading** — [Quickstart (60-second tour)](QUICKSTART.md) ·
 [Judge navigator & pitch](SUBMISSION.md) ·
 [Kiro integration & compliance](docs/KIRO_INTEGRATION.md) · [Architecture](docs/ARCHITECTURE.md) ·
-[Integration guide](docs/INTEGRATION.md) · [Showcase page](docs/showcase.html)
+[Integration guide](docs/INTEGRATION.md) · [Showcase page](docs/showcase.html) ([live](https://litaog.github.io/AI-workflow-competition/))
