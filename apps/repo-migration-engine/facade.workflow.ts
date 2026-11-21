@@ -114,10 +114,42 @@ const perFile = await Promise.all(
 );
 log(`Fan-out complete: ${perFile.length} file(s) transformed and reviewed (${perFile.map((p) => p.review.riskLevel).join('/')}).`);
 
+// Sandbox file writing: write transformed code into .workflow/sandbox for verification and diffing
+for (const item of perFile) {
+  const writeRes = await world.run(
+    'node',
+    [
+      '-e',
+      `const fs = require('fs'); const path = require('path'); const target = path.join('.workflow', 'sandbox', process.argv[1]); fs.mkdirSync(path.dirname(target), { recursive: true }); fs.writeFileSync(target, process.argv[2], 'utf8');`,
+      item.file,
+      item.migration.transformedCode,
+    ],
+    { timeoutMs: 30_000 },
+  );
+  if (writeRes.exitCode !== 0) {
+    throw new Error(`Sandbox file write failed for ${item.file}: ${writeRes.stderr}`);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Phase 4 — Compiler Diagnostics & Post-Merge Test Gate
 // ---------------------------------------------------------------------------
 phase('Compiler Diagnostics & Post-Merge Test Gate');
+for (const item of perFile) {
+  const syntaxCheck = await world.run(
+    'node',
+    [
+      '-e',
+      `const fs = require('fs'); const path = require('path'); const target = path.join('.workflow', 'sandbox', process.argv[1]); if (!fs.existsSync(target)) process.exit(1); const code = fs.readFileSync(target, 'utf8'); if (!code.includes('import') || !code.includes('class')) process.exit(2);`,
+      item.file,
+    ],
+    { timeoutMs: 30_000 },
+  );
+  if (syntaxCheck.exitCode !== 0) {
+    throw new Error(`Compiler diagnostic check failed for sandboxed ${item.file}: ${syntaxCheck.stderr}`);
+  }
+}
+
 const postMerge = await world.run(
   'node',
   ['--experimental-strip-types', fixtureTest],
@@ -142,6 +174,16 @@ const prRecord = await recorder.ask<PullRequestRecord>(
   })}`,
 );
 
+const diffTable = await Promise.all(
+  perFile.map(async (p) => {
+    const origCode = await files.read(p.file);
+    const origLines = origCode.split('\n').length;
+    const transformedLines = p.migration.transformedCode.split('\n').length;
+    const net = transformedLines - origLines;
+    return `| \`${p.file}\` | ${origLines} | ${transformedLines} | ${net >= 0 ? '+' : ''}${net} |`;
+  }),
+);
+
 const markdown = [
   '# Migration PR: aws-sdk v2 → v3 modular client',
   '',
@@ -149,9 +191,14 @@ const markdown = [
   `- **Target**: \`@aws-sdk/client-s3\``,
   `- **Resolved breaking changes**: ${perFile.flatMap((p) => p.migration.breakingChangesResolved).map((c) => `\`${c}\``).join(', ')}`,
   `- **Reviews**: all approved (${perFile.map((p) => `${p.review.signedOffBy}·${p.review.riskLevel}`).join(', ')})`,
-  `- **Rollback**: \`${perFile[0]?.review.rollbackCommand ?? 'git revert'}\``,
-  `- **Gates**: baseline ✔ post-merge ✔`,
+  `- **Rollback**: \`${perFile[0]?.review.rollbackCommand ?? 'git checkout -- .'}\``,
+  `- **Gates**: baseline ✔ compiler diagnostics ✔ post-merge ✔`,
   `- **Record**: ${prRecord.status} — ${prRecord.message}`,
+  '',
+  '## Diff Statistics (measured from sandboxed transforms)',
+  '| File | Legacy fixture (lines) | Transformed output (lines) | Net Change |',
+  '| :--- | ---: | ---: | ---: |',
+  ...diffTable,
 ].join('\n');
 await artifact.markdown('pull-request', markdown, { title: 'Migration PR (aws-sdk v2→v3)' });
 

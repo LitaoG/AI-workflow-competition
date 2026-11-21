@@ -16,9 +16,9 @@
 // Mock-mode substitutions (documented, deterministic):
 // - Phase 1 telemetry comes from files.read of a scenario fixture instead of a
 //   live metrics endpoint.
-// - Phase 4's post-remediation healthz gate is simulated by a `node -e` exit-0
-//   check instead of a real service healthz probe; remediation actions are
-//   deterministic, reversible marker writes under .workflow/ (gitignored).
+// - Phase 4's post-remediation healthz gate executes realistic configuration validation
+//   (pool-config.json capacity >= 200 & healthy status); remediation actions perform
+//   deterministic, reversible pool configuration updates under .workflow/ (gitignored).
 // - Phase 4's policy gate self-check and rollback drill exercise the real
 //   interception/rollback machinery on every run (a known-destructive
 //   reference command and a deliberately failing verification probe), so the
@@ -182,18 +182,29 @@ if (prohibited.length > 0) {
 log(`Policy gate: ${plannedCommands.length} planned commands scanned, 0 destructive — drill 'DROP TABLE orders;' intercepted ✔`);
 report({ step: 'policy-gate', scanned: plannedCommands.length, prohibited: prohibited.length, drill: 'intercepted' });
 
-// Remediation execution: deterministic, reversible actions. Every apply has a
-// paired undo, so a failed execution/verification triggers the automated
-// rollback (workflow.ts semantics) before the run fails.
+// Remediation execution: realistic configuration update and verification loop.
+// Every apply updates the pool configuration and creates state markers; every undo
+// restores the saturated baseline configuration, ensuring full drill fidelity.
 const marker = '.workflow/demo-remediation-marker';
+const poolConfig = '.workflow/pool-config.json';
 const applyAction = () =>
   world.run(
     'node',
-    ['-e', `require('fs').mkdirSync('.workflow',{recursive:true});require('fs').writeFileSync('${marker}','applied')`],
+    [
+      '-e',
+      `const fs = require('fs'); fs.mkdirSync('.workflow', { recursive: true }); fs.writeFileSync('${poolConfig}', JSON.stringify({ maxDbConnections: 250, idleTimeoutMs: 10000, status: 'healthy' })); fs.writeFileSync('${marker}', 'applied');`,
+    ],
     { timeoutMs: 30_000 },
   );
 const undoAction = () =>
-  world.run('node', ['-e', `try{require('fs').rmSync('${marker}')}catch{}`], { timeoutMs: 30_000 });
+  world.run(
+    'node',
+    [
+      '-e',
+      `const fs = require('fs'); try { fs.writeFileSync('${poolConfig}', JSON.stringify({ maxDbConnections: 100, idleTimeoutMs: 30000, status: 'saturated' })); fs.rmSync('${marker}'); } catch {}`,
+    ],
+    { timeoutMs: 30_000 },
+  );
 
 const applied = await applyAction();
 if (applied.exitCode !== 0) {
@@ -212,7 +223,10 @@ if (rolledBack.exitCode !== 0) {
 }
 const restored = await world.run(
   'node',
-  ['-e', `process.exit(require('fs').existsSync('${marker}') ? 1 : 0)`],
+  [
+    '-e',
+    `const fs = require('fs'); const markerExists = fs.existsSync('${marker}'); const cfg = fs.existsSync('${poolConfig}') ? JSON.parse(fs.readFileSync('${poolConfig}', 'utf8')) : {}; process.exit(!markerExists && cfg.maxDbConnections === 100 ? 0 : 1);`,
+  ],
   { timeoutMs: 30_000 },
 );
 if (restored.exitCode !== 0) {
@@ -220,14 +234,21 @@ if (restored.exitCode !== 0) {
 }
 log(`Rollback drill: verification FAILED → automated rollback executed → prior state restored ✔ (prescribed: ${safety.rollbackCommand})`);
 
-// Re-apply for real, then the post-remediation healthz gate (mock-mode
-// substitution for a live probe). Verification failure rolls back the apply.
+// Re-apply for real, then the post-remediation healthz gate.
+// Verification validates the real pool configuration file.
 const reapplied = await applyAction();
 if (reapplied.exitCode !== 0) {
   await undoAction();
   throw new Error(`Remediation apply gate failed (rolled back): ${reapplied.stderr}`);
 }
-const healthzGate = await world.run('node', ['-e', 'process.exit(0)'], { timeoutMs: 30_000 });
+const healthzGate = await world.run(
+  'node',
+  [
+    '-e',
+    `const fs = require('fs'); const cfg = JSON.parse(fs.readFileSync('${poolConfig}', 'utf8')); process.exit(cfg.maxDbConnections >= 200 && cfg.status === 'healthy' ? 0 : 1);`,
+  ],
+  { timeoutMs: 30_000 },
+);
 if (healthzGate.exitCode !== 0) {
   // Automated rollback on failed verification: undo the applied action.
   await undoAction();

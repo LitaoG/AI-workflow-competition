@@ -75,6 +75,17 @@ Demo 1 在 `scenarios/` 目录下内置了 3 组工业级真实故障场景定�
 
 ## ⚡ 快速开始
 
+### 0. 运行 Facade 脚本版（推荐）
+```bash
+# 运行完整的 5 阶段故障排查工作流，带确定性日志与零令牌重放 (<2s)
+node bin/workflow.js run-script apps/incident-triage-remediation/facade.workflow.ts \
+  --cwd apps/incident-triage-remediation --args '{"scenario":"p1_db_pool_exhaustion"}'
+
+# 零成本重放已完成运行：
+node bin/workflow.js run-script apps/incident-triage-remediation/facade.workflow.ts \
+  --cwd apps/incident-triage-remediation --args '{"scenario":"p1_db_pool_exhaustion"}' --resume <runId>
+```
+
 ### 1. 在离线模拟模式下运行默认场景 (<2秒极速执行)
 ```bash
 node bin/workflow.js run apps/incident-triage-remediation/workflow.ts --mock
