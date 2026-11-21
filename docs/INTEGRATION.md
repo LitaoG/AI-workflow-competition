@@ -82,7 +82,13 @@ args = ["<repo>/bin/workflow.js", "mcp", "serve"]
 
 ## 4. 将 worker ask 路由到外部智能体 CLI（Provider 路由）
 
-默认情况下，`agent().ask()` 调用走 Provider 注册表（默认 mock Provider，另可选 Bedrock）。
+默认情况下，`agent().ask()` 调用走 Provider 注册表（默认 mock Provider）。除外部 CLI 外，引擎还会
+探测直连 HTTP 凭据并自动注册（ask 仍需显式 `providerId` 路由，默认永不静默降级）：
+
+- `ANTHROPIC_API_KEY`（可选 `ANTHROPIC_MODEL` / `ANTHROPIC_BASE_URL`）→ `anthropic`
+- `OPENAI_API_KEY`（可选 `OPENAI_MODEL` / `OPENAI_BASE_URL`）→ `openai`
+- `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY`（可选 `AWS_SESSION_TOKEN`、`AWS_REGION`、`BEDROCK_MODEL_ID`）→ `bedrock`（原生 SigV4 签名直连 Bedrock Runtime，零额外依赖）
+
 若要把 ask 请求路由给外部智能体 CLI 充当 worker，请在启动前设置环境变量：
 
 ```bash
