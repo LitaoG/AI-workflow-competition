@@ -4,6 +4,36 @@
 > to this project's own private development repository (the pre-public-history mirror), never
 > third-party code. All engine code in this repository is clean-room original work.
 
+## 2.11.0 (2026-11-21) — presentation-facts batch: judge-surface truth purge, doctor install-integrity & release tarball assets
+
+- **cli (Issue #205, PR #206)**: `workflow doctor` gains an install-integrity check — when the
+  repo dev environment (`apps/` present) is missing the `node_modules/ai-workflow` self-link
+  (the postinstall hook is silently skipped under `ignore-scripts=true`), doctor fails loudly
+  with the exact repair command instead of letting apps-scope `import 'ai-workflow'` die later
+  with ERR_MODULE_NOT_FOUND; four temp-fixture unit tests cover the downstream / link-present /
+  stale-copy / missing branches (+4 tests → 857).
+- **release (Issue #205/#208)**: a `.tgz` asset is attached to every GitHub Release from v2.11.0
+  on; README / QUICKSTART / SUBMISSION install guidance now carries the real
+  `gh release download` path (the npm `ai-workflow` name remains an unrelated 2021 placeholder,
+  v0.1.19).
+- **pages (Issue #205)**: `docs/index.html` is no longer a hand-synced duplicate — `pages.yml`
+  materializes it from the single-source `docs/showcase.html` at deploy time (the 742-line
+  byte-identical twin was guaranteed drift).
+- **showcase truth purge (R5/R6 review)**: the judge landing page now carries only verifiable
+  facts — the fabricated `npx ai-workflow demo:studio` hero command (which installs an unrelated
+  2021 package) is replaced by the real clone→build→demo path; the MIT footer becomes Apache-2.0;
+  the stale v2.9.0 badge and 848 fingerprint are re-pinned to current; the invented dependency
+  list (yaml/chalk) is replaced by the real four runtime deps; benchmark cards are re-pinned to
+  the measured cross-engine table (7.2 ms warm compile, 40.5 MB peak heap vs the official
+  engine); the nine terminal Act panels are verbatim transcripts of a real `bash scripts/demo.sh`
+  run; the four failure-mode cards match the README taxonomy; the favicon data-URI is fully
+  percent-encoded (root cause of the stray `⚡">` text fragment).
+- **docs (Issue #205)**: SUBMISSION gains "90 seconds to a real model" (the mock is the
+  deterministic review channel; three real-agent paths); the measurement-date drift (39 s @
+  2026-11-03 vs 2026-11-21) is resolved by an honest re-measure (48 s, 2026-11-21) pinned
+  identically in README and SUBMISSION; the demo-video section links the ready 180-second cue
+  sheet (`deliverables/video_script.md`); README links the Devpost article draft (`blog/post.md`).
+
 ## 2.10.0 (2026-11-21) — §1.9 mechanical closure, GitHub Pages showcase & one-command demo entry
 
 - **governance (§1.9 mechanical closure, Issue #173/#124)**: the three-state reply duty is now

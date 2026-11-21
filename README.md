@@ -110,7 +110,7 @@ npm install && npm run build
 node bin/workflow.js demo
 # or: npm run demo
 
-# Option B: Comprehensive nine-act self-verifying regression showcase (~48s, requires Bash / Git Bash on Windows):
+# Option B: Comprehensive nine-act self-verifying regression showcase (~48-51s, requires Bash / Git Bash on Windows):
 bash scripts/demo.sh
 # or: npm run demo:nine-acts
 ```
@@ -129,8 +129,9 @@ bash scripts/demo.sh
 
 Offline, deterministic, **no API keys** — both entries self-verify and exit non-zero if any act
 fails. The nine-act suite measured end-to-end (2026-11-21, Git Bash on Windows, Node v26.13.0, warm
-npm cache with preinstalled `node_modules` and a current `dist`): **48 seconds, exit 0,
-`ALL NINE ACTS COMPLETE`** — well inside the three-minute budget, with headroom for a cold registry.
+npm cache with preinstalled `node_modules` and a current `dist`; 48 s and 51 s across two runs):
+**exit 0, `ALL NINE ACTS COMPLETE`, both runs** — well inside the three-minute budget, with
+headroom for a cold registry.
 
 Every act prints the evidence line for the capability it demos — the authoritative
 nine-act table (act → capability → evidence line) lives in
