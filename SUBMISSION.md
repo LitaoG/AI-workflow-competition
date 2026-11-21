@@ -51,6 +51,9 @@ with zero shared demo logic. Write a new facade script in any domain and the ske
 
 > **⏳ Placeholder — to be backfilled after recording and uploading to YouTube: `[YouTube link]`**
 > Length target: **under 3 minutes**, per the official submission requirements.
+> Recording assets are ready: the 180-second second-by-second cue sheet (393-word voiceover,
+> six scenes) lives in [`deliverables/video_script.md`](deliverables/video_script.md), with the
+> storyboard in [`deliverables/storyboard.md`](deliverables/storyboard.md).
 
 Planned recording recipe (already exercised end-to-end on this machine): record `bash scripts/demo.sh`
 running its nine self-verifying acts, then open `.workflow/views/demo.html` (the journal-rendered
@@ -74,14 +77,15 @@ npm install && npm run build
 node bin/workflow.js demo
 # or: npm run demo
 
-# Option B: Comprehensive nine-act self-verifying showcase (~39s, requires Bash / Git Bash on Windows):
+# Option B: Comprehensive nine-act self-verifying showcase (~48s, requires Bash / Git Bash on Windows):
 bash scripts/demo.sh
 # or: npm run demo:nine-acts
 ```
 
 Offline, deterministic, **no API keys** — both entries self-verify and exit non-zero if any act fails.
-The nine-act suite measured end-to-end 2026-11-03 (Git Bash on Windows, Node v26.13.0, warm npm cache; fresh
-`node_modules`/`dist`): **39 seconds**, exit 0, **`ALL NINE ACTS COMPLETE`**.
+The nine-act suite measured end-to-end 2026-11-21 (Git Bash on Windows, Node v26.13.0, warm npm cache
+with preinstalled `node_modules` and a current `dist`): **48 seconds**, exit 0, **`ALL NINE ACTS COMPLETE`**
+— well inside the three-minute budget.
 
 | Act | Capability | Evidence line |
 | --- | --- | --- |

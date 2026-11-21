@@ -110,7 +110,7 @@ npm install && npm run build
 node bin/workflow.js demo
 # or: npm run demo
 
-# Option B: Comprehensive nine-act self-verifying regression showcase (~39s, requires Bash / Git Bash on Windows):
+# Option B: Comprehensive nine-act self-verifying regression showcase (~48s, requires Bash / Git Bash on Windows):
 bash scripts/demo.sh
 # or: npm run demo:nine-acts
 ```
@@ -129,8 +129,8 @@ bash scripts/demo.sh
 
 Offline, deterministic, **no API keys** — both entries self-verify and exit non-zero if any act
 fails. The nine-act suite measured end-to-end (2026-11-21, Git Bash on Windows, Node v26.13.0, warm
-npm cache; fresh `node_modules`/`dist`): **39 seconds, exit 0, `ALL NINE ACTS COMPLETE`** — well
-inside the three-minute budget, with headroom for a cold registry.
+npm cache with preinstalled `node_modules` and a current `dist`): **48 seconds, exit 0,
+`ALL NINE ACTS COMPLETE`** — well inside the three-minute budget, with headroom for a cold registry.
 
 Every act prints the evidence line for the capability it demos — the authoritative
 nine-act table (act → capability → evidence line) lives in
@@ -142,7 +142,9 @@ journal event rendered as a standalone page. Attach live during a run with
 `.workflow/demo-dwf.sqlite`, while the CLI's default database path is `.workflow/dwf.sqlite`).
 
 🎬 A demo video (<3 minutes, per the official submission requirements) is being recorded — the
-placeholder and recording recipe live in [`SUBMISSION.md`](SUBMISSION.md).
+placeholder and recording recipe live in [`SUBMISSION.md`](SUBMISSION.md); the 180-second
+second-by-second cue sheet is already prepared in
+[`deliverables/video_script.md`](deliverables/video_script.md).
 
 ### Reproducible quality-gate fingerprints
 
@@ -255,5 +257,6 @@ dynamic-workflow design that inspired this engine; and to the open-source projec
 
 **Further reading** — [Quickstart (60-second tour)](QUICKSTART.md) ·
 [Judge navigator & pitch](SUBMISSION.md) ·
+[Devpost article draft](blog/post.md) ·
 [Kiro integration & compliance](docs/KIRO_INTEGRATION.md) · [Architecture](docs/ARCHITECTURE.md) ·
 [Integration guide](docs/INTEGRATION.md) · [Showcase page](docs/showcase.html) ([live](https://litaog.github.io/AI-workflow-competition/))
