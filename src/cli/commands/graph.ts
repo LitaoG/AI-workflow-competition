@@ -13,6 +13,7 @@ import { DwfJournalStore } from '../../types.js';
 import { resolveDwfJournalPath } from '../../dwf/runner.js';
 import { t, resolveLang } from '../i18n/index.js';
 import { Workflow, defineWorkflow } from '../../core/workflow.js';
+import { looksLikeFacadeScript } from './script-detect.js';
 
 export interface GraphCommandOptions {
   format?: 'html' | 'mermaid' | 'ascii';
@@ -88,6 +89,88 @@ async function loadFacadeRunEvents(filePath: string, db?: string): Promise<Workf
   }
 }
 
+/**
+ * Discover the latest executed run events for a facade script across known journals.
+ */
+async function findLatestRunEventsForScript(
+  resolvedScriptPath: string,
+  optionsDb?: string
+): Promise<{ runId: string; events: WorkflowEvent[] } | undefined> {
+  const candidateDbs: string[] = [];
+  if (optionsDb) {
+    if (fs.existsSync(optionsDb)) candidateDbs.push(optionsDb);
+  } else {
+    // 1. Script's own workspace .workflow/dwf.sqlite
+    const scriptDirDb = path.join(path.dirname(resolvedScriptPath), '.workflow', 'dwf.sqlite');
+    if (fs.existsSync(scriptDirDb)) candidateDbs.push(scriptDirDb);
+
+    // 2. Invocation cwd .workflow/dwf.sqlite
+    const cwdDb = path.join(process.cwd(), '.workflow', 'dwf.sqlite');
+    if (fs.existsSync(cwdDb) && !candidateDbs.includes(cwdDb)) candidateDbs.push(cwdDb);
+
+    // 3. Demo journal .workflow/demo-dwf.sqlite
+    const demoDb = path.join(process.cwd(), '.workflow', 'demo-dwf.sqlite');
+    if (fs.existsSync(demoDb) && !candidateDbs.includes(demoDb)) candidateDbs.push(demoDb);
+
+    // 4. Known sub-application workspaces
+    const appsDir = path.join(process.cwd(), 'apps');
+    if (fs.existsSync(appsDir)) {
+      try {
+        const entries = fs.readdirSync(appsDir, { withFileTypes: true });
+        for (const ent of entries) {
+          if (ent.isDirectory()) {
+            const appDb = path.join(appsDir, ent.name, '.workflow', 'dwf.sqlite');
+            if (fs.existsSync(appDb) && !candidateDbs.includes(appDb)) {
+              candidateDbs.push(appDb);
+            }
+          }
+        }
+      } catch {
+        // Ignore read errors
+      }
+    }
+  }
+
+  const scriptBase = path.basename(resolvedScriptPath);
+  let bestRun: { runId: string; createdAt: string; dbPath: string } | undefined;
+
+  for (const dbPath of candidateDbs) {
+    const store = new SQLiteStateStore(dbPath) as SQLiteStateStore & DwfJournalStore;
+    try {
+      const runs = await store.listDwfRuns({ limit: 50 });
+      for (const r of runs) {
+        if (!r.scriptPath) continue;
+        const matches =
+          path.resolve(r.scriptPath) === resolvedScriptPath ||
+          path.basename(r.scriptPath) === scriptBase;
+        if (matches) {
+          if (!bestRun || (r.createdAt && (!bestRun.createdAt || r.createdAt > bestRun.createdAt))) {
+            bestRun = { runId: r.runId, createdAt: r.createdAt ?? '', dbPath };
+          }
+        }
+      }
+    } catch {
+      // Ignore errors reading a specific journal
+    } finally {
+      store.close();
+    }
+  }
+
+  if (bestRun) {
+    const store = new SQLiteStateStore(bestRun.dbPath) as SQLiteStateStore & DwfJournalStore;
+    try {
+      const events = await store.getEvents(bestRun.runId);
+      if (events && events.length > 0) {
+        return { runId: bestRun.runId, events };
+      }
+    } finally {
+      store.close();
+    }
+  }
+
+  return undefined;
+}
+
 /** Fold dwf events through the shared projection and render/export the result. */
 async function renderDwfProjection(
   dwfEvents: WorkflowEvent[],
@@ -153,6 +236,20 @@ export async function executeGraph(filePath: string, options: GraphCommandOption
     // A missing file is a caller error — the T2_F4_02 boundary contract names
     // non-zero; the old `return 0` masked the failure (2026-11-14 round 2).
     return 1;
+  }
+
+  if (looksLikeFacadeScript(resolvedPath)) {
+    const latest = await findLatestRunEventsForScript(resolvedPath, options.db);
+    if (latest && latest.events.length > 0) {
+      if (!options.output) {
+        console.log(`[AI-Workflow] Projecting graph from latest run ${latest.runId} of ${path.basename(resolvedPath)}`);
+      }
+      return renderDwfProjection(latest.events, options, lang);
+    }
+    console.log(`[AI-Workflow] Script "${path.basename(resolvedPath)}" is a dynamic Facade workflow.`);
+    console.log(`  To generate its execution graph, run it once (e.g. \`node bin/workflow.js run ${filePath}\`)`);
+    console.log(`  or supply an executed run ID / directory: \`workflow graph <runId>\`.`);
+    return 0;
   }
 
   try {

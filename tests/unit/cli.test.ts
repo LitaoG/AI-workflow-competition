@@ -126,8 +126,35 @@ test('CLI Probe: outputs valid JSON when --output json is specified', async () =
   }
 });
 
-test('CLI List: displays table of runs from SQLite database', async () => {
+test('CLI List: displays table of runs from SQLite database (Issue #230)', async () => {
   const exitCode = await runCLI(['node', 'bin/workflow.js', 'list']);
+  assert.equal(exitCode, 0);
+});
+
+test('CLI Graph: facade script projects graph cleanly without SyntaxError (Issue #230)', async () => {
+  const exitCode = await runCLI([
+    'node',
+    'bin/workflow.js',
+    'graph',
+    'apps/incident-triage-remediation/facade.workflow.ts',
+  ]);
+  assert.equal(exitCode, 0);
+});
+
+test('CLI Graph: fresh facade script without prior runs outputs guidance and exits 0 (Issue #230)', async (t) => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-graph-facade-'));
+  t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
+  const scriptPath = path.join(tmpDir, 'new.facade.ts');
+  fs.writeFileSync(
+    scriptPath,
+    `
+    phase('Phase 1: Test', () => {
+      world.run('echo hello');
+    });
+    return { ok: true };
+  `
+  );
+  const exitCode = await runCLI(['node', 'bin/workflow.js', 'graph', scriptPath]);
   assert.equal(exitCode, 0);
 });
 
