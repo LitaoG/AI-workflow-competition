@@ -170,9 +170,9 @@ Kiro-native wiring: [docs/KIRO_INTEGRATION.md](docs/KIRO_INTEGRATION.md).
 
 ### Reproducible quality-gate fingerprints
 
-All run 2026-11-21 on the **v2.13.0 release tree** (main @ `4620be1` — the v2.13.0 release merge
-#229, with the #228 CLI-approve interleave (issue #226) folded by this docs-only PR — the
-test-bearing tree is identical to `4620be1`; base `b9bb498` = the
+All run 2026-11-21 on the **v2.13.0 release tree** (main @ `86486f2` — the v2.13.0 release tree,
+with the #228 CLI-approve and #230/#232 CLI graph/list interleaves folded into the release;
+fingerprints measured on this exact tagged tree; base `b9bb498` = the
 R7 sharp-review fix batch tip #225, folding the redaction dual-profile #219/#222 (worldRead
 content fidelity — ADV3 contract intact plus a package.json regression), the review-author
 integrity #220/#223 (closing the #215 supervision-independence hole) and the self-contained
@@ -184,7 +184,7 @@ golden-path docs)), Windows, Node v26.13.0, from a **fresh build**
 [README](README.md#reproducible-quality-gate-fingerprints)):
 
 ```text
-npm test                                            → 874 tests, 871 pass, 3 skipped, 0 fail
+npm test                                            → 876 tests, 873 pass, 3 skipped, 0 fail
 npm run test:integration (serial)                   → 215 tests, 215 pass, 0 skipped, 0 fail
 npm run test:pbt                                    →  18 tests,  18 pass, 0 fail
 node --experimental-strip-types tests/e2e/runner.ts → 118/118 passed
