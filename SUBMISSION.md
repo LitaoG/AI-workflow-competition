@@ -170,24 +170,26 @@ Kiro-native wiring: [docs/KIRO_INTEGRATION.md](docs/KIRO_INTEGRATION.md).
 
 ### Reproducible quality-gate fingerprints
 
-All run 2026-11-21 on the **v2.12.0 release tree** (main @ `c267809` — the v2.12.0 release merge
-#216, folding the v2.11.0 release #212 with the #205 presentation-facts batch: doctor
-install-integrity, release tarball assets, Pages single-sourcing, showcase truth purge — the
-v2.10.0 lineage #186/#187/#190-#196/#197-#204 — the
-native-SigV4 BedrockProvider #209/#213, which adds the zero-dependency real-model path — and the
-stdlib-AST compile cache #210/#217 plus the judge golden-path docs #211/#218 folded at release
-time), Windows, Node v26.13.0, from a **fresh build**
+All run 2026-11-21 on the **v2.13.0 release tree** (release PR #227 — the merge carries the
+identical tree absent interleaved merges, re-verified on main post-merge; base `b9bb498` = the
+R7 sharp-review fix batch tip #225, folding the redaction dual-profile #219/#222 (worldRead
+content fidelity — ADV3 contract intact plus a package.json regression), the review-author
+integrity #220/#223 (closing the #215 supervision-independence hole) and the self-contained
+showcase #224/#225 (Tailwind compiled inline, CDN removed; the fingerprint tree label
+corrected) — on top of the v2.12.0 lineage #209/#213 (native-SigV4 BedrockProvider
+zero-dependency real-model path), #210/#217 (stdlib-AST compile cache) and #211/#218 (judge
+golden-path docs)), Windows, Node v26.13.0, from a **fresh build**
 (fresh-build numbers are what a judge clone reproduces; full context in
 [README](README.md#reproducible-quality-gate-fingerprints)):
 
 ```text
-npm test                                            → 868 tests, 865 pass, 3 skipped, 0 fail
+npm test                                            → 873 tests, 870 pass, 3 skipped, 0 fail
 npm run test:integration (serial)                   → 215 tests, 215 pass, 0 skipped, 0 fail
 npm run test:pbt                                    →  18 tests,  18 pass, 0 fail
 node --experimental-strip-types tests/e2e/runner.ts → 118/118 passed
 npm run test:adversarial                            → 198 tests, 198 pass, 0 fail
 npm run test:governance                             →  44 tests,  44 pass, 0 fail
-bash scripts/demo.sh                                → 42–51s (four runs), exit 0, all nine acts OK
+bash scripts/demo.sh                                → ~48s, exit 0, all nine acts OK
 ```
 
 ### Cross-engine benchmark (measured)
