@@ -39,7 +39,13 @@ function statusIcon(status: string): string {
 
 /** Facade rows show the script file as their "Workflow" column. */
 function facadeDisplayName(row: DwfRunRow): string {
-  return row.scriptPath ? path.basename(row.scriptPath) : 'facade-script';
+  if (!row.scriptPath) return 'facade-script';
+  const norm = row.scriptPath.replace(/\\/g, '/');
+  const match = norm.match(/apps\/([^/]+)\/(.+)$/);
+  if (match) {
+    return `${match[1]}/${match[2]}`;
+  }
+  return path.basename(row.scriptPath);
 }
 
 export async function executeList(options?: ListCommandOptions): Promise<number> {
@@ -81,10 +87,44 @@ export async function executeList(options?: ListCommandOptions): Promise<number>
       builderStore.close();
     }
 
-    if (fs.existsSync(journalDbPath)) {
-      const journalStore = new SQLiteStateStore(journalDbPath) as SQLiteStateStore & DwfJournalStore;
+    const journalPaths: string[] = [];
+    if (options?.db) {
+      if (fs.existsSync(options.db)) {
+        journalPaths.push(options.db);
+      }
+    } else {
+      if (fs.existsSync(journalDbPath)) {
+        journalPaths.push(journalDbPath);
+      }
+      const demoDb = path.join(process.cwd(), '.workflow', 'demo-dwf.sqlite');
+      if (fs.existsSync(demoDb) && !journalPaths.includes(demoDb)) {
+        journalPaths.push(demoDb);
+      }
+      const appsDir = path.join(process.cwd(), 'apps');
+      if (fs.existsSync(appsDir)) {
+        try {
+          const entries = fs.readdirSync(appsDir, { withFileTypes: true });
+          for (const ent of entries) {
+            if (ent.isDirectory()) {
+              const appDb = path.join(appsDir, ent.name, '.workflow', 'dwf.sqlite');
+              if (fs.existsSync(appDb) && !journalPaths.includes(appDb)) {
+                journalPaths.push(appDb);
+              }
+            }
+          }
+        } catch {
+          // Ignore read errors
+        }
+      }
+    }
+
+    const seenRunIds = new Set<string>();
+    for (const jPath of journalPaths) {
+      const journalStore = new SQLiteStateStore(jPath) as SQLiteStateStore & DwfJournalStore;
       try {
         for (const r of await journalStore.listDwfRuns(query)) {
+          if (seenRunIds.has(r.runId)) continue;
+          seenRunIds.add(r.runId);
           rows.push({
             store: 'facade-journal',
             runId: r.runId,
