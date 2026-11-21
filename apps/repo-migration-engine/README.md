@@ -61,11 +61,13 @@ Phase 4: Compiler & Merge Gate                            Phase 5: Release Synth
 ### 0. Run Facade Script Edition (Recommended)
 ```bash
 # Run complete 5-phase migration workflow with durable event journaling (<4s)
-node bin/workflow.js run-script apps/repo-migration-engine/facade.workflow.ts --cwd apps/repo-migration-engine
+node bin/workflow.js run apps/repo-migration-engine/facade.workflow.ts --cwd apps/repo-migration-engine --approve-cmd node
 
 # Resume completed run at zero token spend:
-node bin/workflow.js run-script apps/repo-migration-engine/facade.workflow.ts --cwd apps/repo-migration-engine --resume <runId>
+node bin/workflow.js run apps/repo-migration-engine/facade.workflow.ts --cwd apps/repo-migration-engine --approve-cmd node --resume <runId>
 ```
+
+> **Windows PowerShell note**: Use `--approve-cmd node` to pre-authorize the sandboxed node command for verification steps (Issue #127 security policy). When passing structured script arguments, prefer `--set key=value` or `--args-file <path>` to bypass PowerShell JSON escaping quirks.
 
 ### 1. Run Complete Migration in Offline Mock Mode (<4s)
 ```bash

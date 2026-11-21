@@ -77,6 +77,11 @@ test('CLI Run: --no-watch-graph parses (Issue #168: explicit opt-out of the defa
   assert.equal(exitCode, 2);
 });
 
+test('CLI Run: --approve-cmd parses on run (Issue #226)', async () => {
+  const exitCode = await runCLI(['node', 'bin/workflow.js', 'run', './non-existent-file-404.ts', '--approve-cmd', 'node']);
+  assert.equal(exitCode, 2);
+});
+
 test('CLI Graph: exports standalone HTML to specified path', async (t) => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-graph-'));
   t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));

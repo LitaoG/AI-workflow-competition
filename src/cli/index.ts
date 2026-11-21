@@ -38,12 +38,11 @@ function collect(value: string, previous: string[]): string[] {
 }
 
 /**
- * Shared facade-run option face for `run` and `run-script` (Issue #104): one
+ * Shared facade-run option face for `run` and `run-script` (Issue #104, #226): one
  * registration so the two entries cannot drift. Per-command extras stay with
- * their own command (`--watch`/`--progress` on run; `--rerun`/`--from`/
- * `--approve-cmd` on run-script), and the --resume/--amend short flags stay
- * per-command too — `-r`/`-m` are already taken by run's
- * --resume-from-failed/--mock.
+ * their own command (`--watch`/`--progress` on run; `--rerun`/`--from` on
+ * run-script), and the --resume/--amend short flags stay per-command too —
+ * `-r`/`-m` are already taken by run's --resume-from-failed/--mock.
  */
 function registerFacadeRunOptions(cmd: Command): Command {
   return cmd
@@ -59,7 +58,8 @@ function registerFacadeRunOptions(cmd: Command): Command {
     .option('--watch-graph', 'Rewrite the run dir graph.html after every event (same journal projection as `workflow graph` cold replay; ON by default — the graph opens as the full pending plan, Issue #168)')
     .option('--no-watch-graph', 'Disable the live graph.html watch view for this run')
     .option('--ui', 'When the run settles, serve the AI-Workflow Studio (SSE + A2UI resume) and open the browser')
-    .option('--run-timeout <ms>', 'Whole-run wall clock in ms (default 600000; env AI_WORKFLOW_RUN_TIMEOUT_MS)');
+    .option('--run-timeout <ms>', 'Whole-run wall clock in ms (default 600000; env AI_WORKFLOW_RUN_TIMEOUT_MS)')
+    .option('--approve-cmd <name>', 'Authorize a world.run command for this run (repeatable; the script own list no longer authorizes - Issue #127)', collect, []);
 }
 
 /**
@@ -178,6 +178,8 @@ Commands:
           dbPath: opts.db,
           maxConcurrency: opts.maxConcurrency,
           budgetTotal: opts.budgetTotal,
+          approveCmd: opts.approveCmd,
+          approvedCommands: opts.approveCmd,
           failoverProviders:
             typeof opts.failover === 'string'
               ? opts.failover.split(',').map((x: string) => x.trim()).filter(Boolean)
@@ -311,7 +313,6 @@ Commands:
     .description(dict.CMD_RUN_SCRIPT_DESC)
     .option('--rerun <runId>', 'Rerun a prior run with the same script from --from <siteId>: earlier sites replay from the warm cache, that site and later ones run live')
     .option('--from <siteId>', 'Site id where a --rerun starts executing live (`workflow check <file>` lists the site table)')
-    .option('--approve-cmd <name>', 'Authorize a world.run command for this run (repeatable; the script own list no longer authorizes - Issue #127)', collect, [])
     .option('--mock', 'Force tier routing to the built-in mock provider (offline, 0 tokens; overrides AI_WORKFLOW_*_PROVIDER tier routing)')
     .option('-l, --lang <lang>', dict.OPT_LANG);
   registerFacadeRunOptions(runScriptCmd)
@@ -326,6 +327,7 @@ Commands:
       }
       exitCode = await executeRunScript(file, {
         ...opts,
+        approvedCommands: opts.approveCmd,
         argsJson: JSON.stringify(composed.args ?? {}),
         cwd: opts.cwd,
         dbPath: opts.db,

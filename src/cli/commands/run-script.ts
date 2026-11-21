@@ -30,6 +30,7 @@ export async function executeRunScript(
     budgetTotal?: string;
     /** Externally authorized world.run commands (repeatable --approve-cmd, Issue #127). */
     approveCmd?: string[];
+    approvedCommands?: string[];
     live?: string;
     /**
      * Rewrite `<runDir>/graph.html` after every emitted event by re-folding the
@@ -110,7 +111,7 @@ export async function executeRunScript(
       cwd: options.cwd,
       failoverProviders: options.failoverProviders,
       budgetTotal,
-      approvedCommands: options.approveCmd,
+      approvedCommands: options.approvedCommands ?? options.approveCmd,
       mock: options.mock,
       runTimeoutMs,
       confirmWorldRun: process.stdin.isTTY && process.stdout.isTTY

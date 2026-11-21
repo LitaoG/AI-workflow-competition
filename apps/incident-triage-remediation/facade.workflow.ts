@@ -7,11 +7,14 @@
 // journalled for zero-provider-call resume.
 //
 // Run it offline (mock provider is the registry default, <4s, 0 tokens):
+//   node bin/workflow.js run apps/incident-triage-remediation/facade.workflow.ts \
+//     --cwd apps/incident-triage-remediation --approve-cmd node --args '{"scenario":"p1_db_pool_exhaustion"}'
+//   (or with run-script):
 //   node bin/workflow.js run-script apps/incident-triage-remediation/facade.workflow.ts \
-//     --cwd apps/incident-triage-remediation --args '{"scenario":"p1_db_pool_exhaustion"}'
+//     --cwd apps/incident-triage-remediation --approve-cmd node --args '{"scenario":"p1_db_pool_exhaustion"}'
 // Replay the completed run at zero cost:
-//   node bin/workflow.js run-script apps/incident-triage-remediation/facade.workflow.ts \
-//     --cwd apps/incident-triage-remediation --args '{"scenario":"p1_db_pool_exhaustion"}' --resume <runId>
+//   node bin/workflow.js run apps/incident-triage-remediation/facade.workflow.ts \
+//     --cwd apps/incident-triage-remediation --approve-cmd node --args '{"scenario":"p1_db_pool_exhaustion"}' --resume <runId>
 //
 // Mock-mode substitutions (documented, deterministic):
 // - Phase 1 telemetry comes from files.read of a scenario fixture instead of a
