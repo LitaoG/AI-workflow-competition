@@ -9,14 +9,6 @@ import { DatabaseSync } from 'node:sqlite';
  * Implements CLI interface contracts specified in TEST_INFRA.md and docs/ARCHITECTURE.md.
  */
 
-export interface RunOptions {
-  mock?: boolean;
-  lang?: 'en' | 'zh';
-  dryRun?: boolean;
-  resumeFromFailed?: boolean;
-  outputDir?: string;
-}
-
 export function sanitizeEnv(env: Record<string, string | undefined>): Record<string, string> {
   const redacted: Record<string, string> = {};
   const secretKeywords = ['KEY', 'SECRET', 'TOKEN', 'PASSWORD', 'AUTH', 'CREDENTIAL'];

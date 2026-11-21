@@ -1,6 +1,4 @@
-import { StateStore } from '../types.js';
 import { SQLiteStateStore } from './sqlite-store.js';
-import { EventLogWriter, EventLogReader } from './event-log.js';
 
 export { StateStore } from '../types.js';
 export { SQLiteStateStore } from './sqlite-store.js';

@@ -26,7 +26,6 @@
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
 import * as fs from 'node:fs';
-import * as os from 'node:os';
 import * as path from 'node:path';
 import { randomBytes } from 'node:crypto';
 
@@ -232,9 +231,4 @@ export class WorktreePool {
   private gitAt(cwd: string, args: string): Promise<{ stdout: string; stderr: string }> {
     return execAsync(`git ${args}`, { cwd, timeout: 60_000 });
   }
-}
-
-/** Convenience for tests and callers that just need a pool beside a temp workspace. */
-export function makePool(workspace: string, poolDir?: string): WorktreePool {
-  return new WorktreePool({ workspace, poolDir: poolDir ?? path.join(os.tmpdir(), `swarm-wt-${randomBytes(4).toString('hex')}`) });
 }

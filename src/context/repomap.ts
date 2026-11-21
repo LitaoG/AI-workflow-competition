@@ -100,7 +100,7 @@ function importsOf(source: ts.SourceFile): Array<{ specifier: string; names: str
   return out;
 }
 
-function resolveImport(root: string, fromFile: string, specifier: string): string | undefined {
+function resolveImport(fromFile: string, specifier: string): string | undefined {
   if (!specifier.startsWith('.')) return undefined; // bare npm specifiers are out of workspace scope
   const base = path.resolve(path.dirname(fromFile), specifier);
   const candidates = [base, ...TS_EXTENSIONS.map((ext) => base + ext), ...TS_EXTENSIONS.map((ext) => path.join(base, `index${ext}`))];
@@ -158,7 +158,7 @@ export function buildRepomap(rootAbs: string, targetRel: string, options: Repoma
   const importsOfMap = new Map<string, Map<string, number>>(); // importer -> imported -> weight
   for (const [file, source] of sources) {
     for (const imp of importsOf(source)) {
-      const resolved = resolveImport(root, file, imp.specifier);
+      const resolved = resolveImport(file, imp.specifier);
       if (!resolved || !sources.has(resolved)) continue;
       const used = new Set(imp.names.filter((n) => exportsByFile.get(resolved)?.has(n)));
       const weight = used.size > 0 ? Math.max(countUsages(source, used), 1) : 1;

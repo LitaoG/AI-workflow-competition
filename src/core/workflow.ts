@@ -1,5 +1,4 @@
 import { EventEmitter } from 'node:events';
-import { createHash } from 'node:crypto';
 import {
   WorkflowOptions,
   PhaseDefinition,
@@ -14,8 +13,7 @@ import {
 } from '../types.js';
 import { WorkflowExecutionContext } from './context.js';
 import { CircularDependencyError, MissingDependencyError, StepExecutionError, WorkflowAbortedError, withRetry } from './error.js';
-import { redactValue } from '../dwf/redact.js';
-import { computeStepCheckpointHash, stableStringify } from './checkpoint-hash.js';
+import { computeStepCheckpointHash } from './checkpoint-hash.js';
 
 // Historical export surface: the checkpoint-hash vocabulary resolves from the
 // workflow module (tests, replay tooling).

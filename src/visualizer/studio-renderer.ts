@@ -59,13 +59,6 @@ export interface StudioSnapshot {
   artifacts: StudioArtifact[];
 }
 
-
-/** F3: one node-count label, shared by the top-bar pill and the column counts — the canvas口径, pluralized. */
-function nodesLabel(lang: 'en' | 'zh', n: number): string {
-  if (lang === 'zh') return `${n} 个节点`;
-  return n === 1 ? '1 node' : `${n} nodes`;
-}
-
 export function renderStudioHtml(snap: StudioSnapshot, opts?: { live?: boolean; lang?: 'en' | 'zh' }): string {
   const live = opts?.live ?? snap.mode === 'live';
   const lang: 'en' | 'zh' = opts?.lang === 'zh' ? 'zh' : 'en';

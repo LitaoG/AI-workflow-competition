@@ -13,7 +13,6 @@ import type { DwfEvidenceRow, EvidenceEntry } from './evidence.js';
 // ============================================================================
 
 export type WorkflowStatus = 'pending' | 'running' | 'completed' | 'failed' | 'aborted' | 'paused';
-export type PhaseStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
 export type StepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped' | 'replayed';
 
 export type StepType = 'agent' | 'probe' | 'gate' | 'fanout' | 'action';
@@ -548,12 +547,6 @@ export interface DAGVisualizer {
 // 8. MCP Integration Types
 // ============================================================================
 
-export interface MCPToolCall {
-  serverName: string;
-  toolName: string;
-  arguments: Record<string, unknown>;
-}
-
 export interface MCPServerConfig {
   transport: 'stdio' | 'sse';
   command?: string;
@@ -562,13 +555,6 @@ export interface MCPServerConfig {
   url?: string;
   /** Working directory for a stdio server (default: inherit the engine's). */
   cwd?: string;
-}
-
-export interface RegisteredTool {
-  serverName: string;
-  toolName: string;
-  description: string;
-  inputSchema: Record<string, unknown>;
 }
 
 /** Per-call options for `ctx.mcp.callTool` and `MCPManager.callTool`. */

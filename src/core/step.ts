@@ -1,8 +1,7 @@
 import { z } from 'zod';
-import { StepDefinition, StepRunner, ExecutionContext, RetryPolicy, ProberResult } from '../types.js';
+import { StepDefinition, StepRunner, ExecutionContext, RetryPolicy } from '../types.js';
 import { GateFailureError } from './error.js';
 import { agent } from '../agent/rpc.js';
-import { probe as runProber } from '../prober/index.js';
 import { spawnSupervised, SPAWN_ENV_ALLOWLIST, JOB_HELPER_SENTINEL_PREFIX } from '../process-supervision.js';
 // Leaf utility (redact.ts pulls only ../prober, which is read-only) — the
 // shared irreversible mask so gate output can never carry credentials into
@@ -228,32 +227,6 @@ export function gateStep<TInput = unknown>(
     phaseId: config.phaseId,
     type: 'gate',
     role: 'gate',
-    dependsOn: config.dependsOn,
-    runner,
-  };
-}
-
-export interface ProbeStepConfig {
-  id: string;
-  name: string;
-  phaseId: string;
-  dependsOn?: string[];
-  cwd?: string;
-}
-
-export function probeStep(config: ProbeStepConfig): StepDefinition<void, ProberResult> {
-  const runner: StepRunner<void, ProberResult> = async (_input, ctx) => {
-    const probeResult = await runProber({ cwd: config.cwd });
-    ctx.setProbeSnapshot(probeResult);
-    return probeResult;
-  };
-
-  return {
-    id: config.id,
-    name: config.name,
-    phaseId: config.phaseId,
-    type: 'probe',
-    role: 'inspector',
     dependsOn: config.dependsOn,
     runner,
   };

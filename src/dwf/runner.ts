@@ -281,7 +281,7 @@ async function runInner(
   // ---- Run identity + lineage (resume/amend/rerun doors in run-lineage.ts) ----
   const { hashScriptSource } = await import('./compile.js');
   const scriptHash = hashScriptSource(source);
-  const lineage = await resolveRunLineage(options, cwd, store, analysis, scriptHash);
+  const lineage = await resolveRunLineage(options, store, analysis, scriptHash);
   if (!lineage.ok) return lineage.result;
   const { runId, importedCache, amendedFrom, priorRunParent, priorSpentTokens, priorExecutedAsks, priorBudgetTotal, resumeTakeover } = lineage.resolution;
   // Issue #118: the effective ceiling — the caller's explicit --budget-total

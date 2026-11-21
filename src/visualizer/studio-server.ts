@@ -25,9 +25,7 @@
  * time-travel slider through the same seek op.
  */
 
-import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
-import type { Duplex } from 'node:stream';
 import type { IncomingMessage, Server } from 'node:http';
 import { EventLogReader } from '../state/event-log.js';
 import { WorkflowEvent, DAGGraph } from '../types.js';
@@ -46,7 +44,6 @@ export {
   OP_PONG,
   CLOSE_NORMAL,
   CLOSE_PROTOCOL_ERROR,
-  CLOSE_TOO_BIG,
   computeSecWebSocketAccept,
   encodeFrame,
   decodeFrames,

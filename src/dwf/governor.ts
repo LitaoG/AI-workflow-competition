@@ -29,7 +29,6 @@
  * Retry-After cooldown honoured; idle reset forgets learned caps back to
  * `initial` (idempotent — a clean bucket does not re-flip the epoch).
  */
-import { providerRegistry } from '../agent/provider.js';
 import { parseRetryAfterMs } from '../agent/attempt-classifier.js';
 
 export interface AimdOptions {

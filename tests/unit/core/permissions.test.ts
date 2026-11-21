@@ -79,7 +79,7 @@ class ScriptedProvider implements ProviderContract {
     this.calls += 1;
     return { content: this.script(this.calls), model: 'scripted', latencyMs: 0 };
   }
-  async complete(prompt: string, _options?: ChatOptions): Promise<string> {
+  async complete(_prompt: string, _options?: ChatOptions): Promise<string> {
     const result = await this.chat();
     return result.content;
   }

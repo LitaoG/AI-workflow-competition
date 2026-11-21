@@ -153,7 +153,7 @@ test('Integration Suite: Demo 2 — Multi-Agent Repo Migration Engine', async (t
     const resumeRunId = `run-interrupted-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
 
     // Step A: Run with interruption after file 2
-    const interruptedRes = runCLI([
+    runCLI([
       'run',
       demoWorkflowPath,
       '--mock',

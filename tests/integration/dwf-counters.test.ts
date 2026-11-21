@@ -12,17 +12,6 @@ import { DwfJournalStore } from '../../src/types.js';
 // 之前：resume 后 outputTokensSpent 从 0 重账（硬闸归零）、artifactVersions
 // 从 1 重数（ON CONFLICT 覆盖旧产物）。现在：计数从 journal/结算行恢复。
 
-const SPEND_SCRIPT = `
-phase('Inspect');
-const health = await agent('inspector').ask<Health>('inspect health report of the service');
-return { healthStatus: health.healthStatus };
-
-interface Health {
-  /** Deterministic mock health verdict. */
-  healthStatus: string;
-}
-`;
-
 const ARTIFACT_SCRIPT = `
 phase('Publish');
 await artifact.markdown('alpha', 'V1 content from the first attempt');

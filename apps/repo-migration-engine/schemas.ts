@@ -33,7 +33,6 @@ export const MigrationRuleSchema = z.object({
   targetPackage: z.string().describe('Target modular npm package (e.g. @aws-sdk/client-s3)'),
   breakingChangeNotes: z.string().describe('Explanation of method signature changes and promise handling'),
 });
-export type MigrationRule = z.infer<typeof MigrationRuleSchema>;
 
 export const MigrationPlanSchema = z.object({
   planId: z.string().describe('Unique identifier for this migration execution plan (e.g. PLAN-AWS-SDK-V3-001)'),

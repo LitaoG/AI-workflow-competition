@@ -56,7 +56,7 @@ function httpGetJson(port: number, pathname: string): Promise<{ status: number; 
 
 /** Read the first SSE frames then hang up (the stream is infinite by design). */
 function httpGetSseHead(port: number, pathname: string): Promise<string> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve, _reject) => {
     const req = http.get({ host: '127.0.0.1', port, path: pathname }, (res) => {
       let body = '';
       res.on('data', (c) => {

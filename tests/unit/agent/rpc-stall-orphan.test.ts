@@ -111,7 +111,7 @@ test('#192: a stalled orphan that resolves with NO usage from the provider takes
     name: 'stall orphan no-usage provider',
     // Ignores the abort signal (like a mock) and resolves WITHOUT usage —
     // the request was really billed, but its meter is unreadable.
-    async generate(req: LLMRequest): Promise<LLMResponse> {
+    async generate(_req: LLMRequest): Promise<LLMResponse> {
       await new Promise((resolve) => setTimeout(resolve, 150));
       return { content: '{"ok":true}', model: 'no-usage', latencyMs: 150 };
     },

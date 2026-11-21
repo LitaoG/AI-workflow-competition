@@ -43,7 +43,7 @@ test('rpc retry loop: a provider throwing 429 twice then succeeding recovers via
   const flaky: LLMProvider = {
     id: 'dwf-flaky-429',
     name: 'Flaky provider',
-    async generate(request: LLMRequest): Promise<LLMResponse> {
+    async generate(_request: LLMRequest): Promise<LLMResponse> {
       calls++;
       if (calls <= 2) throw new Error('HTTP 429: too many requests');
       return { content: JSON.stringify({ ok: true }), model: 'flaky', usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 }, latencyMs: 1 };

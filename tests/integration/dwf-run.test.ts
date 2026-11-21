@@ -27,11 +27,6 @@ interface Health {
 }
 `;
 
-const ESCAPE_SCRIPT = `
-const files = await agent("x").ask("read files");
-return files;
-`;
-
 function makeWorkspace(): { dir: string; cleanup: () => void } {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dwf-e2e-'));
   fs.writeFileSync(path.join(dir, 'notes.txt'), 'hello dwf\n');

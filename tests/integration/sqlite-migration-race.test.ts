@@ -69,7 +69,7 @@ test('SQLite schema migration tolerates concurrent openers (issue #72)', async (
   );
   const exits = await Promise.all(
     children.map(
-      (child, idx) =>
+      (child) =>
         new Promise<{ code: number | null; stderr: string }>((resolve) => {
           let stderr = '';
           child.stderr?.on('data', (chunk) => (stderr += String(chunk)));
