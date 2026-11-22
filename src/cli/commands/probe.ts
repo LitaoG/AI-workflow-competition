@@ -1,4 +1,5 @@
 import { probe } from '../../prober/index.js';
+import { queryJobGuardStatus } from '../../process-supervision.js';
 import { t, resolveLang } from '../i18n/index.js';
 
 export interface ProbeCommandOptions {
@@ -28,6 +29,24 @@ export async function executeProbe(targetDir?: string, options?: ProbeCommandOpt
       console.log(`  CPU Cores:     ${result.system.cpus} x ${result.system.cpuModel}`);
       console.log(`  Memory (MB):   Total: ${result.system.totalMemMb}MB | Free: ${result.system.freeMemMb}MB`);
       console.log(`  Node Version:  ${result.system.nodeVersion}`);
+      if (process.platform === 'win32') {
+        const guard = queryJobGuardStatus();
+        if (guard.mode === 'fallback-taskkill') {
+          const detail =
+            lang === 'zh'
+              ? `fallback-taskkill (${guard.reason ?? 'csc.exe 不可用'} — Windows 环境下正常平滑降级至标准进程终止，不影响任何评测)`
+              : `fallback-taskkill (${guard.reason ?? 'csc.exe unavailable'} — normal graceful fallback to standard process termination, does not affect evaluation)`;
+          console.log(`  Process Guard: ${detail}`);
+        } else {
+          const detail =
+            lang === 'zh'
+              ? 'job-object (Win32 Job Object 活跃: 内核级进程树监管与内存防护)'
+              : 'job-object (Win32 Job Object active: kernel process tree supervision)';
+          console.log(`  Process Guard: ${detail}`);
+        }
+      } else {
+        console.log(`  Process Guard: posix-process-group (setpgid/killpg)`);
+      }
 
       console.log(`\n[${t('PROBE_GIT_HEADER', {}, lang)}]`);
       console.log(`  Is Git Repo:   ${result.git.isGitRepo}`);

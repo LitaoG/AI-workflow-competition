@@ -81,7 +81,7 @@ node bin/workflow.js run apps/incident-triage-remediation/facade.workflow.ts \
   --cwd apps/incident-triage-remediation --approve-cmd node --args '{"scenario":"p1_db_pool_exhaustion"}' --resume <runId>
 ```
 
-> **Windows PowerShell note**: In PowerShell, single quotes around JSON strings in `--args` may require escaping (e.g. `--args '{\"scenario\":\"p1_db_pool_exhaustion\"}'`), or prefer `--set scenario=p1_db_pool_exhaustion` or `--args-file <path>` which bypass shell escaping entirely. Pre-authorizing `node` via `--approve-cmd node` is required for verification gates under the Issue #127 security policy.
+> **Windows PowerShell note**: In PowerShell, single quotes around JSON strings in `--args` may require escaping (e.g. `--args '{\"scenario\":\"p1_db_pool_exhaustion\"}'`), or prefer `--set scenario=p1_db_pool_exhaustion` or `--args-file <path>` which bypass shell escaping entirely. Pre-authorizing `node` via `--approve-cmd node` is required for verification gates under the Issue #127 security policy (in offline `--mock` mode, official example commands are automatically authorized for low-friction onboarding).
 
 ### 1. Run Default Scenario in Offline Mock Mode (<2s)
 ```bash

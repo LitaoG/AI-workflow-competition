@@ -1,5 +1,124 @@
 import { LLMProvider, LLMRequest, LLMResponse } from '../types.js';
 
+/**
+ * Extracts a JSON Schema string from a formatted prompt if present.
+ */
+function extractSchemaFromPrompt(prompt: string): Record<string, unknown> | undefined {
+  const marker = 'Respond with a single JSON object matching exactly this schema:\n';
+  const idx = prompt.lastIndexOf(marker);
+  if (idx !== -1) {
+    const jsonStr = prompt.slice(idx + marker.length).trim();
+    try {
+      return JSON.parse(jsonStr) as Record<string, unknown>;
+    } catch {
+      // not valid json
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Synthesizes a valid, structurally conforming mock object from a JSON Schema
+ * extracted from an ask prompt. This decouples MockProvider from canned demo
+ * templates and provides dynamic schema synthesis for arbitrary typed asks.
+ */
+export function synthesizeMockFromSchema(
+  schema: Record<string, unknown>,
+  defs?: Record<string, unknown>,
+): unknown {
+  return synthesizeMockNode('', schema, defs ?? (schema['definitions'] as Record<string, unknown> | undefined));
+}
+
+function synthesizeMockNode(
+  key: string,
+  schema: Record<string, unknown>,
+  defs?: Record<string, unknown>,
+): unknown {
+  if (!schema || typeof schema !== 'object') return 'mock-value';
+
+  if (typeof schema['$ref'] === 'string' && defs) {
+    const refKey = schema['$ref'].replace(/^#\/definitions\//, '');
+    const target = defs[refKey] as Record<string, unknown> | undefined;
+    if (target) return synthesizeMockNode(key, target, defs);
+  }
+
+  if (Array.isArray(schema['anyOf']) && schema['anyOf'].length > 0) {
+    return synthesizeMockNode(key, schema['anyOf'][0] as Record<string, unknown>, defs);
+  }
+  if (Array.isArray(schema['oneOf']) && schema['oneOf'].length > 0) {
+    return synthesizeMockNode(key, schema['oneOf'][0] as Record<string, unknown>, defs);
+  }
+  if (Array.isArray(schema['allOf']) && schema['allOf'].length > 0) {
+    const merged: Record<string, unknown> = {};
+    for (const sub of schema['allOf']) {
+      const res = synthesizeMockNode(key, sub as Record<string, unknown>, defs);
+      if (typeof res === 'object' && res !== null) Object.assign(merged, res);
+    }
+    return merged;
+  }
+
+  const rawType = schema['type'];
+  const type = Array.isArray(rawType) ? rawType[0] : rawType;
+
+  if (type === 'string') {
+    if (Array.isArray(schema['enum']) && schema['enum'].length > 0) {
+      return schema['enum'][0];
+    }
+    if (schema['format'] === 'date-time' || /timestamp|date|time/i.test(key)) {
+      return new Date().toISOString();
+    }
+    if (/status/i.test(key)) return 'SUCCESS';
+    if (/severity/i.test(key)) return 'P1';
+    if (/email/i.test(key)) return 'test@example.com';
+    if (/url|endpoint|link/i.test(key)) return 'https://example.com/api';
+    if (/message|summary|notes|description|rationale|title/i.test(key)) {
+      return `Mock deterministic ${key || 'response'} completed`;
+    }
+    if (/id/i.test(key)) return `mock-${key || 'id'}-01`;
+    return `mock-${key || 'value'}`;
+  }
+
+  if (type === 'number' || type === 'integer') {
+    if (typeof schema['minimum'] === 'number') return schema['minimum'];
+    if (/score|confidence|ratio|rate/i.test(key)) return 0.95;
+    if (/count|total|duration|minutes|seconds|files|attempts/i.test(key)) return 10;
+    return 42;
+  }
+
+  if (type === 'boolean') {
+    return true;
+  }
+
+  if (type === 'array') {
+    const items = schema['items'];
+    if (Array.isArray(items)) {
+      return items.map((sub, i) => synthesizeMockNode(`${key}_${i}`, sub as Record<string, unknown>, defs));
+    }
+    if (items && typeof items === 'object') {
+      const minItems = typeof schema['minItems'] === 'number' ? schema['minItems'] : 1;
+      const count = Math.max(1, Math.min(minItems, 3));
+      const res = [];
+      for (let i = 0; i < count; i++) {
+        res.push(synthesizeMockNode(key.replace(/s$/, ''), items as Record<string, unknown>, defs));
+      }
+      return res;
+    }
+    return [];
+  }
+
+  if (type === 'object' || schema['properties']) {
+    const obj: Record<string, unknown> = {};
+    const props = (schema['properties'] as Record<string, Record<string, unknown>>) || {};
+    const subDefs = (schema['definitions'] as Record<string, unknown>) || defs;
+    for (const [propKey, propSchema] of Object.entries(props)) {
+      obj[propKey] = synthesizeMockNode(propKey, propSchema, subDefs);
+    }
+    return obj;
+  }
+
+  return 'mock-value';
+}
+
 export class MockProvider implements LLMProvider {
   readonly id = 'mock';
   readonly name = 'Deterministic Offline Mock Provider (<4s)';
@@ -14,6 +133,7 @@ export class MockProvider implements LLMProvider {
       throw this.abortError();
     }
     const lastUserMessage = [...request.messages].reverse().find((m) => m.role === 'user')?.content ?? '';
+    const extractedSchema = extractSchemaFromPrompt(lastUserMessage);
     // Actor-name routing: the system prompt names the agent ("You are specialized
     // agent \"safety-reviewer\""), and role identity is immune to the embedded
     // typed-result JSON in user prompts (whose field names poison keyword matching).
@@ -44,6 +164,14 @@ export class MockProvider implements LLMProvider {
     } else if (/architect/i.test(systemMessage)) {
       if (hasAstScan) {
         content = this.planJson();
+      } else if (
+        extractedSchema &&
+        typeof extractedSchema.properties === 'object' &&
+        extractedSchema.properties !== null &&
+        !('strategy' in extractedSchema.properties) &&
+        !('topologicalOrder' in extractedSchema.properties)
+      ) {
+        content = JSON.stringify(synthesizeMockFromSchema(extractedSchema));
       } else if (/dynamo|sqs|s3|transform|patch|sdk|migrat|aws/i.test(systemMessage + ' ' + lastUserMessage)) {
         content = this.migrationPlanJson();
       } else {
@@ -52,6 +180,14 @@ export class MockProvider implements LLMProvider {
     } else if (/planner/i.test(systemMessage)) {
       if (hasAstScan) {
         content = this.planJson();
+      } else if (
+        extractedSchema &&
+        typeof extractedSchema.properties === 'object' &&
+        extractedSchema.properties !== null &&
+        !('strategy' in extractedSchema.properties) &&
+        !('topologicalOrder' in extractedSchema.properties)
+      ) {
+        content = JSON.stringify(synthesizeMockFromSchema(extractedSchema));
       } else if (/dynamo|sqs|s3|transform|patch|sdk|migrat|aws/i.test(systemMessage + ' ' + lastUserMessage)) {
         content = this.migrationPlanJson();
       } else {
