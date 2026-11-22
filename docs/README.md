@@ -81,6 +81,7 @@
 | 当你不确定以下事项时 | 请直接查阅权威文档 |
 |---|---|
 | AI 能不能这么做、有哪些 P0 红线与不可触犯的底线 | `AGENTS.md` §二 |
+| 什么时候必须建立工作流看板、看板交付标准与执行推进纪律 | `AGENTS.md` §1.12, `docs/WORKFLOW.md` §3.5 |
 | 怎么立项、分支怎么命名、Worktree 怎么建、怎么合入 PR | `docs/WORKFLOW.md` §1, §2, §6, §7 |
 | 在 Windows PowerShell 下怎么跑构建、单测、PBT、E2E | `docs/WORKFLOW.md` §4 |
 | 以前在当前模块或命令上栽过什么坑、有什么必记防范方法 | `docs/AI-PITFALLS.md` |

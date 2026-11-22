@@ -43,6 +43,15 @@ cost. Control flow is your code; every side effect goes through the facade.
 MCP hosts can use the same loop through tools: `workflow_script_check` and
 `workflow_script_run` (the run tool's result includes a `resumeHint`).
 
+## Mandatory: Visual Workflow Board First (工作流看板先行：总揽目标后必建看板再执行)
+
+Whenever an agent receives an overall objective from the user or initiates a multi-phase task under `/ai-workflow`:
+1. **Board Establishment First**: Before diving into individual execution steps, you MUST first establish the visual workflow board.
+2. **Dual-Surface Delivery**:
+   - **System Browser Pop-up**: Run the workflow (e.g. `workflow run <script>` or `--mock`) to generate the Studio HTML or DAG topology HTML (`.workflow/views/<runId>.html` or `graph.html`), and trigger the default system browser (e.g. on Windows: `cmd /c start "" "<path-to-html>"`) so the user immediately sees the rendered visual workflow.
+   - **In-Chat Interactive Dashboard**: Render an interactive dashboard or embedded generative UI widget directly in the conversation showing the phases, status, and criteria.
+3. **Phase-by-Phase Execution**: Only after the workflow board is rendered and presented should the agent proceed step-by-step through each phase defined on the board.
+
 ## The facade (the ONLY APIs a script may use)
 
 ```ts
