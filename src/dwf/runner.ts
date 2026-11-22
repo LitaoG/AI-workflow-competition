@@ -234,24 +234,14 @@ export async function runFacadeScript(options: RunFacadeOptions): Promise<RunFac
   // the provider registry default may have been flipped to a real provider
   // (AI_WORKFLOW_PROVIDER / ANTHROPIC_API_KEY), and the documented offline flag
   // must keep its promise instead of silently making real provider calls (it
-  // used to be accepted and dropped). The tier router reads these env vars at
-  // ask time; scoped to the run and restored even on a thrown run. An explicit
-  // actor-level provider literal still wins — the script author asked for it.
-  const prevFastProvider = process.env.AI_WORKFLOW_FAST_PROVIDER;
-  const prevDeepProvider = process.env.AI_WORKFLOW_DEEP_PROVIDER;
+  // used to be accepted and dropped). Routing is dispatched per-run through the
+  // engine's routerOptions (Issue #252) — the host's global process.env is never
+  // mutated, so concurrent runs in one process cannot cross-pollinate provider
+  // config. An explicit actor-level provider literal still wins — the script
+  // author asked for it.
   try {
-    if (options.mock) {
-      process.env.AI_WORKFLOW_FAST_PROVIDER = 'mock';
-      process.env.AI_WORKFLOW_DEEP_PROVIDER = 'mock';
-    }
     return await runInner(options, cwd, store);
   } finally {
-    if (options.mock) {
-      if (prevFastProvider === undefined) delete process.env.AI_WORKFLOW_FAST_PROVIDER;
-      else process.env.AI_WORKFLOW_FAST_PROVIDER = prevFastProvider;
-      if (prevDeepProvider === undefined) delete process.env.AI_WORKFLOW_DEEP_PROVIDER;
-      else process.env.AI_WORKFLOW_DEEP_PROVIDER = prevDeepProvider;
-    }
     store.close();
   }
 }
@@ -508,6 +498,10 @@ async function runInner(
     maxConcurrency: options.maxConcurrency,
     stallMs,
     failoverProviders: options.failoverProviders,
+    // Issue #252: --mock dispatches its provider override per-run through the
+    // engine instead of mutating the host's global process.env (which races
+    // across concurrent runs in one process).
+    routerOptions: options.mock ? { fastProvider: 'mock', deepProvider: 'mock' } : undefined,
     budgetTotal: effectiveBudgetTotal,
     confirmWorldRun: options.confirmWorldRun,
     // Quota-reset waits must never outlive the whole-run clock: the engine uses

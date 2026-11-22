@@ -47,7 +47,7 @@ import { zodFromJsonSchema } from './json-schema-zod.js';
 import { recordNodeEvidence } from './evidence-ledger.js';
 import { StateStore, DwfJournalStore, DwfNode, LLMMessage, TokenUsage, WorkflowEventType } from '../types.js';
 import { WORKFLOW_EVENT } from '../domain/events.js';
-import { resolveModelToProvider } from '../agent/model-router.js';
+import { resolveModelToProvider, type RouterOptions } from '../agent/model-router.js';
 
 /**
  * Boundary payload cap for ask prompts and log messages (GOAL.md 差距矩阵 D4,
@@ -91,6 +91,15 @@ export interface FacadeEngineOptions {
    * breaker, Retry-After aware backoff).
    */
   failoverProviders?: string[];
+  /**
+   * Per-run tier-routing overrides (Issue #252): `--mock` arrives here as
+   * { fastProvider: 'mock', deepProvider: 'mock' } instead of a global
+   * process.env mutation, so concurrent runs in one process cannot cross-
+   * pollinate provider config. Precedence inside resolveRoutedProvider is
+   * unchanged: actor model/provider binding wins, then these overrides, then
+   * the AI_WORKFLOW_*_PROVIDER env fallback, then the registry default.
+   */
+  routerOptions?: RouterOptions;
   /**
    * Output tokens already spent by this runId's earlier attempts (audit gap #4):
    * restored on resume so the budget hard-cap stays continuous across resumes
@@ -501,6 +510,7 @@ export class FacadeEngine {
             stallMs: this.options.stallMs,
             deadlineMs: this.options.deadlineMs,
             failoverProviders: this.options.failoverProviders,
+            routerOptions: this.options.routerOptions,
             aimdRun: { runId: this.options.runId, bound: this.options.maxConcurrency },
             emit: (type, data) => this.emit(type, data),
           }),
