@@ -17,7 +17,7 @@
 
 | 领域 / 主题 | 权威文档路径 | 核心职责与涵盖范围 |
 |---|---|---|
-| **项目主入口（评委导向）** | `README.md` | 英文评委导向主页：30 秒 pitch、三种对话式失败模式的结构性修复、"一副骨架两个应用"与两个 demo 对照、三分钟评委体验（跨平台一键 demo 与一键九幕全量自检）、Kiro 集成总览、评审五维映射与合规声明——九幕证据表、质量指纹与跨引擎基准的**权威版本在 SUBMISSION.md**（本页只留链接分流，Issue #132 收敛） |
+| **项目主入口** | `README.md` | 项目主页：核心架构与理念、四大失效模式的结构性解法、"一副骨架两个应用"示范场景、3 分钟极速体验通道、本地安装与运行、CLI 与 Harness/MCP 接入装配、质量保证与合规声明、项目溯源与致谢——九幕证据表、质量指纹与跨引擎基准的**权威版本在 SUBMISSION.md**（本页只留链接分流，Issue #132 收敛） |
 | **1分钟上手指南（英文为主，中英双语）** | `QUICKSTART.md` | 零门槛上手（英文版在前、中文版在后，两版内容一致）：capabilities-tour 示例、统一 run 入口、--set/--args-file 传参、Studio 看板、setup 互通与命令速查 |
 | **系统架构设计（权威中文规约）** | `docs/ARCHITECTURE.md` | 总体架构图（自 README 迁入）、设计哲学、模块地图、双引擎执行模型、Facade 编译器纯度契约、VM 沙箱与进程组监管、强类型 RPC、环境探测、双层持久化与零 Token 重放、可视化与 Studio、MCP、技术溯源、威胁模型与纵深防御 |
 | **系统演进蓝图** | `GOAL.md` | 引擎演进蓝图与技术路线：核心使命与架构哲学、三大参考源技术谱系、已落地架构现状与里程碑（阶段 0–8）、后续演进方向、工程铁律 |
@@ -67,8 +67,8 @@
 |---|---|---|
 | **开发者指南（权威中文指南）** | `docs/DEVELOPER_GUIDE.md` | 两种编写面选型、脚手架与 CLI 速查、CLI 全量命令手册 / 环境变量 / MCP 工具面与特性矩阵（自 README 迁入）、Facade 脚本规范与编译期禁忌、core 构建器、沙箱与安全测试、调试排障、测试分层与门禁 |
 | **接入集成指南** | `docs/INTEGRATION.md` | CLI 接入、MCP Server 挂载（Claude Code / ZCode / opencode / Codex CLI / Cursor）、Skill 安装、Provider 路由 |
-| **Kiro 集成与合规** | `docs/KIRO_INTEGRATION.md` | `.kiro/` 五子系统（specs / hooks / steering / MCP / PBT）与 Skeleton Crew 花名册、权限上限的完整指南 |
-| **评委导航入口（提交权威）** | `SUBMISSION.md` | 1 分钟 pitch、演示视频占位、九幕一键复现（证据表唯一权威）、质量指纹唯一钉点、跨引擎基准实测、仓库地图与合规声明 |
+| **Kiro 原生治理指南** | `docs/KIRO_INTEGRATION.md` | `.kiro/` 五子系统（specs / hooks / steering / MCP / PBT）与角色花名册、权限上限的完整集成指南 |
+| **黑客松提交与全景导航** | `SUBMISSION.md` | 1 分钟 pitch、演示视频占位、九幕一键复现（证据表唯一权威）、质量指纹唯一钉点、跨引擎基准实测、仓库地图与合规声明 |
 | **Facade 编排模式** | `docs/authoring-patterns.md` | facade 脚本编排模式目录：workflow 脚本的写作范式与可复用结构 |
 | **中文译本（历史存档）** | `docs/i18n/` | ARCHITECTURE / DEVELOPER_GUIDE / KIRO_INTEGRATION 三篇的 **2026-11-03 黑客松版本中文原文——历史存档，不再演进**；现行权威内容以各篇主文档（`docs/ARCHITECTURE.md` / `docs/DEVELOPER_GUIDE.md` / `docs/KIRO_INTEGRATION.md`）为准 |
 | **多代理治理体系历史存档** | `PROJECT.md` | 私有仓时代 M1 里程碑 survey 的**历史存档**（2026-11-14 定版）：治理框架 / 证据规范 / 门禁机制的立项期全貌；现行权威以 `AGENTS.md` 与 `docs/` 各篇为准（Issue #132 登记，消除悬空状态） |
@@ -94,7 +94,7 @@
 | 怎么把引擎接入 CLI、MCP Server 与各类 Host（Claude Code / ZCode / opencode / Codex CLI / Cursor） | `docs/INTEGRATION.md` |
 | 怎么把引擎接入 Kiro（specs / hooks / steering / MCP / PBT） | `docs/KIRO_INTEGRATION.md` |
 | 怎么编写 facade 脚本（编排模式与范式） | `docs/authoring-patterns.md` |
-| 评委从哪里开始看这个仓库 | `SUBMISSION.md` |
+| 从哪里开始体验与快速上手这个仓库 | `README.md` / `QUICKSTART.md`（黑客松全景见 `SUBMISSION.md`） |
 | 测试怎么跑、特性与测试用例怎么映射、真实场景覆盖了什么、质量覆盖率指标是什么 | `TEST_INFRA.md` |
 | 1 秒 demo、--set/--args-file 传参、Studio 看板怎么用 | `QUICKSTART.md` |
 | ZCode 官方工作流机制怎么逆向的、三代演进与 P0→P2 融合蓝图 | `docs/research/workflow-reverse-engineering.md` |

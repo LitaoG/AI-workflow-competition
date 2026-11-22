@@ -1,7 +1,7 @@
-# Multi-Agent Repository Migration & Breaking API Upgrade Engine (Demo 2)
+# Multi-Agent Repository Migration & Breaking API Upgrade Engine
 
-> **Flagship Demo Application for AI-Workflow**  
-> *AWS Kiroween 2026 Hackathon (Skeleton Crew Category)*
+> **Production Engineering Application for AI-Workflow**  
+> *Automated AST analysis, parallel worker-reviewer transformation fan-out, and verification gate*
 
 ---
 
