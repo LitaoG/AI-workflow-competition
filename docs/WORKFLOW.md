@@ -170,7 +170,8 @@ git worktree add -b feat/issue-<id>-<short-desc> ../AI-workflow-worktrees/issue-
    - PR 正文列明「已同步的受影响文档清单」，或明确声明「无文档影响」并附理由。
 5. **工作流看板先行**（规则本体见 `AGENTS.md` §1.12）：
    - 在总览用户提出的目标或承接多阶段复杂任务（尤其是调用 `/ai-workflow` 技能）时，**必须先建立可视化工作流看板**（Visual Workflow Board First：总揽目标后必建看板再执行）；
-   - 交付产物必须同时包含：① 调起系统默认浏览器弹出渲染后的 Studio / DAG 拓扑图 HTML；② 在当前对话内嵌入交互式工作流看板；
+   - **时序严格锁定**：看板必须在准备开始执行具体命令的最初时刻（Phase 0 / Pending 规划态）生成并调起浏览器展示，严禁等到所有流程全部执行完毕才倒推生成一个全绿后验页面；
+   - **交付标准与跨 Harness 健壮性**：① 调起系统默认浏览器弹出真实渲染后的 Studio / DAG 拓扑图 HTML（并打印可点击的绝对文件 URL），避免被 IDE 截获打开为源码；② 在支持 Generative UI 的环境下嵌入交互式组件；在不支持内嵌 UI 的 Harness（Claude Code / OpenCode / Codex / Terminal）中以浏览器渲染和绝对 URL 为唯一标准，严禁输出未渲染的 ASCII 字符伪代码冒充看板；
    - 严禁跳过看板直接盲目开始执行，后续操作必须严格按照看板中的 Phase / Step 阶段一个个有序推进。
 
 ---
