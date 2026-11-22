@@ -91,6 +91,14 @@ test('(g-4) truncation never splits surrogate pairs and short ASCII stays untouc
   assert.equal(truncateToColumns('', 38), '');
 });
 
+test('(g-5) long phase name with colon splits into two <tspan> lines to avoid truncation (Issue #270)', () => {
+  const phaseName = 'Phase 2: Architecture & Quality Review';
+  const html = new HTMLRenderer().render(graphWith(phaseName, [baseNode({})]));
+  assert.ok(html.includes('<tspan x="170" dy="0">Phase 2:</tspan>'), 'line 1 with Phase 2: must render in tspan');
+  assert.ok(html.includes('<tspan x="170" dy="16">Architecture &amp; Quality Review</tspan>'), 'line 2 with full title must render without ellipsis');
+  assert.ok(!html.includes('Quality Re…'), 'the phase title must not be cut with an ellipsis');
+});
+
 // ---------------------------------------------------------------------------
 // Issue #269: four MORE user-text surfaces on the same page stayed raw after
 // #256 (which covered only the phase name). Each fix targets its own parse

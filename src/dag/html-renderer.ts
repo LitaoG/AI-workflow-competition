@@ -40,6 +40,49 @@ export function truncateToColumns(text: string, maxUnits: number): string {
   return out;
 }
 
+/**
+ * Render phase column header label, wrapping onto two lines with <tspan>
+ * when text exceeds single-line budget (Issue #270). Unbreakable single-token
+ * strings fall back to width-aware truncation (Issue #256).
+ */
+export function renderPhaseLabel(name: string, centerX: number, maxUnits: number): string {
+  if (displayColumns(name) <= maxUnits) {
+    return `<text x="${centerX}" y="60" class="phase-label">${escapeHtml(name)}</text>`;
+  }
+
+  // Attempt clean two-line split when a colon or space boundary exists (Issue #270)
+  const colonIdx = name.indexOf(':');
+  let line1 = '';
+  let line2 = '';
+
+  if (colonIdx > 0 && colonIdx < name.length - 1 && displayColumns(name.slice(0, colonIdx + 1).trim()) <= maxUnits) {
+    line1 = name.slice(0, colonIdx + 1).trim();
+    line2 = name.slice(colonIdx + 1).trim();
+  } else if (name.includes(' ')) {
+    const words = name.split(/\s+/);
+    let cur = '';
+    for (const w of words) {
+      const candidate = cur ? cur + ' ' + w : w;
+      if (displayColumns(candidate) <= Math.max(12, Math.floor(maxUnits * 0.6)) || !line1) {
+        cur = candidate;
+        line1 = cur;
+      } else {
+        line2 = line2 ? line2 + ' ' + w : w;
+      }
+    }
+  }
+
+  if (line1 && line2) {
+    const safeLine2 = truncateToColumns(line2, maxUnits);
+    return `<text x="${centerX}" y="50" class="phase-label">` +
+      `<tspan x="${centerX}" dy="0">${escapeHtml(line1)}</tspan>` +
+      `<tspan x="${centerX}" dy="16">${escapeHtml(safeLine2)}</tspan>` +
+      `</text>`;
+  }
+
+  return `<text x="${centerX}" y="60" class="phase-label">${escapeHtml(truncateToColumns(name, maxUnits))}</text>`;
+}
+
 export class HTMLRenderer {
   public render(graph: DAGGraph, lang: 'en' | 'zh' = 'en'): string {
     const isZh = lang === 'zh';
@@ -295,7 +338,7 @@ export class HTMLRenderer {
         ${computedPhases.map((p) => `
           <rect x="${p.x}" y="30" width="${p.width}" height="${p.height}" class="phase-column" />
           <title>${escapeHtml(p.name)}</title>
-          <text x="${p.x + p.width / 2}" y="60" class="phase-label">${escapeHtml(truncateToColumns(p.name, Math.max(8, Math.floor(((p.width - 24) / 13) * 2))))}</text>
+          ${renderPhaseLabel(p.name, p.x + p.width / 2, Math.max(8, Math.floor(((p.width - 24) / 13) * 2)))}
         `).join('')}
 
         <!-- Curved Bézier Edges -->
