@@ -253,7 +253,7 @@ Full analysis: [`docs/research/BILATERAL-CROSS-BENCHMARK-REPORT.md`](docs/resear
 
 ### Project Origins
 
-AI-Workflow was originally created as a submission for the **AWS Kiroween 2026 Hackathon** (Skeleton Crew track, hosted by Kiro on Devpost). It was designed to answer the competition's call for a *"flexible, clean structural code template"* that replaces fragile multi-agent chat chains with compiled, deterministic, and verifiable TypeScript workflows. It has since matured into an open, production-grade agentic workflow execution engine.
+AI-Workflow was originally created as an exploration project for the **2026 Kiro Hackathon** (Skeleton Crew track, hosted by Kiro on Devpost), answering the challenge of replacing fragile multi-agent chat chains with compiled, deterministic, and verifiable TypeScript workflows. It has since matured into an independent, production-grade agentic workflow execution engine. For historical context and original hackathon submission materials, see [SUBMISSION.md](SUBMISSION.md).
 
 ### Acknowledgments
 
@@ -272,8 +272,7 @@ Released under the [Apache License 2.0](LICENSE).
 ---
 
 **Further Reading** — [Quickstart (60-second tour)](QUICKSTART.md) ·
-[Submission Guide & Pitch](SUBMISSION.md) ·
 [Architecture Deep-Dive](docs/ARCHITECTURE.md) ·
 [Integration Guide](docs/INTEGRATION.md) ·
-[Kiro Integration & Specs](docs/KIRO_INTEGRATION.md) ·
+[Kiro Governance & Specs](docs/KIRO_INTEGRATION.md) ·
 [Showcase Page](docs/showcase.html) ([Live](https://litaog.github.io/AI-workflow-competition/))

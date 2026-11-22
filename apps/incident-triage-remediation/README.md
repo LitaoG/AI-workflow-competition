@@ -1,7 +1,7 @@
-# Autonomous DevOps Incident Triage & Automated Remediation (Demo 1)
+# Autonomous DevOps Incident Triage & Automated Remediation
 
-> **Flagship Demo Application for AI-Workflow**  
-> *AWS Kiroween 2026 Hackathon (Skeleton Crew Category)*
+> **Flagship Production Application for AI-Workflow**  
+> *Autonomous incident response, telemetry probing, paired planner-reviewer safety audit, and deterministic recovery gates*
 
 ---
 

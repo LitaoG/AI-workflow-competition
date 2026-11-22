@@ -1,19 +1,17 @@
-# AI-Workflow Kiro Integration & Hackathon Compliance Guide
+# AI-Workflow Kiro Integration & Architecture Guide
 
-> **Official Integration Guide for AWS Kiroween 2026 (Skeleton Crew Category)**  
-> *Tracked Git Configuration · Formal Specifications · Lifecycle Hooks · Steering Guardrails · MCP Protocol · PBT Invariants · Skeleton Crew Roster*
+> **Production Integration Guide for Kiro Multi-Agent Governance**  
+> *Tracked Git Configuration · Formal Specifications · Lifecycle Hooks · Steering Guardrails · MCP Protocol · PBT Invariants · Role Rosters*
 
 ---
 
-## 1. Overview & Hackathon Alignment
-
-**AWS Kiroween 2026** introduces the **Skeleton Crew** hackathon category, dedicated to creating *"flexible, clean structural code templates"* that empower autonomous multi-agent engineering without chaotic prompt-chasing.
+## 1. Overview & Governance Architecture
 
 AI-Workflow integrates natively with **Kiro** via a root `/.kiro/` governance directory that is **fully tracked in Git**. Rather than treating AI agents as unconstrained conversational chatbots, AI-Workflow uses Kiro's formal specifications, lifecycle hooks, frontmatter steering guardrails, and property-based testing to guarantee deterministic execution, safety, and reproducible workflows.
 
 ```
 AI-workflow/
-└── .kiro/                          # Requirement R3 (official checklist item 3): mandatory Kiro root configuration (TRACKED IN GIT)
+└── .kiro/                          # Native Kiro root governance configuration (TRACKED IN GIT)
     ├── specs/                      # Formal specifications & JSON schemas
     │   ├── workflow-engine-spec.md
     │   ├── typed-rpc-schemas.json
@@ -209,12 +207,12 @@ Aligned with the **Skeleton Crew** theme, `crew/` establishes role-based multi-a
 
 ---
 
-## 8. Git Tracking Compliance
+## 8. Version Control & Git Tracking
 
-To satisfy Requirement R3, `/.kiro` is **explicitly tracked in Git**. The root `.gitignore` enforces this rule:
+The `/.kiro` root configuration is **explicitly tracked in Git** to maintain strict, auditable governance over multi-agent workflows. The root `.gitignore` enforces this rule:
 
 ```gitignore
-# DO NOT IGNORE .kiro! Tracked for AWS Kiroween 2026 Hackathon
+# Explicitly track .kiro for multi-agent governance rules
 !/.kiro/
 !/.kiro/**
 

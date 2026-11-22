@@ -1,21 +1,19 @@
-# AI-Workflow Kiro 深度集成与黑客松合规指南
+# AI-Workflow Kiro 深度集成与架构指南
 
-> **AWS Kiroween 2026 黑客松（Skeleton Crew 赛道）官方集成指南**  
-> *Git 追踪配置 · 形式化规格 · 生命周期钩子 · 转向指导规则 · MCP 协议 · PBT 不变量证明 · Skeleton Crew 花名册*
+> **Kiro 多智能体治理体系生产级集成指南**  
+> *Git 追踪配置 · 形式化规格 · 生命周期钩子 · 转向指导规则 · MCP 协议 · PBT 不变量证明 · 团队花名册*
 
-> **[历史存档]** 本篇为 2026-11-03 黑客松版本的中文原文存档，不再随主文档演进；现行权威内容以 `docs/KIRO_INTEGRATION.md` 为准（Issue #60 登记）。
+> **[历史存档]** 本篇为 2026-11-03 版本的中文原文存档，不再随主文档演进；现行权威内容以 `docs/KIRO_INTEGRATION.md` 为准（Issue #60 登记）。
 
 ---
 
-## 1. 概述与赛道契合
-
-**AWS Kiroween 2026** 设立了 **Skeleton Crew（骨架团队）** 赛道，专注于打造*“灵活、干净的结构化代码模板”*，旨在消除无序的提示词追逐，赋予多智能体系统工业级的工程确定性。
+## 1. 概述与治理架构
 
 AI-Workflow 通过根目录的 `/.kiro/` 治理体系与 **Kiro** 进行原生融合，且该目录**完全受 Git 版本控制追踪**。我们拒绝将智能体当作不可控的自然语言聊天机器人，而是深度利用 Kiro 的形式化规格、生命周期钩子、带 Frontmatter 的转向指导规则以及基于属性的测试（PBT），确保工作流的确定性执行、安全合规与可复现性。
 
 ```
 AI-workflow/
-└── .kiro/                          # 需求 R3：根目录 Kiro 强制规范（GIT 完整追踪）
+└── .kiro/                          # 根目录 Kiro 治理规范（GIT 完整追踪）
     ├── specs/                      # 形式化规格与 JSON Schema 模式
     │   ├── workflow-engine-spec.md
     │   ├── typed-rpc-schemas.json
@@ -189,12 +187,12 @@ npm run test:pbt
 
 ---
 
-## 8. Git 版本追踪合规性
+## 8. 版本控制与 Git 追踪
 
-根据需求 R3 的硬性指标，`/.kiro` **必须受 Git 完整版本追踪，绝不能被 gitignore 忽略**。根目录 `.gitignore` 明确声明如下规则：
+为保障多智能体治理规则的不可变性与严格审计，`/.kiro` 目录**显式纳入 Git 版本控制**。根目录 `.gitignore` 明确声明如下规则：
 
 ```gitignore
-# 严禁忽略 .kiro 目录！AWS Kiroween 2026 黑客松官方提交规范
+# 明确追踪 .kiro 治理配置
 !/.kiro/
 !/.kiro/**
 

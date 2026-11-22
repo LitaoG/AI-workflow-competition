@@ -67,8 +67,8 @@
 |---|---|---|
 | **开发者指南（权威中文指南）** | `docs/DEVELOPER_GUIDE.md` | 两种编写面选型、脚手架与 CLI 速查、CLI 全量命令手册 / 环境变量 / MCP 工具面与特性矩阵（自 README 迁入）、Facade 脚本规范与编译期禁忌、core 构建器、沙箱与安全测试、调试排障、测试分层与门禁 |
 | **接入集成指南** | `docs/INTEGRATION.md` | CLI 接入、MCP Server 挂载（Claude Code / ZCode / opencode / Codex CLI / Cursor）、Skill 安装、Provider 路由 |
-| **Kiro 集成与合规** | `docs/KIRO_INTEGRATION.md` | `.kiro/` 五子系统（specs / hooks / steering / MCP / PBT）与 Skeleton Crew 花名册、权限上限的完整指南 |
-| **比赛提交导航（权威入口）** | `SUBMISSION.md` | 1 分钟 pitch、演示视频占位、九幕一键复现（证据表唯一权威）、质量指纹唯一钉点、跨引擎基准实测、仓库地图与合规声明 |
+| **Kiro 原生治理指南** | `docs/KIRO_INTEGRATION.md` | `.kiro/` 五子系统（specs / hooks / steering / MCP / PBT）与角色花名册、权限上限的完整集成指南 |
+| **黑客松提交与全景导航** | `SUBMISSION.md` | 1 分钟 pitch、演示视频占位、九幕一键复现（证据表唯一权威）、质量指纹唯一钉点、跨引擎基准实测、仓库地图与合规声明 |
 | **Facade 编排模式** | `docs/authoring-patterns.md` | facade 脚本编排模式目录：workflow 脚本的写作范式与可复用结构 |
 | **中文译本（历史存档）** | `docs/i18n/` | ARCHITECTURE / DEVELOPER_GUIDE / KIRO_INTEGRATION 三篇的 **2026-11-03 黑客松版本中文原文——历史存档，不再演进**；现行权威内容以各篇主文档（`docs/ARCHITECTURE.md` / `docs/DEVELOPER_GUIDE.md` / `docs/KIRO_INTEGRATION.md`）为准 |
 | **多代理治理体系历史存档** | `PROJECT.md` | 私有仓时代 M1 里程碑 survey 的**历史存档**（2026-11-14 定版）：治理框架 / 证据规范 / 门禁机制的立项期全貌；现行权威以 `AGENTS.md` 与 `docs/` 各篇为准（Issue #132 登记，消除悬空状态） |
@@ -94,7 +94,7 @@
 | 怎么把引擎接入 CLI、MCP Server 与各类 Host（Claude Code / ZCode / opencode / Codex CLI / Cursor） | `docs/INTEGRATION.md` |
 | 怎么把引擎接入 Kiro（specs / hooks / steering / MCP / PBT） | `docs/KIRO_INTEGRATION.md` |
 | 怎么编写 facade 脚本（编排模式与范式） | `docs/authoring-patterns.md` |
-| 从哪里开始体验与审阅这个仓库 | `SUBMISSION.md` |
+| 从哪里开始体验与快速上手这个仓库 | `README.md` / `QUICKSTART.md`（黑客松全景见 `SUBMISSION.md`） |
 | 测试怎么跑、特性与测试用例怎么映射、真实场景覆盖了什么、质量覆盖率指标是什么 | `TEST_INFRA.md` |
 | 1 秒 demo、--set/--args-file 传参、Studio 看板怎么用 | `QUICKSTART.md` |
 | ZCode 官方工作流机制怎么逆向的、三代演进与 P0→P2 融合蓝图 | `docs/research/workflow-reverse-engineering.md` |

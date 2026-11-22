@@ -1,9 +1,6 @@
-# AI-Workflow — Submission Navigator
+# AI-Workflow — Project Submission & Architecture Navigator
 
-> **AWS Kiroween 2026 · Skeleton Crew category** (hosted by Kiro, on Devpost; team: Skeleton Crew
-> — the team is deliberately named after the category it competes in)
-> Submission deadline: **December 4, 2026, 2:00 PM PT** · Prize pool: **USD 100,000**
-> Judged on: Potential Impact · Technological Implementation · Design · Innovation · Presentation
+> **AWS Kiroween 2026 · Skeleton Crew Track** (Hosted by Kiro on Devpost; Team: Skeleton Crew)
 >
 > **Working Application URL (Live Showcase)**: [https://litaog.github.io/AI-workflow-competition/](https://litaog.github.io/AI-workflow-competition/)  
 > *(Single-page porcelain-white interactive showcase: architecture SVG, four failure-mode fixes, cross-engine benchmark, reproducible quality fingerprints, and recorded 9-Act demo output — zero installation required)*
@@ -237,15 +234,13 @@ logic):
 | `apps/repo-migration-engine/` | AWS SDK v2 → v3 migration (S3, DynamoDB, SQS): baseline test gate → AST/deprecation scan → parallel worker+reviewer fan-out per file → `tsc --noEmit && npm test` merge gate → publication-ready `PULL_REQUEST.md` |
 | `apps/capabilities-tour/` | Reusable pattern library powering acts 5–8: amend lineage, hole growth, escalation, budget |
 
-**Category compliance map** — the official Skeleton Crew requirement reads: *"Your repo must
-contain 2 separate repo folders for the 2 separate applications."* This repository carries
-exactly that:
+**Two-Application Architecture Map** — The repository is structured with two self-contained application packages powered by a single shared engine skeleton:
 
-| Official requirement | This repository |
-| --- | --- |
-| Repo folder for application #1 | [`apps/incident-triage-remediation/`](apps/incident-triage-remediation/) — self-contained repo folder: own `package.json`, `tsconfig.json`, README (EN / 中文), workflow sources, shell gates, scenarios and committed artifacts |
-| Repo folder for application #2 | [`apps/repo-migration-engine/`](apps/repo-migration-engine/) — self-contained repo folder: own `package.json`, `tsconfig.json`, README (EN / 中文), workflow sources, MCP clients, fixtures, tests and committed artifacts |
-| One reusable code foundation | the skeleton both import: `src/dwf/` compiler + sandbox + journal, `bin/` CLI, MCP server — zero shared demo logic between the two applications |
+| Architecture Component | This Repository Implementation |
+| :--- | :--- |
+| Application Package #1 | [`apps/incident-triage-remediation/`](apps/incident-triage-remediation/) — self-contained repo folder: own `package.json`, `tsconfig.json`, README (EN / 中文), workflow sources, shell gates, scenarios and committed artifacts |
+| Application Package #2 | [`apps/repo-migration-engine/`](apps/repo-migration-engine/) — self-contained repo folder: own `package.json`, `tsconfig.json`, README (EN / 中文), workflow sources, MCP clients, fixtures, tests and committed artifacts |
+| Shared Code Foundation | The shared skeleton imported by both: `src/dwf/` compiler + sandbox + journal, `bin/` CLI, MCP server — zero shared demo logic between the two applications |
 
 **Docs** — [README](README.md) (full feature/architecture tour) ·
 [Quickstart (60-second tour)](QUICKSTART.md) ·
