@@ -113,10 +113,14 @@ node bin/workflow.js demo
 # 4. Open interactive Studio canvas in your default browser
 npm run demo:studio
 
-# 5. (Optional) Run the full nine-act self-verifying showcase (~48s, requires Bash / Git Bash on Windows)
+# 5. (Optional) Run the full nine-act self-verifying showcase (~48s)
 bash scripts/demo.sh
-# or: npm run demo:nine-acts
+# or: npm run demo:nine-acts          (requires Bash / Git Bash on Windows)
+node scripts/demo-nine-acts.mjs
+# or: npm run demo:nine-acts:win      (Windows PowerShell native — no Bash needed)
 ```
+
+> **Artifacts note:** workflow products (PostMortem, DAG views, kanban) are written relative to the **run's working directory** (cwd). Root-level `artifacts/` holds the latest outputs of repo-root-cwd runs — the demo chain rewrites it, and `git restore artifacts/` restores the tracked baseline. `apps/<app>/artifacts/` holds outputs of runs executed with that app directory as the cwd (Issue #255).
 
 > **Install Note:** This repository is not published to npm under `ai-workflow` (that name is an unrelated 2021 placeholder). You can install from source as above or download pre-packaged `.tgz` assets from [GitHub Releases](https://github.com/LitaoG/AI-workflow-competition/releases):
 > ```bash

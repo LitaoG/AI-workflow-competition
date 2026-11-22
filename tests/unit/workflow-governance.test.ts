@@ -528,10 +528,19 @@ describe('Workflow & Governance Specification Suite Invariant Locks', () => {
       'bash scripts/demo.sh',
       'package.json must provide "demo:nine-acts": "bash scripts/demo.sh" for the full nine-act suite (Issue #179)',
     );
+    assert.equal(
+      pkg.scripts['demo:nine-acts:win'],
+      'node scripts/demo-nine-acts.mjs',
+      'package.json must provide "demo:nine-acts:win": "node scripts/demo-nine-acts.mjs" as the Windows-native nine-act entry (Issue #254)',
+    );
     const readmeMd = fs.readFileSync(path.join(REPO_ROOT, 'README.md'), 'utf-8');
     assert.ok(
       readmeMd.includes('node bin/workflow.js demo') && readmeMd.includes('npm run demo'),
       'README.md must guide judges with cross-platform node bin/workflow.js demo and npm run demo (Issue #179)',
+    );
+    assert.ok(
+      readmeMd.includes('npm run demo:nine-acts:win'),
+      'README.md must guide Windows-native judges to npm run demo:nine-acts:win (Issue #254)',
     );
     const submissionMd = fs.readFileSync(path.join(REPO_ROOT, 'SUBMISSION.md'), 'utf-8');
     assert.ok(
