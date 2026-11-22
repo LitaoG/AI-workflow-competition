@@ -20,7 +20,7 @@
 | 基于属性的测试（PBT） | `.kiro/pbt/` | `npm run test:pbt` |
 | E2E 场景测试 | `tests/e2e/`（`runner.ts` + `helpers/` + tier1～tier4 四层） | `npm run test:e2e`（即 `node --experimental-strip-types tests/e2e/runner.ts`） |
 | 对抗性测试 | `tests/adversarial/` | `npm run test:adversarial` |
-| 跨引擎基准 | `tests/cross-engine/` | **独立基准，不在 `npm run gate` 内**：官方赛道需本机外部官方引擎 checkout（不可随本仓分发，评委克隆无法复跑官方侧）；我方赛道可离线复跑，结果落盘 `tests/cross-engine/results/`，结论见 `docs/research/BILATERAL-CROSS-BENCHMARK-REPORT.md` |
+| 跨引擎基准 | `tests/cross-engine/` | **独立基准，不在 `npm run gate` 内**：官方赛道需本机外部官方引擎 checkout（不可随本仓分发，外部克隆无官方私有 checkout 无法复跑官方侧）；我方赛道可离线复跑，结果落盘 `tests/cross-engine/results/`，结论见 `docs/research/BILATERAL-CROSS-BENCHMARK-REPORT.md` |
 | 治理规则锁死测试 | `tests/unit/workflow-governance.test.ts` | `npm run test:governance` |
 | 覆盖率统计 | c8，行覆盖率阈值 84%（`package.json` 的 `c8` 配置） | `npm run coverage` |
 | 全量门禁 | build + 上述各层串联 | `npm run gate` |

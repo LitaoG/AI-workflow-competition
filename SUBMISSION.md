@@ -8,13 +8,13 @@
 > **Working Application URL (Live Showcase)**: [https://litaog.github.io/AI-workflow-competition/](https://litaog.github.io/AI-workflow-competition/)  
 > *(Single-page porcelain-white interactive showcase: architecture SVG, four failure-mode fixes, cross-engine benchmark, reproducible quality fingerprints, and recorded 9-Act demo output — zero installation required)*
 
-This file is the judge-facing entry point: 3-minute golden path → one-minute pitch → demo video → one-command reproduction → repository map → compliance → Kiro usage guide.
+This file is the project submission guide: 3-minute quickstart → one-minute pitch → demo video → one-command reproduction → repository map → compliance → Kiro usage guide.
 
 ---
 
-## 🧭 Judge's 3-Minute Golden Path · 评委 3 分钟黄金审阅路径
+## 🧭 3-Minute Quickstart & Architecture Tour · 3 分钟极速上手与全景体验
 
-> **专为评委打造的 3 分钟极速通道**：三级递进式审阅路径，从 30 秒免安装在线体验到 90 秒深度探查可视化时间旅行与子应用：
+> **3 分钟极速体验通道**：三级递进式全景路径，从 30 秒免安装在线体验到 90 秒深度探查可视化时间旅行与子应用：
 
 | 通道 | 耗时与方式 | 核心体验与验证要点 | 快速入口 |
 | :--- | :--- | :--- | :--- |
@@ -23,7 +23,7 @@ This file is the judge-facing entry point: 3-minute golden path → one-minute p
 | 📊 **Path C** | **90 秒** · 可视化看板与实测应用 | **时间旅行可视化画布，直达两个真实子应用**<br>自动唤起浏览器 Studio 看板，探索 DevOps 突发故障自愈（[Incident Triage](apps/incident-triage-remediation/README.md)）与 AWS SDK v2→v3 自动化迁移（[Repo Migration](apps/repo-migration-engine/README.md)） | `npm run demo:studio`<br>*(自动在浏览器打开 Studio)* |
 
 ```bash
-# 🚀 评委本地极速复现（Path B & Path C）：
+# 🚀 本地极速体验（Path B & Path C）：
 git clone https://github.com/LitaoG/AI-workflow-competition.git && cd AI-workflow-competition
 npm install && npm run build
 
@@ -124,7 +124,7 @@ with preinstalled `node_modules` and a current `dist`; 42 s, 47 s, 48 s and 51 s
 
 This repository is **not published to npm** — the `ai-workflow` name on the registry is an unrelated 2021
 placeholder (v0.1.19). Supported installs: from source (`git clone` + `npm install && npm run build`, the
-three-minute judge path) or from a release tarball — a `.tgz` asset is attached to every GitHub Release
+three-minute quickstart path) or from a release tarball — a `.tgz` asset is attached to every GitHub Release
 since v2.11.0:
 
 ```bash
@@ -140,7 +140,7 @@ Verified 2026-11-21.
 
 Everything above runs on the built-in **deterministic mock provider** — zero network, zero API keys,
 byte-identical reruns. That is deliberate: it makes every claim on this page mechanically verifiable
-by a judge. The same facade scripts run unchanged against real agents — no script edits, four paths:
+by any reviewer or developer. The same facade scripts run unchanged against real agents — no script edits, four paths:
 
 ```bash
 # Path 0 — direct HTTP providers, registered from environment credentials (no extra dependency):
@@ -173,7 +173,7 @@ Kiro-native wiring: [docs/KIRO_INTEGRATION.md](docs/KIRO_INTEGRATION.md).
 All run 2026-11-22 on the **v2.14.0 release tree** (the v2.14.0 release tree,
 folding the #234/#236 dead-code cleanup, #237/#238 single-account review disclosure, #239/#241
 tooling duty split, and #240/#242 review-gate authorAssociation propagation), Windows, Node v26.13.0,
-from a **fresh build** (fresh-build numbers are what a judge clone reproduces; full context in
+from a **fresh build** (fresh-build numbers are what a clean clone reproduces; full context in
 [README](README.md#reproducible-quality-gate-fingerprints)):
 
 ```text
