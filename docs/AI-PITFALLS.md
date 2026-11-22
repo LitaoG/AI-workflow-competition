@@ -77,6 +77,14 @@
 - 门禁：`tests/unit/workflow-governance.test.ts`（Tier 1「no merge-conflict markers survive in any tracked text file」+ 反向判别用例）。已修 + 门禁（随上游 Issue #277 分支合入生效，经 comp Issue #17 同步移植）。
 - 原位置：Issue #277、`docs/WORKFLOW.md` §4。
 
+#### P-GIT-4 Windows 强杀子进程遗留 0 字节 index.lock——后续 git 读写全量阻塞且报错不自释
+- 复发性：G2 单次高代价（2026-11-22 外部审查实测捕获一处：并发中止/命令超时强杀 git 子进程后 `.git/index.lock` 残留，此后一切 git 命令报 `fatal: Unable to create '...index.lock': File exists`，报错不指向残骸成因）
+- 代价：门禁链/收尾脚本的每一个 git 读写调用被无名阻塞，排查耗时；若发生在无人值守的门禁链中将整段报废。
+- 根因：git 创建 `index.lock` 后、写入内容前被强杀，留下 0 字节残骸；git 自身从不清理孤儿锁，而 0 字节恰是「写入从未开始」的可靠残骸特征。真实进行中的 git 操作持锁为毫秒级且文件非空增长——0 字节/超龄（>10 分钟）即孤立锁，非空且新鲜即活锁。
+- 正确做法：`npm run git:locks`（`scripts/check-git-locks.mjs` 薄壳 + `src/git-locks.ts` 分类逻辑）机械排查：递归扫描 `.git/`（含 `.git/worktrees/<name>/` 的 worktree 私有锁），按「0 字节 → stale-empty / 超龄 → stale-old / 非空新鲜 → active」三态判定；发现 stale 锁退出 1 并给出移除指引。`--fix` **只删 0 字节锁**，非空锁永不自动删（可能持有在途索引数据，移除必须人工确认无 git 进程后执行）。分类函数 `classifyLock` 为纯函数，由 `tests/unit/git-locks.test.ts` 锁死三态语义（P-TEST-5 纯隔离兼容，无 spawn）。
+- 门禁：`tests/unit/git-locks.test.ts`（三态判定 + 边界）。已修 + 门禁（随 Issue #253 分支合入生效）。
+- 原位置：Issue #253、`scripts/check-git-locks.mjs`。
+
 #### P-TEST-1 Node.js ExperimentalWarning SQLite 告警与假绿拦截
 - 复发性：G1 反复
 - 代价：运行含有 SQLite 持久化测试时，stderr 打印 `(node:XXXXX) ExperimentalWarning: SQLite is an experimental feature`。若仅基于 stderr 是否为空判定测试成败，会产生误报；反之若仅看进程返回码，当测试中存在未捕获异常但被静默捕获时会出现「假绿」。

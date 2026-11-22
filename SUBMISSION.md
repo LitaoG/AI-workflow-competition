@@ -16,7 +16,7 @@ This file is the project submission guide: 3-minute quickstart → one-minute pi
 | 通道 | 耗时与方式 | 核心体验与验证要点 | 快速入口 |
 | :--- | :--- | :--- | :--- |
 | ⚡ **Path A** | **30 秒** · 零安装直达 | **全景矢量拓扑、四大失效结构解法、真实 9 幕实录**<br>浏览器零依赖即开即阅，微拟态纯白美学，完整呈现架构分层、基准测试与 9 幕运行实录证据链 | 🔗 [Live Showcase 交互演示单页](https://litaog.github.io/AI-workflow-competition/) |
-| 🚀 **Path B** | **60 秒** · 单命令全景实测 | **48 秒九幕全景直通，零 Token 确定性重放**<br>本地克隆后一键运行，离线验证严格编译、沙箱隔离、时间旅行、孔洞填补与预算硬门禁 | `git clone ...`<br>`npm install && npm run build`<br>`npm run demo` *(或 `bash scripts/demo.sh`)* |
+| 🚀 **Path B** | **60 秒** · 单命令全景实测 | **48 秒九幕全景直通，零 Token 确定性重放**<br>本地克隆后一键运行，离线验证严格编译、沙箱隔离、时间旅行、孔洞填补与预算硬门禁 | `git clone ...`<br>`npm install && npm run build`<br>`npm run demo` *(九幕全景：`bash scripts/demo.sh`，Windows 原生 `npm run demo:nine-acts:win`)* |
 | 📊 **Path C** | **90 秒** · 可视化看板与实测应用 | **时间旅行可视化画布，直达两个真实子应用**<br>自动唤起浏览器 Studio 看板，探索 DevOps 突发故障自愈（[Incident Triage](apps/incident-triage-remediation/README.md)）与 AWS SDK v2→v3 自动化迁移（[Repo Migration](apps/repo-migration-engine/README.md)） | `npm run demo:studio`<br>*(自动在浏览器打开 Studio)* |
 
 ```bash
@@ -95,9 +95,11 @@ node bin/workflow.js demo
 # or: npm run demo
 # or: npm run demo:studio
 
-# Option B: Comprehensive nine-act self-verifying showcase (~42-51s, requires Bash / Git Bash on Windows):
+# Option B: Comprehensive nine-act self-verifying showcase (~42-51s)
 bash scripts/demo.sh
-# or: npm run demo:nine-acts
+# or: npm run demo:nine-acts          (requires Bash / Git Bash on Windows)
+node scripts/demo-nine-acts.mjs
+# or: npm run demo:nine-acts:win      (Windows PowerShell native — no Bash needed)
 ```
 
 Offline, deterministic, **no API keys** — both entries self-verify and exit non-zero if any act fails.
