@@ -391,6 +391,61 @@ describe('Workflow & Governance Specification Suite Invariant Locks', () => {
     assert.ok(skillMd.includes('工作流看板先行'), 'skills/ai-workflow/SKILL.md must mandate 工作流看板先行');
   });
 
+  test('Tier 1: All internal markdown relative links and anchors must resolve (Issue #249)', () => {
+    function getAllMdFiles(dir: string): string[] {
+      let results: string[] = [];
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (['node_modules', 'dist', '.git', '.cache', '.workflow', '.zcode'].includes(entry.name)) continue;
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) results = results.concat(getAllMdFiles(full));
+        else if (entry.name.endsWith('.md')) results.push(full);
+      }
+      return results;
+    }
+
+    const mdFiles = getAllMdFiles(REPO_ROOT);
+    const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+    const brokenLinks: string[] = [];
+
+    for (const file of mdFiles) {
+      const content = fs.readFileSync(file, 'utf-8');
+      let match: RegExpExecArray | null;
+      while ((match = linkRegex.exec(content)) !== null) {
+        const rawLink = match[2].trim();
+        if (rawLink.startsWith('http://') || rawLink.startsWith('https://') || rawLink.startsWith('mailto:') || rawLink.startsWith('#')) continue;
+
+        const [relPath, anchor] = rawLink.split('#');
+        if (!relPath) continue;
+
+        const targetPath = path.resolve(path.dirname(file), relPath);
+        const relSource = path.relative(REPO_ROOT, file);
+        if (!fs.existsSync(targetPath)) {
+          brokenLinks.push(`Broken file: ${relSource} -> ${rawLink}`);
+          continue;
+        }
+
+        if (anchor && relPath.endsWith('.md')) {
+          const targetContent = fs.readFileSync(targetPath, 'utf-8');
+          const slug = anchor.toLowerCase();
+          const headings = targetContent.split('\n').filter(l => l.startsWith('#'));
+          const hasHeading = headings.some(h => {
+            const text = h.replace(/^#+\s*/, '').trim();
+            const genSlug = text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
+            return genSlug === slug || genSlug.replace(/--+/g, '-') === slug;
+          });
+          const hasExplicitAnchor = targetContent.includes(`id="${anchor}"`) ||
+            targetContent.includes(`name="${anchor}"`) ||
+            targetContent.includes(`id='${anchor}'`);
+          if (!hasHeading && !hasExplicitAnchor) {
+            brokenLinks.push(`Broken anchor: ${relSource} -> ${rawLink}`);
+          }
+        }
+      }
+    }
+
+    assert.equal(brokenLinks.length, 0, `Found broken markdown links:\n${brokenLinks.join('\n')}`);
+  });
+
   test('Tier 2: Strict exclusion of trading/stock/crypto domain contamination', () => {
     const filesToCheck = [
       'AGENTS.md',

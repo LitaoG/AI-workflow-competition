@@ -260,7 +260,7 @@ logic):
 3. **Dependency supply chain.** All dependencies are version-pinned via `package-lock.json`. The
    one high advisory (GHSA-mrhx-c7xc-m3w5 in `zod` 3.25.76) is **fixed**: the runtime dependency
    pins `zod` 4.6.7 (the official fix version); `npm audit` now reports 4 moderate advisories,
-   all in dev dependencies. Full compliance details: [README §Compliance](README.md#compliance).
+   all in dev dependencies. Full compliance details: [README §Compliance & Security](README.md#compliance--security).
 4. **Zero private data leakage.** All demo scenarios, telemetry and fixtures are synthetic; every
    demo and test runs offline in mock mode with zero API keys; environment probing redacts
    credentials (`AKIA…`, JWTs → `***REDACTED***`, enforced by a PBT invariant). No private keys,

@@ -240,6 +240,7 @@ A bilateral benchmark executing the identical facade script (planner → 4-way f
 
 Full analysis: [`docs/research/BILATERAL-CROSS-BENCHMARK-REPORT.md`](docs/research/BILATERAL-CROSS-BENCHMARK-REPORT.md).
 
+<a id="compliance"></a><a id="compliance--security"></a><a id="compliance-security"></a>
 ### Compliance & Security
 
 1. **Clean-room implementation**: The facade compiler, sandbox runtime, deterministic SQLite journal, and view subsystems are original work.
