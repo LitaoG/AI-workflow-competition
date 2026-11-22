@@ -918,6 +918,35 @@ not ok 2 - stdio e2e: real spawn lists all seven tools
     ];
     const res8 = checkReviewComments(comments8);
     assert.ok(res8.valid, 'a cross-author three-state reply closes the finding normally');
+
+    // Case 9 (Issue #240): an OWNER finding arriving via GitHub Review channel
+    // preserving authorAssociation is recognized as internal QA and does not block
+    const comments9 = [
+      {
+        body: '## 审查意见: Review 渠道提出的意见',
+        author: { login: 'LitaoG' },
+        authorAssociation: 'OWNER',
+        createdAt: '2026-11-22T08:00:00Z',
+      },
+    ];
+    const res9 = checkReviewComments(comments9);
+    assert.ok(res9.valid, 'OWNER review findings via review channel are internal QA (Issue #240)');
+    assert.equal(res9.internalQaCount, 1);
+
+    // Case 10 (Issue #240): an OWNER finding arriving via linked Issue comments
+    // preserving authorAssociation is recognized as internal QA and does not block
+    const comments10 = [
+      {
+        body: '[监督席·只读复核] 来自关联 Issue 的监督意见',
+        author: { login: 'LitaoG' },
+        authorAssociation: 'OWNER',
+        createdAt: '2026-11-22T08:00:00Z',
+        fromIssue: '237',
+      },
+    ];
+    const res10 = checkReviewComments(comments10);
+    assert.ok(res10.valid, 'OWNER review findings via linked Issue channel are internal QA (Issue #240)');
+    assert.equal(res10.internalQaCount, 1);
   });
 
   test('Tier 3: PR Review Gate script functionality - checkCiGateConclusion (Issue #136)', () => {

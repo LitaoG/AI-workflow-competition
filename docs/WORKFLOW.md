@@ -283,7 +283,7 @@ node --experimental-strip-types scripts/pr_review_gate.mjs <pr_number>
 - PR 正文是否明确关联有效 Issue（`Closes #NN`）；
 - PR 创建时间是否已过 15 分钟冷却期（支持 `--ack` / `--bypass-cooling` 授权豁免）；
 - 评论与 Review 流（含关联 Issue 评论，F5）中所有审查意见是否均已完成三态回复交代：带编号发现项须引用编号 + 三态关键词，带审查标题的评论不算回音，时间轴合并排序；
-- **评审独立性（Issue #220，#215 实证）**：`authorAssociation=OWNER` 的自提审查意见按**内部自检**记账（`internalQaCount` 单列留痕），不进 unresolved 账目、不驱动 `review-gate-comments` 状态翻转——required check 只对外部审查意见负责闭环；且任何 finding 的闭环回音作者必须异于意见作者（双方已知时），自提自答不算闭环。§1.9 三态交代义务本身不变（纪律层约束，OWNER 自审仍须逐条交代，只是不再构成 required check 的机械证据）；
+- **评审独立性与单账号披露（Issue #220、#231 决策 D，#215 实证）**：`authorAssociation=OWNER` 的自提审查意见按**内部自检**记账（`internalQaCount` 单列留痕），不进 unresolved 账目、不驱动 `review-gate-comments` 状态翻转——required check 机械上只对外部审查意见负责闭环；同时 status description 显式携带 internal-QA 计数披露（`§1.9 clean; N internal-QA finding(s) on record (single-account disclosure, Issue #220/#231)`），杜绝单账号自审无声恒绿；且任何 finding 的闭环回音作者必须异于意见作者（双方已知时），自提自答不算闭环。§1.9 三态交代义务本身不变（纪律层约束，OWNER 自审仍须逐条交代，只是不再构成 required check 的机械证据，与 SUBMISSION.md 披露口径完全一致）；
 - PR 正文是否包含真实测试指纹与无未消除占位符（指纹只认 `pass N, fail 0` / node:test 分行摘要，N > 0；「Ran N tests」无 fail 记账自 Issue #158 起不认；裸 "passed" 一词不算，Issue #109）；指纹数字与 `.gate/tap.log` TAP 汇总三数交叉绑定（缺失/不一致/fail>0 即拦；tap 路径由 `AI_WORKFLOW_TAP_LOG` 指定——worktree 工作流下指向 PR 分支的全量套件产物，缺省为主仓 cwd，Issue #158）。
 
 ### 7.3 合入操作（必须在主仓 main 执行）

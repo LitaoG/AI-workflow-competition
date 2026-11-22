@@ -613,6 +613,7 @@ PR Review & Cooling Period Gate CLI (pr_review_gate.mjs)
       .map(r => ({
         body: r.body,
         author: r.author ? { login: r.author.login } : undefined,
+        authorAssociation: r.authorAssociation || r.author_association,
         createdAt: r.submittedAt,
       }));
 
@@ -632,7 +633,13 @@ PR Review & Cooling Period Gate CLI (pr_review_gate.mjs)
           stdio: ['pipe', 'pipe', 'pipe'],
         });
         for (const c of JSON.parse(rawIssue).comments || []) {
-          issueComments.push({ body: c.body, author: c.author, createdAt: c.createdAt, fromIssue: num });
+          issueComments.push({
+            body: c.body,
+            author: c.author,
+            authorAssociation: c.authorAssociation || c.author_association,
+            createdAt: c.createdAt,
+            fromIssue: num,
+          });
         }
       } catch {
         console.log(`[提示] 关联 Issue #${num} 的评论拉取失败，该 Issue 不参与审查判定`);
