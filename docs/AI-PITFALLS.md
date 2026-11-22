@@ -305,3 +305,11 @@
 - 门禁：`tests/unit/workflow-governance.test.ts`、`scripts/pr_review_gate.mjs`。
 - 原位置：AGENTS.md §1.9、docs/WORKFLOW.md §7.2。
 
+#### P-I18N-1 英文上下文中看板模板与代码混排中文泄漏——语言未对齐与单向断言盲区导致体验劣化
+- 复发性：G2 单次高代价（用户英文提问时，Studio 看板出现「下载 download」、「提交继续 Submit & Resume」及「✔ Completed · 耗时 12ms」汉字，脚本 phase 也生成中文）
+- 代价：英文用户体验严重劣化，看板与脚本呈现不专业的双语夹杂或纯中文；
+- 根因：① `src/visualizer/studio-template.ts` 模板硬编码「下载 download」、「提交继续」以及 duration 拼接写死「耗时」；② `src/cli/commands/new.ts` 模板标题硬编码中文；③ `AGENTS.md` / `SKILL.md` 规则虽然规范了「工作流看板先行」，但未锁死「英文提问零中文字符」红线，Agent 看到中文规则后下意识生成中文看板；④ 现有 i18n 测试只做正向断言（`includes('<html lang="en">')`），缺少对 `[\u4e00-\u9fa5]` 的负向断言门禁。
+- 正确做法：① Studio 模板按钮与状态文案全量字典化，无中英文混排，模板代码内零汉字，全部由 `STUDIO_I18N` 供给；② 脚手架模板标题按语言自适应分流；③ `AGENTS.md` §1.12 与 `SKILL.md` 强制锁死「语言严格对齐与英文提问零中文字符红线」；④ `studio-i18n.test.ts` 增加门禁断言：在 `lang: 'en'` 模式下页面 DOM 结构与模板逻辑绝无任何 CJK 字符泄漏。
+- 门禁：`tests/unit/visualizer/studio-i18n.test.ts`、`tests/unit/workflow-governance.test.ts`。已修 + 门禁（Issue #277）。
+- 原位置：Issue #277、`src/visualizer/studio-template.ts`、`src/cli/commands/new.ts`、`AGENTS.md`。
+

@@ -77,6 +77,17 @@ export const STUDIO_I18N: Record<'en' | 'zh', Record<string, string>> = {
     roleReviewer: 'Reviewer',
     roleGate: 'Gate',
     roleCoordinator: 'Coordinator',
+    btnDownload: 'Download',
+    btnSubmitResume: 'Submit & Resume',
+    btnFillResume: 'Fill & Resume',
+    statusRunning: '⚡ Running',
+    statusCompleted: '✔ Completed',
+    statusTook: 'took ',
+    statusSubagent: '1 subagent',
+    statusReplayed: '⚡ Replayed (Cache) · 0ms',
+    statusFailed: '✖ Failed',
+    statusWaiting: '⏳ Waiting for upstream handoff',
+    nodeUnit: 'nodes',
   },
   zh: {
     fit: '适配',
@@ -126,6 +137,17 @@ export const STUDIO_I18N: Record<'en' | 'zh', Record<string, string>> = {
     roleReviewer: '评审员',
     roleGate: '关卡',
     roleCoordinator: '协调者',
+    btnDownload: '下载',
+    btnSubmitResume: '提交并继续',
+    btnFillResume: '填充并继续',
+    statusRunning: '⚡ 正在执行',
+    statusCompleted: '✔ 已完成',
+    statusTook: '耗时 ',
+    statusSubagent: '1 个子代理完成',
+    statusReplayed: '⚡ 缓存重放 (Replay) · 0ms',
+    statusFailed: '✖ 执行失败',
+    statusWaiting: '⏳ 等待上游阶段交接',
+    nodeUnit: '个节点',
   },
 };
 
@@ -461,11 +483,11 @@ export const STUDIO_TEMPLATE = `<!doctype html>
   var selectedId = null;
   var view = { k: 1, x: 0, y: 0 };
   // Issue #128: the client-side fixed strings come from the injected
-  // STUDIO_I18N table; the node-count label keeps one口径 with the canvas
+  // STUDIO_I18N table; the node-count label keeps one standard with the canvas
   // (Issue #96 follow-up) and pluralizes.
   var LANG = window.__STUDIO_LANG__ === 'zh' ? 'zh' : 'en';
   var T = (window.__STUDIO_I18N__ || {})[LANG] || {};
-  function nodesLabel(n) { return LANG === 'zh' ? n + ' 个节点' : (n === 1 ? '1 node' : n + ' nodes'); }
+  function nodesLabel(n) { return LANG === 'zh' ? n + ' ' + (T.nodeUnit || 'nodes') : (n === 1 ? '1 node' : n + ' nodes'); }
 
   // ---------- tiny dom utils ----------
   function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
@@ -678,28 +700,27 @@ export const STUDIO_TEMPLATE = `<!doctype html>
 
   function nodeStatusDetail(n) {
     var st = n.status || 'pending';
-    var isZh = window.__STUDIO_LANG__ === 'zh';
     if (st === 'running') {
       var d = n.durationMs !== undefined ? fmtDur(n.durationMs) : '0s';
-      return isZh ? ('⚡ 正在执行 · ' + d) : ('⚡ Running · ' + d);
+      return (T.statusRunning || '⚡ Running') + ' · ' + d;
     }
     if (st === 'completed') {
       var d = n.durationMs !== undefined ? fmtDur(n.durationMs) : '';
-      var subagent = (n.role && n.role !== 'gate' && n.role !== 'coordinator') ? (isZh ? '1 个子代理完成' : '1 subagent') : '';
-      var parts = isZh ? ['✔ 已完成'] : ['✔ Completed'];
-      if (d) parts.push('耗时 ' + d);
+      var subagent = (n.role && n.role !== 'gate' && n.role !== 'coordinator') ? (T.statusSubagent || '1 subagent') : '';
+      var parts = [T.statusCompleted || '✔ Completed'];
+      if (d) parts.push((T.statusTook || 'took ') + d);
       if (subagent) parts.push(subagent);
       return parts.join(' · ');
     }
     if (st === 'replayed') {
-      return isZh ? '⚡ 缓存重放 (Replay) · 0ms' : '⚡ Replayed (Cache) · 0ms';
+      return T.statusReplayed || '⚡ Replayed (Cache) · 0ms';
     }
     if (st === 'failed') {
       var err = n.errorMessage ? (' · ' + n.errorMessage.slice(0, 24)) : '';
-      return (isZh ? '✖ 执行失败' : '✖ Failed') + err;
+      return (T.statusFailed || '✖ Failed') + err;
     }
     // pending
-    return isZh ? '⏳ 等待上游阶段交接' : '⏳ Waiting for upstream handoff';
+    return T.statusWaiting || '⏳ Waiting for upstream handoff';
   }
 
   function computeLayout() {
@@ -728,25 +749,25 @@ export const STUDIO_TEMPLATE = `<!doctype html>
     LAYOUT = { pos: pos, cols: cols, width: width, height: height, W: W, H: H, TOP: TOP };
   }
 
-  /* 拓扑连线物理算法 —— 见模块 TSDoc 军规。所有分支都锚定卡片边缘，无倒扣。
+  /* Edge topology physics — see module TSDoc. All branches anchor to card boundaries.
      Returns { d, ax, ay } — (ax, ay) is the source anchor for the junction dot. */
   function edgePath(a, b) {
     var sameCol = a.col === b.col;
     if (sameCol) {
       if (b.y > a.y && (b.y - (a.y + a.h)) <= 26) {
-        var x = a.x + a.w / 2;                       // 相邻上下：垂直直线脊柱
+        var x = a.x + a.w / 2;                       // Adjacent vertical spine
         return { d: 'M' + x + ' ' + (a.y + a.h) + ' L' + x + ' ' + b.y, ax: x, ay: a.y + a.h };
       }
       var rx1 = a.x + a.w, ry1 = a.y + a.h / 2, rx2 = b.x + b.w, ry2 = b.y + b.h / 2;
-      var mx = Math.max(rx1, rx2) + 34;              // 同列非相邻/向上：右侧弧形旁路
-      return { d: 'M' + rx1 + ' ' + ry1 + ' C' + mx + ' ' + ry1 + ', ' + mx + ' ' + ry2 + ', ' + rx2 + ' ' + ry2, ax: rx1, ay: ry1 };
+      var mx = Math.max(rx1, rx2) + 34;              // Same-column non-adjacent: right side-bypass
+        return { d: 'M' + rx1 + ' ' + ry1 + ' C' + mx + ' ' + ry1 + ', ' + mx + ' ' + ry2 + ', ' + rx2 + ' ' + ry2, ax: rx1, ay: ry1 };
     }
-    if (b.x > a.x) {                                  // 跨 Phase 前向：标准水平贝塞尔
+    if (b.x > a.x) {                                  // Cross-phase forward: standard horizontal Bezier
       var fx1 = a.x + a.w, fy1 = a.y + a.h / 2, fx2 = b.x, fy2 = b.y + b.h / 2;
       var dx = Math.min(Math.max((fx2 - fx1) * 0.45, 30), 92);
       return { d: 'M' + fx1 + ' ' + fy1 + ' C' + (fx1 + dx) + ' ' + fy1 + ', ' + (fx2 - dx) + ' ' + fy2 + ', ' + fx2 + ' ' + fy2, ax: fx1, ay: fy1 };
     }
-    var bx1 = a.x, by1 = a.y + a.h / 2, bx2 = b.x + b.w, by2 = b.y + b.h / 2;   // 回边：左向平滑 S 曲线
+    var bx1 = a.x, by1 = a.y + a.h / 2, bx2 = b.x + b.w, by2 = b.y + b.h / 2;   // Loopback: smooth S-curve
     var bdx = Math.min(Math.max((bx1 - bx2) * 0.45, 30), 92);
     return { d: 'M' + bx1 + ' ' + by1 + ' C' + (bx1 - bdx) + ' ' + by1 + ', ' + (bx2 + bdx) + ' ' + by2 + ', ' + bx2 + ' ' + by2, ax: bx1, ay: by1 };
   }
@@ -1107,7 +1128,7 @@ export const STUDIO_TEMPLATE = `<!doctype html>
     if (art && art.content) {
       var isMd = (art.type || '').indexOf('markdown') >= 0 || /\\.(md|markdown)$/i.test(art.name || '');
       html += isec('ARTIFACT · ' + esc(art.name), '',
-        '<div class="dl-row"><button id="btn-dl">下载 download</button>' + (isMd ? '<button id="btn-raw">raw</button>' : '') + '</div>' +
+        '<div class="dl-row"><button id="btn-dl">' + esc(T.btnDownload || 'Download') + '</button>' + (isMd ? '<button id="btn-raw">raw</button>' : '') + '</div>' +
         '<div class="box' + (isMd ? ' md' : '') + '" id="art-body">' + (isMd ? miniMarkdown(art.content) : esc(art.content)) + '</div>');
     }
     if (n.errorMessage) {
@@ -1245,7 +1266,7 @@ export const STUDIO_TEMPLATE = `<!doctype html>
         '<div class="a2ui-head">' + WARN_ICON + '<span>❓ Workflow needs your answer (escalation)</span></div>' +
         '<div class="a2ui-q">' + esc(q.question) + '</div>' +
         '<textarea id="a2ui-text" placeholder="Type your answer…"></textarea>' +
-        '<div class="a2ui-foot"><span class="msg" id="a2ui-msg"></span><button id="a2ui-send">提交继续 Submit & Resume</button></div>' +
+        '<div class="a2ui-foot"><span class="msg" id="a2ui-msg"></span><button id="a2ui-send">' + esc(T.btnSubmitResume || 'Submit & Resume') + '</button></div>' +
         '<div class="hint">site ' + esc(q.siteId) + ' · questionId ' + esc(q.questionId) + ' · CLI: workflow answer ' + esc(state.run.runId) + ' ' + esc(q.questionId) + ' "&lt;text&gt;"</div>' +
         '</div>';
       document.getElementById('a2ui-send').addEventListener('click', function () {
@@ -1257,7 +1278,7 @@ export const STUDIO_TEMPLATE = `<!doctype html>
         '<div class="a2ui-head">' + HOLE_ICON + '<span>⌘ Fill the hole: ' + esc(h.name) + '</span></div>' +
         '<div class="a2ui-q">' + esc(h.prompt) + '</div>' +
         '<textarea id="a2ui-text" placeholder="// JS statements using facade globals (agent(), phase(), …)"></textarea>' +
-        '<div class="a2ui-foot"><span class="msg" id="a2ui-msg"></span><button id="a2ui-send">提交继续 Fill & Resume</button></div>' +
+        '<div class="a2ui-foot"><span class="msg" id="a2ui-msg"></span><button id="a2ui-send">' + esc(T.btnFillResume || 'Fill & Resume') + '</button></div>' +
         '<div class="hint">site ' + esc(h.siteId) + ' · CLI: workflow fill ' + esc(state.run.runId) + ' ' + esc(h.name) + ' &lt;bodyFile&gt;</div>' +
         '</div>';
       document.getElementById('a2ui-send').addEventListener('click', function () {
