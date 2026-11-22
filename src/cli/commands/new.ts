@@ -11,6 +11,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { createInterface } from 'node:readline/promises';
+import { resolveLang, type SupportedLang } from '../i18n/index.js';
 
 export interface NewCommandOptions {
   template?: string;
@@ -19,9 +20,25 @@ export interface NewCommandOptions {
   lang?: string;
 }
 
+export const TEMPLATE_TITLES_ZH: Record<string, string> = {
+  'code-review': '代码安全审查与自动化验证',
+  'incident-triage': '线上突发故障自主分诊与修复',
+  'repo-migration': '依赖与架构自动化重构迁移',
+  'multi-agent': '自定义多角色专家编排',
+};
+
+export function getTemplateDisplayTitle(templateKey: string, lang: SupportedLang = 'en'): string {
+  const tpl = NEW_TEMPLATES[templateKey];
+  const enTitle = tpl?.title ?? templateKey;
+  if (lang === 'zh' && TEMPLATE_TITLES_ZH[templateKey]) {
+    return `${enTitle} (${TEMPLATE_TITLES_ZH[templateKey]})`;
+  }
+  return enTitle;
+}
+
 export const NEW_TEMPLATES: Record<string, { title: string; body: string }> = {
   'code-review': {
-    title: 'Code Review & Verification (代码安全审查与自动化验证)',
+    title: 'Code Review & Verification',
     body: `/**
  * <NAME> — typed parallel reviews over the changed files.
  * Run: workflow run <NAME>.facade.ts --cwd <workspace>
@@ -51,7 +68,7 @@ interface Verdict {
 `,
   },
   'incident-triage': {
-    title: 'Incident Triage & Hotfix (线上突发故障自主分诊与修复)',
+    title: 'Incident Triage & Hotfix',
     body: `/**
  * <NAME> — detect → triage → remediate with a shell verification gate.
  * Run: workflow run <NAME>.facade.ts --cwd <workspace>
@@ -88,7 +105,7 @@ interface Triage {
 `,
   },
   'repo-migration': {
-    title: 'Repo Migration Pipeline (依赖与架构自动化重构迁移)',
+    title: 'Repo Migration Pipeline',
     body: `/**
  * <NAME> — scan → plan → execute migration steps behind shell gates.
  * Run: workflow run <NAME>.facade.ts --set target=lodash@4 --cwd <workspace>
@@ -118,7 +135,7 @@ interface Plan {
 `,
   },
   'multi-agent': {
-    title: 'Custom Multi-Agent Team (自定义多角色专家编排)',
+    title: 'Custom Multi-Agent Team',
     body: `/**
  * <NAME> — a three-role expert team with fresh-eyes review.
  * Run: workflow run <NAME>.facade.ts --set question='...'
@@ -144,13 +161,13 @@ interface Assessment {
   },
 };
 
-async function promptTemplate(): Promise<string | null> {
+async function promptTemplate(lang: SupportedLang = 'en'): Promise<string | null> {
   if (!process.stdin.isTTY) return null;
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   try {
     console.log('Choose a template:');
     const keys = Object.keys(NEW_TEMPLATES);
-    keys.forEach((k, i) => console.log(`  ${i + 1}) ${NEW_TEMPLATES[k]!.title} (${k})`));
+    keys.forEach((k, i) => console.log(`  ${i + 1}) ${getTemplateDisplayTitle(k, lang)} (${k})`));
     const answer = (await rl.question('Template number [1]: ')).trim();
     const idx = answer === '' ? 1 : Number(answer);
     if (!Number.isInteger(idx) || idx < 1 || idx > keys.length) return null;
@@ -161,15 +178,16 @@ async function promptTemplate(): Promise<string | null> {
 }
 
 export async function executeNew(name: string | undefined, options?: NewCommandOptions): Promise<number> {
+  const lang = resolveLang(options?.lang);
   if (!name || !/^[\w.-]+$/.test(name)) {
     console.error('Error: a workflow name is required — workflow new <name> [--template <t>]');
     return 1;
   }
   let template = options?.template;
-  if (!template) template = (await promptTemplate()) ?? undefined;
+  if (!template) template = (await promptTemplate(lang)) ?? undefined;
   if (!template) {
     console.error('Error: choose a template (interactive prompt unavailable in non-TTY):');
-    for (const k of Object.keys(NEW_TEMPLATES)) console.error(`  workflow new <name> --template ${k}   # ${NEW_TEMPLATES[k]!.title}`);
+    for (const k of Object.keys(NEW_TEMPLATES)) console.error(`  workflow new <name> --template ${k}   # ${getTemplateDisplayTitle(k, lang)}`);
     return 1;
   }
   const tpl = NEW_TEMPLATES[template];
@@ -186,7 +204,7 @@ export async function executeNew(name: string | undefined, options?: NewCommandO
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(file, tpl.body.replaceAll('<NAME>', name));
   console.log(`✔ scaffolded ${file}`);
-  console.log(`  template: ${tpl.title}`);
+  console.log(`  template: ${getTemplateDisplayTitle(template, lang)}`);
   console.log('Next steps:');
   console.log(`  workflow check ${name}.facade.ts                 # must print: facade script compiled clean`);
   console.log(`  workflow run ${name}.facade.ts --cwd <workspace>  # mock provider offline by default`);

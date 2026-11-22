@@ -380,6 +380,7 @@ describe('Workflow & Governance Specification Suite Invariant Locks', () => {
       'Visual Workflow Board First',
       '总揽目标后必建看板再执行',
       '可视化工作流看板',
+      '语言严格对齐与英文提问零中文字符红线',
     ];
 
     for (const token of expectedTokens) {
@@ -389,6 +390,7 @@ describe('Workflow & Governance Specification Suite Invariant Locks', () => {
 
     assert.ok(skillMd.includes('Visual Workflow Board First'), 'skills/ai-workflow/SKILL.md must mandate Visual Workflow Board First');
     assert.ok(skillMd.includes('工作流看板先行'), 'skills/ai-workflow/SKILL.md must mandate 工作流看板先行');
+    assert.ok(skillMd.includes('Strict Language Alignment'), 'skills/ai-workflow/SKILL.md must mandate Strict Language Alignment');
   });
 
   test('Tier 1: Mandatory local HTTP server and prohibition of file:// for HTML delivery (Issue #275)', () => {

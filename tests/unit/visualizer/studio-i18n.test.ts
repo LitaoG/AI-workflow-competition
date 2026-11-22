@@ -103,3 +103,33 @@ test('issue #257 (zh): the raw engine value stays as the faint CLI-correlation s
   assert.equal(localizedValue(TYPE_KEY, 'agent'), `智能体 <span class="mv-raw">agent</span>`);
   assert.equal(localizedValue(ROLE_KEY, 'gate'), `关卡 <span class="mv-raw">gate</span>`);
 });
+
+// ---------------------------------------------------------------------------
+// Issue #277: Zero-Chinese guarantee for English runs — when lang: 'en',
+// the rendered HTML shell, template strings, action buttons, and duration
+// labels must NOT leak any Chinese characters into the user-facing surface.
+// ---------------------------------------------------------------------------
+test('issue #277 (en): no Chinese characters leak in English mode outside the injected i18n JSON payload', () => {
+  const html = renderStudioHtml(snap(), { live: false, lang: 'en' });
+
+  // Verify the buttons and duration labels in the template
+  assert.ok(!html.includes('下载 download'), 'old mixed "下载 download" button must be gone');
+  assert.ok(!html.includes('提交继续 Submit & Resume'), 'old mixed "提交继续 Submit & Resume" button must be gone');
+  assert.ok(!html.includes('提交继续 Fill & Resume'), 'old mixed "提交继续 Fill & Resume" button must be gone');
+  assert.ok(!html.includes("parts.push('耗时 ' + d)"), 'hardcoded "耗时 " push must be gone');
+
+  // Strip the injected window.__STUDIO_I18N__ JSON island and verify the rest has zero CJK characters
+  const withoutI18nPayload = html.replace(/window\.__STUDIO_I18N__\s*=\s*\{[\s\S]*?\};/, '');
+  const cjkMatch = withoutI18nPayload.match(/[\u4e00-\u9fa5]/);
+  assert.equal(cjkMatch, null, `English page must not contain any Chinese characters outside the injected JSON dictionary, found: ${cjkMatch?.[0]}`);
+});
+
+test('issue #277: button labels in STUDIO_I18N are properly localized and separated', () => {
+  assert.equal(STUDIO_I18N.en.btnDownload, 'Download');
+  assert.equal(STUDIO_I18N.en.btnSubmitResume, 'Submit & Resume');
+  assert.equal(STUDIO_I18N.en.btnFillResume, 'Fill & Resume');
+
+  assert.equal(STUDIO_I18N.zh.btnDownload, '下载');
+  assert.equal(STUDIO_I18N.zh.btnSubmitResume, '提交并继续');
+  assert.equal(STUDIO_I18N.zh.btnFillResume, '填充并继续');
+});
