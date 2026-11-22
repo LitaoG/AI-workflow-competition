@@ -157,7 +157,7 @@ test('inspect resolves facade runs through the default journal probe (no --db ne
   } finally {
     console.log = originalLog;
     process.chdir(originalCwd);
-    fs.rmSync(dir, { recursive: true, force: true });
+    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
   }
 });
 

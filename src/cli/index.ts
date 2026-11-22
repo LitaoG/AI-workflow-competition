@@ -464,6 +464,7 @@ Commands:
     .command('demo')
     .description('Run the flagship incident-triage demo offline (deterministic mock) and open the AI-Workflow Studio')
     .option('--no-open', 'Do not raise the default browser')
+    .option('-p, --port <number>', 'Port for local HTTP portal server (default: 0 for dynamic/random port)')
     .option('-l, --lang <lang>', dict.OPT_LANG)
     .action(async (opts) => {
       exitCode = await executeDemo({ ...opts, lang: opts.lang ?? program.opts().lang ?? lang });

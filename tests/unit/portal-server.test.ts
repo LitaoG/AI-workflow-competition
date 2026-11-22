@@ -11,10 +11,13 @@ import {
   ensurePortalServer,
   closeActivePortalServer,
   isPortListening,
+  isOurPortalListening,
   createPortalHttpServer,
+  PORTAL_SIGNATURE_HEADER,
+  PORTAL_SIGNATURE_VALUE,
 } from '../../src/cli/commands/portal-server.js';
 
-function httpGet(url: string): Promise<{ status: number; contentType?: string; body: string }> {
+function httpGet(url: string): Promise<{ status: number; contentType?: string; body: string; headers: http.IncomingHttpHeaders }> {
   return new Promise((resolve, reject) => {
     http.get(url, (res) => {
       let data = '';
@@ -23,6 +26,7 @@ function httpGet(url: string): Promise<{ status: number; contentType?: string; b
         resolve({
           status: res.statusCode || 0,
           contentType: res.headers['content-type'],
+          headers: res.headers,
           body: data,
         });
       });
@@ -46,6 +50,43 @@ test('portal-server: isPortListening accurately probes ports', async () => {
   await new Promise<void>((resolve) => tempServer.close(() => resolve()));
 });
 
+test('portal-server: isOurPortalListening distinguishes our portal from third-party servers', async () => {
+  const foreignPort = 59875;
+  const portalPort = 59876;
+
+  // 1. Third-party foreign server (e.g., user Tomcat/React on 8080 or custom port)
+  const foreignServer = http.createServer((_, res) => {
+    res.writeHead(200, { 'content-type': 'text/plain' });
+    res.end('foreign app');
+  });
+  await new Promise<void>((resolve) => foreignServer.listen(foreignPort, '127.0.0.1', () => resolve()));
+
+  try {
+    const isForeignOurs = await isOurPortalListening(foreignPort);
+    assert.equal(isForeignOurs, false, 'foreign server must NOT be identified as our portal');
+    const foreignListening = await isPortListening(foreignPort);
+    assert.equal(foreignListening, true, 'foreign port is listening');
+  } finally {
+    await new Promise<void>((resolve) => foreignServer.close(() => resolve()));
+  }
+
+  // 2. Real portal server
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'portal-probe-'));
+  try {
+    const ourServer = createPortalHttpServer(tmpDir);
+    await new Promise<void>((resolve) => ourServer.listen(portalPort, '127.0.0.1', () => resolve()));
+
+    try {
+      const isPortalOurs = await isOurPortalListening(portalPort);
+      assert.equal(isPortalOurs, true, 'our portal must be identified via signature');
+    } finally {
+      await new Promise<void>((resolve) => ourServer.close(() => resolve()));
+    }
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
 test('portal-server: serves html files with correct headers and prevents directory traversal', async () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'portal-test-'));
   try {
@@ -62,23 +103,84 @@ test('portal-server: serves html files with correct headers and prevents directo
       assert.equal(rootRes.status, 200);
       assert.ok(rootRes.contentType?.includes('text/html'));
       assert.ok(rootRes.body.includes('Portal Home'));
+      assert.equal(rootRes.headers[PORTAL_SIGNATURE_HEADER], PORTAL_SIGNATURE_VALUE);
 
       // 2. /demo.html -> demo.html
       const demoRes = await httpGet(`http://127.0.0.1:${port}/demo.html`);
       assert.equal(demoRes.status, 200);
       assert.ok(demoRes.body.includes('<title>Demo</title>'));
 
-      // 3. 404 for missing file
+      // 3. /__portal_probe -> 200 JSON
+      const probeRes = await httpGet(`http://127.0.0.1:${port}/__portal_probe`);
+      assert.equal(probeRes.status, 200);
+      assert.ok(probeRes.body.includes('ai-workflow-portal'));
+
+      // 4. 404 for missing file
       const missingRes = await httpGet(`http://127.0.0.1:${port}/missing.html`);
       assert.equal(missingRes.status, 404);
 
-      // 4. Directory traversal attempt blocked
+      // 5. Directory traversal attempt blocked
       const traversalRes = await httpGet(`http://127.0.0.1:${port}/../../etc/passwd`);
       assert.ok(traversalRes.status === 403 || traversalRes.status === 404);
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('portal-server: ensurePortalServer defaults to dynamic random port (port 0)', async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'portal-dyn-'));
+  try {
+    fs.writeFileSync(path.join(tmpDir, 'demo.html'), 'dynamic demo', 'utf-8');
+
+    // Default call: preferredPort is 0
+    const portal = await ensurePortalServer(tmpDir);
+    try {
+      assert.ok(portal.port > 0, 'assigned port must be positive');
+      assert.ok(portal.url.startsWith(`http://127.0.0.1:${portal.port}/`));
+
+      const res = await httpGet(`${portal.url}demo.html`);
+      assert.equal(res.status, 200);
+      assert.ok(res.body.includes('dynamic demo'));
+    } finally {
+      await closeActivePortalServer();
+    }
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('portal-server: ensurePortalServer falls back to dynamic port when preferredPort is occupied by user', async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'portal-conflict-'));
+  const occupiedPort = 59877;
+
+  // Simulate third-party user app running on occupiedPort
+  const foreignServer = http.createServer((_, res) => {
+    res.writeHead(200, { 'content-type': 'text/plain' });
+    res.end('user custom app');
+  });
+  await new Promise<void>((resolve) => foreignServer.listen(occupiedPort, '127.0.0.1', () => resolve()));
+
+  try {
+    fs.writeFileSync(path.join(tmpDir, 'demo.html'), 'fallback demo', 'utf-8');
+
+    // Attempt to bind occupiedPort
+    const portal = await ensurePortalServer(tmpDir, occupiedPort);
+    try {
+      assert.notEqual(portal.port, occupiedPort, 'must NOT hijack foreign occupied port');
+      assert.ok(portal.port > 0, 'assigned fallback port must be positive');
+      assert.ok(portal.url.startsWith(`http://127.0.0.1:${portal.port}/`));
+
+      const res = await httpGet(`${portal.url}demo.html`);
+      assert.equal(res.status, 200);
+      assert.ok(res.body.includes('fallback demo'));
+    } finally {
+      await closeActivePortalServer();
+    }
+  } finally {
+    await new Promise<void>((resolve) => foreignServer.close(() => resolve()));
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 });

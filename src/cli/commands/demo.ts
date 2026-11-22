@@ -52,6 +52,8 @@ export interface DemoCommandOptions {
   noOpen?: boolean;
   open?: boolean;
   lang?: string;
+  /** Port for local HTTP portal server (default: 0 for dynamic/random port). */
+  port?: number | string;
 }
 
 /** Walk up from this module to the package root (works from dist/ and src/). */
@@ -116,7 +118,8 @@ export async function executeDemo(options?: DemoCommandOptions): Promise<number>
   let httpPortalUrl: string | undefined;
   if (!options?.noOpen && options?.open !== false) {
     try {
-      const portal = await ensurePortalServer(viewsDir, 8080);
+      const preferredPort = options?.port !== undefined ? Number(options.port) : 0;
+      const portal = await ensurePortalServer(viewsDir, preferredPort);
       httpPortalUrl = `${portal.url}demo.html`;
     } catch {
       // best-effort fallback if server cannot bind
