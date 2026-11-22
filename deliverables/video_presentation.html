@@ -1213,11 +1213,11 @@
     function simulateDemo1Execution() {
       const log = document.getElementById('d1-term-log');
       log.innerHTML = '<span style="color: #f59e0b;">▶ Launching bash scripts/demo.sh (Act 2 — incident demo)...</span>';
-      setTimeout(() => { log.innerHTML += '<br>[Probe]: Telemetry probe detected 38.5% HTTP 500 error rate.'; }, 600);
-      setTimeout(() => { log.innerHTML += '<br>[Triage]: Inspector agent classified incident as P1 DB pool exhaustion.'; }, 1200);
-      setTimeout(() => { log.innerHTML += '<br>[Plan/Review]: Paired Fixer/Reviewer synthesized validated patch.'; }, 1800);
-      setTimeout(() => { log.innerHTML += '<br><span style="color: #8b5cf6;">[Gate]: curl /healthz returned 200 OK!</span>'; }, 2400);
-      setTimeout(() => { log.innerHTML += '<br><span style="color: #10b981;">[Success]: PostMortem.md exported in ~2s.</span>'; }, 3000);
+      setTimeout(() => { log.innerHTML += '<br>[Probe]: Telemetry probe detected 38.5% HTTP 500 error rate.'; }, 400);
+      setTimeout(() => { log.innerHTML += '<br>[Triage]: Inspector agent classified incident as P1 DB pool exhaustion.'; }, 800);
+      setTimeout(() => { log.innerHTML += '<br>[Plan/Review]: Paired Fixer/Reviewer synthesized validated patch.'; }, 1200);
+      setTimeout(() => { log.innerHTML += '<br><span style="color: #8b5cf6;">[Gate]: curl /healthz returned 200 OK!</span>'; }, 1600);
+      setTimeout(() => { log.innerHTML += '<br><span style="color: #10b981;">[Success]: PostMortem.md exported in ~2s.</span>'; }, 2000);
     }
 
     function showKanbanDrawer() {
