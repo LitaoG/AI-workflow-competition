@@ -4,6 +4,26 @@
 > to this project's own private development repository (the pre-public-history mirror), never
 > third-party code. All engine code in this repository is clean-room original work.
 
+## 2.16.0 (2026-11-22) — Windows-native demo entry, command auto-authorization, mock decoupling & engine hardening
+
+- **fix/dwf (Issue #252, PR #257)**: Engine mock routing decoupling. Dispatched `--mock` provider routing
+  through internal engine options instead of mutating host process environment variables
+  (`process.env.AI_WORKFLOW_MOCK`), eliminating host process side-effects, test pollution, and concurrency leaks.
+- **feat/scripts (Issue #253, #254, #255, PR #258)**: Windows-native nine-act demo runner and git lock guard.
+  Introduced `scripts/demo-nine-acts.mjs` providing native cross-platform execution (`npm run demo:nine-acts`)
+  without bash/WSL dependencies; introduced `scripts/check-git-locks.mjs` (`npm run gate:git-locks`) preventing
+  dangling index lockfile failures; documented automatic tracking for `artifacts/` directories in root README.
+- **fix/dwf (Issue #259, PR #261)**: Visual workflow board lifecycle hardening & cross-platform browser opener.
+  Enforced `AGENTS.md §1.12` and `docs/WORKFLOW.md` requirement that visual boards generate in Phase 0 planning state
+  prior to execution; hardened `openBrowser` with robust platform-aware spawning (modern browser priority on
+  Windows via `rundll32/cmd start`); enhanced test suite cleanup routines.
+- **feat/cli (Issue #260, PR #262)**: Command auto-authorization ergonomics, robust test cleanup, JobGuard status
+  logging & mock schema synthesis. Enabled automatic static command pre-authorization with user guidance for official
+  example scripts (`apps/`) in offline `--mock` mode, removing first-time user friction while preserving live
+  authorization barriers; wrapped sub-application tests in `try...finally` to ensure zero disk/database lock leaks;
+  added Windows JobGuard fallback logging in `workflow probe`; exported `synthesizeMockFromSchema` in `MockProvider`
+  to dynamically synthesize conforming mock objects from JSON schemas.
+
 ## 2.15.0 (2026-11-22) — Professional de-pandering, visual workflow board first & markdown link validation
 
 - **docs/refactor (Issue #245, PR #246)**: Professional de-pandering overhaul. Completely removed
