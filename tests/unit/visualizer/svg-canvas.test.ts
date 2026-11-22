@@ -198,3 +198,24 @@ test('edge status rides the TARGET node status and edge labels survive as titles
   assert.ok(svg.includes('class="edge st-failed"'), 'edge classed by the target status');
   assert.ok(svg.includes('<title>handoff</title>'), 'edge label embedded as a title');
 });
+
+// Issue #265: band rects previously carried no fill (SVG default = black) and
+// no CSS rule anywhere defined .band-bg, so every phase band rendered as an
+// opaque black slab that made the band title and the light-designed node
+// titles (#171717) unreadable. The band must inline its own explicit,
+// light-theme fills (same self-contained paradigm as the node cards).
+test('phase bands carry explicit light-theme fills — never the SVG default black', () => {
+  const svg = renderSvgCanvas(
+    makeGraph([makeNode('a', 'completed')], [], [{ id: 'p1', name: 'Phase One', order: 1 }]),
+  );
+  const bandRect = svg.match(/<rect [^>]*class="band-bg"[^>]*\/>/);
+  assert.ok(bandRect, 'band rect present');
+  assert.match(bandRect[0], /fill="#ffffff"/, 'band fill is the raised white (not the black default)');
+  assert.match(bandRect[0], /fill-opacity="0\.72"/, 'band is a translucent wash, not opaque');
+  assert.match(bandRect[0], /stroke="#e5e5e5"/, 'band carries the AUI border hairline');
+  const bandTitle = svg.match(/<text [^>]*class="band-title"[^>]*>[^<]*<\/text>/);
+  assert.ok(bandTitle, 'band title present');
+  assert.match(bandTitle[0], /fill="#737373"/, 'band title uses the muted ink (readable on the white band)');
+  assert.ok(svg.includes('>Phase One</text>'), 'phase name rendered into the band title');
+  assert.ok(!/class="band-bg"(?![^>]*fill=)/.test(svg), 'no band-bg rect may ship without an explicit fill');
+});
