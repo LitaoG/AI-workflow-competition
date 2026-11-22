@@ -370,6 +370,27 @@ describe('Workflow & Governance Specification Suite Invariant Locks', () => {
     assert.ok(prTemplate.includes('无文档影响'), '.github/PULL_REQUEST_TEMPLATE.md must offer the "无文档影响" declaration path');
   });
 
+  test('Tier 1: Visual Workflow Board First rule must be locked in AGENTS.md, WORKFLOW.md, and SKILL.md', () => {
+    const agentsMd = fs.readFileSync(path.join(REPO_ROOT, 'AGENTS.md'), 'utf-8');
+    const workflowMd = fs.readFileSync(path.join(REPO_ROOT, 'docs/WORKFLOW.md'), 'utf-8');
+    const skillMd = fs.readFileSync(path.join(REPO_ROOT, 'skills/ai-workflow/SKILL.md'), 'utf-8');
+
+    const expectedTokens = [
+      '工作流看板先行',
+      'Visual Workflow Board First',
+      '总揽目标后必建看板再执行',
+      '可视化工作流看板',
+    ];
+
+    for (const token of expectedTokens) {
+      assert.ok(agentsMd.includes(token), `AGENTS.md must include Visual Workflow Board token: "${token}"`);
+      assert.ok(workflowMd.includes(token), `docs/WORKFLOW.md must include Visual Workflow Board token: "${token}"`);
+    }
+
+    assert.ok(skillMd.includes('Visual Workflow Board First'), 'skills/ai-workflow/SKILL.md must mandate Visual Workflow Board First');
+    assert.ok(skillMd.includes('工作流看板先行'), 'skills/ai-workflow/SKILL.md must mandate 工作流看板先行');
+  });
+
   test('Tier 2: Strict exclusion of trading/stock/crypto domain contamination', () => {
     const filesToCheck = [
       'AGENTS.md',
