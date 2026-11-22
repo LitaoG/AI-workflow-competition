@@ -122,6 +122,19 @@ test('#18 ③ buildSandboxChildArgs argv carries the env-resolved heap cap', () 
   });
 });
 
+// Issue #266: run identity rides an optional 6th argv element — legacy calls
+// (no runId) keep the exact 5-element shape, runner spawns append the seed.
+test('#266 buildSandboxChildArgs appends the run identity argv only when provided', () => {
+  const legacy = buildSandboxChildArgs('entry.js', 'script.js', 'args.json');
+  assert.equal(legacy.length, 5, 'legacy argv shape unchanged (no runId element)');
+  assert.equal(legacy[4], '', 'budget slot stays in place');
+  const seeded = buildSandboxChildArgs('entry.js', 'script.js', 'args.json', undefined, undefined, 'dwfrun-abc-123');
+  assert.equal(seeded.length, 6, 'runId appended as argv[5]');
+  assert.equal(seeded[5], 'dwfrun-abc-123');
+  const empty = buildSandboxChildArgs('entry.js', 'script.js', 'args.json', undefined, undefined, '');
+  assert.equal(empty.length, 5, 'an empty runId must not append an empty argv element');
+});
+
 // ------------------------------------------------------------------ ④ commit cap = 1.5 × effective cap
 
 test('#18 ④ the Job Object commit cap derives from the same resolver at 1.5×', () => {

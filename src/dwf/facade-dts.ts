@@ -94,8 +94,10 @@ declare const args: Record<string, unknown>;
 
 /**
  * This run's identity — stamp persistent artifacts and ledger lines with it so the
- * record names the run that produced them. resumedFrom is present when this run
- * amends a prior one (the lineage parent).
+ * record names the run that produced them. id is seeded at boot from the parent's
+ * spawn argv (Issue #266): safe to read at script TOP LEVEL, before any await —
+ * it no longer races the parent's runInfo push. resumedFrom is present when this
+ * run amends a prior one (the lineage parent) and arrives with that push.
  */
 declare const run: { readonly id: string; readonly resumedFrom?: string };
 

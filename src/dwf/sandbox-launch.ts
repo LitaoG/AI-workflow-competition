@@ -55,6 +55,13 @@ export function resolveSandboxMaxOldSpaceMb(explicit: number | undefined): numbe
  * argv — argv dies at Windows' 32,767-character limit; child-main still
  * accepts an inline JSON payload from an older parent).
  *
+ * Issue #266: the run identity rides argv as an optional 6th element — the
+ * parent knows the runId BEFORE spawn, so child-main can seed `__runState.id`
+ * at boot and top-level `run.id` reads never race the asynchronously-pushed
+ * runInfo notify frame. The value is ~25 chars (G4's argv limit does not
+ * apply); omitted for older parents and direct spawns (legacy notify-only
+ * identity path stays intact).
+ *
  * The cap bounds the sandbox heap (GOAL.md process safety): a runaway facade
  * script dies of its own OOM instead of exhausting the host — lifecycle
  * supervision (killTree) bounds WHEN a process dies, the heap cap bounds HOW
@@ -68,15 +75,18 @@ export function buildSandboxChildArgs(
   argsJson: string,
   maxOldSpaceSizeMb?: number,
   budgetTotal?: number,
+  runId?: string,
 ): string[] {
   const cap = resolveSandboxMaxOldSpaceMb(maxOldSpaceSizeMb);
-  return [
+  const argv = [
     `--max-old-space-size=${cap}`,
     childEntry,
     scriptJsPath,
     argsJson,
     budgetTotal === undefined ? '' : String(budgetTotal),
   ];
+  if (typeof runId === 'string' && runId.length > 0) argv.push(runId);
+  return argv;
 }
 
 /** explicit option wins, then AI_WORKFLOW_STALL_MS, then the 90s default. */

@@ -318,7 +318,10 @@ async function runInner(
   // facade script must die of its own OOM instead of exhausting the host.
   // The child receives the args.json PATH (G4 contract above), not the inline
   // JSON — an inline payload re-dies at Windows' 32,767-char argv limit.
-  const childArgs = buildSandboxChildArgs(childEntry, scriptJsPath, argsJsPath, options.sandboxMaxOldSpaceSizeMb, effectiveBudgetTotal);
+  // Issue #266: runId rides argv too (~25 chars, G4 does not apply) — the
+  // child seeds run identity at boot, so top-level `run.id` reads never race
+  // the asynchronously-pushed runInfo notify frame below.
+  const childArgs = buildSandboxChildArgs(childEntry, scriptJsPath, argsJsPath, options.sandboxMaxOldSpaceSizeMb, effectiveBudgetTotal, runId);
   // Supervised spawn (GOAL.md process safety): POSIX process group leader so a
   // tree kill reaches grandchildren; a whitelisted AND value-masked env
   // (buildSandboxEnv) so the caller's shell secrets never reach the sandbox.
