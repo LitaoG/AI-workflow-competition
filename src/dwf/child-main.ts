@@ -79,6 +79,11 @@ const argsArg = process.argv[3] ?? '{}';
 const budgetTotalArg = process.argv[4] ?? '';
 const budgetTotal = Number(budgetTotalArg);
 const seededBudgetTotal = Number.isFinite(budgetTotal) && budgetTotal > 0 ? budgetTotal : null;
+// Issue #266: run identity rides argv[5] — the parent knows the runId before
+// spawn, so seeding it at boot removes the top-level `run.id` race with the
+// asynchronously-pushed runInfo notify frame. Absent (empty) for older
+// parents and direct spawns → identity arrives via the notify, as before.
+const seededRunId = typeof process.argv[5] === 'string' ? process.argv[5] : '';
 // G4: the parent writes args to a file (argv dies at Windows' 32,767-char limit).
 // A bare '{' means an inline JSON payload (older parent) — read it directly.
 const argsJson = argsArg.trimStart().startsWith('{') || argsArg.trimStart().startsWith('[')
@@ -210,6 +215,10 @@ async function main(): Promise<void> {
   const sandbox: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
   sandbox.__argsJson = argsJson;
   sandbox.__budgetTotal = seededBudgetTotal;
+  // Issue #266: run identity seed — a STRING PRIMITIVE (PreSeed discipline:
+  // only strings cross); the BOOTSTRAP captures + deletes it like the other
+  // seeds and initializes __runState.id from it before the script evaluates.
+  sandbox.__runId = seededRunId;
   // Issue #58: this capability is the realm's ONLY outbound channel — the
   // bootstrap captures it as `__out` and every `__emit` frame crosses here —
   // so it must route through the same budget choke point as the host's own

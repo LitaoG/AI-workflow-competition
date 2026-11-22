@@ -17,15 +17,18 @@ export const BOOTSTRAP = `"use strict";
   var __timer = globalThis.__timer;
   var __seedArgsJson = globalThis.__argsJson;
   var __seedBudgetTotal = globalThis.__budgetTotal;
+  var __seedRunId = globalThis.__runId;
   delete globalThis.__send;
   delete globalThis.__timer;
   delete globalThis.__argsJson;
   delete globalThis.__budgetTotal;
+  delete globalThis.__runId;
   if (
     typeof __out !== 'function' ||
     __timer === null || typeof __timer !== 'object' || typeof __timer.start !== 'function' || typeof __timer.clear !== 'function' ||
     typeof __seedArgsJson !== 'string' ||
-    (__seedBudgetTotal !== null && typeof __seedBudgetTotal !== 'number')
+    (__seedBudgetTotal !== null && typeof __seedBudgetTotal !== 'number') ||
+    (__seedRunId !== undefined && typeof __seedRunId !== 'string')
   ) {
     throw new Error('child-main bootstrap: sandbox seed missing');
   }
@@ -74,8 +77,10 @@ export const BOOTSTRAP = `"use strict";
   var __budget = { total: __seedBudgetTotal, spent: 0 };
   /** Branch-level hole parking: how many hole() calls are parked awaiting fills. */
   var __openHoles = 0;
-  /** P3: run identity — frozen object pushed by the parent's runInfo frame. */
-  var __runState = { id: '' };
+  /** P3: run identity — seeded at boot from the parent argv (Issue #266) so
+   *  top-level reads never race the runInfo push; the parent's runInfo frame
+   *  re-affirms id / adds resumedFrom and freezes the object. */
+  var __runState = { id: typeof __seedRunId === 'string' ? __seedRunId : '' };
 
   var __DOMAIN_TAGS = ['CompileError', 'SchemaValidationError', 'SandboxTimeout', 'SandboxSpawnError', 'StorageError', 'ProberError', 'AgentError', 'McpError', 'JournalMismatchError'];
   function __isDomainError(value) {
@@ -729,7 +734,9 @@ export const BOOTSTRAP = `"use strict";
     } else if (frame.t === 'notify' && frame.op === 'budgetSync') {
       if (typeof frame.spent === 'number' && frame.spent >= 0) __budget.spent = frame.spent;
     } else if (frame.t === 'notify' && frame.op === 'runInfo') {
-      __runState.id = String(frame.runId ?? '');
+      // Issue #266: identity may already be seeded from the boot argv — never
+      // overwrite a set id (keeps a late/second push from clobbering it).
+      if (!__runState.id) __runState.id = String(frame.runId ?? '');
       if (frame.resumedFrom) __runState.resumedFrom = String(frame.resumedFrom);
       Object.freeze(__runState); // first push completes run identity — readonly per facade-dts
     }
