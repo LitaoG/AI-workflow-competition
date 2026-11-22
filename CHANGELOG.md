@@ -4,6 +4,25 @@
 > to this project's own private development repository (the pre-public-history mirror), never
 > third-party code. All engine code in this repository is clean-room original work.
 
+## 2.17.0 (2026-11-22) — Visualizer light theme band inline, run.id boot race elimination, DAG phase title wrapping & mock typed ask guard
+
+- **fix/visualizer (Issue #265, PR #268)**: Studio SVG canvas phase bands light-theme inline styles.
+  Inlined missing `.band-bg` white fill (`#ffffff @ 0.72`) and hairline border (`#e5e5e5`) with muted title
+  styling directly onto SVG phase band elements, eliminating opaque black band slabs and unreadable black-on-black titles.
+- **fix/dwf (Issue #266, PR #269)**: Run ID boot-time race condition elimination. Pre-seeded `runId`
+  via `spawn` command arguments (`argv[5]`) into the child sandbox before script evaluation, eliminating the
+  startup timing window where top-level `run.id` evaluations returned an empty string; made `runInfo` notify frame
+  handling idempotent.
+- **feat/dag (Issue #270, PR #271)**: Long phase title wrapping, 3-in-1 light portal and sandbox isolation guide.
+  Enhanced `HTMLRenderer` (`src/dag/html-renderer.ts`) to auto-split long phase titles exceeding column budgets
+  at delimiter boundaries into `<tspan>` two-line layouts, eliminating trailing `...` truncations; documented
+  `P-ENV-6` virtual desktop sandbox isolation and HTTP-first delivery best practices in `docs/AI-PITFALLS.md`.
+- **fix/agent (Issue #267, PR #272)**: MockProvider canned routing disjoint guard for typed asks. Added an
+  overlap guard preventing canned actor responses from shadowing typed ask schema synthesis when top-level
+  keys are completely disjoint (e.g. `board-reviewer` routing to safety JSON against renderable schema), while
+  guaranteeing byte-identical responses for all existing demo canned bodies; documented `P-REV-1` and reinforced
+  `P-TEST-9` test restoration discipline in `docs/AI-PITFALLS.md`.
+
 ## 2.16.0 (2026-11-22) — Windows-native demo entry, command auto-authorization, mock decoupling & engine hardening
 
 - **fix/dwf (Issue #252, PR #257)**: Engine mock routing decoupling. Dispatched `--mock` provider routing

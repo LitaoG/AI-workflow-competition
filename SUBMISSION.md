@@ -169,15 +169,14 @@ Kiro-native wiring: [docs/KIRO_INTEGRATION.md](docs/KIRO_INTEGRATION.md).
 
 ### Reproducible quality-gate fingerprints
 
-All run 2026-11-22 on the **v2.16.0 release tree** (the v2.16.0 release tree,
-folding the #252 mock provider routing decoupling, #253-#255 Windows-native nine-act demo runner
-& git lock guard, #259 visual workflow board first lifecycle hardening, and #260 command
-auto-authorization, robust test cleanup, JobGuard status logging & mock schema synthesis), Windows, Node v26.13.0,
+All run 2026-11-22 on the **v2.17.0 release tree** (the v2.17.0 release tree,
+folding the #265 studio band light styles, #266 run.id boot race fix, #270 DAG phase title
+auto-wrapping & sandbox guide, and #267 mock provider disjoint typed ask guard), Windows, Node v26.13.0,
 from a **fresh build** (fresh-build numbers are what a clean clone reproduces; full context in
 [README](README.md#reproducible-quality-gate-fingerprints)):
 
 ```text
-npm test                                            → 888 tests, 885 pass, 3 skipped, 0 fail
+npm test                                            → 896 tests, 893 pass, 3 skipped, 0 fail
 npm run test:integration (serial)                   → 215 tests, 215 pass, 0 skipped, 0 fail
 npm run test:pbt                                    →  18 tests,  18 pass, 0 fail
 node --experimental-strip-types tests/e2e/runner.ts → 118/118 passed
