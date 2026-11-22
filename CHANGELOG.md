@@ -4,6 +4,25 @@
 > to this project's own private development repository (the pre-public-history mirror), never
 > third-party code. All engine code in this repository is clean-room original work.
 
+## 2.14.0 (2026-11-22) — Dead code sweep, review gate independence & tooling duty split
+
+- **refactor (Issue #234, PR #236)**: full-repository dead code sweep. Removed zero-reference
+  exports, dead utility files, and unused imports validated under compiler and cross-reference
+  checks. Reduces bundled footprint while preserving 100% of the public engine surface.
+- **docs/governance (Issue #237, PR #238)**: Option D closure for single-account review-gate
+  governance (Issue #231). The required status check surfaces the `internalQaCount` in its status
+  description (`§1.9 clean; N internal-QA finding(s) on record`) rather than silently flipping
+  green, honestly disclosing single-account operations to judges; sanitized rot across video recording
+  storyboard and script assets.
+- **fix (Issue #239, PR #241)**: tooling duty split. Fulfills #230 DoD #3 by adding `--no-open` to
+  `npm run demo` in package.json, preventing unexpected browser launches during Golden Path Path B
+  terminal verification, while reserving browser-based Studio canvas launching exclusively for
+  `npm run demo:studio`; locked by governance unit test invariants.
+- **fix/governance (Issue #240, PR #242)**: `authorAssociation` propagation in `scripts/pr_review_gate.mjs`.
+  PR review channels and linked Issue comment channels now preserve `authorAssociation`, preventing
+  OWNER internal QA findings from triggering permanent deadlocks; docs/WORKFLOW.md §7.2 updated with
+  single-account review-gate semantics; video presentation HTML delay chain synchronized to ~2s.
+
 ## 2.13.0 (2026-11-21) — R7 sharp-review fix batch: worldRead fidelity, review-author integrity, self-contained showcase
 
 - **fix (Issue #219, PR #222)**: redaction dual-profile. The engine's journalled worldRead results
