@@ -277,7 +277,7 @@
 - 复发性：G1 反复（churn 两连事故 494ab86 / 2efaa6a+74e13a0 同根因，Issue #60 收录配方；PR #61 合入后监督席证伪其归因，Issue #69② 按实证收窄；**第 3 次（2026-11-21，Issue #168 实施期）：本轮测试改动尚未提交就执行第 7 级还原配方——`git restore tests/` 把未提交的 4 个测试文件改动一并还原丢失，被迫重做。执行顺序必须为「先提交全部改动，再跑还原配方」，否则还原会吞掉本轮未提交的测试产物**）
 - 代价：门禁链或演示跑完后 `git status --porcelain` 非空——`git add -A` 会把运行副产物混入提交；`pr_review_gate.mjs --check-clean` 洁净度门禁假红，阻塞收尾。
 - 根因（实证口径，2026-11-16 收窄）：① `tests/adversarial/fixtures/cli-stress/init-cli/*` 的**被跟踪模板**被对抗套件运行重写（PR #61 初版把 `artifacts/` 归因到 `tests/integration/demo-migration.test.ts` 系误报——该测试自述 mock 下从不写跟踪目录，`git grep -nE "artifacts/" -- tests/ scripts/` 仅注释命中，监督席逐行证伪）；② 手工演示链（`bash scripts/demo.sh` 等，不在门禁链内）重写 `artifacts/` 看板与 DAG 产物；③ 历史脏源 `tests/unit/cli.test.ts`（写 `tests/unit/fixtures/`）与 adversarial stress 临时目录已由 PR #55 根因修复（改写 `os.tmpdir()`）。
-- 正确做法：**门禁链跑完、提交与发起 PR 前，无条件执行还原配方**：`git restore tests/ artifacts/`，随后 `git status --porcelain` 核对为空；配方写入 `docs/WORKFLOW.md` §4 第 7 级与 AGENTS.md §四 第 7 步，**必须先于 `--check-clean`（第 8 级/第 8 步）执行——顺序倒置会使第 7 级必红、洁净门永远轮不到（Issue #69①）**。
+- 正确做法：**门禁链跑完、提交与发起 PR 前，无条件执行还原配方**：`git restore tests/ artifacts/`，随后 `git status --porcelain` 核对为空；**特别警示**：第 7 级还原配方必须在【本轮所有测试与代码改动均已 git add / git commit】之后方可执行，严禁在未提交测试改动前执行，否则会直接覆盖抹除新写的测试源码；配方写入 `docs/WORKFLOW.md` §4 第 7 级与 AGENTS.md §四 第 7 步，**必须先于 `--check-clean`（第 8 级/第 8 步）执行——顺序倒置会使第 7 级必红、洁净门永远轮不到（Issue #69①）**。
 - 门禁：`scripts/pr_review_gate.mjs --check-clean`（工作区洁净度机械检查）；还原时机为宿主级纪律。
 - 原位置：Issue #60（配方文档化）、Issue #69②（归因收窄与顺序修正）、AGENTS.md §四 第 7/8 步。
 
@@ -296,4 +296,12 @@
 - 正确做法：**开工即起本地 HTTP 监听服务 + 首屏主动直出可点击 HTTP 链接（`http://127.0.0.1:8080/...`）+ 会话内 Webview 看板先行**：① `http://` 网络协议受操作系统保护，100% 触发系统默认浏览器渲染 DOM/SVG，绝不展示为代码；② 沙箱虽然物理跨桌面弹窗受阻，但允许监听本地回环网络端口，用户物理桌面点击 HTTP 链接可无缝穿透沙箱隔离；③ 在三合一门户（`index.html`）中提供顶栏轻量切换（工作流看板 / DAG 拓扑 / Studio 视图），实现跨 Harness（Antigravity / ZCode / Claude Code / Codex）统一交付。
 - 门禁：`tests/unit/dag-html-renderer.test.ts`（(g-5) 长 Phase 标题自适应折行）、`tests/unit/workflow-governance.test.ts`。已修 + 门禁（Issue #270）。
 - 原位置：Issue #270、`src/dag/html-renderer.ts`。
+
+#### P-REV-1 gh CLI 对 PR 审查行间评论（Inline Review Comment）回复的非直觉性与静默失败
+- 复发性：G2 单次高代价（PR 审查收尾时，试图通过 `gh inline --comment` 或 `gh pr review --comment` 进行行间审查答复，因 gh CLI 缺乏该原生子命令或参数解析偏差导致答复静默失败或被吞，未能在评论串留下有效回音）
+- 代价：§1.9「必回一条回音」三态交代未真实写入 GitHub Review Thread，导致 `review-gate-comments` 或审查门禁误判为未交代，阻塞 PR 合入；或在终端显示 exit 0 但远端评论串未见任何回复。
+- 根因：GitHub 数据模型中，行间审查评论（Pull Request Review Comments，`/pulls/{pr}/comments`）与 PR 对话主线评论（Issue Comments，`/issues/{pr}/comments`）是两套独立的 API；`gh pr comment` 默认只发往主线 Issue Comments。若试图对特定行间 Review Comment 回复，必须使用 `gh api repos/:owner/:repo/pulls/comments/{comment_id}/replies -f body="..."`，或直接通过 `gh pr comment <pr> --body "..."` 在主线显式引用回复；严禁臆造 `gh inline` 等虚构命令。
+- 正确做法：① 在 PR 审查回复时，优先在 PR 主时间线上使用 `gh pr comment <pr> --body "@reviewer [标明引用/位置] ..."` 明确留下三态交代；② 若需精准回复特定行间评论，调用官方 REST 接口 `gh api repos/{owner}/{repo}/pulls/comments/{comment_id}/replies -f body="..."`，并检查返回值中的 `id` 确认落盘；③ 严禁使用未经验证的 `gh inline` 或无 body 的 `--comment` 参数。
+- 门禁：`tests/unit/workflow-governance.test.ts`、`scripts/pr_review_gate.mjs`。
+- 原位置：AGENTS.md §1.9、docs/WORKFLOW.md §7.2。
 

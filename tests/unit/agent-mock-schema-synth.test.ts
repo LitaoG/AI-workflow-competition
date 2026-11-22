@@ -93,6 +93,74 @@ test('MockProvider: synthesizeMockFromSchema supports complex nested objects and
   assert.ok(parsed.success, `Zod validation failed: ${JSON.stringify(parsed)}`);
 });
 
+// Issue #267: canned actor/keyword routing must not shadow typed asks. Live
+// observation (run dwfrun-mwrsjrih-fd97a0): actor "board-reviewer" routed to
+// safetyJson() whose keys are completely disjoint from the asked schema — the
+// ask failed schema validation 3× and killed the run. The disjoint guard
+// routes such asks to synthesizeMockFromSchema instead.
+test('MockProvider: a typed ask whose canned routing is disjoint from the schema gets schema-synthesized', async () => {
+  const mock = new MockProvider();
+  const boardSchema = {
+    type: 'object',
+    properties: {
+      looksRenderable: { type: 'boolean' },
+      reason: { type: 'string' },
+    },
+    required: ['looksRenderable', 'reason'],
+  };
+  const prompt = `One sentence: is the board renderable?\n\nRespond with a single JSON object matching exactly this schema:\n${JSON.stringify(boardSchema)}`;
+  // "board-reviewer" trips the /reviewer/ canned branch → safetyJson() —
+  // keys (approved, safetyScore, …) are disjoint from the asked schema.
+  const res = await mock.generate({
+    messages: [
+      { role: 'system', content: 'You are specialized agent "board-reviewer".' },
+      { role: 'user', content: prompt },
+    ],
+  });
+  const json = JSON.parse(res.content);
+  assert.equal(typeof json.looksRenderable, 'boolean', 'disjoint canned must be replaced by a schema-shaped object');
+  assert.equal(typeof json.reason, 'string', 'schema-synthesized string field present');
+  assert.ok(!('safetyScore' in json), 'the canned safety body must not survive');
+  const BoardSchema = z.object({ looksRenderable: z.boolean(), reason: z.string() });
+  assert.ok(BoardSchema.safeParse(json).success, 'synthesized body validates against the asked schema');
+});
+
+test('MockProvider: a typed ask whose canned body overlaps the schema keys keeps the canned body verbatim', async () => {
+  const mock = new MockProvider();
+  // "approved" IS a safetyJson() key → overlap → the demo-parity canned body
+  // must survive untouched (byte-identical demo output is a hard constraint).
+  const schema = {
+    type: 'object',
+    properties: {
+      approved: { type: 'boolean' },
+      extraField: { type: 'string' },
+    },
+    required: ['approved', 'extraField'],
+  };
+  const prompt = `Audit this.\n\nRespond with a single JSON object matching exactly this schema:\n${JSON.stringify(schema)}`;
+  const res = await mock.generate({
+    messages: [
+      { role: 'system', content: 'You are specialized agent "board-reviewer".' },
+      { role: 'user', content: prompt },
+    ],
+  });
+  const json = JSON.parse(res.content);
+  assert.equal(json.approved, true, 'canned safety body kept (keys overlap)');
+  assert.equal(json.safetyScore, 0.98, 'canned body is verbatim, not synthesized');
+});
+
+test('MockProvider: an untyped ask keeps the canned routing with no schema probe', async () => {
+  const mock = new MockProvider();
+  const res = await mock.generate({
+    messages: [
+      { role: 'system', content: 'You are specialized agent "board-reviewer".' },
+      { role: 'user', content: 'One sentence: is the board renderable?' },
+    ],
+  });
+  const json = JSON.parse(res.content);
+  assert.equal(json.policyCompliance, 'PASS', 'no schema extracted → canned safety body unchanged');
+});
+
 test('MockProvider: lead-architect with custom schema does not collide with hardcoded planJson', async () => {
   const mock = new MockProvider();
   const customStepSchema = {

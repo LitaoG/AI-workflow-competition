@@ -285,6 +285,30 @@ export class MockProvider implements LLMProvider {
       });
     }
 
+    // Issue #267: the actor/keyword canned routing above must not shadow typed
+    // asks. When the prompt carries an extracted schema and the canned body's
+    // top-level keys are COMPLETELY DISJOINT from the schema properties, the
+    // canned content can never validate (3 repair attempts → run fails —
+    // observed live: actor "board-reviewer" routed to safetyJson() and died
+    // against a {looksRenderable, reason} schema). Demos stay byte-identical:
+    // every demo canned body overlaps its schema keys, so the overlap probe
+    // rescues ONLY disjoint typed asks, which get schema-synthesized.
+    const schemaProps = extractedSchema?.properties as Record<string, unknown> | undefined;
+    if (schemaProps && typeof schemaProps === 'object' && Object.keys(schemaProps).length > 0) {
+      try {
+        const canned: unknown = JSON.parse(content);
+        if (
+          canned !== null && typeof canned === 'object' && !Array.isArray(canned) &&
+          Object.keys(canned).length > 0 &&
+          !Object.keys(canned).some((k) => Object.prototype.hasOwnProperty.call(schemaProps, k))
+        ) {
+          content = JSON.stringify(synthesizeMockFromSchema(extractedSchema as Record<string, unknown>));
+        }
+      } catch {
+        // Non-JSON canned body: leave it for the repair loop exactly as before.
+      }
+    }
+
     return {
       content,
       model: 'mock-claude-3-5-sonnet',
