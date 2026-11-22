@@ -86,7 +86,7 @@ node bin/workflow.js run apps/incident-triage-remediation/facade.workflow.ts \
   --cwd apps/incident-triage-remediation --approve-cmd node --args '{"scenario":"p1_db_pool_exhaustion"}' --resume <runId>
 ```
 
-> **Windows PowerShell 提示**: 在 PowerShell 中，`--args` 后的单引号 JSON 字符串可能需要转义引号（例如 `--args '{\"scenario\":\"p1_db_pool_exhaustion\"}'`），或优先推荐使用 `--set scenario=p1_db_pool_exhaustion` 或 `--args-file <path>` 完全免去 shell 引号转义烦恼。通过 `--approve-cmd node` 预先授权执行检验门所需的 node 命令（符合 Issue #127 安全审计模型）。
+> **Windows PowerShell 提示**: 在 PowerShell 中，`--args` 后的单引号 JSON 字符串可能需要转义引号（例如 `--args '{\"scenario\":\"p1_db_pool_exhaustion\"}'`），或优先推荐使用 `--set scenario=p1_db_pool_exhaustion` 或 `--args-file <path>` 完全免去 shell 引号转义烦恼。通过 `--approve-cmd node` 预先授权执行检验门所需的 node 命令（符合 Issue #127 安全审计模型；在离线 `--mock` 体验下官方示例命令已自动授权，降低初次上手摩擦力）。
 
 ### 1. 在离线模拟模式下运行默认场景 (<2秒极速执行)
 ```bash

@@ -3,7 +3,9 @@
  * journal-backed deterministic replay.
  */
 import * as path from 'node:path';
+import * as fs from 'node:fs';
 import { resolveDwfJournalPath, runFacadeScript } from '../../dwf/runner.js';
+import { analyzeFacadeScript } from '../../dwf/compile.js';
 import { createProgressPrinter } from '../../dwf/progress.js';
 import { printDwfEvent } from '../console-events.js';
 import { resolveLang } from '../i18n/index.js';
@@ -98,6 +100,36 @@ export async function executeRunScript(
   }
 
   const started = Date.now();
+  const approvedCommands = [...(options.approvedCommands ?? options.approveCmd ?? [])];
+  const isOfficialExample =
+    /(?:^|[\\/])apps[\\/]/.test(scriptPath) ||
+    (options.cwd !== undefined && /(?:^|[\\/])apps[\\/]/.test(options.cwd));
+
+  if (options.mock && isOfficialExample) {
+    try {
+      let resolvedScript = path.resolve(options.cwd ?? process.cwd(), scriptPath);
+      if (!fs.existsSync(resolvedScript) && fs.existsSync(path.resolve(process.cwd(), scriptPath))) {
+        resolvedScript = path.resolve(process.cwd(), scriptPath);
+      }
+      if (fs.existsSync(resolvedScript)) {
+        const source = fs.readFileSync(resolvedScript, 'utf8');
+        const analysis = analyzeFacadeScript(source);
+        const unapproved = analysis.commands.filter((cmd) => !approvedCommands.includes(cmd));
+        if (unapproved.length > 0) {
+          approvedCommands.push(...unapproved);
+          if (!options.quiet) {
+            console.log(
+              `[workflow] Info: Auto-authorizing official example command(s) [${unapproved.join(', ')}] ` +
+                'for offline --mock run (pass --approve-cmd <cmd> in live execution).',
+            );
+          }
+        }
+      }
+    } catch {
+      // Non-fatal if script static analysis fails here; runFacadeScript will surface compilation diagnostics
+    }
+  }
+
   let result;
   try {
     result = await runFacadeScript({
@@ -111,7 +143,7 @@ export async function executeRunScript(
       cwd: options.cwd,
       failoverProviders: options.failoverProviders,
       budgetTotal,
-      approvedCommands: options.approvedCommands ?? options.approveCmd,
+      approvedCommands,
       mock: options.mock,
       runTimeoutMs,
       confirmWorldRun: process.stdin.isTTY && process.stdout.isTTY

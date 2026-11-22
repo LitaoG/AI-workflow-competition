@@ -67,7 +67,7 @@ node bin/workflow.js run apps/repo-migration-engine/facade.workflow.ts --cwd app
 node bin/workflow.js run apps/repo-migration-engine/facade.workflow.ts --cwd apps/repo-migration-engine --approve-cmd node --resume <runId>
 ```
 
-> **Windows PowerShell note**: Use `--approve-cmd node` to pre-authorize the sandboxed node command for verification steps (Issue #127 security policy). When passing structured script arguments, prefer `--set key=value` or `--args-file <path>` to bypass PowerShell JSON escaping quirks.
+> **Windows PowerShell note**: Use `--approve-cmd node` to pre-authorize the sandboxed node command for verification steps (Issue #127 security policy; in offline `--mock` mode, official example commands are automatically authorized for low-friction onboarding). When passing structured script arguments, prefer `--set key=value` or `--args-file <path>` to bypass PowerShell JSON escaping quirks.
 
 ### 1. Run Complete Migration in Offline Mock Mode (<4s)
 ```bash

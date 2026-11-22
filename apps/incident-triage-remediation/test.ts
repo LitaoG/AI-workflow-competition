@@ -58,9 +58,15 @@ test('Demo 1 Local Integration Runner: Autonomous DevOps Incident Triage', async
 
     console.log('[Demo 1 Test] All 5 phases and safety checks verified successfully!');
   } finally {
-    store.close();
+    try {
+      store.close();
+    } catch {
+      // Best-effort close
+    }
     try {
       fs.rmSync(tmpDir, { recursive: true, force: true });
-    } catch {}
+    } catch {
+      // Windows file lock delay fallback
+    }
   }
 });

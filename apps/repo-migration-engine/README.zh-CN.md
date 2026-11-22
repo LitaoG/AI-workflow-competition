@@ -67,7 +67,7 @@ node bin/workflow.js run apps/repo-migration-engine/facade.workflow.ts --cwd app
 node bin/workflow.js run apps/repo-migration-engine/facade.workflow.ts --cwd apps/repo-migration-engine --approve-cmd node --resume <runId>
 ```
 
-> **Windows PowerShell 提示**: 使用 `--approve-cmd node` 提前授权沙箱执行验证步骤的 node 命令（符合 Issue #127 安全审计模型）。若需传递结构化参数，优先使用 `--set key=value` 或 `--args-file <path>` 免去 PowerShell 的 JSON 引号转义。
+> **Windows PowerShell 提示**: 使用 `--approve-cmd node` 提前授权沙箱执行验证步骤的 node 命令（符合 Issue #127 安全审计模型；在离线 `--mock` 体验下官方示例命令已自动授权，降低初次上手摩擦力）。若需传递结构化参数，优先使用 `--set key=value` 或 `--args-file <path>` 免去 PowerShell 的 JSON 引号转义。
 
 ### 1. 在离线模拟模式下极速运行全量迁移 (<4秒)
 ```bash

@@ -167,7 +167,7 @@ node bin/workflow.js run-script workflow.ts --args '{"repo":"."}'
 | `--rerun <runId> --from <siteId>` | 同一脚本从指定站点起重新执行：更早站点走暖缓存，该站点起真实执行（站点表见 `workflow check` 输出） |
 | `-c, --max-concurrency <n>` | 子代理 ask 并发上限（显式传入即钉死该值；未配置——选项与环境变量均未设置——时默认取 `min(16, max(2, availableParallelism() - 2))`） |
 | `--budget-total <n>` | 运行的输出 Token 预算（脚本内只读） |
-| `--approve-cmd <name>` | 为本次运行批准一条 `world.run` 命令（可重复；脚本自带清单不再自行授权） |
+| `--approve-cmd <name>` | 为本次运行批准一条 `world.run` 命令（可重复；脚本自带清单不再自行授权；官方示例在 `--mock` 离线体验下自动授权） |
 | `--failover <ids>` | ask 失败时的换道 Provider 链（逗号分隔，如 `mock,gemini-cli`） |
 | `--live <path>` / `--watch-graph` / `--no-watch-graph` / `--ui` | 运行中自刷新 HTML / 每事件重写 run 目录 graph.html（**默认开启**：run 启动即写出全量 pending 计划骨架 `dwf_plan`，随执行实时点亮，冷回放与活跑字节一致，Issue #168）/ 显式关闭 watch 视图 / 落定后启动 Studio 并开浏览器 |
 | `--db <path>` | journal 数据库路径（默认 `.workflow/dwf.sqlite`） |

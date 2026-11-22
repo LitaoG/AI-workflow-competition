@@ -61,9 +61,15 @@ test('Demo 2 Local Integration Runner: Multi-Agent Repo Migration Engine', async
 
     console.log('[Demo 2 Test] All 5 phases, fan-out workers, paired reviews, and PR generation verified!');
   } finally {
-    store.close();
+    try {
+      store.close();
+    } catch {
+      // Best-effort close
+    }
     try {
       fs.rmSync(tmpDir, { recursive: true, force: true });
-    } catch {}
+    } catch {
+      // Windows file lock delay fallback
+    }
   }
 });
