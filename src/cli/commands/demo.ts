@@ -24,6 +24,7 @@ const DEMO_I18N: Record<SupportedLang, Record<string, string>> = {
   en: {
     done: '✔ demo run {id} completed in {s}s (deterministic mock — 0 network calls)',
     result: '  result: ',
+    studioHttp: '  studio (http): ',
     studio: '  studio: ',
     opened: '  opened: ',
     manual: '  open it manually: ',
@@ -34,6 +35,7 @@ const DEMO_I18N: Record<SupportedLang, Record<string, string>> = {
   zh: {
     done: '✔ 演示运行 {id} 已完成，耗时 {s}s（确定性 mock——零网络调用）',
     result: '  结果: ',
+    studioHttp: '  看板 (HTTP): ',
     studio: '  看板: ',
     opened: '  已打开: ',
     manual: '  请手动打开: ',
@@ -43,6 +45,7 @@ const DEMO_I18N: Record<SupportedLang, Record<string, string>> = {
   },
 };
 import { openInBrowser } from './open-browser.js';
+import { ensurePortalServer } from './portal-server.js';
 
 export interface DemoCommandOptions {
   /** Skip raising the default browser. */
@@ -109,14 +112,28 @@ export async function executeDemo(options?: DemoCommandOptions): Promise<number>
   const htmlPath = path.join(viewsDir, 'demo.html');
   fs.writeFileSync(htmlPath, html);
 
+  // Issue #275: Ensure local HTTP portal is active and provide HTTP URL (mandatory HTTP-first)
+  let httpPortalUrl: string | undefined;
+  if (!options?.noOpen && options?.open !== false) {
+    try {
+      const portal = await ensurePortalServer(viewsDir, 8080);
+      httpPortalUrl = `${portal.url}demo.html`;
+    } catch {
+      // best-effort fallback if server cannot bind
+    }
+  }
+
   console.log(T.done.replace('{id}', result.runId).replace('{s}', seconds));
   console.log(`${T.result}${JSON.stringify(result.value)}`);
+  if (httpPortalUrl) {
+    console.log(`${T.studioHttp || '  studio (http): '}${httpPortalUrl}`);
+  }
   console.log(`${T.studio}${htmlPath}`);
 
   if (!options?.noOpen && options?.open !== false) {
-    const url = pathToFileURL(htmlPath).href;
-    if (openInBrowser(url)) console.log(`${T.opened}${url}`);
-    else console.log(`${T.manual}${url}`);
+    const targetUrl = httpPortalUrl ?? pathToFileURL(htmlPath).href;
+    if (openInBrowser(targetUrl)) console.log(`${T.opened}${targetUrl}`);
+    else console.log(`${T.manual}${targetUrl}`);
   }
   console.log(T.next);
   console.log(T.hint1);

@@ -391,6 +391,35 @@ describe('Workflow & Governance Specification Suite Invariant Locks', () => {
     assert.ok(skillMd.includes('工作流看板先行'), 'skills/ai-workflow/SKILL.md must mandate 工作流看板先行');
   });
 
+  test('Tier 1: Mandatory local HTTP server and prohibition of file:// for HTML delivery (Issue #275)', () => {
+    const agentsMd = fs.readFileSync(path.join(REPO_ROOT, 'AGENTS.md'), 'utf-8');
+    const workflowMd = fs.readFileSync(path.join(REPO_ROOT, 'docs/WORKFLOW.md'), 'utf-8');
+    const skillMd = fs.readFileSync(path.join(REPO_ROOT, 'skills/ai-workflow/SKILL.md'), 'utf-8');
+    const pitfallsMd = fs.readFileSync(path.join(REPO_ROOT, 'docs/AI-PITFALLS.md'), 'utf-8');
+
+    // 1. Mandatory HTTP tokens
+    assert.ok(agentsMd.includes('http://127.0.0.1'), 'AGENTS.md must mandate http://127.0.0.1 for workflow boards');
+    assert.ok(workflowMd.includes('http://127.0.0.1'), 'docs/WORKFLOW.md must mandate http://127.0.0.1 for workflow boards');
+    assert.ok(skillMd.includes('http://127.0.0.1'), 'skills/ai-workflow/SKILL.md must mandate http://127.0.0.1 for workflow boards');
+
+    // 2. Explicit prohibition of file:// for HTML dashboard delivery to prevent raw code interception (Issue #275)
+    assert.ok(
+      agentsMd.includes('严禁使用') && agentsMd.includes('file://'),
+      'AGENTS.md must forbid file:// HTML delivery',
+    );
+    assert.ok(
+      workflowMd.includes('严禁使用') && workflowMd.includes('file://'),
+      'docs/WORKFLOW.md must forbid file:// HTML delivery',
+    );
+    assert.ok(
+      skillMd.includes('Strictly Forbidden') || skillMd.includes('NEVER output `file:///`'),
+      'skills/ai-workflow/SKILL.md must forbid file:// HTML delivery',
+    );
+
+    // 3. AI-PITFALLS P-ENV-6 presence
+    assert.ok(pitfallsMd.includes('P-ENV-6'), 'docs/AI-PITFALLS.md must record P-ENV-6');
+  });
+
   test('Tier 1: All internal markdown relative links and anchors must resolve (Issue #249)', () => {
     function getAllMdFiles(dir: string): string[] {
       let results: string[] = [];

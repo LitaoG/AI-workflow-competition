@@ -171,7 +171,7 @@ git worktree add -b feat/issue-<id>-<short-desc> ../AI-workflow-worktrees/issue-
 5. **工作流看板先行**（规则本体见 `AGENTS.md` §1.12）：
    - 在总览用户提出的目标或承接多阶段复杂任务（尤其是调用 `/ai-workflow` 技能）时，**必须先建立可视化工作流看板**（Visual Workflow Board First：总揽目标后必建看板再执行）；
    - **时序严格锁定**：看板必须在准备开始执行具体命令的最初时刻（Phase 0 / Pending 规划态）生成并调起浏览器展示，严禁等到所有流程全部执行完毕才倒推生成一个全绿后验页面；
-   - **交付标准与跨 Harness 健壮性**：① 调起系统默认浏览器弹出真实渲染后的 Studio / DAG 拓扑图 HTML（并打印可点击的绝对文件 URL 或本地 HTTP 实时服务链接，优先推荐以防文本编辑器误开源码），避免被 IDE 截获打开为源码；② 在支持 Generative UI 的环境下嵌入交互式组件；在不支持内嵌 UI 的 Harness（Claude Code / OpenCode / Codex / Terminal）中以浏览器渲染和绝对 URL 为唯一标准，严禁输出未渲染的 ASCII 字符伪代码冒充看板；
+   - **交付标准与跨 Harness 健壮性**：① 强制自动启动或确保本地 HTTP 监听服务（`http://127.0.0.1:8080/` 或分配的动态端口），并在终端/会话中输出且仅输出可直接点击的标准 HTTP 链接，**严禁使用 `file:///` 本地文件协议输出 HTML 看板**（`file:///` 协议必将被 VSCode / Antigravity 拦截并在文本编辑器中展示纯代码，引发高代价展示事故；触发 P-ENV-6 痛点）；同时调起系统默认浏览器弹出真实渲染的三合一门户；② 在支持 Generative UI 的环境下嵌入交互式组件；在不支持内嵌 UI 的 Harness（Claude Code / OpenCode / Codex / Terminal）中以浏览器真实渲染和可点击 `http://127.0.0.1:...` 服务链接为唯一标准，严禁输出未渲染的 ASCII 字符伪代码冒充看板；
    - 严禁跳过看板直接盲目开始执行，后续操作必须严格按照看板中的 Phase / Step 阶段一个个有序推进。
 
 ---
