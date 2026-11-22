@@ -426,12 +426,26 @@ describe('Workflow & Governance Specification Suite Invariant Locks', () => {
     assert.ok(pitfallsMd.includes('P-ENV-4'), 'docs/AI-PITFALLS.md must contain P-ENV-4');
   });
 
-  test('Tier 2: package.json must provide cross-platform demo and demo:nine-acts entries (Issue #179)', () => {
+  test('Tier 2: package.json must provide cross-platform demo, demo:studio and demo:nine-acts entries with split duties (Issue #179, #230, #239)', () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf-8'));
     assert.equal(
       pkg.scripts['demo'],
+      'node bin/workflow.js demo --no-open',
+      'package.json must provide "demo": "node bin/workflow.js demo --no-open" for offline non-interactive demo (Issue #179, #239)',
+    );
+    assert.equal(
+      pkg.scripts['demo:studio'],
       'node bin/workflow.js demo',
-      'package.json must provide "demo": "node bin/workflow.js demo" for cross-platform execution (Issue #179)',
+      'package.json must provide "demo:studio": "node bin/workflow.js demo" for interactive studio demo (Issue #210, #230)',
+    );
+    assert.notEqual(
+      pkg.scripts['demo'],
+      pkg.scripts['demo:studio'],
+      'demo and demo:studio scripts must be split (Issue #230, #239)',
+    );
+    assert.ok(
+      pkg.scripts['demo'].includes('--no-open'),
+      'demo script must contain --no-open (Issue #239)',
     );
     assert.equal(
       pkg.scripts['demo:nine-acts'],
