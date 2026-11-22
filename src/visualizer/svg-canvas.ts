@@ -169,9 +169,16 @@ export function renderSvgCanvas(graph: DAGGraph): string {
   );
 
   for (const band of layout.bands) {
+    // Issue #265: the band rect and title previously carried NO fill — SVG's
+    // default fill is black, so every phase band rendered as an opaque black
+    // slab and both the band title and the light-designed node titles
+    // (#171717) were unreadable on it. Inline the AUI light-theme values
+    // (same paradigm as the node cards' inline fills — the canvas is
+    // self-contained and must not depend on page CSS): raised white band +
+    // hairline border + muted title, per design-system.ts tokens.
     parts.push(
-      `<g class="band"><rect x="${CANVAS_PADDING}" y="${band.y - BAND_TITLE_BASE}" width="${layout.width - CANVAS_PADDING * 2}" height="${BAND_HEIGHT - 16}" rx="10" class="band-bg"/>` +
-        `<text x="${CANVAS_PADDING + 10}" y="${band.y - 6}" class="band-title">${escapeXml(band.name)}</text></g>`,
+      `<g class="band"><rect x="${CANVAS_PADDING}" y="${band.y - BAND_TITLE_BASE}" width="${layout.width - CANVAS_PADDING * 2}" height="${BAND_HEIGHT - 16}" rx="10" class="band-bg" fill="#ffffff" fill-opacity="0.72" stroke="#e5e5e5" stroke-width="1"/>` +
+        `<text x="${CANVAS_PADDING + 10}" y="${band.y - 6}" class="band-title" fill="#737373" font-size="11" font-weight="600">${escapeXml(band.name)}</text></g>`,
     );
   }
 
