@@ -7,7 +7,7 @@
  * and tests observe.
  */
 import { agent } from '../agent/rpc.js';
-import { resolveRoutedProvider } from '../agent/model-router.js';
+import { resolveRoutedProvider, type RouterOptions } from '../agent/model-router.js';
 import { backoffSleep, classifyFailure } from '../agent/attempt-classifier.js';
 import { providerRegistry } from '../agent/provider.js';
 import { RetryOrchestrator } from './retry-orchestrator.js';
@@ -68,6 +68,8 @@ export interface AskExecutionContext {
   stallMs?: number;
   deadlineMs?: number;
   failoverProviders?: string[];
+  /** Per-run tier-routing overrides (Issue #252): --mock dispatches here instead of mutating host process.env. */
+  routerOptions?: RouterOptions;
   /** Issue #37 layer 3: the calling run's identity and concurrency bound —
    *  keys the AIMD growthLimit derivation (registerRunBound on first use). */
   aimdRun?: { runId: string; bound?: number };
@@ -130,6 +132,7 @@ export async function executeAsk(ctx: AskExecutionContext): Promise<unknown> {
     tier: actor.tier,
     hasSchema: schemaJson !== null && schemaJson !== undefined,
     promptLength: prompt.length,
+    options: ctx.routerOptions,
   });
   const failoverChain = buildFailoverChain(routed, ctx.failoverProviders);
 
