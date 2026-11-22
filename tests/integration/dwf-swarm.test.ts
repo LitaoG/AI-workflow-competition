@@ -57,6 +57,28 @@ test('swarm: three tasks over two agents all complete, answers in task order', a
 
 test('swarm: a task whose reply violates the schema fails the run after repair retries', async () => {
   const ws = makeWorkspace();
+  // Issue #267: the mock's canned routing now synthesizes schema-valid bodies
+  // for typed asks whose schema is disjoint from the canned template — a
+  // plain interface over the mock is SATISFIABLE by design, so
+  // "unsatisfiable" is constructed on the provider side: a stub that always
+  // returns schema-violating JSON pins the repair-exhaustion semantics
+  // (run fails after retries, error names the schema contract) independent
+  // of mock canned content.
+  const violator: LLMProvider = {
+    id: 'dwf-swarm-schema-violator',
+    name: 'Schema violator',
+    async generate(request: LLMRequest): Promise<LLMResponse> {
+      return {
+        content: JSON.stringify({ nonsense: true }),
+        model: 'violator-mock',
+        usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+        latencyMs: 0,
+      };
+    },
+  };
+  providerRegistry.register(violator);
+  const previousDefault = 'mock';
+  providerRegistry.setDefault(violator.id);
   try {
     const scriptPath = path.join(ws.dir, 'swarm-bad.facade.ts');
     fs.writeFileSync(scriptPath, `
@@ -69,6 +91,7 @@ interface Answer { verdict: string; score: number; }
     assert.equal(r.status, 'failed', 'an unsatisfiable answer must fail the run');
     assert.match(r.error ?? '', /schema/i, 'the failure names the schema contract');
   } finally {
+    providerRegistry.setDefault(previousDefault);
     ws.cleanup();
   }
 });
