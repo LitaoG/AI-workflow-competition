@@ -289,3 +289,11 @@
 - 门禁：`tests/unit/agent-mock-json-schema.test.ts`（缺必填/enum 越界/类型/嵌套违规必红 + 合规直通/无标记对象/zod 分支零回归）；T1_F1_02（#52）为 e2e 层回归锚点。
 - 原位置：Issue #53（发现与根因）、`src/agent/rpc.ts` mockResponse 快路径。
 
+#### P-ENV-6 Agent 沙箱隐藏虚拟桌面导致外部浏览器弹窗静默失败与 file:// 源码误开
+- 复发性：G2 单次高代价（Issue #270 实测：Windows Agent 终端子进程运行在 `exebox-...` 隔离桌面，`cmd /c start msedge` 返回状态码 0 但物理屏幕零动静；若直接给 `file://` 本地文件链接，Windows 默认常被关联为 VSCode 打开呈现纯源码代码）
+- 代价：工作流看板交付彻底失效，用户屏幕毫无响应且误以为系统死锁；直接打开本地 HTML 被文本编辑器拦截展示为未渲染代码，引发体验严重劣化。
+- 根因：① 现代 Agent 宿主（如 Antigravity / 隔离容器）将终端子进程放置在独立的虚拟桌面（如 `Thread Desktop: 'exebox-...'`），操作系统禁止后台沙箱桌面跨桌面强弹 GUI 窗口至用户的物理交互桌面（`WinSta0\Default`）；② `file:///` 协议受本地宿主机文件扩展名关联影响，若用户将 `.html` 关联给 IDE 则失去浏览器渲染能力。
+- 正确做法：**开工即起本地 HTTP 监听服务 + 首屏主动直出可点击 HTTP 链接（`http://127.0.0.1:8080/...`）+ 会话内 Webview 看板先行**：① `http://` 网络协议受操作系统保护，100% 触发系统默认浏览器渲染 DOM/SVG，绝不展示为代码；② 沙箱虽然物理跨桌面弹窗受阻，但允许监听本地回环网络端口，用户物理桌面点击 HTTP 链接可无缝穿透沙箱隔离；③ 在三合一门户（`index.html`）中提供顶栏轻量切换（工作流看板 / DAG 拓扑 / Studio 视图），实现跨 Harness（Antigravity / ZCode / Claude Code / Codex）统一交付。
+- 门禁：`tests/unit/dag-html-renderer.test.ts`（(g-5) 长 Phase 标题自适应折行）、`tests/unit/workflow-governance.test.ts`。已修 + 门禁（Issue #270）。
+- 原位置：Issue #270、`src/dag/html-renderer.ts`。
+
