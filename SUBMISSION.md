@@ -170,17 +170,10 @@ Kiro-native wiring: [docs/KIRO_INTEGRATION.md](docs/KIRO_INTEGRATION.md).
 
 ### Reproducible quality-gate fingerprints
 
-All run 2026-11-21 on the **v2.13.0 release tree** (main @ `86486f2` — the v2.13.0 release tree,
-with the #228 CLI-approve and #230/#232 CLI graph/list interleaves folded into the release;
-fingerprints measured on this exact tagged tree; base `b9bb498` = the
-R7 sharp-review fix batch tip #225, folding the redaction dual-profile #219/#222 (worldRead
-content fidelity — ADV3 contract intact plus a package.json regression), the review-author
-integrity #220/#223 (closing the #215 supervision-independence hole) and the self-contained
-showcase #224/#225 (Tailwind compiled inline, CDN removed; the fingerprint tree label
-corrected) — on top of the v2.12.0 lineage #209/#213 (native-SigV4 BedrockProvider
-zero-dependency real-model path), #210/#217 (stdlib-AST compile cache) and #211/#218 (judge
-golden-path docs)), Windows, Node v26.13.0, from a **fresh build**
-(fresh-build numbers are what a judge clone reproduces; full context in
+All run 2026-11-22 on the **v2.14.0 release tree** (the v2.14.0 release tree,
+folding the #234/#236 dead-code cleanup, #237/#238 single-account review disclosure, #239/#241
+tooling duty split, and #240/#242 review-gate authorAssociation propagation), Windows, Node v26.13.0,
+from a **fresh build** (fresh-build numbers are what a judge clone reproduces; full context in
 [README](README.md#reproducible-quality-gate-fingerprints)):
 
 ```text
