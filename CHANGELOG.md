@@ -4,6 +4,24 @@
 > to this project's own private development repository (the pre-public-history mirror), never
 > third-party code. All engine code in this repository is clean-room original work.
 
+## 2.15.0 (2026-11-22) — Professional de-pandering, visual workflow board first & markdown link validation
+
+- **docs/refactor (Issue #245, PR #246)**: Professional de-pandering overhaul. Completely removed
+  pandering phrasing and artificial judge-targeted references across sub-applications, Kiro platform
+  integrations, and the presentation showcase; refactored README and developer onboarding around an
+  industry-standard, production-grade quickstart experience.
+- **feat/governance (Issue #247, PR #248)**: Visual Workflow Board First (工作流看板先行) hard discipline.
+  Enshrined AGENTS.md §1.12 requiring agents to first establish and render a visual workflow board
+  (dual-surface: system browser pop-up of Studio/DAG topology HTML and embedded chat interactive board)
+  upon analyzing complex or multi-phase user goals prior to step-by-step execution; synchronized across
+  docs/WORKFLOW.md and skills/ai-workflow/SKILL.md, mechanically locked by governance unit tests.
+- **fix/governance (Issue #249, PR #250)**: Broken compliance anchor resolution & static link validation.
+  Resolved 404 anchor mismatch in SUBMISSION.md line 263 (`README.md#compliance` vs `### Compliance & Security`)
+  by introducing dual-compatibility anchors (`<a id="compliance"></a><a id="compliance--security"></a>`)
+  in README.md and canonical slugs; added Tier 1 automated static scanning in `workflow-governance.test.ts`
+  verifying that 100% of internal relative links and anchors across all 64 markdown files resolve cleanly
+  (test count 45 → 46).
+
 ## 2.14.0 (2026-11-22) — Dead code sweep, review gate independence & tooling duty split
 
 - **refactor (Issue #234, PR #236)**: full-repository dead code sweep. Removed zero-reference
