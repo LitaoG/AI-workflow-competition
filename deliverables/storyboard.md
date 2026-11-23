@@ -1,7 +1,8 @@
 # AI-Workflow: Visual Storyboard & Production Blueprint
 
 **Target Deliverable**: `deliverables/storyboard.md`  
-**Video Specifications**: 1920x1080 Full HD, 60 FPS, 16:9 Aspect Ratio  
+**Video Specifications**: 1920x1080 / 2560x1440 2K QHD, 60 FPS, 16:9 Aspect Ratio  
+**Master Video Deliverable**: [`AI_Workflow_Video.mp4`](AI_Workflow_Video.mp4) (1m 52s Master Cut)  
 **Total Running Time**: Strict 180 seconds (0:00 to 3:00)  
 **Target Category**: AWS Kiroween 2026 Hackathon (Skeleton Crew)  
 **Author**: Litao Gong (龚立涛) | Devpost: `1842043669` | Email: `1842043669@qq.com`  
