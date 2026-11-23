@@ -225,12 +225,12 @@ AI-Workflow provides a first-class root `.kiro/` governance integration:
 All test suites execute offline in deterministic mock mode without API keys. Fresh-build numbers on the current tree:
 
 ```text
-npm test                                            → 896 tests, 893 pass, 3 skipped, 0 fail
+npm test                                            → 905 tests, 902 pass, 3 skipped, 0 fail
 npm run test:integration (serial)                   → 215 tests, 215 pass, 0 skipped, 0 fail
 npm run test:pbt                                    →  18 tests,  18 pass, 0 fail
 node --experimental-strip-types tests/e2e/runner.ts → 118/118 passed
 npm run test:adversarial                            → 198 tests, 198 pass, 0 fail
-npm run test:governance                             →  46 tests,  46 pass, 0 fail
+npm run test:governance                             →  47 tests,  47 pass, 0 fail
 npm run demo:nine-acts                              → ~45s, exit 0, all nine acts OK
 ```
 

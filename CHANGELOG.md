@@ -4,6 +4,19 @@
 > to this project's own private development repository (the pre-public-history mirror), never
 > third-party code. All engine code in this repository is clean-room original work.
 
+## 2.18.0 (2026-11-23) — 工作流看板本地HTTP实时服务交付与英文提示词零中文严格对齐
+
+- **feat/portal (Issue #275, PR #276)**: 工作流看板本地 HTTP 服务实时交付与彻底禁用 file:// 协议。
+  建立本地轻量 HTTP 服务交付机制（默认回环端口 `http://127.0.0.1:8080/`），通过三合一统一门户（`index.html`，
+  支持在工作流 Studio 视图与 DAG 交互拓扑视图间丝滑切换）进行交付，并自动唤起系统默认浏览器访问 HTTP 服务。
+  彻底根除 `file:///` 协议受宿主机 IDE 关联拦截导致在编辑器中误打开纯代码的严重体验事故（规避 P-ENV-6 痛点），
+  并在 `tests/unit/workflow-governance.test.ts` 中建立 Tier 1 治理门禁硬性锁死。
+- **fix/visualizer (Issue #277, PR #278)**: 英文提问下工作流与看板强制全英文对齐，根除中文字符残留与模板混排。
+  全面重构 Studio 模板与 CLI 模板中的硬编码中英文字符（移除如「下载 download」、「提交继续 Submit & Resume」、
+  「耗时」等中英混排），实现双语字典对称化；在规范（`SKILL.md` / `AGENTS.md` / `WORKFLOW.md`）中确立「语言严格对齐
+  与英文提问零中文字符红线」并通过治理门禁硬性锁死；在单元测试中增加英文模式负向汉字断言门禁，并在
+  `docs/AI-PITFALLS.md` 沉淀 P-I18N-1 历史经验。
+
 ## 2.17.0 (2026-11-22) — Visualizer light theme band inline, run.id boot race elimination, DAG phase title wrapping & mock typed ask guard
 
 - **fix/visualizer (Issue #265, PR #268)**: Studio SVG canvas phase bands light-theme inline styles.
