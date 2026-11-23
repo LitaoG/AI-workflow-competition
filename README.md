@@ -8,6 +8,7 @@
 [![Node](https://img.shields.io/badge/node-%3E%3D22-green.svg)](package.json)
 [![CI](https://github.com/LitaoG/AI-workflow-competition/actions/workflows/ci.yml/badge.svg)](https://github.com/LitaoG/AI-workflow-competition/actions/workflows/ci.yml)
 [![Live Showcase](https://img.shields.io/badge/Live%20Showcase-GitHub%20Pages-brightgreen)](https://litaog.github.io/AI-workflow-competition/)
+[![Demo Video](https://img.shields.io/badge/Demo%20Video-2K%20Master%20(1m52s)-blueviolet)](deliverables/AI_Workflow_Video.mp4)
 
 ---
 
