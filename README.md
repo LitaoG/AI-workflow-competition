@@ -8,7 +8,24 @@
 [![Node](https://img.shields.io/badge/node-%3E%3D22-green.svg)](package.json)
 [![CI](https://github.com/LitaoG/AI-workflow-competition/actions/workflows/ci.yml/badge.svg)](https://github.com/LitaoG/AI-workflow-competition/actions/workflows/ci.yml)
 [![Live Showcase](https://img.shields.io/badge/Live%20Showcase-GitHub%20Pages-brightgreen)](https://litaog.github.io/AI-workflow-competition/)
-[![Demo Video](https://img.shields.io/badge/Demo%20Video-2K%20Master%20(1m52s)-blueviolet)](deliverables/AI_Workflow_Video.mp4)
+[![YouTube Demo](https://img.shields.io/badge/YouTube%20Demo-2K%20Master%20(1m52s)-red?logo=youtube)](https://youtu.be/wC9LOjNFfDo)
+[![Local Video](https://img.shields.io/badge/Local%20Deliverable-MP4%20(104MB)-blueviolet)](deliverables/AI_Workflow_Video.mp4)
+
+---
+
+## 🎥 Demonstration Video · 演示视频 (1m 52s)
+
+> **"Code, not conversation" in action** — Watch the full end-to-end multi-agent orchestration demonstration (2K QHD 60FPS, Microsoft Aria Neural Voiceover):
+
+<div align="center">
+  <a href="https://youtu.be/wC9LOjNFfDo" target="_blank" rel="noopener noreferrer">
+    <img src="https://img.youtube.com/vi/wC9LOjNFfDo/maxresdefault.jpg" alt="AI-Workflow 2K Demonstration Video" width="88%" style="border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+  </a>
+  <p>
+    <strong><a href="https://youtu.be/wC9LOjNFfDo" target="_blank" rel="noopener noreferrer">▶ Click to Watch on YouTube (https://youtu.be/wC9LOjNFfDo)</a></strong><br>
+    <em>Local Committed MP4: <a href="deliverables/AI_Workflow_Video.mp4">deliverables/AI_Workflow_Video.mp4</a> · GitHub Release: <a href="https://github.com/LitaoG/AI-workflow-competition/releases/download/v2.18.0/AI_Workflow_Video.mp4">v2.18.0 HD Download</a></em>
+  </p>
+</div>
 
 ---
 
