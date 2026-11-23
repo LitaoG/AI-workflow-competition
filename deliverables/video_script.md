@@ -5,7 +5,7 @@
 **Author**: Litao Gong (龚立涛) | Devpost: `1842043669` | Email: `1842043669@qq.com`  
 **License**: Apache License 2.0  
 **Video Resolution**: 1920x1080 / 2560x1440 (16:9), 60 FPS  
-**Master Video Deliverable**: [`AI_Workflow_Video.mp4`](AI_Workflow_Video.mp4) (1m 52s Master Cut)  
+**Master Video Deliverable**: [`AI_Workflow_Video.mp4`](AI_Workflow_Video.mp4) (1m 52s Master Cut) · **YouTube Stream**: [https://youtu.be/wC9LOjNFfDo](https://youtu.be/wC9LOjNFfDo)  
 **Voiceover Pace**: ~140 words per minute (English, neutral tech narrator)  
 
 ---

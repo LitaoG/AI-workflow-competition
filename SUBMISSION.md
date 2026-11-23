@@ -67,6 +67,7 @@ with zero shared demo logic. Write a new facade script in any domain and the ske
 ## 2. Demo video
 
 🎥 **Official Video Demonstration (Under-2-Minute Master Cut)**:
+- **YouTube Streaming (Immediate Online Playback)**: [https://youtu.be/wC9LOjNFfDo](https://youtu.be/wC9LOjNFfDo)
 - **Repository Deliverable**: [`deliverables/AI_Workflow_Video.mp4`](deliverables/AI_Workflow_Video.mp4)
 - **Direct 2K HD Download**: [AI_Workflow_Video.mp4 (GitHub Releases)](https://github.com/LitaoG/AI-workflow-competition/releases/download/v2.18.0/AI_Workflow_Video.mp4)
 - **Interactive Web Presentation**: [`deliverables/video_presentation.html`](deliverables/video_presentation.html)
